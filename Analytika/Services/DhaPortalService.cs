@@ -343,14 +343,15 @@ public class DhaPortalService : IDhaPortalService
     // Infer transaction type from the file name
     private static string DetermineType(string? fileName)
     {
-        if (string.IsNullOrWhiteSpace(fileName)) return "Unknown";
+        if (string.IsNullOrWhiteSpace(fileName)) return "Claim";
         var fn = fileName.ToLowerInvariant();
+        if (fn.Contains("remit") || fn.StartsWith("ra_") || fn.StartsWith("rem"))
+            return "Remittance";
         if (fn.Contains("claim"))      return "Claim";
-        if (fn.Contains("remit"))      return "Remittance";
         if (fn.Contains("prior") || fn.Contains("auth")) return "Prior Auth";
         if (fn.Contains("person"))     return "Person Register";
         if (fn.Contains("prescrip"))   return "Prescription";
-        return "Claim"; // Default — most common transaction type
+        return "Claim"; // Default
     }
 
     // ── ParseDownloadedFile ────────────────────────────────────────

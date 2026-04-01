@@ -48,15 +48,17 @@ public class ReconciliationService
 
         foreach (var tx in transactions)
         {
-            if (IsClaimFile(tx))
-            {
-                foreach (var c in ParseClaimXml(tx))
-                    claimMap.TryAdd(c.ClaimId, c);
-            }
-            else if (IsRemittanceFile(tx))
+            // Check remittance FIRST — the stored Type column is unreliable (defaults to "Claim")
+            // so we always let XML content decide.
+            if (IsRemittanceFile(tx))
             {
                 foreach (var r in ParseRemittanceXml(tx))
                     remittanceMap.TryAdd(r.ClaimId, r);
+            }
+            else if (IsClaimFile(tx))
+            {
+                foreach (var c in ParseClaimXml(tx))
+                    claimMap.TryAdd(c.ClaimId, c);
             }
         }
 
@@ -118,9 +120,13 @@ public class ReconciliationService
              || tx.FileContentXml.Contains("<Claims>") || tx.FileContentXml.Contains("Claim.Submission")));
 
     private static bool IsRemittanceFile(PortalTransaction tx) =>
-        tx.Type?.Contains("Remittance", StringComparison.OrdinalIgnoreCase) == true
+        // Content check first — stored Type column defaults to "Claim" even for remittance files
+        (tx.FileContentXml != null && (
+            tx.FileContentXml.Contains("<Remittance.Advice") ||
+            tx.FileContentXml.Contains("<Remittance ")))
+        || tx.Type?.Contains("Remittance", StringComparison.OrdinalIgnoreCase) == true
         || tx.FileName?.StartsWith("RMT", StringComparison.OrdinalIgnoreCase) == true
-        || (tx.FileContentXml != null && tx.FileContentXml.Contains("<Remittance"));
+        || tx.FileName?.StartsWith("RA_", StringComparison.OrdinalIgnoreCase) == true;
 
     // ── XML parsers ──────────────────────────────────────────────────
 
@@ -165,8 +171,8 @@ public class ReconciliationService
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
         var header    = doc.Root?.Element("Header");
-        var rootDate  = Val(header, "RemittanceDate", "Date", "TransactionDate")
-                     ?? (doc.Root != null ? Attr(doc.Root, "RemittanceDate", "Date", "TransactionDate") : null);
+        var rootDate  = Val(header, "TransactionDate", "RemittanceDate", "Date")
+                     ?? (doc.Root != null ? Attr(doc.Root, "TransactionDate", "RemittanceDate", "Date") : null);
         var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
                      ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
 
@@ -175,18 +181,37 @@ public class ReconciliationService
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
             if (string.IsNullOrWhiteSpace(claimId)) continue;
 
-            // DHA remittance: <Net> or <Gross> for paid amount
-            decimal.TryParse(Val(el, "Net", "PaidAmount", "Gross", "NetAmount", "Amount", "GrossAmount"),
-                System.Globalization.NumberStyles.Any,
-                System.Globalization.CultureInfo.InvariantCulture, out var paid);
+            // DHA Remittance.Advice: paid amount is the sum of <Activity><PaymentAmount>
+            // Fall back to <Net>, <Gross>, <PaidAmount> for other formats.
+            decimal paid = 0;
+            var activities = el.Elements().Where(e => e.Name.LocalName == "Activity").ToList();
+            if (activities.Count > 0)
+            {
+                foreach (var act in activities)
+                {
+                    if (decimal.TryParse(Val(act, "PaymentAmount", "Net", "PaidAmount", "Amount"),
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out var actPaid))
+                        paid += actPaid;
+                }
+            }
+            else
+            {
+                decimal.TryParse(Val(el, "Net", "PaidAmount", "Gross", "NetAmount", "Amount", "GrossAmount"),
+                    System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out paid);
+            }
+
+            // DHA uses <DateSettlement> as the settlement/remittance date
+            var remitDate = Val(el, "DateSettlement", "RemittanceDate", "Date") ?? rootDate;
 
             yield return new RemittanceEntry
             {
                 ClaimId         = claimId,
                 PaidAmount      = paid,
-                RemittanceDate  = Val(el, "RemittanceDate", "Date") ?? rootDate,
-                PaymentStatus   = Val(el, "Status", "PaymentStatus", "ClaimStatus") ?? "Unknown",
-                Payer           = Val(el, "PayerID", "Payer") ?? rootPayer,
+                RemittanceDate  = remitDate,
+                PaymentStatus   = Val(el, "Status", "PaymentStatus", "ClaimStatus", "Comments") ?? "Unknown",
+                Payer           = Val(el, "IDPayer", "PayerID", "Payer") ?? rootPayer,
                 SourceFileId    = tx.FileId ?? tx.TransactionId
             };
         }
