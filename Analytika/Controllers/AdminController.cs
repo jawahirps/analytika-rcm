@@ -252,6 +252,24 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveCredential(PortalCredentialViewModel vm)
     {
+        // Auto-create facility if user typed a brand-new name
+        if (vm.FacilityId == 0 && !string.IsNullOrWhiteSpace(vm.NewFacilityName))
+        {
+            var facName = vm.NewFacilityName.Trim();
+            var existing = await _db.Facilities.FirstOrDefaultAsync(f => f.Name == facName);
+            if (existing != null)
+            {
+                vm.FacilityId = existing.Id;
+            }
+            else
+            {
+                var newFac = new Facility { Name = facName, IsActive = true };
+                _db.Facilities.Add(newFac);
+                await _db.SaveChangesAsync();
+                vm.FacilityId = newFac.Id;
+            }
+        }
+
         var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(vm.Password));
         if (vm.Id == 0)
         {
@@ -414,7 +432,7 @@ public class AdminController : Controller
         if (file == null || file.Length == 0) { TempData["Error"] = "No file selected."; return RedirectToAction(nameof(Credentials)); }
 
         var facilities = await _db.Facilities.ToListAsync();
-        int added = 0, updated = 0, skipped = 0;
+        int added = 0, updated = 0, skipped = 0, facAdded = 0;
 
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
         var header = await reader.ReadLineAsync(); // skip header
@@ -436,8 +454,17 @@ public class AdminController : Controller
 
             if (string.IsNullOrWhiteSpace(portal) || string.IsNullOrWhiteSpace(username)) { skipped++; continue; }
 
+            // Find facility by name; auto-create if not found
             var facility = facilities.FirstOrDefault(f => f.Name.Equals(facName, StringComparison.OrdinalIgnoreCase));
-            if (facility == null) { skipped++; continue; }
+            if (facility == null)
+            {
+                if (string.IsNullOrWhiteSpace(facName)) { skipped++; continue; }
+                facility = new Facility { Name = facName, IsActive = true };
+                _db.Facilities.Add(facility);
+                await _db.SaveChangesAsync(); // get the new Id
+                facilities.Add(facility);
+                facAdded++;
+            }
 
             var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
 
@@ -467,7 +494,8 @@ public class AdminController : Controller
         }
 
         await _db.SaveChangesAsync();
-        TempData["Success"] = $"Import complete — {added} added, {updated} updated, {skipped} skipped.";
+        var facMsg = facAdded > 0 ? $", {facAdded} new facilit{(facAdded == 1 ? "y" : "ies")} created" : "";
+        TempData["Success"] = $"Import complete — {added} added, {updated} updated, {skipped} skipped{facMsg}.";
         return RedirectToAction(nameof(Credentials));
     }
 

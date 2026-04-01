@@ -40,8 +40,12 @@
 
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Facility</label>
-                            <select asp-for="FacilityId" asp-items="Model.Facilities" class="form-select form-select-sm">
-                                <option value="">— Select Facility —</option>
+                            <select name="FacilityIds" id="fetchFacilitySelect" class="form-select form-select-sm select2-multi" multiple>
+                                @foreach (var f in Model.Facilities)
+                                {
+                                    if (Model.FacilityIds.Contains(int.Parse(f.Value))) { <option value="@f.Value" selected>@f.Text</option> }
+                                    else { <option value="@f.Value">@f.Text</option> }
+                                }
                             </select>
                         </div>
 
@@ -81,25 +85,25 @@
 
                         <div class="mb-3" id="searchOptions" style="display:none;">
                             <label class="form-label small fw-semibold">Direction <span class="text-muted fw-normal">(per DHPO spec)</span></label>
-                            <select asp-for="Direction" class="form-select form-select-sm">
-                                <option value="1">1 — Sent (Outbound)</option>
-                                <option value="2">2 — Received (Inbound)</option>
+                            <select name="Directions" id="directionSelect" class="form-select form-select-sm select2-multi" multiple>
+                                @if (Model.Directions.Contains(1)) { <option value="1" selected>1 — Sent (Outbound)</option> } else { <option value="1">1 — Sent (Outbound)</option> }
+                                @if (Model.Directions.Contains(2)) { <option value="2" selected>2 — Received (Inbound)</option> } else { <option value="2" selected>2 — Received (Inbound)</option> }
                             </select>
                         </div>
 
                         <div class="mb-3" id="txStatusSection" style="display:none;">
                             <label class="form-label small fw-semibold">Transaction Status</label>
-                            <select asp-for="TransactionStatus" class="form-select form-select-sm">
-                                <option value="1">1 — New (not yet downloaded)</option>
-                                <option value="2">2 — Already downloaded</option>
+                            <select name="TransactionStatuses" id="txStatusSelect" class="form-select form-select-sm select2-multi" multiple>
+                                <option value="1" selected>1 — New (not yet downloaded)</option>
+                                <option value="2" selected>2 — Already downloaded</option>
                             </select>
                         </div>
 
                         <div class="mb-3" id="txTypeSection" style="display:none;">
                             <label class="form-label small fw-semibold">Transaction Type <span class="text-muted fw-normal">(portal rejects "all")</span></label>
-                            <select asp-for="TransactionId" class="form-select form-select-sm">
-                                <option value="2">2 — Claim submission</option>
-                                <option value="8">8 — Remittance advice</option>
+                            <select name="TransactionIds" id="txTypeSelect" class="form-select form-select-sm select2-multi" multiple>
+                                <option value="2"  selected>2 — Claim submission</option>
+                                <option value="8"  selected>8 — Remittance advice</option>
                                 <option value="16">16 — Prior Request</option>
                                 <option value="32">32 — Prior Authorization</option>
                             </select>

@@ -67,6 +67,7 @@ public class PortalCredentialViewModel
     public string Portal { get; set; } = string.Empty;
     public string FacilityName { get; set; } = string.Empty;
     public int FacilityId { get; set; }
+    public string? NewFacilityName { get; set; }  // set when user types a brand-new facility
     public string? CredentialName { get; set; }
     public string Username { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty; // plain text for form, encrypted on save

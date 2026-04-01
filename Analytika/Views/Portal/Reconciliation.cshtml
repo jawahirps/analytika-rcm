@@ -31,11 +31,11 @@
             <form method="get" asp-action="Reconciliation" class="row g-2 align-items-end">
                 <div class="col-auto">
                     <label class="form-label">Facility</label>
-                    <select name="facilityId" class="form-select form-select-sm" style="min-width:160px;">
-                        <option value="">All Facilities</option>
+                    <select name="facilityId" id="reconFacilityFilter" class="form-select form-select-sm select2-multi" multiple style="min-width:200px;">
                         @foreach (var f in Model.Facilities)
                         {
-                            <option value="@f.Value" selected="@(f.Value == Model.FacilityId?.ToString() ? "selected" : null)">@f.Text</option>
+                            if (Model.FacilityIds.Contains(int.Parse(f.Value))) { <option value="@f.Value" selected>@f.Text</option> }
+                            else { <option value="@f.Value">@f.Text</option> }
                         }
                     </select>
                 </div>
@@ -58,12 +58,12 @@
                 </div>
                 <div class="col-auto">
                     <label class="form-label">Status</label>
-                    <select name="status" class="form-select form-select-sm">
-                        <option value="">All Statuses</option>
-                        <option value="Paid"     selected="@(Model.StatusFilter == "Paid"     ? "selected" : null)">Paid</option>
-                        <option value="Partial"  selected="@(Model.StatusFilter == "Partial"  ? "selected" : null)">Partial</option>
-                        <option value="Rejected" selected="@(Model.StatusFilter == "Rejected" ? "selected" : null)">Rejected</option>
-                        <option value="Pending"  selected="@(Model.StatusFilter == "Pending"  ? "selected" : null)">Pending</option>
+                    <select name="status" id="reconStatusFilter" class="form-select form-select-sm select2-multi" multiple style="min-width:160px;">
+                        @{ var sf = Model.StatusFilters; }
+                        @if (sf.Contains("Paid"))     { <option value="Paid"     selected>Paid</option>     } else { <option value="Paid">Paid</option>     }
+                        @if (sf.Contains("Partial"))  { <option value="Partial"  selected>Partial</option>  } else { <option value="Partial">Partial</option>  }
+                        @if (sf.Contains("Rejected")) { <option value="Rejected" selected>Rejected</option> } else { <option value="Rejected">Rejected</option> }
+                        @if (sf.Contains("Pending"))  { <option value="Pending"  selected>Pending</option>  } else { <option value="Pending">Pending</option>  }
                     </select>
                 </div>
                 <div class="col-auto">

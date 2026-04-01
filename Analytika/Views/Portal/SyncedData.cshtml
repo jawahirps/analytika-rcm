@@ -32,11 +32,11 @@
                 </div>
                 <div class="col-auto">
                     <label class="form-label">Facility</label>
-                    <select name="facilityId" class="form-select form-select-sm" style="min-width:160px;">
-                        <option value="">All Facilities</option>
+                    <select name="facilityId" id="syncFacilityFilter" class="form-select form-select-sm select2-multi" multiple style="min-width:200px;">
                         @foreach (var f in Model.Facilities)
                         {
-                            <option value="@f.Value" selected="@(f.Value == Model.FacilityId?.ToString() ? "selected" : null)">@f.Text</option>
+                            if (Model.FacilityIds.Contains(int.Parse(f.Value))) { <option value="@f.Value" selected>@f.Text</option> }
+                            else { <option value="@f.Value">@f.Text</option> }
                         }
                     </select>
                 </div>

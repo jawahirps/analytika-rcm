@@ -205,9 +205,52 @@
     @RenderBody()
 </main>
 
-<footer class="analytika-footer">
-    <p>&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</p>
-</footer>
+<!-- ── Live Status Bar — floating pill ──────────────────────────── -->
+<div id="statusBar">
+    <span id="sb-sync" class="sb-chip sb-idle" title="Last sync">
+        <i class="fas fa-circle-check sb-icon"></i>
+        <span id="sb-sync-text">Idle</span>
+    </span>
+
+    <span class="sb-div"></span>
+
+    <span class="sb-chip" title="Records in DB">
+        <i class="fas fa-database sb-icon"></i>
+        <span id="sb-tx">—</span>
+    </span>
+
+    <span class="sb-chip" title="XML files downloaded">
+        <i class="fas fa-file-code sb-icon"></i>
+        <span id="sb-files">—</span>
+    </span>
+
+    <span class="sb-chip" title="Active facilities">
+        <i class="fas fa-hospital sb-icon"></i>
+        <span id="sb-fac">—</span>
+    </span>
+
+    <span class="sb-chip" title="DHA / RHA credentials">
+        <i class="fas fa-key sb-icon"></i>
+        DHA <span id="sb-dha">—</span> &middot; RHA <span id="sb-rha">—</span>
+    </span>
+
+    <span class="sb-div"></span>
+
+    <span class="sb-chip" title="Last sync time">
+        <i class="fas fa-history sb-icon"></i>
+        <span id="sb-lastsync">—</span>
+    </span>
+
+    <span class="sb-chip" title="Logged in as">
+        <i class="fas fa-user sb-icon"></i>
+        <span id="sb-user">—</span>
+    </span>
+
+    <span class="sb-chip sb-clock" title="Current time">
+        <i class="fas fa-clock sb-icon"></i>
+        <span id="sb-time">—</span>
+    </span>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -222,6 +265,56 @@ function clearNotifications() {
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
+
+// ── Live Status Bar ────────────────────────────────────────────
+(function initStatusBar() {
+    const $ = id => document.getElementById(id);
+
+    // Local clock — ticks every second independently of API
+    function tickClock() {
+        const now = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        const t = $('sb-time');
+        if (t) t.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    }
+    setInterval(tickClock, 1000);
+    tickClock();
+
+    function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+
+    function applyStatus(d) {
+        $('sb-tx').textContent    = fmt(d.txCount);
+        $('sb-files').textContent = fmt(d.fileCount);
+        $('sb-fac').textContent   = fmt(d.facCount);
+        $('sb-dha').textContent   = fmt(d.dhaCreds);
+        $('sb-rha').textContent   = fmt(d.rhaCreds);
+        $('sb-user').textContent  = d.user || '—';
+        $('sb-lastsync').textContent = d.lastSyncTime ? d.lastSyncTime : 'Never';
+
+        const syncEl = $('sb-sync');
+        const syncTx = $('sb-sync-text');
+        if (d.lastSyncStatus === 'Success') {
+            syncEl.className  = 'sb-item sb-ok';
+            syncTx.textContent = d.lastSyncPortal + ' · ' + (d.lastSyncOp || 'Sync') + ' ✓';
+        } else if (d.lastSyncStatus) {
+            syncEl.className  = 'sb-item sb-warn';
+            syncTx.textContent = d.lastSyncStatus;
+        } else {
+            syncEl.className  = 'sb-item sb-idle';
+            syncTx.textContent = 'Idle';
+        }
+    }
+
+    async function poll() {
+        try {
+            const r = await fetch('/Portal/StatusBar', { credentials: 'same-origin' });
+            if (r.ok) applyStatus(await r.json());
+        } catch (_) {}
+    }
+
+    poll();                          // immediate on load
+    setInterval(poll, 15000);        // then every 15 s
+})();
 </script>
 </body>
 </html>

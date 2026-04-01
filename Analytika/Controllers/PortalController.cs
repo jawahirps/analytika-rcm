@@ -40,15 +40,16 @@ public class PortalController : Controller
     public async Task<IActionResult> Fetch(PortalFetchViewModel vm)
     {
         var freshVm = await BuildFetchVmAsync();
-        freshVm.Portal = vm.Portal;
-        freshVm.FacilityId = vm.FacilityId;
-        freshVm.Operation = vm.Operation;
-        freshVm.DateFrom = vm.DateFrom;
-        freshVm.DateTo = vm.DateTo;
-        freshVm.SearchText = vm.SearchText;
-        freshVm.TransactionStatus = vm.TransactionStatus;
-        freshVm.Direction = vm.Direction;
-        freshVm.MinRecord = vm.MinRecord;
+        freshVm.Portal      = vm.Portal;
+        freshVm.FacilityIds          = vm.FacilityIds;
+        freshVm.Operation            = vm.Operation;
+        freshVm.DateFrom             = vm.DateFrom;
+        freshVm.DateTo               = vm.DateTo;
+        freshVm.SearchText           = vm.SearchText;
+        freshVm.TransactionStatuses  = vm.TransactionStatuses.Count > 0 ? vm.TransactionStatuses : new() { 1 };
+        freshVm.Directions           = vm.Directions.Count > 0 ? vm.Directions : new() { 2 };
+        freshVm.TransactionIds       = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2 };
+        freshVm.MinRecord            = vm.MinRecord;
         freshVm.MaxRecord = vm.MaxRecord;
         freshVm.FileId = vm.FileId;
 
@@ -450,14 +451,14 @@ public class PortalController : Controller
     // ── Synced Data Browser ─────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> SyncedData(string? portal, int? facilityId, string? dateFrom, string? dateTo, string? search, int page = 1)
+    public async Task<IActionResult> SyncedData(string? portal, List<int>? facilityId, string? dateFrom, string? dateTo, string? search, int page = 1)
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
         var query = _db.PortalTransactions.Include(t => t.Facility).AsQueryable();
 
-        if (!string.IsNullOrEmpty(portal))   query = query.Where(t => t.Portal == portal);
-        if (facilityId.HasValue)              query = query.Where(t => t.FacilityId == facilityId);
+        if (!string.IsNullOrEmpty(portal))              query = query.Where(t => t.Portal == portal);
+        if (facilityId != null && facilityId.Count > 0) query = query.Where(t => facilityId.Contains(t.FacilityId));
         if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
         if (!string.IsNullOrEmpty(dateTo))   query = query.Where(t => string.Compare(t.TransactionDate, dateTo) <= 0);
         if (!string.IsNullOrEmpty(search))
@@ -473,9 +474,9 @@ public class PortalController : Controller
 
         var vm = new SyncedDataViewModel
         {
-            Facilities = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            FacilityId = facilityId,
-            Portal = portal,
+            Facilities  = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityIds = facilityId ?? new(),
+            Portal      = portal,
             DateFrom = dateFrom,
             DateTo = dateTo,
             SearchText = search,
@@ -495,16 +496,16 @@ public class PortalController : Controller
     public async Task<IActionResult> FetchAndSave(PortalFetchViewModel vm)
     {
         var freshVm = await BuildFetchVmAsync();
-        freshVm.Portal            = vm.Portal;
-        freshVm.FacilityId        = vm.FacilityId;
-        freshVm.Operation         = "SearchTransactions";
-        freshVm.DateFrom          = vm.DateFrom;
-        freshVm.DateTo            = vm.DateTo;
-        freshVm.Direction         = vm.Direction;
-        freshVm.TransactionStatus = vm.TransactionStatus;
-        freshVm.TransactionId     = vm.TransactionId > 0 ? vm.TransactionId : 2;
-        freshVm.MinRecord         = vm.MinRecord;
-        freshVm.MaxRecord         = vm.MaxRecord;
+        freshVm.Portal               = vm.Portal;
+        freshVm.FacilityIds          = vm.FacilityIds;
+        freshVm.Operation            = "SearchTransactions";
+        freshVm.DateFrom             = vm.DateFrom;
+        freshVm.DateTo               = vm.DateTo;
+        freshVm.Directions           = vm.Directions.Count > 0 ? vm.Directions : new() { 2 };
+        freshVm.TransactionStatuses  = vm.TransactionStatuses.Count > 0 ? vm.TransactionStatuses : new() { 1, 2 };
+        freshVm.TransactionIds       = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2, 8 };
+        freshVm.MinRecord            = vm.MinRecord;
+        freshVm.MaxRecord            = vm.MaxRecord;
 
         if (vm.FacilityId == null)
         {
@@ -650,7 +651,7 @@ public class PortalController : Controller
     // ── Reconciliation (step 4 of DHA Sync Strategy) ───────────────
 
     [HttpGet]
-    public async Task<IActionResult> Reconciliation(int? facilityId, string? dateFrom, string? dateTo, string? status)
+    public async Task<IActionResult> Reconciliation(List<int>? facilityId, string? dateFrom, string? dateTo, List<string>? status)
     {
         var vm = await _reconciliation.GetReconciliationAsync(facilityId, dateFrom, dateTo, status);
         return View(vm);
@@ -766,6 +767,141 @@ public class PortalController : Controller
             downloaded = lastFiles,
             duplicates = lastDups,
             pending    = 0
+        });
+    }
+
+    // ── Sync All Facilities — 2-year bulk download ──────────────────
+
+    [HttpGet]
+    public async Task SyncAllFacilitiesStream()
+    {
+        var ct = HttpContext.RequestAborted;
+        Response.ContentType = "text/event-stream; charset=utf-8";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+
+        async Task Send(object obj)
+        {
+            if (ct.IsCancellationRequested) return;
+            try { await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct); await Response.Body.FlushAsync(ct); }
+            catch { }
+        }
+
+        var creds = await _db.PortalCredentials
+            .Include(c => c.Facility)
+            .Where(c => c.IsActive && c.Portal == "DHA")
+            .ToListAsync(ct);
+
+        if (!creds.Any())
+        { await Send(new { status = "error", message = "No active DHA credentials found." }); return; }
+
+        var parsedFrom  = DateTime.Today.AddYears(-2);
+        var parsedTo    = DateTime.Today;
+        var txTypes     = new[] { 2, 8, 16, 32 };
+        var txStatuses  = new[] { 1, 2 };
+        var chunks      = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
+
+        int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
+        int facilityIndex = 0;
+
+        await Send(new { status = "start", message = $"Starting sync for {creds.Count} facilities · {parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd}", total = creds.Count, facilityIndex = 0 });
+
+        foreach (var cred in creds)
+        {
+            if (ct.IsCancellationRequested) break;
+            facilityIndex++;
+            var facName = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
+
+            string pwd;
+            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+            catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); continue; }
+
+            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName} — searching…", facilityIndex, facilityName = facName });
+
+            var allRows = new List<PortalFetchResultRow>();
+            foreach (var (cs, ce) in chunks)
+            {
+                if (ct.IsCancellationRequested) break;
+                var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
+                var dhpoTo   = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
+                foreach (var txStatus in txStatuses)
+                foreach (var txType in txTypes)
+                {
+                    var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                    allRows.AddRange(rSent);
+                    allRows.AddRange(rRecv);
+                }
+            }
+
+            var rows  = allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+            grandTotal += rows.Count;
+            await Send(new { status = "facility_found", message = $"[{facName}] {rows.Count} records found — saving…", facilityIndex, facilityName = facName, found = rows.Count, grandTotal });
+
+            if (!rows.Any())
+            { await Send(new { status = "facility_done", message = $"[{facName}] 0 records — nothing to save.", facilityIndex, facilityName = facName, saved = 0, dups = 0 }); continue; }
+
+            int facSaved = 0, facDups = 0, facFiles = 0;
+            var period = parsedFrom.ToString("yyyy-MM");
+
+            await _sync.UpsertDhaTransactionsWithDownloadAsync(
+                rows, cred.Username, pwd, cred.FacilityId, "BulkSave", period, "DHA",
+                onProgress: async (saved, dups, files) =>
+                {
+                    facSaved = saved; facDups = dups; facFiles = files;
+                    await Send(new { status = "processing", facilityIndex, facilityName = facName, saved, dups, files, grandSaved = grandSaved + saved, grandDups = grandDups + dups });
+                });
+
+            grandSaved += facSaved; grandDups += facDups; grandFiles += facFiles;
+
+            _db.PortalFetchLogs.Add(new PortalFetchLog
+            {
+                Portal = "DHA", FacilityId = cred.FacilityId, Operation = "SyncAll2Y",
+                FetchedBy = User.Identity?.Name ?? "system",
+                RecordsFetched = facSaved, Status = "Success",
+                ResponseSummary = $"{facSaved} saved, {facFiles} downloaded, {facDups} duplicates"
+            });
+            await _db.SaveChangesAsync(ct);
+
+            await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} duplicates, {facFiles} files downloaded.", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles });
+        }
+
+        await Send(new { status = "done", message = $"Sync complete — {grandSaved} new records, {grandDups} duplicates, {grandFiles} files across {creds.Count} facilities.", grandTotal, grandSaved, grandDups, grandFiles });
+    }
+
+    // ── Live Status Bar API ────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> StatusBar()
+    {
+        var txCount    = await _db.PortalTransactions.CountAsync();
+        var fileCount  = await _db.PortalTransactions.CountAsync(t => t.FileContentXml != null);
+        var facCount   = await _db.Facilities.CountAsync(f => f.IsActive);
+        var credCount  = await _db.PortalCredentials.CountAsync(c => c.IsActive);
+
+        var lastLog    = await _db.PortalFetchLogs
+            .OrderByDescending(l => l.FetchedAt)
+            .Select(l => new { l.FetchedAt, l.Status, l.Operation, l.Portal })
+            .FirstOrDefaultAsync();
+
+        var dhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "DHA");
+        var rhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "RHA");
+
+        return Json(new
+        {
+            txCount,
+            fileCount,
+            facCount,
+            credCount,
+            dhaCreds,
+            rhaCreds,
+            lastSyncTime    = lastLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+            lastSyncStatus  = lastLog?.Status,
+            lastSyncOp      = lastLog?.Operation,
+            lastSyncPortal  = lastLog?.Portal,
+            serverTime      = DateTime.Now.ToString("HH:mm:ss"),
+            serverDate      = DateTime.Today.ToString("dd MMM yyyy"),
+            user            = User.Identity?.Name ?? "—"
         });
     }
 

@@ -11,13 +11,35 @@
             <h4 class="mb-0 fw-bold" style="color:var(--navy);">Portal Data Sync</h4>
             <small class="text-muted">Fetch 1-year transaction history from DHA / RHA portals and persist to database</small>
         </div>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 flex-wrap">
             <a asp-action="SyncedData" class="btn btn-ghost btn-sm">
                 <i class="fas fa-database me-1"></i> View Synced Data
             </a>
             <a asp-action="Fetch" class="btn btn-ghost btn-sm">
                 <i class="fas fa-bolt me-1"></i> Manual Fetch
             </a>
+            <button id="syncAllBtn" class="btn btn-primary btn-sm" onclick="startSyncAll()">
+                <i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years
+            </button>
+        </div>
+    </div>
+
+    <!-- Sync All Progress Panel (hidden until started) -->
+    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #0d6efd!important;">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
+                    <i class="fas fa-sync fa-spin me-1" id="syncAllSpinner"></i>
+                    Syncing All Facilities — Last 2 Years
+                </h6>
+                <span id="syncAllGrandTotal" class="badge" style="background:#e8f0fe;color:#1a2f6e;font-size:.75rem;"></span>
+            </div>
+            <div class="progress mb-2" style="height:6px;border-radius:4px;">
+                <div id="syncAllProgress" class="progress-bar" style="background:#0d6efd;width:0%;transition:width .4s;"></div>
+            </div>
+            <div id="syncAllLog" style="max-height:260px;overflow-y:auto;font-size:.72rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.8;">
+                <span class="text-muted">Initialising…</span>
+            </div>
         </div>
     </div>
 
@@ -324,6 +346,80 @@
 
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-sync me-1"></i> Sync New Only';
+    }
+
+    // ── Sync All Facilities — 2 Years ──────────────────────────────
+    function startSyncAll() {
+        const btn      = document.getElementById('syncAllBtn');
+        const panel    = document.getElementById('syncAllPanel');
+        const logDiv   = document.getElementById('syncAllLog');
+        const bar      = document.getElementById('syncAllProgress');
+        const grandLbl = document.getElementById('syncAllGrandTotal');
+        const spinner  = document.getElementById('syncAllSpinner');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Syncing…';
+        panel.style.display = 'block';
+        logDiv.innerHTML = '';
+        bar.style.width = '0%';
+        panel.scrollIntoView({ behavior: 'smooth' });
+
+        let totalFacilities = 0, doneFacilities = 0;
+
+        const source = new EventSource('/Portal/SyncAllFacilitiesStream');
+
+        function addLog(msg, color) {
+            const line = document.createElement('div');
+            line.style.color = color || '#333';
+            line.textContent = msg;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        source.onmessage = function(e) {
+            const d = JSON.parse(e.data);
+
+            if (d.status === 'start') {
+                totalFacilities = d.total || 0;
+                addLog(d.message, '#0d6efd');
+            } else if (d.status === 'facility_start') {
+                addLog('▶ ' + d.message, '#555');
+            } else if (d.status === 'facility_found') {
+                addLog('  → Found: ' + d.found + ' records', '#198754');
+                grandLbl.textContent = 'Total found: ' + d.grandTotal;
+            } else if (d.status === 'processing') {
+                grandLbl.textContent = 'Saving… ' + d.grandSaved + ' new, ' + d.grandDups + ' dup';
+            } else if (d.status === 'facility_done') {
+                doneFacilities++;
+                if (totalFacilities > 0) bar.style.width = Math.round((doneFacilities / totalFacilities) * 100) + '%';
+                addLog('  ✓ ' + d.message, '#198754');
+            } else if (d.status === 'warning') {
+                addLog('  ⚠ ' + d.message, '#856404');
+            } else if (d.status === 'error') {
+                addLog('✗ Error: ' + d.message, '#dc3545');
+                source.close();
+                spinner.classList.remove('fa-spin');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
+            } else if (d.status === 'done') {
+                bar.style.width = '100%';
+                addLog('', '');
+                addLog('✅ ' + d.message, '#198754');
+                source.close();
+                spinner.classList.remove('fa-spin');
+                grandLbl.textContent = d.grandSaved + ' new · ' + d.grandDups + ' dup · ' + d.grandFiles + ' files';
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
+            }
+        };
+
+        source.onerror = function() {
+            source.close();
+            addLog('Connection lost or sync complete.', '#6c757d');
+            spinner.classList.remove('fa-spin');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
+        };
     }
 </script>
 }

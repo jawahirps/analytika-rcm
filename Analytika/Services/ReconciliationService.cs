@@ -16,7 +16,7 @@ public class ReconciliationService
     public ReconciliationService(AppDbContext db) => _db = db;
 
     public async Task<ReconciliationViewModel> GetReconciliationAsync(
-        int? facilityId, string? dateFrom, string? dateTo, string? statusFilter)
+        List<int>? facilityIds, string? dateFrom, string? dateTo, List<string>? statusFilters)
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
@@ -24,7 +24,8 @@ public class ReconciliationService
         var query = _db.PortalTransactions
             .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
 
-        if (facilityId.HasValue)              query = query.Where(t => t.FacilityId == facilityId);
+        if (facilityIds != null && facilityIds.Count > 0)
+            query = query.Where(t => facilityIds.Contains(t.FacilityId));
         if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
         if (!string.IsNullOrEmpty(dateTo))   query = query.Where(t => string.Compare(t.TransactionDate, dateTo)   <= 0);
 
@@ -39,8 +40,7 @@ public class ReconciliationService
                 FileContentXml = t.FileContentXml,
                 FacilityId     = t.FacilityId
             })
-            .Take(5000)   // safety cap — 5 000 files max per request
-            .ToListAsync();
+            .ToListAsync();   // no cap — unlimited records
 
         // Parse claims and remittances from XML content
         var claimMap      = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
@@ -82,12 +82,12 @@ public class ReconciliationService
                 PaymentStatus    = status,
                 ClaimFileId      = claim?.SourceFileId,
                 RemittanceFileId = remit?.SourceFileId,
-                FacilityId       = facilityId ?? 0
+                FacilityId       = facilityIds?.Count == 1 ? facilityIds[0] : 0
             });
         }
 
-        if (!string.IsNullOrEmpty(statusFilter))
-            rows = rows.Where(r => r.PaymentStatus == statusFilter).ToList();
+        if (statusFilters != null && statusFilters.Count > 0)
+            rows = rows.Where(r => statusFilters.Contains(r.PaymentStatus)).ToList();
 
         rows = rows.OrderBy(r => r.PaymentStatus == "Rejected" ? 0
                                : r.PaymentStatus == "Partial"  ? 1
@@ -99,12 +99,12 @@ public class ReconciliationService
         return new ReconciliationViewModel
         {
             Facilities    = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            FacilityId    = facilityId,
+            FacilityIds   = facilityIds ?? new(),
+            StatusFilters = statusFilters ?? new(),
             DateFrom      = dateFrom,
             DateTo        = dateTo,
-            StatusFilter  = statusFilter,
             TotalRowCount = rows.Count,
-            Rows          = rows.Take(500).ToList()   // display cap — use filters to drill down
+            Rows          = rows   // unlimited — no display cap
         };
     }
 
