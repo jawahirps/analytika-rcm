@@ -1,0 +1,339 @@
+@model Analytika.Models.ViewModels.ReportSchedulerViewModel
+@{
+    ViewData["Title"] = Model.ReportTitle;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+<style>
+    .page-wrapper { padding: 20px 24px; background: #f5f6fa; min-height: calc(100vh - 120px); }
+    .breadcrumb-bar { margin-bottom: 16px; }
+    .breadcrumb-item a { color: #7b4fd4; text-decoration: none; }
+    .filter-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    .filter-card .card-header { background: linear-gradient(135deg, #1a2f6e, #2541a0); color: white; border-radius: 12px 12px 0 0; padding: 12px 20px; font-weight: 600; }
+    .date-range-btn { border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; margin-right: 6px; border: 1px solid #dee2e6; background: white; cursor: pointer; transition: all 0.2s; }
+    .date-range-btn.active { background: #7b4fd4; color: white; border-color: #7b4fd4; }
+    .table-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+    .table-card .card-header { background: white; border-radius: 12px 12px 0 0; padding: 14px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #1a2f6e; }
+    .table thead th { background: #f8f9fa; font-weight: 600; font-size: 0.82rem; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+    .table tbody td { font-size: 0.83rem; vertical-align: middle; }
+    .report-id-link { color: #28a745; font-weight: 600; text-decoration: none; }
+    .report-id-link:hover { text-decoration: underline; }
+    .status-completed { color: #28a745; font-weight: 600; }
+    .status-pending { color: #ffc107; font-weight: 600; }
+    .status-processing { color: #17a2b8; font-weight: 600; }
+    .status-failed { color: #dc3545; font-weight: 600; }
+    .btn-download { background: #1a6fa3; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: #145a8a; }
+    .pagination-info { font-size: 0.82rem; color: #6c757d; }
+    .custom-date-section { display: none; }
+    .select2-container .select2-selection--multiple { min-height: 38px; }
+    .btn-submit-report { background: linear-gradient(135deg, #1a6fa3, #2541a0); color: white; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 600; }
+    .btn-reset-report { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 8px; }
+</style>
+}
+
+<div class="page-wrapper">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb-bar" aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="RCMDashboard">Report Scheduler</a></li>
+            <li class="breadcrumb-item active">@Model.ReportTitle</li>
+        </ol>
+    </nav>
+
+    <!-- Filter Panel -->
+    <div class="card filter-card">
+        <div class="card-header">
+            <i class="fas fa-filter me-2"></i>@Model.ReportTitle - Filters
+        </div>
+        <div class="card-body p-4">
+            <form asp-controller="ReportScheduler" asp-action="SubmitReport" method="post" id="reportForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="ReportType" value="@Model.ReportType" />
+
+                <!-- Date Range -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Date Range</label>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <button type="button" class="date-range-btn active" data-range="Today" onclick="setDateRange(this, 'Today')">Today</button>
+                        <button type="button" class="date-range-btn" data-range="ThisMonth" onclick="setDateRange(this, 'ThisMonth')">This Month</button>
+                        <button type="button" class="date-range-btn" data-range="LastMonth" onclick="setDateRange(this, 'LastMonth')">Last Month</button>
+                        <button type="button" class="date-range-btn" data-range="Custom" onclick="setDateRange(this, 'Custom')">Custom Date</button>
+                        <input type="hidden" name="DateRange" id="dateRangeInput" value="Today" />
+                    </div>
+                    <div class="custom-date-section row mt-3" id="customDateSection">
+                        <div class="col-md-3">
+                            <label class="form-label">From Date</label>
+                            <input type="text" name="DateFrom" id="dateFrom" class="form-control flatpickr" placeholder="DD/MM/YYYY" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">To Date</label>
+                            <input type="text" name="DateTo" id="dateTo" class="form-control flatpickr" placeholder="DD/MM/YYYY" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Criteria -->
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Search Criteria</label>
+                        <select name="SearchCriteria" class="form-select">
+                            <option value="">-- All --</option>
+                            <option value="EncounterEndDate">Encounter End Date</option>
+                            <option value="EncounterStartDate">Encounter Start Date</option>
+                            <option value="SubmissionDate">Submission Date</option>
+                            <option value="PaymentDate">Payment Date</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Facility</label>
+                        <select name="SelectedFacilities" class="form-select select2-multi" multiple>
+                            @if (Model.Facilities != null)
+                            {
+                                @foreach (SelectListItem item in Model.Facilities)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Receiver</label>
+                        <select name="SelectedReceivers" class="form-select select2-multi" multiple>
+                            @if (Model.Receivers != null)
+                            {
+                                @foreach (SelectListItem item in Model.Receivers)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Payer</label>
+                        <select name="SelectedPayers" class="form-select select2-multi" multiple>
+                            @if (Model.Payers != null)
+                            {
+                                @foreach (SelectListItem item in Model.Payers)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Clinician</label>
+                        <select name="SelectedClinicians" class="form-select select2-multi" multiple>
+                            @if (Model.Clinicians != null)
+                            {
+                                @foreach (SelectListItem item in Model.Clinicians)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Department</label>
+                        <select name="SelectedDepartments" class="form-select select2-multi" multiple>
+                            @if (Model.Departments != null)
+                            {
+                                @foreach (SelectListItem item in Model.Departments)
+                                {
+                                    <option value="@item.Value">@item.Text</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Encounter Type</label>
+                        <select name="EncounterType" class="form-select">
+                            <option value="">-- All Types --</option>
+                            <option value="Inpatient">Inpatient</option>
+                            <option value="Outpatient">Outpatient</option>
+                            <option value="Emergency">Emergency</option>
+                            <option value="Dental">Dental</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Report Template</label>
+                        <select name="Template" class="form-select">
+                            <option value="Template1">Template 1</option>
+                            <option value="Template2">Template 2</option>
+                            <option value="Template3">Template 3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">File Format</label>
+                        <select name="FileFormat" class="form-select">
+                            <option value="Excel">Excel (.xlsx)</option>
+                            <option value="CSV">CSV (.csv)</option>
+                            <option value="PDF">PDF (.pdf)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-submit-report">
+                        <i class="fas fa-save me-2"></i>Submit
+                    </button>
+                    <button type="button" class="btn btn-reset-report" onclick="resetForm()">
+                        <i class="fas fa-undo me-2"></i>Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reports Table -->
+    <div class="card table-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-table me-2 text-primary"></i>Scheduled Reports</span>
+            <span class="badge bg-primary">@Model.TotalReports items</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Branch</th>
+                            <th>Receiver</th>
+                            <th>Payer</th>
+                            <th>Clinician</th>
+                            <th>Status</th>
+                            <th>Requested Date</th>
+                            <th>Generated On</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RecentReports.Any())
+                        {
+                            @foreach (var report in Model.RecentReports)
+                            {
+                                <tr>
+                                    <td><a href="#" class="report-id-link">@report.ReportId</a></td>
+                                    <td>@(report.Branch?.Name ?? "All")</td>
+                                    <td>@(report.Receiver?.Name ?? "All")</td>
+                                    <td>@(report.Payer?.Name ?? "All")</td>
+                                    <td>@(report.Clinician?.Name ?? "All")</td>
+                                    <td>
+                                        <span class="status-@report.Status.ToLower()">@report.Status</span>
+                                    </td>
+                                    <td>@report.DateFrom.ToString("dd/MM/yyyy") - @report.DateTo.ToString("dd/MM/yyyy")</td>
+                                    <td>@(report.GeneratedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
+                                    <td>
+                                        @if (report.Status == "Completed" && !string.IsNullOrEmpty(report.FilePath))
+                                        {
+                                            <a asp-controller="ReportScheduler" asp-action="Download" asp-route-id="@report.Id"
+                                               class="btn btn-download" title="Download">
+                                                <i class="fas fa-arrow-down"></i>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-download" disabled title="Not available">
+                                                <i class="fas fa-arrow-down"></i>
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="9" class="text-center text-muted py-4">No reports found. Submit a report request to get started.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                <div class="d-flex justify-content-between align-items-center px-3 py-3 border-top">
+                    <span class="pagination-info">Page @Model.CurrentPage of @Model.TotalPages (@Model.TotalReports items)</span>
+                    <nav>
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                                <a class="page-link" href="?page=@(Model.CurrentPage - 1)">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            @for (int i = Math.Max(1, Model.CurrentPage - 2); i <= Math.Min(Model.TotalPages, Model.CurrentPage + 2); i++)
+                            {
+                                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                    <a class="page-link" href="?page=@i">@i</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                                <a class="page-link" href="?page=@(Model.CurrentPage + 1)">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        $('.select2-multi').select2({ placeholder: '-- All --', allowClear: true, width: '100%' });
+        flatpickr('.flatpickr', { dateFormat: 'd/m/Y', allowInput: true });
+    });
+
+    function setDateRange(btn, range) {
+        document.querySelectorAll('.date-range-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('dateRangeInput').value = range;
+
+        var customSection = document.getElementById('customDateSection');
+        if (range === 'Custom') {
+            customSection.style.display = 'flex';
+        } else {
+            customSection.style.display = 'none';
+            var today = new Date();
+            var firstDay, lastDay;
+
+            if (range === 'Today') {
+                firstDay = lastDay = today;
+            } else if (range === 'ThisMonth') {
+                firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+            } else if (range === 'LastMonth') {
+                firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+            }
+
+            document.getElementById('dateFrom').value = formatDate(firstDay);
+            document.getElementById('dateTo').value = formatDate(lastDay);
+        }
+    }
+
+    function formatDate(d) {
+        return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth()+1)).slice(-2) + '/' + d.getFullYear();
+    }
+
+    function resetForm() {
+        document.getElementById('reportForm').reset();
+        $('.select2-multi').val(null).trigger('change');
+        document.querySelectorAll('.date-range-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('[data-range="Today"]').classList.add('active');
+        document.getElementById('dateRangeInput').value = 'Today';
+        document.getElementById('customDateSection').style.display = 'none';
+    }
+</script>
+}

@@ -1,0 +1,16 @@
+services:
+  analytika:
+    build: .
+    ports:
+      - "80:8080"
+    volumes:
+      - analytika-data:/app/data
+      - analytika-downloads:/app/wwwroot/portal-downloads
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DB_DIR=/app/data
+    restart: unless-stopped
+
+volumes:
+  analytika-data:
+  analytika-downloads:

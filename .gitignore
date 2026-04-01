@@ -1,0 +1,8 @@
+Analytika/bin/
+Analytika/obj/
+Analytika/analytika.db
+Analytika/publish/
+Analytika/wwwroot/portal-downloads/
+Analytika/wwwroot/reports/
+.DS_Store
+*.user

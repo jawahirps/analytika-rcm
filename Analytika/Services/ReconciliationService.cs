@@ -1,0 +1,255 @@
+using Analytika.Models;
+using Analytika.Models.ViewModels;
+using Microsoft.EntityFrameworkCore;
+using System.Xml.Linq;
+
+namespace Analytika.Services;
+
+/// <summary>
+/// Reconciles Claim submission files against Remittance advice files
+/// using ClaimID as the common key, per DHA Sync Strategy step 4.
+/// </summary>
+public class ReconciliationService
+{
+    private readonly AppDbContext _db;
+
+    public ReconciliationService(AppDbContext db) => _db = db;
+
+    public async Task<ReconciliationViewModel> GetReconciliationAsync(
+        int? facilityId, string? dateFrom, string? dateTo, string? statusFilter)
+    {
+        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+
+        // Load all DHA transactions that have downloaded XML content
+        var query = _db.PortalTransactions
+            .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
+
+        if (facilityId.HasValue)              query = query.Where(t => t.FacilityId == facilityId);
+        if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
+        if (!string.IsNullOrEmpty(dateTo))   query = query.Where(t => string.Compare(t.TransactionDate, dateTo)   <= 0);
+
+        // Only fetch columns needed for parsing — avoids loading large RawXml into memory
+        var transactions = await query
+            .Select(t => new PortalTransaction
+            {
+                TransactionId  = t.TransactionId,
+                FileId         = t.FileId,
+                Type           = t.Type,
+                FileName       = t.FileName,
+                FileContentXml = t.FileContentXml,
+                FacilityId     = t.FacilityId
+            })
+            .Take(5000)   // safety cap — 5 000 files max per request
+            .ToListAsync();
+
+        // Parse claims and remittances from XML content
+        var claimMap      = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
+        var remittanceMap = new Dictionary<string, RemittanceEntry>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tx in transactions)
+        {
+            if (IsClaimFile(tx))
+            {
+                foreach (var c in ParseClaimXml(tx))
+                    claimMap.TryAdd(c.ClaimId, c);
+            }
+            else if (IsRemittanceFile(tx))
+            {
+                foreach (var r in ParseRemittanceXml(tx))
+                    remittanceMap.TryAdd(r.ClaimId, r);
+            }
+        }
+
+        // Join on ClaimID
+        var allIds = claimMap.Keys.Union(remittanceMap.Keys, StringComparer.OrdinalIgnoreCase).ToList();
+        var rows   = new List<ReconciliationRow>();
+
+        foreach (var id in allIds)
+        {
+            claimMap     .TryGetValue(id, out var claim);
+            remittanceMap.TryGetValue(id, out var remit);
+
+            var status = DetermineStatus(claim, remit);
+
+            rows.Add(new ReconciliationRow
+            {
+                ClaimId          = id,
+                Payer            = claim?.Payer ?? remit?.Payer,
+                ServiceDate      = claim?.ServiceDate,
+                SubmittedAmount  = claim?.SubmittedAmount,
+                RemittanceDate   = remit?.RemittanceDate,
+                PaidAmount       = remit?.PaidAmount,
+                PaymentStatus    = status,
+                ClaimFileId      = claim?.SourceFileId,
+                RemittanceFileId = remit?.SourceFileId,
+                FacilityId       = facilityId ?? 0
+            });
+        }
+
+        if (!string.IsNullOrEmpty(statusFilter))
+            rows = rows.Where(r => r.PaymentStatus == statusFilter).ToList();
+
+        rows = rows.OrderBy(r => r.PaymentStatus == "Rejected" ? 0
+                               : r.PaymentStatus == "Partial"  ? 1
+                               : r.PaymentStatus == "Pending"  ? 2
+                               : 3)
+                   .ThenBy(r => r.ServiceDate)
+                   .ToList();
+
+        return new ReconciliationViewModel
+        {
+            Facilities    = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityId    = facilityId,
+            DateFrom      = dateFrom,
+            DateTo        = dateTo,
+            StatusFilter  = statusFilter,
+            TotalRowCount = rows.Count,
+            Rows          = rows.Take(500).ToList()   // display cap — use filters to drill down
+        };
+    }
+
+    // ── File type detection ──────────────────────────────────────────
+
+    private static bool IsClaimFile(PortalTransaction tx) =>
+        tx.Type?.Contains("Claim", StringComparison.OrdinalIgnoreCase) == true
+        || tx.FileName?.StartsWith("CLM", StringComparison.OrdinalIgnoreCase) == true
+        || (tx.FileContentXml != null
+            && (tx.FileContentXml.Contains("<Claim ") || tx.FileContentXml.Contains("<Claim>")
+             || tx.FileContentXml.Contains("<Claims>") || tx.FileContentXml.Contains("Claim.Submission")));
+
+    private static bool IsRemittanceFile(PortalTransaction tx) =>
+        tx.Type?.Contains("Remittance", StringComparison.OrdinalIgnoreCase) == true
+        || tx.FileName?.StartsWith("RMT", StringComparison.OrdinalIgnoreCase) == true
+        || (tx.FileContentXml != null && tx.FileContentXml.Contains("<Remittance"));
+
+    // ── XML parsers ──────────────────────────────────────────────────
+
+    private static IEnumerable<ClaimEntry> ParseClaimXml(PortalTransaction tx)
+    {
+        if (string.IsNullOrEmpty(tx.FileContentXml)) yield break;
+        XDocument doc;
+        try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
+
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        {
+            // DHA Claim.Submission format uses child elements, not attributes
+            var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
+            if (string.IsNullOrWhiteSpace(claimId)) continue;
+
+            // DHA uses <Gross> for submitted amount; also check <Net>, <TotalAmount>
+            decimal.TryParse(Val(el, "Gross", "GrossAmount", "TotalAmount", "Net", "Amount", "NetAmount"),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var amount);
+
+            // Service date: prefer <Encounter><Start>, else <Start>, else header TransactionDate
+            var serviceDate = el.Element("Encounter")?.Element("Start")?.Value
+                           ?? Val(el, "Start", "ServiceDate", "Date", "EncounterDate");
+            if (string.IsNullOrWhiteSpace(serviceDate))
+                serviceDate = Val(doc.Root?.Element("Header"), "TransactionDate");
+
+            yield return new ClaimEntry
+            {
+                ClaimId         = claimId,
+                Payer           = Val(el, "PayerID", "InsuranceCompanyID", "Payer", "ReceiverID"),
+                ServiceDate     = serviceDate,
+                SubmittedAmount = amount > 0 ? amount : null,
+                SourceFileId    = tx.FileId ?? tx.TransactionId
+            };
+        }
+    }
+
+    private static IEnumerable<RemittanceEntry> ParseRemittanceXml(PortalTransaction tx)
+    {
+        if (string.IsNullOrEmpty(tx.FileContentXml)) yield break;
+        XDocument doc;
+        try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
+
+        var header    = doc.Root?.Element("Header");
+        var rootDate  = Val(header, "RemittanceDate", "Date", "TransactionDate")
+                     ?? (doc.Root != null ? Attr(doc.Root, "RemittanceDate", "Date", "TransactionDate") : null);
+        var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
+                     ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
+
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        {
+            var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
+            if (string.IsNullOrWhiteSpace(claimId)) continue;
+
+            // DHA remittance: <Net> or <Gross> for paid amount
+            decimal.TryParse(Val(el, "Net", "PaidAmount", "Gross", "NetAmount", "Amount", "GrossAmount"),
+                System.Globalization.NumberStyles.Any,
+                System.Globalization.CultureInfo.InvariantCulture, out var paid);
+
+            yield return new RemittanceEntry
+            {
+                ClaimId         = claimId,
+                PaidAmount      = paid,
+                RemittanceDate  = Val(el, "RemittanceDate", "Date") ?? rootDate,
+                PaymentStatus   = Val(el, "Status", "PaymentStatus", "ClaimStatus") ?? "Unknown",
+                Payer           = Val(el, "PayerID", "Payer") ?? rootPayer,
+                SourceFileId    = tx.FileId ?? tx.TransactionId
+            };
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
+
+    /// <summary>Read value from XML attribute (for attribute-based formats).</summary>
+    private static string? Attr(XElement el, params string[] names)
+    {
+        foreach (var n in names)
+        {
+            var v = el.Attribute(n)?.Value;
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        }
+        return null;
+    }
+
+    /// <summary>Read value from direct child element text (for DHA element-based format).</summary>
+    private static string? Val(XElement? el, params string[] names)
+    {
+        if (el == null) return null;
+        foreach (var n in names)
+        {
+            // Check direct child element
+            var v = el.Element(n)?.Value;
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+            // Fallback: check attribute too
+            v = el.Attribute(n)?.Value;
+            if (!string.IsNullOrWhiteSpace(v)) return v;
+        }
+        return null;
+    }
+
+    private static string DetermineStatus(ClaimEntry? claim, RemittanceEntry? remit)
+    {
+        if (remit == null) return "Pending";
+        var paid      = remit.PaidAmount ?? 0;
+        var submitted = claim?.SubmittedAmount ?? 0;
+
+        if (paid <= 0)                                return "Rejected";
+        if (submitted > 0 && paid < submitted - 0.01m) return "Partial";
+        return "Paid";
+    }
+
+    // ── Internal DTOs ─────────────────────────────────────────────────
+
+    private class ClaimEntry
+    {
+        public string ClaimId { get; set; } = string.Empty;
+        public string? Payer { get; set; }
+        public string? ServiceDate { get; set; }
+        public decimal? SubmittedAmount { get; set; }
+        public string? SourceFileId { get; set; }
+    }
+
+    private class RemittanceEntry
+    {
+        public string ClaimId { get; set; } = string.Empty;
+        public decimal? PaidAmount { get; set; }
+        public string? RemittanceDate { get; set; }
+        public string? PaymentStatus { get; set; }
+        public string? Payer { get; set; }
+        public string? SourceFileId { get; set; }
+    }
+}

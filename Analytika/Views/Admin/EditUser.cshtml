@@ -1,0 +1,137 @@
+@model Analytika.Models.ViewModels.EditUserViewModel
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="container-fluid py-4 px-4" style="max-width:900px;">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a asp-action="Users" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:#0d1b3e;">Edit User</h4>
+            <small class="text-muted">@Model.Email</small>
+        </div>
+    </div>
+
+    <form asp-action="EditUser" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Account Details</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Full Name</label>
+                            <input asp-for="FullName" class="form-control" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Email</label>
+                            <input asp-for="Email" class="form-control" readonly style="background:#f8f9fa;" />
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">Role</label>
+                                <select asp-for="Role" asp-items="Model.AvailableRoles" class="form-select"></select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">User Type</label>
+                                <select asp-for="UserType" class="form-select">
+                                    <option value="Global">Global</option>
+                                    <option value="Facility">Facility</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" />
+                            <label asp-for="IsActive" class="form-check-label small">Active</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Facility Access</h6>
+                        @foreach (var f in Model.AvailableFacilities)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="SelectedFacilityIds" value="@f.Value" id="fac_@f.Value"
+                                       @(Model.SelectedFacilityIds.Contains(int.Parse(f.Value)) ? "checked" : "") />
+                                <label class="form-check-label small" for="fac_@f.Value">@f.Text</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;"><i class="fas fa-shield-alt me-2" style="color:#2ec4b6;"></i>Dashboard & Report Access</h6>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <p class="fw-semibold small mb-2">Dashboard Tabs</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var tab in Model.AllDashboardTabs)
+                                    {
+                                        var selected = Model.SelectedDashboards.Contains(tab);
+                                        <label class="access-chip">
+                                            <input type="checkbox" name="SelectedDashboards" value="@tab" class="d-none" @(selected ? "checked" : "") />
+                                            <span class="@(selected ? "chip-on" : "")">@tab</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="fw-semibold small mb-2">Report Types</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var rpt in Model.AllReportTypes)
+                                    {
+                                        var selected = Model.SelectedReports.Contains(rpt);
+                                        <label class="access-chip">
+                                            <input type="checkbox" name="SelectedReports" value="@rpt" class="d-none" @(selected ? "checked" : "") />
+                                            <span class="@(selected ? "chip-on" : "")">@rpt</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 justify-content-end">
+                <a asp-action="Users" class="btn btn-outline-secondary px-4">Cancel</a>
+                <button type="submit" class="btn px-4" style="background:#0d1b3e;color:#fff;border-radius:8px;">
+                    <i class="fas fa-save me-1"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Styles {
+<style>
+.access-chip { cursor:pointer; }
+.access-chip span {
+    display:inline-block; padding:4px 12px; border-radius:20px;
+    font-size:.78rem; border:1.5px solid #dee2e6; background:#f8f9fa;
+    color:#495057; transition:all .15s; user-select:none;
+}
+.access-chip input:checked + span, .access-chip span.chip-on {
+    background:#0d1b3e; color:#fff; border-color:#0d1b3e;
+}
+</style>
+}
+@section Scripts {
+<script>
+document.querySelectorAll('.access-chip input').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        this.nextElementSibling.classList.toggle('chip-on', this.checked);
+    });
+});
+</script>
+}

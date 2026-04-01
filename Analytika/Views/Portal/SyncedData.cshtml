@@ -1,0 +1,219 @@
+@model Analytika.Models.ViewModels.SyncedDataViewModel
+@{
+    ViewData["Title"] = "Synced Transactions";
+}
+
+<div class="container-fluid py-4 px-4">
+
+    <!-- Header -->
+    <div class="page-header mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Synced Transactions</h4>
+            <small class="text-muted">@Model.TotalCount.ToString("N0") records in database</small>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Sync" class="btn btn-primary btn-sm">
+                <i class="fas fa-sync me-1"></i> Run Sync
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3 px-4">
+            <form method="get" asp-action="SyncedData" class="row g-2 align-items-end">
+                <div class="col-auto">
+                    <label class="form-label">Portal</label>
+                    <select name="portal" class="form-select form-select-sm" style="min-width:100px;">
+                        <option value="">All</option>
+                        <option value="DHA" selected="@(Model.Portal == "DHA" ? "selected" : null)">DHA</option>
+                        <option value="RHA" selected="@(Model.Portal == "RHA" ? "selected" : null)">RHA</option>
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">Facility</label>
+                    <select name="facilityId" class="form-select form-select-sm" style="min-width:160px;">
+                        <option value="">All Facilities</option>
+                        @foreach (var f in Model.Facilities)
+                        {
+                            <option value="@f.Value" selected="@(f.Value == Model.FacilityId?.ToString() ? "selected" : null)">@f.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">From</label>
+                    <input type="date" name="dateFrom" value="@Model.DateFrom" class="form-control form-control-sm" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label">To</label>
+                    <input type="date" name="dateTo" value="@Model.DateTo" class="form-control form-control-sm" />
+                </div>
+                <div class="col-auto">
+                    <label class="form-label d-block">&nbsp;</label>
+                    <div class="d-flex gap-1">
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="setSyncedRange(1)">1M</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="setSyncedRange(3)">3M</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="setSyncedRange(6)">6M</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="setSyncedRange(12)">1Y</button>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="setSyncedRange(24)">2Y</button>
+                    </div>
+                </div>
+                <div class="col">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" value="@Model.SearchText" class="form-control form-control-sm" placeholder="Transaction ID, Payer, Status..." />
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    <a asp-action="SyncedData" class="btn btn-ghost btn-sm ms-1">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (!Model.Transactions.Any())
+            {
+                <div class="empty-state">
+                    <i class="fas fa-database"></i>
+                    <p class="fw-semibold mb-1">No records found</p>
+                    <p>Run a sync first, or adjust your filters.</p>
+                    <a asp-action="Sync" class="btn btn-primary btn-sm mt-2">
+                        <i class="fas fa-sync me-1"></i> Go to Sync
+                    </a>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="syncedTable">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Transaction ID</th>
+                                <th>Portal</th>
+                                <th>Facility</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Payer</th>
+                                <th>Amount</th>
+                                <th>Tx Date</th>
+                                <th class="text-center">File</th>
+                                <th class="pe-4">Synced</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var t in Model.Transactions)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-semibold" style="color:var(--navy);font-size:.8rem;">@t.TransactionId</td>
+                                    <td>
+                                        <span class="badge @(t.Portal == "DHA" ? "badge-info" : "badge-emerald")">@t.Portal</span>
+                                    </td>
+                                    <td class="text-muted" style="font-size:.8rem;">@(t.Facility?.Name ?? "—")</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(t.Type) && t.Type != "-")
+                                        { <span class="badge badge-navy">@t.Type</span> }
+                                        else { <span class="text-muted">—</span> }
+                                    </td>
+                                    <td style="font-size:.8rem;">
+                                        @{
+                                            var st = t.Status?.ToLower() ?? "";
+                                            var stClass = st.Contains("complete") || st == "1" ? "success" :
+                                                          st.Contains("reject") || st.Contains("fail") ? "failed" :
+                                                          st.Contains("pend") ? "warning" : "inactive";
+                                        }
+                                        <span class="status-pill @stClass">@(t.Status ?? "—")</span>
+                                    </td>
+                                    <td class="text-muted" style="font-size:.8rem;">@(t.Payer ?? "—")</td>
+                                    <td class="text-muted" style="font-size:.8rem;">@(t.Amount ?? "—")</td>
+                                    <td class="text-muted" style="font-size:.8rem;">@(t.TransactionDate ?? "—")</td>
+                                    <td class="text-center">
+                                        @if (t.FileDownloaded)
+                                        {
+                                            <span class="status-pill success" title="@(t.FileSizeBytes.HasValue ? $"{t.FileSizeBytes:N0} bytes" : "Downloaded")">
+                                                <i class="fas fa-file-code" style="font-size:.6rem;"></i>
+                                                @(t.FileSizeBytes.HasValue ? $"{t.FileSizeBytes / 1024.0:N1}KB" : "OK")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-pill inactive" style="font-size:.68rem;">pending</span>
+                                        }
+                                    </td>
+                                    <td class="pe-4 text-muted" style="font-size:.75rem;">@t.SyncedAt.ToString("dd MMM HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                @if (Model.TotalPages > 1)
+                {
+                    <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top" style="border-color:var(--border-light)!important;">
+                        <small class="text-muted">
+                            Showing @((Model.Page - 1) * Model.PageSize + 1)–@(Math.Min(Model.Page * Model.PageSize, Model.TotalCount)) of @Model.TotalCount.ToString("N0")
+                        </small>
+                        <div class="d-flex gap-1">
+                            @if (Model.Page > 1)
+                            {
+                                <a asp-action="SyncedData"
+                                   asp-route-page="@(Model.Page - 1)"
+                                   asp-route-portal="@Model.Portal"
+                                   asp-route-facilityId="@Model.FacilityId"
+                                   asp-route-dateFrom="@Model.DateFrom"
+                                   asp-route-dateTo="@Model.DateTo"
+                                   asp-route-search="@Model.SearchText"
+                                   class="btn btn-ghost btn-sm">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            }
+                            @for (int p = Math.Max(1, Model.Page - 2); p <= Math.Min(Model.TotalPages, Model.Page + 2); p++)
+                            {
+                                <a asp-action="SyncedData"
+                                   asp-route-page="@p"
+                                   asp-route-portal="@Model.Portal"
+                                   asp-route-facilityId="@Model.FacilityId"
+                                   asp-route-dateFrom="@Model.DateFrom"
+                                   asp-route-dateTo="@Model.DateTo"
+                                   asp-route-search="@Model.SearchText"
+                                   class="btn btn-sm @(p == Model.Page ? "" : "btn-ghost")"
+                                   style="@(p == Model.Page ? "background:var(--navy);color:#fff;" : "")">
+                                    @p
+                                </a>
+                            }
+                            @if (Model.Page < Model.TotalPages)
+                            {
+                                <a asp-action="SyncedData"
+                                   asp-route-page="@(Model.Page + 1)"
+                                   asp-route-portal="@Model.Portal"
+                                   asp-route-facilityId="@Model.FacilityId"
+                                   asp-route-dateFrom="@Model.DateFrom"
+                                   asp-route-dateTo="@Model.DateTo"
+                                   asp-route-search="@Model.SearchText"
+                                   class="btn btn-ghost btn-sm">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function setSyncedRange(months) {
+    const today = new Date();
+    const from  = new Date(today);
+    from.setMonth(from.getMonth() - months);
+    document.querySelector('input[name="dateFrom"]').value = from.toISOString().split('T')[0];
+    document.querySelector('input[name="dateTo"]').value   = today.toISOString().split('T')[0];
+}
+</script>
+}

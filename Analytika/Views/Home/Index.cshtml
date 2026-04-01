@@ -1,0 +1,363 @@
+@model Analytika.Models.ViewModels.LoginViewModel
+@{
+    Layout = null;
+    ViewData["Title"] = "Login";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ghaf Bi Analytix — Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            background: #f8fafc;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Left panel ── */
+        .login-left {
+            width: 40%;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 44px 48px;
+            position: relative;
+            overflow: hidden;
+        }
+        /* Subtle geometric accents */
+        .login-left::before {
+            content: '';
+            position: absolute;
+            width: 380px; height: 380px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.12);
+            bottom: -140px; right: -120px;
+        }
+        .login-left::after {
+            content: '';
+            position: absolute;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.08);
+            top: 40px; right: 40px;
+        }
+        .accent-ring {
+            position: absolute;
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.06);
+            bottom: 120px; left: -50px;
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            z-index: 1;
+        }
+        .brand-icon { width: 42px; height: 42px; }
+        .brand-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.2px;
+            line-height: 1.2;
+        }
+        .brand-sub {
+            font-size: 0.62rem;
+            color: #10b981;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+        .left-tagline {
+            position: relative;
+            z-index: 1;
+        }
+        .left-tagline h2 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.25;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+        }
+        .left-tagline h2 span { color: #10b981; }
+        .left-tagline p {
+            font-size: 0.875rem;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.65;
+        }
+        /* Feature pills */
+        .feature-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
+        }
+        .feature-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 100px;
+            padding: 5px 12px;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .feature-pill i { color: #10b981; font-size: 0.65rem; }
+        .left-footer {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.22);
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ── Right panel ── */
+        .login-right {
+            flex: 1;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px 64px;
+            position: relative;
+        }
+        .login-right-inner { max-width: 380px; }
+
+        .login-right h1 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 6px;
+            letter-spacing: -0.4px;
+        }
+        .login-right .subtitle {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 32px;
+        }
+
+        .form-label {
+            font-size: 0.73rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+        .form-control {
+            font-family: 'Inter', system-ui, sans-serif;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 9px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            color: #0f172a;
+            background: #f8fafc;
+            transition: border-color 0.18s, box-shadow 0.18s;
+        }
+        .form-control:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+            background: #fff;
+            outline: none;
+        }
+        .form-control::placeholder { color: #cbd5e1; }
+        .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
+        .input-group-text {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-left: none;
+            color: #94a3b8;
+            border-radius: 0 9px 9px 0;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: border-color 0.18s;
+        }
+        .input-group:focus-within .input-group-text { border-color: #10b981; }
+        .input-icon {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-right: none;
+            color: #94a3b8;
+            border-radius: 9px 0 0 9px;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.18s;
+        }
+        .input-group:focus-within .input-icon { border-color: #10b981; }
+
+        .btn-signin {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0f172a;
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            padding: 11px 24px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            width: 100%;
+            letter-spacing: 0.1px;
+            transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+            cursor: pointer;
+        }
+        .btn-signin:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(15,23,42,0.2);
+        }
+        .btn-signin:active { transform: translateY(0); }
+
+        .forgot-link {
+            font-size: 0.78rem;
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .forgot-link:hover { text-decoration: underline; }
+
+        .form-check-input:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+
+        .alert-danger {
+            font-size: 0.82rem;
+            border-radius: 9px;
+            background: rgba(239,68,68,0.07);
+            border: none;
+            border-left: 3px solid #ef4444;
+            color: #b91c1c;
+            padding: 10px 14px;
+        }
+        .right-footer {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.72rem;
+            color: #cbd5e1;
+            white-space: nowrap;
+        }
+
+        @@media (max-width: 900px) {
+            .login-left { width: 44%; padding: 40px 36px; }
+        }
+        @@media (max-width: 768px) {
+            .login-left { display: none; }
+            .login-right { padding: 40px 28px; }
+            .login-right-inner { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Brand Panel -->
+    <div class="login-left">
+        <div class="accent-ring"></div>
+
+        <div class="brand-logo">
+            <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="22" cy="22" r="20" stroke="#4ade80" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#4ade80" opacity="0.8"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#4ade80" opacity="0.85"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#4ade80" opacity="0.9"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#4ade80"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#ffffff"/>
+            </svg>
+            <div>
+                <div class="brand-name">Ghaf Bi Analytix</div>
+                <div class="brand-sub">Business Intelligence</div>
+            </div>
+        </div>
+
+        <div class="left-tagline">
+            <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
+            <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
+            <div class="feature-pills">
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+            </div>
+        </div>
+
+        <div class="left-footer">&copy; 2026 Ghaf Bi Solutions. All rights reserved.</div>
+    </div>
+
+    <!-- Right Login Form -->
+    <div class="login-right">
+        <div class="login-right-inner">
+            <h1>Welcome back</h1>
+            <p class="subtitle">Sign in to your Ghaf Bi Analytix account</p>
+
+            <form asp-controller="Home" asp-action="Index" method="post">
+                @Html.AntiForgeryToken()
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger mb-4" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>Invalid email or password.
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label">Email address</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                        <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label asp-for="Password" class="form-label mb-0">Password</label>
+                        <a href="#" class="forgot-link">Forgot password?</a>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-lock"></i></span>
+                        <input asp-for="Password" class="form-control" placeholder="••••••••" autocomplete="current-password" id="pwdInput" />
+                        <span class="input-group-text" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></span>
+                    </div>
+                </div>
+
+                <div class="mb-4 d-flex align-items-center gap-2">
+                    <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
+                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#94a3b8;text-transform:none;letter-spacing:0;">Keep me signed in</label>
+                </div>
+
+                <button type="submit" class="btn-signin">
+                    Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
+    </div>
+
+    <script>
+        function togglePwd() {
+            const input = document.getElementById('pwdInput');
+            const icon = document.getElementById('pwdIcon');
+            input.type = input.type === 'password' ? 'text' : 'password';
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        }
+    </script>
+</body>
+</html>

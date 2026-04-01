@@ -1,0 +1,148 @@
+@model Analytika.Models.ViewModels.CreateUserViewModel
+@{
+    ViewData["Title"] = "Create User";
+}
+
+<div class="container-fluid py-4 px-4" style="max-width:900px;">
+    <div class="d-flex align-items-center gap-3 mb-4">
+        <a asp-action="Users" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:#0d1b3e;">Create User</h4>
+            <small class="text-muted">Add a new global or facility-level user</small>
+        </div>
+    </div>
+
+    <form asp-action="CreateUser" method="post">
+        @Html.AntiForgeryToken()
+        <div class="row g-4">
+            <!-- Left: Account Info -->
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Account Information</h6>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Full Name</label>
+                            <input asp-for="FullName" class="form-control" placeholder="Dr. Ahmed Al Mansoori" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Email Address</label>
+                            <input asp-for="Email" type="email" class="form-control" placeholder="user@facility.ae" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Password</label>
+                            <input asp-for="Password" type="password" class="form-control" placeholder="Min 6 characters" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Confirm Password</label>
+                            <input asp-for="ConfirmPassword" type="password" class="form-control" />
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">Role</label>
+                                <select asp-for="Role" asp-items="Model.AvailableRoles" class="form-select"></select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">User Type</label>
+                                <select asp-for="UserType" class="form-select" id="userTypeSelect">
+                                    <option value="Global">Global</option>
+                                    <option value="Facility">Facility</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Access Control -->
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm mb-4" style="border-radius:12px;" id="facilitySection">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Facility Access</h6>
+                        <p class="text-muted small mb-2">Select facilities this user can access:</p>
+                        @foreach (var f in Model.AvailableFacilities)
+                        {
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="SelectedFacilityIds" value="@f.Value" id="fac_@f.Value" />
+                                <label class="form-check-label small" for="fac_@f.Value">@f.Text</label>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Access -->
+            <div class="col-12">
+                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;"><i class="fas fa-chart-bar me-2" style="color:#2ec4b6;"></i>Dashboard & Report Access</h6>
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <p class="fw-semibold small mb-2">Dashboard Tabs</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var tab in Model.AllDashboardTabs)
+                                    {
+                                        <label class="access-chip">
+                                            <input type="checkbox" name="SelectedDashboards" value="@tab" class="d-none access-check" />
+                                            <span>@tab</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="fw-semibold small mb-2">Report Types</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var rpt in Model.AllReportTypes)
+                                    {
+                                        <label class="access-chip">
+                                            <input type="checkbox" name="SelectedReports" value="@rpt" class="d-none access-check" />
+                                            <span>@rpt</span>
+                                        </label>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 d-flex gap-2 justify-content-end">
+                <a asp-action="Users" class="btn btn-outline-secondary px-4">Cancel</a>
+                <button type="submit" class="btn px-4" style="background:#0d1b3e;color:#fff;border-radius:8px;">
+                    <i class="fas fa-user-plus me-1"></i> Create User
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Styles {
+<style>
+.access-chip { cursor:pointer; }
+.access-chip span {
+    display:inline-block;
+    padding:4px 12px;
+    border-radius:20px;
+    font-size:.78rem;
+    border:1.5px solid #dee2e6;
+    background:#f8f9fa;
+    color:#495057;
+    transition: all .15s;
+    user-select:none;
+}
+.access-chip input:checked + span {
+    background:#0d1b3e;
+    color:#fff;
+    border-color:#0d1b3e;
+}
+</style>
+}
+
+@section Scripts {
+<script>
+document.getElementById('userTypeSelect').addEventListener('change', function() {
+    document.getElementById('facilitySection').style.display = this.value === 'Facility' ? '' : '';
+});
+</script>
+}
