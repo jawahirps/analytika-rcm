@@ -379,6 +379,7 @@
         let lastFacilityEl = null;
 
         const source = new EventSource('/Portal/SyncAllFacilitiesStream');
+        let syncCompleted = false;   // set to true when done/error received
 
         function addLog(msg, color, indent) {
             const line = document.createElement('div');
@@ -423,11 +424,13 @@
                 addLog(`⚠ ${d.message}`, '#856404');
 
             } else if (d.status === 'error') {
+                syncCompleted = true;
                 addLog(`✗ ${d.message}`, '#dc3545');
                 source.close();
                 done();
 
             } else if (d.status === 'done') {
+                syncCompleted = true;
                 setProgress(100);
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#198754');
@@ -440,7 +443,9 @@
 
         source.onerror = function() {
             source.close();
-            addLog('Connection closed.', '#6c757d');
+            if (syncCompleted) return;   // clean close after done — not a real error
+            addLog('⚠ Connection dropped — sync may still be running on the server.', '#856404');
+            addLog('Refresh the page to check current status.', '#6c757d');
             done();
         };
 

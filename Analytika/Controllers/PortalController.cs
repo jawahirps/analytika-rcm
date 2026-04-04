@@ -783,6 +783,27 @@ public class PortalController : Controller
         Response.ContentType = "text/event-stream; charset=utf-8";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
+        // Tell the browser to wait 30 s before attempting to reconnect
+        await Response.WriteAsync("retry: 30000\n\n");
+        await Response.Body.FlushAsync(ct);
+
+        // Heartbeat — prevents proxy/browser from dropping an idle connection
+        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!heartbeatCts.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(20_000, heartbeatCts.Token);
+                    if (heartbeatCts.Token.IsCancellationRequested) break;
+                    // SSE comment line — keeps TCP alive, ignored by onmessage
+                    await Response.WriteAsync(": ping\n\n", heartbeatCts.Token);
+                    await Response.Body.FlushAsync(heartbeatCts.Token);
+                }
+            }
+            catch { }
+        }, heartbeatCts.Token);
 
         async Task Send(object obj)
         {
@@ -887,6 +908,7 @@ public class PortalController : Controller
             await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
         }
 
+        heartbeatCts.Cancel();
         ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
     }
