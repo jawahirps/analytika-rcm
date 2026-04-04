@@ -19,7 +19,7 @@
                 <i class="fas fa-bolt me-1"></i> Manual Fetch
             </a>
             <button id="syncAllBtn" class="btn btn-primary btn-sm" onclick="startSyncAll()">
-                <i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years
+                <i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026
             </button>
         </div>
     </div>
@@ -29,15 +29,22 @@
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
-                    <i class="fas fa-sync fa-spin me-1" id="syncAllSpinner"></i>
-                    Syncing All Facilities — Last 2 Years
+                    <i class="fas fa-calendar-alt fa-spin me-1" id="syncAllSpinner"></i>
+                    Month-wise Sync — Jan 2024 → Today
                 </h6>
                 <span id="syncAllGrandTotal" class="badge" style="background:#e8f0fe;color:#1a2f6e;font-size:.75rem;"></span>
             </div>
-            <div class="progress mb-2" style="height:6px;border-radius:4px;">
-                <div id="syncAllProgress" class="progress-bar" style="background:#0d6efd;width:0%;transition:width .4s;"></div>
+            <!-- Overall progress -->
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
+                    <div id="syncAllProgress" class="progress-bar" style="background:#0d6efd;width:0%;transition:width .3s;"></div>
+                </div>
+                <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#1a2f6e;min-width:32px;text-align:right;">0%</span>
             </div>
-            <div id="syncAllLog" style="max-height:260px;overflow-y:auto;font-size:.72rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.8;">
+            <!-- Current facility + month -->
+            <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
+            <!-- Scrollable log -->
+            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.9;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
@@ -348,78 +355,100 @@
         btn.innerHTML = '<i class="fas fa-sync me-1"></i> Sync New Only';
     }
 
-    // ── Sync All Facilities — 2 Years ──────────────────────────────
+    // ── Month-wise Sync 2024–2026 ──────────────────────────────────
     function startSyncAll() {
         const btn      = document.getElementById('syncAllBtn');
         const panel    = document.getElementById('syncAllPanel');
         const logDiv   = document.getElementById('syncAllLog');
         const bar      = document.getElementById('syncAllProgress');
+        const pctLbl   = document.getElementById('syncAllPct');
         const grandLbl = document.getElementById('syncAllGrandTotal');
         const spinner  = document.getElementById('syncAllSpinner');
+        const curLbl   = document.getElementById('syncAllCurrent');
 
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Syncing…';
         panel.style.display = 'block';
         logDiv.innerHTML = '';
         bar.style.width = '0%';
+        pctLbl.textContent = '0%';
+        curLbl.textContent = '';
         panel.scrollIntoView({ behavior: 'smooth' });
 
-        let totalFacilities = 0, doneFacilities = 0;
+        // Track current facility header line so month rows can be indented under it
+        let lastFacilityEl = null;
 
         const source = new EventSource('/Portal/SyncAllFacilitiesStream');
 
-        function addLog(msg, color) {
+        function addLog(msg, color, indent) {
             const line = document.createElement('div');
             line.style.color = color || '#333';
+            if (indent) line.style.paddingLeft = '16px';
             line.textContent = msg;
             logDiv.appendChild(line);
             logDiv.scrollTop = logDiv.scrollHeight;
+            return line;
+        }
+
+        function setProgress(pct) {
+            bar.style.width = pct + '%';
+            pctLbl.textContent = pct + '%';
         }
 
         source.onmessage = function(e) {
             const d = JSON.parse(e.data);
 
             if (d.status === 'start') {
-                totalFacilities = d.total || 0;
-                addLog(d.message, '#0d6efd');
+                addLog(`▶ ${d.message}`, '#0d6efd');
+
             } else if (d.status === 'facility_start') {
-                addLog('▶ ' + d.message, '#555');
-            } else if (d.status === 'facility_found') {
-                addLog('  → Found: ' + d.found + ' records', '#198754');
-                grandLbl.textContent = 'Total found: ' + d.grandTotal;
+                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#0f172a');
+                curLbl.textContent = `Facility ${d.facilityIndex}: ${d.facilityName}`;
+
+            } else if (d.status === 'month_done') {
+                const found = d.found > 0 ? `+${d.found}` : '—';
+                addLog(`${d.month}  ${found}`, d.found > 0 ? '#198754' : '#94a3b8', true);
+                setProgress(d.pct || 0);
+                grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
+
             } else if (d.status === 'processing') {
-                grandLbl.textContent = 'Saving… ' + d.grandSaved + ' new, ' + d.grandDups + ' dup';
+                grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Dup: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
+                setProgress(d.pct || 0);
+
             } else if (d.status === 'facility_done') {
-                doneFacilities++;
-                if (totalFacilities > 0) bar.style.width = Math.round((doneFacilities / totalFacilities) * 100) + '%';
-                addLog('  ✓ ' + d.message, '#198754');
+                addLog(`  ✓ ${d.saved} new · ${d.dups} dup · ${d.files} files`, '#198754', true);
+                setProgress(d.pct || 0);
+
             } else if (d.status === 'warning') {
-                addLog('  ⚠ ' + d.message, '#856404');
+                addLog(`⚠ ${d.message}`, '#856404');
+
             } else if (d.status === 'error') {
-                addLog('✗ Error: ' + d.message, '#dc3545');
+                addLog(`✗ ${d.message}`, '#dc3545');
                 source.close();
-                spinner.classList.remove('fa-spin');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
+                done();
+
             } else if (d.status === 'done') {
-                bar.style.width = '100%';
+                setProgress(100);
                 addLog('', '');
-                addLog('✅ ' + d.message, '#198754');
+                addLog(`✅ ${d.message}`, '#198754');
+                grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} dup · ${(d.grandFiles||0).toLocaleString()} files`;
+                curLbl.textContent = 'Complete';
                 source.close();
-                spinner.classList.remove('fa-spin');
-                grandLbl.textContent = d.grandSaved + ' new · ' + d.grandDups + ' dup · ' + d.grandFiles + ' files';
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
+                done();
             }
         };
 
         source.onerror = function() {
             source.close();
-            addLog('Connection lost or sync complete.', '#6c757d');
+            addLog('Connection closed.', '#6c757d');
+            done();
+        };
+
+        function done() {
             spinner.classList.remove('fa-spin');
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-globe me-1"></i> Sync All Facilities — 2 Years';
-        };
+            btn.innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026';
+        }
     }
 </script>
 }

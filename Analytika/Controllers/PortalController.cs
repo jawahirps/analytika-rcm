@@ -799,16 +799,28 @@ public class PortalController : Controller
         if (!creds.Any())
         { await Send(new { status = "error", message = "No active DHA credentials found." }); return; }
 
-        var parsedFrom  = DateTime.Today.AddYears(-2);
-        var parsedTo    = DateTime.Today;
-        var txTypes     = new[] { 2, 8, 16, 32 };
-        var txStatuses  = new[] { 1, 2 };
-        var chunks      = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
+        var parsedFrom = new DateTime(2024, 1, 1);
+        var parsedTo   = DateTime.Today;
+        var txTypes    = new[] { 2, 8, 16, 32 };
+        var txStatuses = new[] { 1, 2 };
+
+        // Build month-wise chunks (never exceeds 100-day portal limit)
+        var monthChunks = new List<(DateTime Start, DateTime End, string Label)>();
+        var cur = parsedFrom;
+        while (cur <= parsedTo)
+        {
+            var end = new DateTime(cur.Year, cur.Month, DateTime.DaysInMonth(cur.Year, cur.Month));
+            if (end > parsedTo) end = parsedTo;
+            monthChunks.Add((cur, end, cur.ToString("MMM yyyy")));
+            cur = end.AddDays(1);
+        }
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         int facilityIndex = 0;
+        int totalSteps = creds.Count * monthChunks.Count;
+        int stepsDone  = 0;
 
-        await Send(new { status = "start", message = $"Starting sync for {creds.Count} facilities · {parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd}", total = creds.Count, facilityIndex = 0 });
+        await Send(new { status = "start", message = $"Month-wise sync · {creds.Count} facilities · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = creds.Count, months = monthChunks.Count, totalSteps });
 
         foreach (var cred in creds)
         {
@@ -818,59 +830,61 @@ public class PortalController : Controller
 
             string pwd;
             try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
-            catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); continue; }
+            catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); stepsDone += monthChunks.Count; continue; }
 
-            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName} — searching…", facilityIndex, facilityName = facName });
+            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityName = facName });
 
-            var allRows = new List<PortalFetchResultRow>();
-            foreach (var (cs, ce) in chunks)
+            var allRows   = new List<PortalFetchResultRow>();
+            int facSaved  = 0, facDups = 0, facFiles = 0;
+
+            // Process month by month — search then immediately save
+            foreach (var (ms, me, mlabel) in monthChunks)
             {
                 if (ct.IsCancellationRequested) break;
-                var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
-                var dhpoTo   = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
+                var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
+                var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
+
+                var monthRows = new List<PortalFetchResultRow>();
                 foreach (var txStatus in txStatuses)
                 foreach (var txType in txTypes)
                 {
                     var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
                     var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
-                    allRows.AddRange(rSent);
-                    allRows.AddRange(rRecv);
+                    monthRows.AddRange(rSent);
+                    monthRows.AddRange(rRecv);
+                }
+
+                var uniqueMonth = monthRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+                grandTotal += uniqueMonth.Count;
+                stepsDone++;
+                int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
+
+                await Send(new { status = "month_done", message = $"  {mlabel}: {uniqueMonth.Count} found", facilityIndex, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
+
+                if (uniqueMonth.Any())
+                {
+                    var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
+                        uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
+                    facSaved  += ns; facDups += nd; facFiles += nf;
+                    grandSaved += ns; grandDups += nd; grandFiles += nf;
+
+                    await Send(new { status = "processing", facilityIndex, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
                 }
             }
 
-            var rows  = allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
-            grandTotal += rows.Count;
-            await Send(new { status = "facility_found", message = $"[{facName}] {rows.Count} records found — saving…", facilityIndex, facilityName = facName, found = rows.Count, grandTotal });
-
-            if (!rows.Any())
-            { await Send(new { status = "facility_done", message = $"[{facName}] 0 records — nothing to save.", facilityIndex, facilityName = facName, saved = 0, dups = 0 }); continue; }
-
-            int facSaved = 0, facDups = 0, facFiles = 0;
-            var period = parsedFrom.ToString("yyyy-MM");
-
-            await _sync.UpsertDhaTransactionsWithDownloadAsync(
-                rows, cred.Username, pwd, cred.FacilityId, "BulkSave", period, "DHA",
-                onProgress: async (saved, dups, files) =>
-                {
-                    facSaved = saved; facDups = dups; facFiles = files;
-                    await Send(new { status = "processing", facilityIndex, facilityName = facName, saved, dups, files, grandSaved = grandSaved + saved, grandDups = grandDups + dups });
-                });
-
-            grandSaved += facSaved; grandDups += facDups; grandFiles += facFiles;
-
             _db.PortalFetchLogs.Add(new PortalFetchLog
             {
-                Portal = "DHA", FacilityId = cred.FacilityId, Operation = "SyncAll2Y",
+                Portal = "DHA", FacilityId = cred.FacilityId, Operation = "MonthWiseSync",
                 FetchedBy = User.Identity?.Name ?? "system",
                 RecordsFetched = facSaved, Status = "Success",
-                ResponseSummary = $"{facSaved} saved, {facFiles} downloaded, {facDups} duplicates"
+                ResponseSummary = $"{facSaved} saved, {facFiles} downloaded, {facDups} dup — {monthChunks.Count} months"
             });
             await _db.SaveChangesAsync(ct);
 
-            await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} duplicates, {facFiles} files downloaded.", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles });
+            await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
         }
 
-        await Send(new { status = "done", message = $"Sync complete — {grandSaved} new records, {grandDups} duplicates, {grandFiles} files across {creds.Count} facilities.", grandTotal, grandSaved, grandDups, grandFiles });
+        await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
     }
 
     // ── Live Status Bar API ────────────────────────────────────────
