@@ -820,6 +820,7 @@ public class PortalController : Controller
         int totalSteps = creds.Count * monthChunks.Count;
         int stepsDone  = 0;
 
+        ActiveSyncState.Start(creds.Count, monthChunks.Count);
         await Send(new { status = "start", message = $"Month-wise sync · {creds.Count} facilities · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = creds.Count, months = monthChunks.Count, totalSteps });
 
         foreach (var cred in creds)
@@ -859,6 +860,7 @@ public class PortalController : Controller
                 stepsDone++;
                 int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
+                ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
                 await Send(new { status = "month_done", message = $"  {mlabel}: {uniqueMonth.Count} found", facilityIndex, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
 
                 if (uniqueMonth.Any())
@@ -868,6 +870,7 @@ public class PortalController : Controller
                     facSaved  += ns; facDups += nd; facFiles += nf;
                     grandSaved += ns; grandDups += nd; grandFiles += nf;
 
+                    ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
                     await Send(new { status = "processing", facilityIndex, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
                 }
             }
@@ -884,6 +887,7 @@ public class PortalController : Controller
             await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
         }
 
+        ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
     }
 
@@ -905,6 +909,7 @@ public class PortalController : Controller
         var dhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "DHA");
         var rhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "RHA");
 
+        var sync = ActiveSyncState.Get();
         return Json(new
         {
             txCount,
@@ -919,7 +924,16 @@ public class PortalController : Controller
             lastSyncPortal  = lastLog?.Portal,
             serverTime      = DateTime.Now.ToString("HH:mm:ss"),
             serverDate      = DateTime.Today.ToString("dd MMM yyyy"),
-            user            = User.Identity?.Name ?? "—"
+            user            = User.Identity?.Name ?? "—",
+            // Live sync progress
+            syncRunning         = sync.IsRunning,
+            syncPct             = sync.Pct,
+            syncFacility        = sync.CurrentFacility,
+            syncMonth           = sync.CurrentMonth,
+            syncFacilityIndex   = sync.FacilityIndex,
+            syncTotalFacilities = sync.TotalFacilities,
+            syncRecordsSaved    = sync.RecordsSaved,
+            syncFilesDownloaded = sync.FilesDownloaded
         });
     }
 

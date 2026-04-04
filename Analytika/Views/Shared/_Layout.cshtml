@@ -221,6 +221,16 @@
         <span id="sb-sync-text">Idle</span>
     </span>
 
+    <!-- Live sync progress chip (hidden when idle) -->
+    <span id="sb-progress-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
+        <i class="fas fa-bolt sb-icon" style="color:#38bdf8;"></i>
+        <span id="sb-progress-label" style="color:#e2e8f0;"></span>
+        <span class="sb-progress-track">
+            <span id="sb-progress-fill" class="sb-progress-fill"></span>
+        </span>
+        <span id="sb-progress-pct" style="color:#38bdf8;font-weight:600;min-width:28px;text-align:right;"></span>
+    </span>
+
     <span class="sb-div"></span>
 
     <span class="sb-chip" title="Records in DB">
@@ -291,6 +301,8 @@ function clearNotifications() {
 
     function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
 
+    let pollInterval = null;
+
     function applyStatus(d) {
         $('sb-tx').textContent    = fmt(d.txCount);
         $('sb-files').textContent = fmt(d.fileCount);
@@ -302,16 +314,46 @@ function clearNotifications() {
 
         const syncEl = $('sb-sync');
         const syncTx = $('sb-sync-text');
-        if (d.lastSyncStatus === 'Success') {
-            syncEl.className  = 'sb-item sb-ok';
-            syncTx.textContent = d.lastSyncPortal + ' · ' + (d.lastSyncOp || 'Sync') + ' ✓';
+        if (d.syncRunning) {
+            syncEl.className   = 'sb-chip sb-ok';
+            syncTx.textContent = 'Syncing…';
+        } else if (d.lastSyncStatus === 'Success') {
+            syncEl.className   = 'sb-chip sb-ok';
+            syncTx.textContent = (d.lastSyncPortal || '') + ' · ' + (d.lastSyncOp || 'Sync') + ' ✓';
         } else if (d.lastSyncStatus) {
-            syncEl.className  = 'sb-item sb-warn';
+            syncEl.className   = 'sb-chip sb-warn';
             syncTx.textContent = d.lastSyncStatus;
         } else {
-            syncEl.className  = 'sb-item sb-idle';
+            syncEl.className   = 'sb-chip sb-idle';
             syncTx.textContent = 'Idle';
         }
+
+        // ── Live progress chip ───────────────────────────────────────
+        const pw   = $('sb-progress-wrap');
+        const fill = $('sb-progress-fill');
+        const lbl  = $('sb-progress-label');
+        const pct  = $('sb-progress-pct');
+        if (d.syncRunning) {
+            const p = d.syncPct || 0;
+            lbl.textContent  = d.syncFacility
+                ? `${d.syncFacilityIndex}/${d.syncTotalFacilities} · ${d.syncMonth}`
+                : 'Starting…';
+            fill.style.width = p + '%';
+            pct.textContent  = p + '%';
+            pw.title         = `${d.syncFacility || ''} — ${d.syncMonth || ''}\n${fmt(d.syncRecordsSaved)} saved · ${fmt(d.syncFilesDownloaded)} files`;
+            pw.style.display = 'inline-flex';
+            setPollRate(2000);   // faster while running
+        } else {
+            pw.style.display = 'none';
+            setPollRate(15000);  // back to slow
+        }
+    }
+
+    function setPollRate(ms) {
+        if (pollInterval && pollInterval._ms === ms) return;
+        if (pollInterval) clearInterval(pollInterval._id);
+        const id = setInterval(poll, ms);
+        pollInterval = { _id: id, _ms: ms };
     }
 
     async function poll() {
@@ -322,7 +364,7 @@ function clearNotifications() {
     }
 
     poll();                          // immediate on load
-    setInterval(poll, 15000);        // then every 15 s
+    setPollRate(15000);              // start at 15 s; tightens to 2 s during sync
 })();
 </script>
 </body>
