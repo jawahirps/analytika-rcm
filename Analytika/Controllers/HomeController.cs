@@ -72,11 +72,30 @@ public class HomeController : Controller
             .Select(g => new { FacilityId = g.Key, Portals = g.Select(c => c.Portal).ToList() })
             .ToListAsync();
 
-        // Latest sync log per facility
-        var latestLogs = await _db.PortalFetchLogs
+        // Latest MEANINGFUL sync log per facility
+        // Exclude individual "SearchTransactions" calls — transient failures from those
+        // should not drag the facility status to Degraded.
+        // Priority: CronSync / MonthWiseSync / BulkSave / SyncAll2Y ops.
+        // Fall back to any log if no meaningful one exists.
+        var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
+
+        var allLogs = await _db.PortalFetchLogs.ToListAsync();
+
+        var latestMeaningful = allLogs
+            .Where(l => meaningfulOps.Contains(l.Operation))
             .GroupBy(l => l.FacilityId)
-            .Select(g => g.OrderByDescending(l => l.FetchedAt).First())
-            .ToListAsync();
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
+
+        var latestAny = allLogs
+            .GroupBy(l => l.FacilityId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
+
+        // Was there any successful sync in the last 48 hours?
+        var cutoff = DateTime.UtcNow.AddHours(-48);
+        var recentSuccess = allLogs
+            .Where(l => l.Status == "Success" && l.FetchedAt >= cutoff)
+            .Select(l => l.FacilityId)
+            .ToHashSet();
 
         // Record & file counts per facility
         var txStats = await _db.PortalTransactions
@@ -89,15 +108,22 @@ public class HomeController : Controller
             })
             .ToListAsync();
 
-        var credMap  = credsByFacility.ToDictionary(x => x.FacilityId);
-        var logMap   = latestLogs.ToDictionary(l => l.FacilityId);
-        var txMap    = txStats.ToDictionary(x => x.FacilityId);
+        var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
+        var txMap   = txStats.ToDictionary(x => x.FacilityId);
 
         var rows = facilities.Select(f =>
         {
-            credMap .TryGetValue(f.Id, out var cred);
-            logMap  .TryGetValue(f.Id, out var log);
-            txMap   .TryGetValue(f.Id, out var tx);
+            credMap.TryGetValue(f.Id, out var cred);
+            txMap  .TryGetValue(f.Id, out var tx);
+
+            // Use meaningful log for status; fall back to any log for display time
+            latestMeaningful.TryGetValue(f.Id, out var mLog);
+            latestAny       .TryGetValue(f.Id, out var anyLog);
+            var displayLog = mLog ?? anyLog;
+
+            // Status: if there's a recent success anywhere, treat as Connected
+            var effectiveStatus = recentSuccess.Contains(f.Id) ? "Success"
+                                : mLog?.Status ?? anyLog?.Status;
 
             return new FacilityStatusRow
             {
@@ -105,8 +131,8 @@ public class HomeController : Controller
                 FacilityName    = f.Name,
                 HasCredential   = cred != null,
                 Portal          = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
-                LastSyncTime    = log?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-                LastSyncStatus  = log?.Status,
+                LastSyncTime    = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+                LastSyncStatus  = effectiveStatus,
                 RecordCount     = tx?.Records ?? 0,
                 FileCount       = tx?.Files ?? 0,
             };
@@ -120,8 +146,8 @@ public class HomeController : Controller
             Facilities   = rows,
             TotalRecords = txStats.Sum(x => x.Records),
             TotalFiles   = txStats.Sum(x => x.Files),
-            LastSyncTime = latestLogs.Count > 0
-                ? latestLogs.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
+            LastSyncTime = allLogs.Count > 0
+                ? allLogs.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
                 : null
         };
         return View(vm);

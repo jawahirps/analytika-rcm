@@ -174,7 +174,8 @@
                             <span class="fac-portal mt-1 d-inline-block">@f.Portal</span>
                         }
                     </div>
-                    <div class="d-flex flex-column align-items-end gap-1">
+                    <div class="d-flex flex-column align-items-end gap-1"
+                         title="@f.StatusReason" data-bs-toggle="tooltip" data-bs-placement="left">
                         <div class="status-dot @statusClass @(statusClass == "connected" ? "dot-pulse" : "")"></div>
                         <span class="status-label @statusClass">@statusLabel</span>
                     </div>

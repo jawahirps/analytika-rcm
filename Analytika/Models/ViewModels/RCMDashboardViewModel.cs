@@ -39,10 +39,18 @@ public class FacilityStatusRow
     {
         get
         {
-            if (!HasCredential) return FacilityConnectionStatus.Disconnected;
+            if (!HasCredential)            return FacilityConnectionStatus.Disconnected;
             if (LastSyncStatus == "Success") return FacilityConnectionStatus.Connected;
-            if (LastSyncTime != null) return FacilityConnectionStatus.Degraded; // has cred + old/failed sync
+            if (LastSyncTime != null)      return FacilityConnectionStatus.Degraded;
             return FacilityConnectionStatus.Disconnected;
         }
     }
+
+    public string StatusReason => Status switch
+    {
+        FacilityConnectionStatus.Connected    => $"Last sync: {LastSyncTime}",
+        FacilityConnectionStatus.Degraded     => $"Last meaningful sync did not succeed — {LastSyncTime}",
+        FacilityConnectionStatus.Disconnected => HasCredential ? "Credential exists but never synced" : "No active credential",
+        _ => ""
+    };
 }
