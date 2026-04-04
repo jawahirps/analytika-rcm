@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: analytika-rcm
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore          # closest to UAE
+    branch: main
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DB_DIR
+        value: /app/data
+    disk:
+      name: analytika-data
+      mountPath: /app/data
+      sizeGB: 1

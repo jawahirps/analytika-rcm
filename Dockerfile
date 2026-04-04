@@ -15,7 +15,8 @@ COPY --from=build /app/publish .
 RUN mkdir -p /app/data && mkdir -p /app/wwwroot/portal-downloads
 
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:8080
+# Render injects $PORT at runtime; fall back to 8080 for other hosts
+ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
 
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Analytika.dll"]
