@@ -4,6 +4,7 @@ using Analytika.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Analytika.Controllers;
 
@@ -12,17 +13,20 @@ public class HomeController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IPowerBIService _powerBIService;
+    private readonly AppDbContext _db;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         IPowerBIService powerBIService,
+        AppDbContext db,
         ILogger<HomeController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _powerBIService = powerBIService;
+        _db = db;
         _logger = logger;
     }
 
@@ -30,7 +34,7 @@ public class HomeController : Controller
     public IActionResult Index()
     {
         if (User.Identity?.IsAuthenticated == true)
-            return RedirectToAction("RCMDashboard");
+            return RedirectToAction("Dashboard");
         return View(new LoginViewModel());
     }
 
@@ -46,11 +50,81 @@ public class HomeController : Controller
         if (result.Succeeded)
         {
             _logger.LogInformation("User {Email} logged in.", model.Email);
-            return RedirectToAction("RCMDashboard");
+            return RedirectToAction("Dashboard");
         }
 
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
         return View(model);
+    }
+
+    // ── Facility Status Dashboard ─────────────────────────────────
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> Dashboard()
+    {
+        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+
+        // Active credentials per facility
+        var credsByFacility = await _db.PortalCredentials
+            .Where(c => c.IsActive)
+            .GroupBy(c => c.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Portals = g.Select(c => c.Portal).ToList() })
+            .ToListAsync();
+
+        // Latest sync log per facility
+        var latestLogs = await _db.PortalFetchLogs
+            .GroupBy(l => l.FacilityId)
+            .Select(g => g.OrderByDescending(l => l.FetchedAt).First())
+            .ToListAsync();
+
+        // Record & file counts per facility
+        var txStats = await _db.PortalTransactions
+            .GroupBy(t => t.FacilityId)
+            .Select(g => new
+            {
+                FacilityId  = g.Key,
+                Records     = g.Count(),
+                Files       = g.Count(t => t.FileDownloaded)
+            })
+            .ToListAsync();
+
+        var credMap  = credsByFacility.ToDictionary(x => x.FacilityId);
+        var logMap   = latestLogs.ToDictionary(l => l.FacilityId);
+        var txMap    = txStats.ToDictionary(x => x.FacilityId);
+
+        var rows = facilities.Select(f =>
+        {
+            credMap .TryGetValue(f.Id, out var cred);
+            logMap  .TryGetValue(f.Id, out var log);
+            txMap   .TryGetValue(f.Id, out var tx);
+
+            return new FacilityStatusRow
+            {
+                FacilityId      = f.Id,
+                FacilityName    = f.Name,
+                HasCredential   = cred != null,
+                Portal          = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
+                LastSyncTime    = log?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+                LastSyncStatus  = log?.Status,
+                RecordCount     = tx?.Records ?? 0,
+                FileCount       = tx?.Files ?? 0,
+            };
+        })
+        .OrderBy(r => r.Status)
+        .ThenBy(r => r.FacilityName)
+        .ToList();
+
+        var vm = new FacilityStatusViewModel
+        {
+            Facilities   = rows,
+            TotalRecords = txStats.Sum(x => x.Records),
+            TotalFiles   = txStats.Sum(x => x.Files),
+            LastSyncTime = latestLogs.Count > 0
+                ? latestLogs.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
+                : null
+        };
+        return View(vm);
     }
 
     [Authorize]

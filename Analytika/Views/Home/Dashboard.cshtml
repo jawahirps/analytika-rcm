@@ -1,0 +1,225 @@
+@model Analytika.Models.ViewModels.FacilityStatusViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+<style>
+    .dash-section { max-width: 1400px; margin: 0 auto; padding: 28px 24px 80px; }
+
+    /* Summary chips */
+    .status-summary {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+        margin-bottom: 28px;
+    }
+    .ss-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px 18px 16px;
+        box-shadow: 0 1px 5px rgba(0,0,0,.06);
+        display: flex; align-items: center; gap: 14px;
+    }
+    .ss-icon {
+        width: 46px; height: 46px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem; flex-shrink: 0;
+    }
+    .ss-icon.green  { background: #d1fae5; color: #059669; }
+    .ss-icon.amber  { background: #fef3c7; color: #d97706; }
+    .ss-icon.red    { background: #fee2e2; color: #dc2626; }
+    .ss-icon.blue   { background: #dbeafe; color: #2563eb; }
+    .ss-icon.purple { background: #ede9fe; color: #7c3aed; }
+    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #0f172a; line-height: 1; }
+    .ss-lbl  { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-top: 2px; }
+
+    /* Facility grid */
+    .facility-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+    }
+    .fac-status-card {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 1px 5px rgba(0,0,0,.06);
+        border-left: 4px solid #e2e8f0;
+        position: relative;
+        transition: box-shadow .15s, transform .15s;
+    }
+    .fac-status-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,.1);
+        transform: translateY(-2px);
+    }
+    .fac-status-card.connected    { border-left-color: #10b981; }
+    .fac-status-card.degraded     { border-left-color: #f59e0b; }
+    .fac-status-card.disconnected { border-left-color: #ef4444; }
+
+    .fac-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .fac-name   { font-size: .92rem; font-weight: 700; color: #0f172a; line-height: 1.3; max-width: 190px; }
+    .fac-portal { font-size: .68rem; font-weight: 600; letter-spacing: .4px; color: #7c3aed; background: #ede9fe; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+
+    .status-dot {
+        width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+    }
+    .status-dot.connected    { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
+    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
+    .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
+
+    .fac-meta { display: flex; flex-direction: column; gap: 6px; }
+    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #64748b; }
+    .fac-meta-row i { width: 14px; text-align: center; color: #94a3b8; font-size: .7rem; }
+    .fac-meta-row .val { color: #334155; font-weight: 500; }
+
+    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+    .fac-stat  { text-align: center; flex: 1; }
+    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+    .fac-stat .l  { font-size: .65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+
+    .status-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+    .status-label.connected    { color: #059669; }
+    .status-label.degraded     { color: #d97706; }
+    .status-label.disconnected { color: #dc2626; }
+
+    @@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    .dot-pulse { animation: pulse 2s infinite; }
+
+    @@media (max-width: 900px) { .status-summary { grid-template-columns: repeat(3,1fr); } }
+    @@media (max-width: 600px) { .status-summary { grid-template-columns: repeat(2,1fr); } }
+</style>
+}
+
+<div class="dash-section">
+
+    <!-- Page header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:#0f172a;">
+                <i class="fas fa-signal me-2 text-success"></i>Facility Status
+            </h4>
+            <p class="text-muted small mb-0">Live connectivity &amp; sync status across all registered facilities.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/Portal/Sync" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-sync-alt me-1"></i>Sync Portal
+            </a>
+            <a href="/Admin/Credentials" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-key me-1"></i>Credentials
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary row -->
+    <div class="status-summary">
+        <div class="ss-card">
+            <div class="ss-icon green"><i class="fas fa-check-circle"></i></div>
+            <div>
+                <div class="ss-num">@Model.ConnectedCount</div>
+                <div class="ss-lbl">Connected</div>
+            </div>
+        </div>
+        <div class="ss-card">
+            <div class="ss-icon amber"><i class="fas fa-exclamation-circle"></i></div>
+            <div>
+                <div class="ss-num">@Model.DegradedCount</div>
+                <div class="ss-lbl">Degraded</div>
+            </div>
+        </div>
+        <div class="ss-card">
+            <div class="ss-icon red"><i class="fas fa-times-circle"></i></div>
+            <div>
+                <div class="ss-num">@Model.DisconnectedCount</div>
+                <div class="ss-lbl">Disconnected</div>
+            </div>
+        </div>
+        <div class="ss-card">
+            <div class="ss-icon blue"><i class="fas fa-file-alt"></i></div>
+            <div>
+                <div class="ss-num">@Model.TotalRecords.ToString("N0")</div>
+                <div class="ss-lbl">Total Records</div>
+            </div>
+        </div>
+        <div class="ss-card">
+            <div class="ss-icon purple"><i class="fas fa-download"></i></div>
+            <div>
+                <div class="ss-num">@Model.TotalFiles.ToString("N0")</div>
+                <div class="ss-lbl">Files Downloaded</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Facility cards -->
+    <div class="facility-grid">
+        @foreach (var f in Model.Facilities)
+        {
+            var statusClass = f.Status switch {
+                Analytika.Models.ViewModels.FacilityConnectionStatus.Connected    => "connected",
+                Analytika.Models.ViewModels.FacilityConnectionStatus.Degraded     => "degraded",
+                _                                                                  => "disconnected"
+            };
+            var statusLabel = f.Status switch {
+                Analytika.Models.ViewModels.FacilityConnectionStatus.Connected    => "Connected",
+                Analytika.Models.ViewModels.FacilityConnectionStatus.Degraded     => "Degraded",
+                _                                                                  => "No Credential"
+            };
+            <div class="fac-status-card @statusClass">
+                <div class="fac-header">
+                    <div>
+                        <div class="fac-name">@f.FacilityName</div>
+                        @if (f.Portal != null)
+                        {
+                            <span class="fac-portal mt-1 d-inline-block">@f.Portal</span>
+                        }
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-1">
+                        <div class="status-dot @statusClass @(statusClass == "connected" ? "dot-pulse" : "")"></div>
+                        <span class="status-label @statusClass">@statusLabel</span>
+                    </div>
+                </div>
+
+                <div class="fac-meta">
+                    @if (f.LastSyncTime != null)
+                    {
+                        <div class="fac-meta-row">
+                            <i class="fas fa-clock"></i>
+                            <span>Last sync: <span class="val">@f.LastSyncTime</span></span>
+                        </div>
+                        <div class="fac-meta-row">
+                            <i class="fas fa-circle @(f.LastSyncStatus == "Success" ? "text-success" : "text-danger")" style="font-size:.5rem;"></i>
+                            <span class="val">@(f.LastSyncStatus ?? "Unknown")</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="fac-meta-row">
+                            <i class="fas fa-clock"></i>
+                            <span class="text-muted fst-italic">Never synced</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="fac-stats">
+                    <div class="fac-stat">
+                        <div class="n">@f.RecordCount.ToString("N0")</div>
+                        <div class="l">Records</div>
+                    </div>
+                    <div class="fac-stat">
+                        <div class="n">@f.FileCount.ToString("N0")</div>
+                        <div class="l">Files</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (!Model.Facilities.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-hospital fa-3x d-block mb-3 opacity-25"></i>
+            <p class="mb-0">No active facilities found. <a href="/Admin/Credentials">Add credentials</a> to get started.</p>
+        </div>
+    }
+</div>

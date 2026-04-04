@@ -44,8 +44,14 @@
             <!-- Left nav -->
             <ul class="navbar-nav me-auto mb-0">
                 <li class="nav-item">
+                    <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() is "Dashboard" or "RCMDashboard" ? "active" : "")"
+                       asp-controller="Home" asp-action="Dashboard">
+                        <i class="fas fa-signal me-1" style="font-size:.75rem;"></i>Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
-                       asp-controller="Home" asp-action="RCMDashboard">Dashboard</a>
+                       asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Advanced Reports</a>
@@ -81,8 +87,8 @@
                         <li><a class="dropdown-item" asp-controller="Portal" asp-action="SyncedData">
                             <i class="fas fa-database me-2 text-muted"></i>Synced Data
                         </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="Reconciliation">
-                            <i class="fas fa-balance-scale me-2 text-muted"></i>Reconciliation
+                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="XmlParsing">
+                            <i class="fas fa-file-code me-2 text-muted"></i>XML Parsing
                         </a></li>
                     </ul>
                 </li>
@@ -132,12 +138,12 @@
                                     <div class="text-muted" style="font-size:.7rem;">Just now</div>
                                 </div>
                             </a>
-                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Reconciliation">
+                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
                                 <div class="notif-icon flex-shrink-0" style="background:#fff3cd;">
-                                    <i class="fas fa-balance-scale" style="color:#856404;"></i>
+                                    <i class="fas fa-file-code" style="color:#856404;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
-                                    <div class="fw-semibold text-dark">Reconciliation pending</div>
+                                    <div class="fw-semibold text-dark">XML Parsing summary</div>
                                     <div class="text-muted">Some claims have no remittance match</div>
                                     <div class="text-muted" style="font-size:.7rem;">Today</div>
                                 </div>

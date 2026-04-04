@@ -648,14 +648,18 @@ public class PortalController : Controller
         return Json(new { error = (string?)null, found = rows.Count, saved = newCount, filesDownloaded, duplicates = dups });
     }
 
-    // ── Reconciliation (step 4 of DHA Sync Strategy) ───────────────
+    // ── XML Parsing Dashboard (renamed from Reconciliation) ───────────
 
     [HttpGet]
-    public async Task<IActionResult> Reconciliation(List<int>? facilityId, string? dateFrom, string? dateTo, List<string>? status)
+    public async Task<IActionResult> XmlParsing(List<int>? facilityId)
     {
-        var vm = await _reconciliation.GetReconciliationAsync(facilityId, dateFrom, dateTo, status);
+        var vm = await _reconciliation.GetXmlParsingStatsAsync(facilityId);
         return View(vm);
     }
+
+    // Keep old URL working
+    [HttpGet]
+    public IActionResult Reconciliation() => RedirectToAction(nameof(XmlParsing));
 
     // ── Bulk Save — SSE streaming progress ─────────────────────────
 

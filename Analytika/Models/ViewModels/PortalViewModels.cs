@@ -84,7 +84,42 @@ public class SyncBatchResult
     public bool IsSuccess => Error == null;
 }
 
-// ── Reconciliation ───────────────────────────────────────────────
+// ── XML Parsing Summary Dashboard ────────────────────────────────
+
+public class XmlParsingViewModel
+{
+    public List<SelectListItem>      Facilities  { get; set; } = new();
+    public List<int>                 FacilityIds { get; set; } = new();
+    public List<XmlParsingFacilityRow> FacilityRows { get; set; } = new();
+
+    // Grand totals
+    public int TotalSubmission           => FacilityRows.Sum(r => r.SubmissionTotal);
+    public int TotalSubmissionDownloaded => FacilityRows.Sum(r => r.SubmissionDownloaded);
+    public int TotalRemittance           => FacilityRows.Sum(r => r.RemittanceTotal);
+    public int TotalRemittanceDownloaded => FacilityRows.Sum(r => r.RemittanceDownloaded);
+    public int TotalMatched              => FacilityRows.Sum(r => r.Matched);
+    public int TotalUnmatched            => FacilityRows.Sum(r => r.UnmatchedSubmissions);
+}
+
+public class XmlParsingFacilityRow
+{
+    public int    FacilityId   { get; set; }
+    public string FacilityName { get; set; } = "";
+    // Submission (Claim) files
+    public int SubmissionTotal      { get; set; }
+    public int SubmissionDownloaded { get; set; }
+    // Remittance files
+    public int RemittanceTotal      { get; set; }
+    public int RemittanceDownloaded { get; set; }
+    // Matching
+    public int Matched              { get; set; }
+    public int UnmatchedSubmissions { get; set; }  // claims with no remittance
+    public int UnmatchedRemittances { get; set; }  // remittances with no claim
+    public decimal MatchRate => SubmissionDownloaded > 0
+        ? Math.Round((decimal)Matched / SubmissionDownloaded * 100, 1) : 0;
+}
+
+// ── Reconciliation (kept for backward compat) ─────────────────────
 
 public class ReconciliationViewModel
 {

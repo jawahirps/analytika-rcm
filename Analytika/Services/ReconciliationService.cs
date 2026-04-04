@@ -15,6 +15,110 @@ public class ReconciliationService
 
     public ReconciliationService(AppDbContext db) => _db = db;
 
+    // ── XML Parsing Stats Dashboard ───────────────────────────────
+
+    public async Task<XmlParsingViewModel> GetXmlParsingStatsAsync(List<int>? facilityIds)
+    {
+        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+
+        // Fast per-facility counts using DB-side LIKE (EF Core + SQLite translates Contains → LIKE)
+        var baseQuery = _db.PortalTransactions
+            .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
+
+        if (facilityIds?.Count > 0)
+            baseQuery = baseQuery.Where(t => facilityIds.Contains(t.FacilityId));
+
+        // Submission counts per facility (anything NOT containing <Remittance.Advice)
+        var subCounts = await baseQuery
+            .Where(t => !t.FileContentXml!.Contains("<Remittance.Advice"))
+            .GroupBy(t => t.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(t => t.FileDownloaded) })
+            .ToListAsync();
+
+        // Remittance counts per facility
+        var remCounts = await baseQuery
+            .Where(t => t.FileContentXml!.Contains("<Remittance.Advice"))
+            .GroupBy(t => t.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(t => t.FileDownloaded) })
+            .ToListAsync();
+
+        // Compute matched count per facility using ClaimID intersection
+        // Load claim IDs from submission and remittance files per facility
+        var subIds = await baseQuery
+            .Where(t => !t.FileContentXml!.Contains("<Remittance.Advice"))
+            .Select(t => new { t.FacilityId, t.FileContentXml })
+            .ToListAsync();
+
+        var remIds = await baseQuery
+            .Where(t => t.FileContentXml!.Contains("<Remittance.Advice"))
+            .Select(t => new { t.FacilityId, t.FileContentXml })
+            .ToListAsync();
+
+        // Parse claim IDs per facility
+        static HashSet<string> ExtractClaimIds(IEnumerable<string?> xmlList)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var xml in xmlList)
+            {
+                if (string.IsNullOrEmpty(xml)) continue;
+                try
+                {
+                    var doc = XDocument.Parse(xml);
+                    foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
+                    {
+                        var id = el.Element("ID")?.Value ?? el.Attribute("ID")?.Value;
+                        if (!string.IsNullOrWhiteSpace(id)) ids.Add(id);
+                    }
+                }
+                catch { }
+            }
+            return ids;
+        }
+
+        var subByFacility = subIds.GroupBy(x => x.FacilityId)
+            .ToDictionary(g => g.Key, g => ExtractClaimIds(g.Select(x => x.FileContentXml)));
+        var remByFacility = remIds.GroupBy(x => x.FacilityId)
+            .ToDictionary(g => g.Key, g => ExtractClaimIds(g.Select(x => x.FileContentXml)));
+
+        var facilityMap = facilities.ToDictionary(f => f.Id, f => f.Name);
+        var allFacilityIds = subCounts.Select(x => x.FacilityId)
+            .Union(remCounts.Select(x => x.FacilityId)).Distinct().ToList();
+
+        var rows = allFacilityIds.Select(fid =>
+        {
+            var sub = subCounts.FirstOrDefault(x => x.FacilityId == fid);
+            var rem = remCounts.FirstOrDefault(x => x.FacilityId == fid);
+            subByFacility.TryGetValue(fid, out var subClaimIds);
+            remByFacility.TryGetValue(fid, out var remClaimIds);
+            subClaimIds ??= new();
+            remClaimIds ??= new();
+
+            var matched = subClaimIds.Count(id => remClaimIds.Contains(id));
+
+            return new XmlParsingFacilityRow
+            {
+                FacilityId          = fid,
+                FacilityName        = facilityMap.GetValueOrDefault(fid, $"Facility {fid}"),
+                SubmissionTotal     = sub?.Total ?? 0,
+                SubmissionDownloaded= sub?.Downloaded ?? 0,
+                RemittanceTotal     = rem?.Total ?? 0,
+                RemittanceDownloaded= rem?.Downloaded ?? 0,
+                Matched             = matched,
+                UnmatchedSubmissions= subClaimIds.Count - matched,
+                UnmatchedRemittances= remClaimIds.Count(id => !subClaimIds.Contains(id)),
+            };
+        })
+        .OrderBy(r => r.FacilityName)
+        .ToList();
+
+        return new XmlParsingViewModel
+        {
+            Facilities  = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityIds = facilityIds ?? new(),
+            FacilityRows = rows
+        };
+    }
+
     public async Task<ReconciliationViewModel> GetReconciliationAsync(
         List<int>? facilityIds, string? dateFrom, string? dateTo, List<string>? statusFilters)
     {

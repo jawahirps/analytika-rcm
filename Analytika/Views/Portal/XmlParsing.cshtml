@@ -1,0 +1,247 @@
+@model Analytika.Models.ViewModels.XmlParsingViewModel
+@{
+    ViewData["Title"] = "XML Parsing";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+<style>
+    .xp-section { max-width: 1400px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    /* Grand totals bar */
+    .totals-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+        margin-bottom: 28px;
+    }
+    .total-card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 18px 16px 14px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06);
+        border-top: 3px solid #e2e8f0;
+        text-align: center;
+    }
+    .total-card.sub  { border-top-color: #3b82f6; }
+    .total-card.rem  { border-top-color: #8b5cf6; }
+    .total-card.mat  { border-top-color: #10b981; }
+    .total-card.unm  { border-top-color: #f59e0b; }
+    .total-card .num { font-size: 1.7rem; font-weight: 700; color: #0f172a; line-height: 1.1; }
+    .total-card .lbl { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-top: 4px; }
+    .total-card .ic  { font-size: .85rem; margin-bottom: 8px; }
+    .total-card.sub .ic { color: #3b82f6; }
+    .total-card.rem .ic { color: #8b5cf6; }
+    .total-card.mat .ic { color: #10b981; }
+    .total-card.unm .ic { color: #f59e0b; }
+
+    /* Facility table */
+    .fac-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 1px 6px rgba(0,0,0,.07);
+        overflow: hidden;
+    }
+    .fac-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 22px 14px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .fac-card-header h6 { font-size: .95rem; font-weight: 700; color: #0f172a; margin: 0; }
+    table.xp-table { width: 100%; border-collapse: collapse; }
+    .xp-table thead th {
+        font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+        color: #94a3b8; background: #f8fafc; padding: 10px 16px;
+        border-bottom: 1px solid #e2e8f0; white-space: nowrap;
+    }
+    .xp-table thead th.center, .xp-table td.center { text-align: center; }
+    .xp-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .12s; }
+    .xp-table tbody tr:last-child { border-bottom: none; }
+    .xp-table tbody tr:hover { background: #f8fafc; }
+    .xp-table td { padding: 12px 16px; font-size: .85rem; color: #334155; vertical-align: middle; }
+    .xp-table td.facility-name { font-weight: 600; color: #0f172a; }
+
+    /* Progress bars */
+    .bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .bar-track { flex: 1; height: 6px; border-radius: 99px; background: #e2e8f0; overflow: hidden; min-width: 60px; }
+    .bar-fill  { height: 100%; border-radius: 99px; transition: width .4s ease; }
+    .bar-fill.sub-dl  { background: #3b82f6; }
+    .bar-fill.rem-dl  { background: #8b5cf6; }
+    .bar-fill.match   { background: #10b981; }
+    .bar-pct { font-size: .75rem; font-weight: 600; color: #64748b; min-width: 34px; text-align: right; }
+
+    /* Badges */
+    .badge-matched   { background: #d1fae5; color: #065f46; }
+    .badge-unmatched { background: #fef3c7; color: #92400e; }
+    .badge-zero      { background: #f1f5f9; color: #94a3b8; }
+    .xp-badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .73rem; font-weight: 600; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; align-items: center; gap: 10px; }
+
+    @@media (max-width: 1100px) { .totals-grid { grid-template-columns: repeat(3,1fr); } }
+    @@media (max-width: 700px)  { .totals-grid { grid-template-columns: repeat(2,1fr); } }
+</style>
+}
+
+<div class="xp-section">
+
+    <!-- Page header -->
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:#0f172a;">
+                <i class="fas fa-file-code me-2 text-primary"></i>XML Parsing
+            </h4>
+            <p class="text-muted small mb-0">Summary of DHA submission &amp; remittance XML files — availability, downloads, and claim matching.</p>
+        </div>
+        <form method="get" class="filter-bar">
+            <select name="facilityId" multiple class="form-select form-select-sm select2-multi" style="min-width:220px;">
+                @foreach (var f in Model.Facilities)
+                {
+                    if (Model.FacilityIds.Contains(int.Parse(f.Value)))
+                    {
+                        <option value="@f.Value" selected>@f.Text</option>
+                    }
+                    else
+                    {
+                        <option value="@f.Value">@f.Text</option>
+                    }
+                }
+            </select>
+            <button type="submit" class="btn btn-dark btn-sm px-3">Apply</button>
+        </form>
+    </div>
+
+    <!-- Grand totals -->
+    <div class="totals-grid">
+        <div class="total-card sub">
+            <div class="ic"><i class="fas fa-file-upload"></i></div>
+            <div class="num">@Model.TotalSubmission.ToString("N0")</div>
+            <div class="lbl">Submission Files</div>
+        </div>
+        <div class="total-card sub">
+            <div class="ic"><i class="fas fa-download"></i></div>
+            <div class="num">@Model.TotalSubmissionDownloaded.ToString("N0")</div>
+            <div class="lbl">Submissions Downloaded</div>
+        </div>
+        <div class="total-card rem">
+            <div class="ic"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="num">@Model.TotalRemittance.ToString("N0")</div>
+            <div class="lbl">Remittance Files</div>
+        </div>
+        <div class="total-card rem">
+            <div class="ic"><i class="fas fa-download"></i></div>
+            <div class="num">@Model.TotalRemittanceDownloaded.ToString("N0")</div>
+            <div class="lbl">Remittances Downloaded</div>
+        </div>
+        <div class="total-card mat">
+            <div class="ic"><i class="fas fa-link"></i></div>
+            <div class="num">@Model.TotalMatched.ToString("N0")</div>
+            <div class="lbl">Claims Matched</div>
+        </div>
+        <div class="total-card unm">
+            <div class="ic"><i class="fas fa-unlink"></i></div>
+            <div class="num">@Model.TotalUnmatched.ToString("N0")</div>
+            <div class="lbl">Unmatched Claims</div>
+        </div>
+    </div>
+
+    <!-- Per-facility table -->
+    <div class="fac-card">
+        <div class="fac-card-header">
+            <h6><i class="fas fa-hospital me-2 text-muted"></i>By Facility</h6>
+            <span class="text-muted small">@Model.FacilityRows.Count facilities</span>
+        </div>
+        <table class="xp-table">
+            <thead>
+                <tr>
+                    <th>Facility</th>
+                    <th class="center">Sub Files</th>
+                    <th style="min-width:160px;">Sub Downloaded</th>
+                    <th class="center">Rem Files</th>
+                    <th style="min-width:160px;">Rem Downloaded</th>
+                    <th class="center">Matched</th>
+                    <th style="min-width:140px;">Match Rate</th>
+                    <th class="center">Unmatched</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.FacilityRows.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fas fa-inbox fa-2x d-block mb-2 opacity-25"></i>
+                            No parsed XML files found.
+                        </td>
+                    </tr>
+                }
+                @foreach (var r in Model.FacilityRows)
+                {
+                    var subPct   = r.SubmissionTotal > 0 ? (int)((double)r.SubmissionDownloaded / r.SubmissionTotal * 100) : 0;
+                    var remPct   = r.RemittanceTotal > 0 ? (int)((double)r.RemittanceDownloaded / r.RemittanceTotal * 100) : 0;
+                    var matchPct = (int)r.MatchRate;
+                    <tr>
+                        <td class="facility-name">
+                            <i class="fas fa-hospital-alt me-1 text-muted" style="font-size:.7rem;"></i>
+                            @r.FacilityName
+                        </td>
+                        <td class="center">
+                            <span class="fw-semibold">@r.SubmissionTotal</span>
+                        </td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar-track"><div class="bar-fill sub-dl" style="width:@subPct%"></div></div>
+                                <span class="bar-pct">@r.SubmissionDownloaded</span>
+                            </div>
+                        </td>
+                        <td class="center">
+                            <span class="fw-semibold">@r.RemittanceTotal</span>
+                        </td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar-track"><div class="bar-fill rem-dl" style="width:@remPct%"></div></div>
+                                <span class="bar-pct">@r.RemittanceDownloaded</span>
+                            </div>
+                        </td>
+                        <td class="center">
+                            @if (r.Matched > 0)
+                            {
+                                <span class="xp-badge badge-matched">@r.Matched</span>
+                            }
+                            else
+                            {
+                                <span class="xp-badge badge-zero">0</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="bar-wrap">
+                                <div class="bar-track"><div class="bar-fill match" style="width:@matchPct%"></div></div>
+                                <span class="bar-pct">@r.MatchRate%</span>
+                            </div>
+                        </td>
+                        <td class="center">
+                            @if (r.UnmatchedSubmissions > 0)
+                            {
+                                <span class="xp-badge badge-unmatched">@r.UnmatchedSubmissions</span>
+                            }
+                            else
+                            {
+                                <span class="xp-badge badge-zero">0</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $(function () {
+        $('.select2-multi').select2({ width: 'element', placeholder: '— All Facilities —', allowClear: true });
+    });
+</script>
+}
