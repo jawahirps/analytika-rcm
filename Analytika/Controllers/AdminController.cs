@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
+using ClosedXML.Excel;
 
 namespace Analytika.Controllers;
 
@@ -608,6 +610,161 @@ public class AdminController : Controller
         }
         result.Add(current.ToString());
         return result.ToArray();
+    }
+
+    // ─── DHPO Coding Sets ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> CodingSets()
+    {
+        var counts = await _db.DhpoCodingSets
+            .GroupBy(x => x.Category)
+            .Select(g => new { Category = g.Key, Count = g.Count(), Latest = g.Max(x => x.ImportedAt) })
+            .ToListAsync();
+
+        ViewBag.FacilityCount  = counts.FirstOrDefault(c => c.Category == "Facility")?.Count ?? 0;
+        ViewBag.ClinicianCount = counts.FirstOrDefault(c => c.Category == "Clinician")?.Count ?? 0;
+        ViewBag.PayerCount     = counts.FirstOrDefault(c => c.Category == "Payer")?.Count ?? 0;
+        ViewBag.FacilityDate   = counts.FirstOrDefault(c => c.Category == "Facility")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.ClinicianDate  = counts.FirstOrDefault(c => c.Category == "Clinician")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.PayerDate      = counts.FirstOrDefault(c => c.Category == "Payer")?.Latest.ToString("dd MMM yyyy HH:mm");
+        return View();
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportCodingSet(IFormFile file, string category)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No file uploaded.");
+
+        if (!new[] { "Facility", "Clinician", "Payer" }.Contains(category))
+            return BadRequest("Invalid category.");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".xlsx" && ext != ".xls")
+            return BadRequest("Only Excel files (.xlsx / .xls) are supported.");
+
+        try
+        {
+            using var stream = file.OpenReadStream();
+            using var wb     = new XLWorkbook(stream);
+            var ws = wb.Worksheet(1);
+
+            // Read header row (row 1) — build column index map
+            var headers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var lastCol = ws.LastColumnUsed()?.ColumnNumber() ?? 20;
+            for (int c = 1; c <= lastCol; c++)
+            {
+                var h = ws.Cell(1, c).GetString().Trim();
+                if (!string.IsNullOrEmpty(h) && !headers.ContainsKey(h))
+                    headers[h] = c;
+            }
+
+            // Flexible column matching — try multiple candidate names per field
+            static int? Col(Dictionary<string, int> h, params string[] candidates)
+            {
+                foreach (var name in candidates)
+                    if (h.TryGetValue(name, out var idx)) return idx;
+                return null;
+            }
+
+            int? codeCol = category switch
+            {
+                "Facility"  => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
+                "Clinician" => Col(headers, "Clinician ID", "ClinicianID", "Provider ID", "ProviderID", "License Number", "Code", "ID"),
+                "Payer"     => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
+                _           => null
+            };
+
+            int? nameCol = Col(headers, "Name", "Full Name", "FullName", "Facility Name", "FacilityName",
+                               "Clinician Name", "ClinicianName", "Company Name", "CompanyName", "Payer Name");
+
+            int? subTypeCol = category switch
+            {
+                "Clinician" => Col(headers, "Specialty", "Speciality", "Type", "Category"),
+                "Payer"     => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
+                "Facility"  => Col(headers, "Type", "Facility Type", "License Type"),
+                _           => null
+            };
+
+            if (codeCol == null || nameCol == null)
+                return BadRequest($"Cannot find required columns (Code / Name) in the Excel file. " +
+                    $"Found columns: {string.Join(", ", headers.Keys)}");
+
+            // Determine which extra columns to capture
+            var extraCols = headers
+                .Where(h => h.Value != codeCol && h.Value != nameCol && h.Value != subTypeCol)
+                .Take(5)  // cap at 5 extra columns
+                .ToList();
+
+            // Delete old records for this category then bulk insert
+            await _db.Database.ExecuteSqlAsync(
+                $"DELETE FROM DhpoCodingSets WHERE Category = {category}");
+
+            var now    = DateTime.UtcNow;
+            int added  = 0;
+            var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
+
+            for (int r = 2; r <= lastRow; r++)
+            {
+                var code = ws.Cell(r, codeCol.Value).GetString().Trim();
+                var name = ws.Cell(r, nameCol.Value).GetString().Trim();
+                if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(name)) continue;
+
+                string? subType = subTypeCol.HasValue
+                    ? ws.Cell(r, subTypeCol.Value).GetString().Trim().NullIfEmpty()
+                    : null;
+
+                string? extraJson = null;
+                if (extraCols.Count > 0)
+                {
+                    var extras = new Dictionary<string, string?>();
+                    foreach (var (h, ci) in extraCols)
+                        extras[h] = ws.Cell(r, ci).GetString().Trim().NullIfEmpty();
+                    if (extras.Any(x => x.Value != null))
+                        extraJson = JsonSerializer.Serialize(extras);
+                }
+
+                _db.DhpoCodingSets.Add(new DhpoCodingSet
+                {
+                    Category   = category,
+                    Code       = code,
+                    Name       = name,
+                    SubType    = subType,
+                    ExtraJson  = extraJson,
+                    ImportedAt = now
+                });
+                added++;
+
+                if (added % 500 == 0)
+                    await _db.SaveChangesAsync();
+            }
+            await _db.SaveChangesAsync();
+
+            TempData["Success"] = $"{category} coding set imported — {added} records loaded.";
+        }
+        catch (Exception ex)
+        {
+            TempData["Error"] = $"Import failed: {ex.Message}";
+        }
+
+        return RedirectToAction(nameof(CodingSets));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CodingSetSearch(string category, string? q, int page = 1)
+    {
+        const int pageSize = 50;
+        var query = _db.DhpoCodingSets.Where(x => x.Category == category);
+        if (!string.IsNullOrWhiteSpace(q))
+            query = query.Where(x => x.Code.Contains(q) || x.Name.Contains(q));
+
+        var total = await query.CountAsync();
+        var rows  = await query.OrderBy(x => x.Code)
+            .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return Json(new { total, page, rows = rows.Select(r => new { r.Code, r.Name, r.SubType }) });
     }
 
     // ─── Helper ───────────────────────────────────────────────────────────────

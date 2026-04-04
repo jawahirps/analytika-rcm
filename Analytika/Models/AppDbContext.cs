@@ -19,6 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserReportAccess> UserReportAccesses { get; set; }
     public DbSet<PortalFetchLog> PortalFetchLogs { get; set; }
     public DbSet<PortalTransaction> PortalTransactions { get; set; }
+    public DbSet<DhpoCodingSet> DhpoCodingSets { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -69,6 +70,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Portal, e.FacilityId, e.TransactionId }).IsUnique();
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<DhpoCodingSet>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.Category, e.Code }).IsUnique();
         });
     }
 }

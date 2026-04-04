@@ -1,0 +1,276 @@
+@{
+    ViewData["Title"] = "DHPO Coding Sets";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+<style>
+    .cs-section { max-width: 1100px; margin: 0 auto; padding: 28px 24px 80px; }
+    .cs-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 1px 5px rgba(0,0,0,.07);
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+    .cs-card-header {
+        padding: 18px 22px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .cs-card-header h6 { margin: 0; font-size: .95rem; font-weight: 700; color: #0f172a; }
+    .cs-card-body { padding: 22px; }
+    .cs-meta { font-size: .78rem; color: #64748b; margin-bottom: 16px; }
+    .cs-meta strong { color: #0f172a; }
+    .cs-meta .badge-count {
+        display: inline-block;
+        background: #dbeafe; color: #1e40af;
+        padding: 2px 10px; border-radius: 99px;
+        font-size: .72rem; font-weight: 700;
+        margin-left: 6px;
+    }
+    .upload-zone {
+        border: 2px dashed #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: border-color .2s, background .2s;
+        cursor: pointer;
+        position: relative;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+    .upload-zone input[type=file] {
+        position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .upload-zone .uz-icon { font-size: 1.8rem; color: #94a3b8; margin-bottom: 8px; }
+    .upload-zone .uz-label { font-size: .82rem; color: #64748b; }
+    .upload-zone .uz-fname { font-size: .78rem; color: #1d4ed8; font-weight: 600; margin-top: 6px; }
+    .btn-import {
+        background: #0f172a; color: #fff; border: none;
+        border-radius: 9px; padding: 9px 22px;
+        font-size: .85rem; font-weight: 600;
+        cursor: pointer; transition: background .15s;
+        width: 100%; margin-top: 14px;
+    }
+    .btn-import:hover { background: #1e293b; }
+    .btn-import:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* Search panel */
+    .search-panel { margin-top: 14px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+    .search-row { display: flex; gap: 8px; }
+    .search-input { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; font-size: .82rem; }
+    .search-input:focus { border-color: #3b82f6; outline: none; }
+    .search-results { margin-top: 10px; max-height: 220px; overflow-y: auto; font-size: .78rem; }
+    .search-results table { width: 100%; border-collapse: collapse; }
+    .search-results th { background: #f8fafc; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+    .search-results td { padding: 6px 10px; border-bottom: 1px solid #f8fafc; color: #334155; }
+    .search-results tr:last-child td { border-bottom: none; }
+
+    .alert-success-custom { background: #d1fae5; color: #065f46; border-radius: 10px; padding: 10px 16px; font-size: .83rem; margin-bottom: 16px; border: none; }
+    .alert-error-custom   { background: #fee2e2; color: #7f1d1d; border-radius: 10px; padding: 10px 16px; font-size: .83rem; margin-bottom: 16px; border: none; }
+</style>
+}
+
+<div class="cs-section">
+    <div class="d-flex align-items-center mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:#0f172a;">
+                <i class="fas fa-table me-2 text-primary"></i>DHPO Coding Sets
+            </h4>
+            <p class="text-muted small mb-0">Import Excel files from <strong>eclaimlink.ae/CodingSets.aspx</strong> to resolve IDs to names across all reports.</p>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert-success-custom"><i class="fas fa-check-circle me-2"></i>@TempData["Success"]</div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert-error-custom"><i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]</div>
+    }
+
+    <div class="row g-4">
+
+        <!-- Facilities -->
+        <div class="col-md-4">
+            <div class="cs-card">
+                <div class="cs-card-header">
+                    <h6><i class="fas fa-hospital me-2 text-blue-500" style="color:#3b82f6;"></i>Facilities</h6>
+                </div>
+                <div class="cs-card-body">
+                    <div class="cs-meta">
+                        Loaded: <strong>@ViewBag.FacilityCount</strong>
+                        <span class="badge-count">@ViewBag.FacilityCount records</span>
+                        @if (ViewBag.FacilityDate != null) { <br/><span>Last import: @ViewBag.FacilityDate</span> }
+                    </div>
+                    <form method="post" action="/Admin/ImportCodingSet" enctype="multipart/form-data" id="formFacility">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="category" value="Facility" />
+                        <div class="upload-zone" id="zoneFacility">
+                            <input type="file" name="file" accept=".xlsx,.xls" onchange="showFile(this,'labelFacility')" />
+                            <div class="uz-icon"><i class="fas fa-file-excel"></i></div>
+                            <div class="uz-label">Drop Excel file or click to browse</div>
+                            <div class="uz-fname" id="labelFacility"></div>
+                        </div>
+                        <button type="submit" class="btn-import" id="btnFacility" disabled>
+                            <i class="fas fa-upload me-2"></i>Import Facilities
+                        </button>
+                    </form>
+                    @if ((int)ViewBag.FacilityCount > 0)
+                    {
+                        <div class="search-panel">
+                            <div class="search-row">
+                                <input class="search-input" placeholder="Search by code or name..." oninput="search('Facility',this.value,'resFacility')" />
+                            </div>
+                            <div class="search-results" id="resFacility"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Clinicians -->
+        <div class="col-md-4">
+            <div class="cs-card">
+                <div class="cs-card-header">
+                    <h6><i class="fas fa-user-md me-2" style="color:#8b5cf6;"></i>Clinicians</h6>
+                </div>
+                <div class="cs-card-body">
+                    <div class="cs-meta">
+                        Loaded: <strong>@ViewBag.ClinicianCount</strong>
+                        <span class="badge-count">@ViewBag.ClinicianCount records</span>
+                        @if (ViewBag.ClinicianDate != null) { <br/><span>Last import: @ViewBag.ClinicianDate</span> }
+                    </div>
+                    <form method="post" action="/Admin/ImportCodingSet" enctype="multipart/form-data" id="formClinician">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="category" value="Clinician" />
+                        <div class="upload-zone" id="zoneClinician">
+                            <input type="file" name="file" accept=".xlsx,.xls" onchange="showFile(this,'labelClinician')" />
+                            <div class="uz-icon"><i class="fas fa-file-excel"></i></div>
+                            <div class="uz-label">Drop Excel file or click to browse</div>
+                            <div class="uz-fname" id="labelClinician"></div>
+                        </div>
+                        <button type="submit" class="btn-import" id="btnClinician" disabled>
+                            <i class="fas fa-upload me-2"></i>Import Clinicians
+                        </button>
+                    </form>
+                    @if ((int)ViewBag.ClinicianCount > 0)
+                    {
+                        <div class="search-panel">
+                            <div class="search-row">
+                                <input class="search-input" placeholder="Search by code or name..." oninput="search('Clinician',this.value,'resClinician')" />
+                            </div>
+                            <div class="search-results" id="resClinician"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Payers / TPAs -->
+        <div class="col-md-4">
+            <div class="cs-card">
+                <div class="cs-card-header">
+                    <h6><i class="fas fa-shield-alt me-2" style="color:#10b981;"></i>Payers &amp; TPAs</h6>
+                </div>
+                <div class="cs-card-body">
+                    <div class="cs-meta">
+                        Loaded: <strong>@ViewBag.PayerCount</strong>
+                        <span class="badge-count">@ViewBag.PayerCount records</span>
+                        @if (ViewBag.PayerDate != null) { <br/><span>Last import: @ViewBag.PayerDate</span> }
+                    </div>
+                    <form method="post" action="/Admin/ImportCodingSet" enctype="multipart/form-data" id="formPayer">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="category" value="Payer" />
+                        <div class="upload-zone" id="zonePayer">
+                            <input type="file" name="file" accept=".xlsx,.xls" onchange="showFile(this,'labelPayer')" />
+                            <div class="uz-icon"><i class="fas fa-file-excel"></i></div>
+                            <div class="uz-label">Drop Excel file or click to browse</div>
+                            <div class="uz-fname" id="labelPayer"></div>
+                        </div>
+                        <button type="submit" class="btn-import" id="btnPayer" disabled>
+                            <i class="fas fa-upload me-2"></i>Import Payers / TPAs
+                        </button>
+                    </form>
+                    @if ((int)ViewBag.PayerCount > 0)
+                    {
+                        <div class="search-panel">
+                            <div class="search-row">
+                                <input class="search-input" placeholder="Search by code or name..." oninput="search('Payer',this.value,'resPayer')" />
+                            </div>
+                            <div class="search-results" id="resPayer"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Instructions -->
+    <div class="cs-card mt-2">
+        <div class="cs-card-header">
+            <h6><i class="fas fa-info-circle me-2 text-muted"></i>How to get the files</h6>
+        </div>
+        <div class="cs-card-body">
+            <ol class="mb-0 small text-secondary" style="line-height:2;">
+                <li>Go to <strong>eclaimlink.ae/CodingSets.aspx</strong> and log in with your DHPO credentials.</li>
+                <li>Download the <strong>Facility List</strong>, <strong>Clinician List</strong>, and <strong>Insurance / TPA List</strong> Excel files.</li>
+                <li>Upload each file above using the matching section. The importer auto-detects column headers.</li>
+                <li>Re-import any time the lists are updated on the DHPO portal — existing data is replaced.</li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function showFile(input, labelId) {
+    const label = document.getElementById(labelId);
+    if (input.files.length) {
+        label.textContent = input.files[0].name;
+        // Enable corresponding submit button
+        const form = input.closest('form');
+        form.querySelector('button[type=submit]').disabled = false;
+    }
+}
+
+// Drag-over highlight
+document.querySelectorAll('.upload-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('dragover');
+        const input = zone.querySelector('input[type=file]');
+        if (e.dataTransfer.files.length) {
+            const dt = new DataTransfer();
+            dt.items.add(e.dataTransfer.files[0]);
+            input.files = dt.files;
+            input.dispatchEvent(new Event('change'));
+        }
+    });
+});
+
+let searchTimers = {};
+function search(category, q, resultId) {
+    clearTimeout(searchTimers[category]);
+    const el = document.getElementById(resultId);
+    if (!q || q.length < 2) { el.innerHTML = ''; return; }
+    searchTimers[category] = setTimeout(async () => {
+        const res = await fetch(`/Admin/CodingSetSearch?category=${category}&q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!data.rows.length) { el.innerHTML = '<p class="text-muted mt-2 mb-0">No results.</p>'; return; }
+        el.innerHTML = `<table>
+            <thead><tr><th>Code</th><th>Name</th><th>Type</th></tr></thead>
+            <tbody>${data.rows.map(r =>
+                `<tr><td><code>${r.code}</code></td><td>${r.name}</td><td>${r.subType ?? '—'}</td></tr>`
+            ).join('')}</tbody>
+        </table><p class="text-muted mb-0 mt-1" style="font-size:.7rem;">${data.total} total — showing first 50</p>`;
+    }, 300);
+}
+</script>
+}

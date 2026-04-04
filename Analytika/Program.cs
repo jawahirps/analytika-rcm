@@ -92,6 +92,20 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    // Create new tables added after initial EnsureCreated (no-op if already exist)
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
+            ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""Category"" TEXT NOT NULL,
+            ""Code"" TEXT NOT NULL,
+            ""Name"" TEXT NOT NULL,
+            ""SubType"" TEXT NULL,
+            ""ExtraJson"" TEXT NULL,
+            ""ImportedAt"" TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_DhpoCodingSets_Category_Code""
+            ON ""DhpoCodingSets""(""Category"", ""Code"");
+    ");
     await SeedData.InitializeAsync(services);
 }
 
