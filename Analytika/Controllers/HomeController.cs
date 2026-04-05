@@ -79,20 +79,22 @@ public class HomeController : Controller
         // Fall back to any log if no meaningful one exists.
         var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
 
-        var allLogs = await _db.PortalFetchLogs.ToListAsync();
+        // Project only needed columns — avoid loading ResponseSummary/FetchedBy blobs
+        var logProjection = await _db.PortalFetchLogs
+            .Select(l => new { l.FacilityId, l.Status, l.Operation, l.FetchedAt })
+            .ToListAsync();
 
-        var latestMeaningful = allLogs
+        var latestMeaningful = logProjection
             .Where(l => meaningfulOps.Contains(l.Operation))
             .GroupBy(l => l.FacilityId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
 
-        var latestAny = allLogs
+        var latestAny = logProjection
             .GroupBy(l => l.FacilityId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
 
-        // Was there any successful sync in the last 48 hours?
         var cutoff = DateTime.UtcNow.AddHours(-48);
-        var recentSuccess = allLogs
+        var recentSuccess = logProjection
             .Where(l => l.Status == "Success" && l.FetchedAt >= cutoff)
             .Select(l => l.FacilityId)
             .ToHashSet();
@@ -146,8 +148,8 @@ public class HomeController : Controller
             Facilities   = rows,
             TotalRecords = txStats.Sum(x => x.Records),
             TotalFiles   = txStats.Sum(x => x.Files),
-            LastSyncTime = allLogs.Count > 0
-                ? allLogs.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
+            LastSyncTime = logProjection.Count > 0
+                ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
                 : null
         };
         return View(vm);

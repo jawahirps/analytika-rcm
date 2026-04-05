@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Text;
 using System.Text.Json;
 
@@ -18,14 +19,16 @@ public class PortalController : Controller
     private readonly IRhaPortalService _rha;
     private readonly PortalSyncService _sync;
     private readonly ReconciliationService _reconciliation;
+    private readonly IMemoryCache _cache;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, IMemoryCache cache)
     {
         _db = db;
         _dha = dha;
         _rha = rha;
         _sync = sync;
         _reconciliation = reconciliation;
+        _cache = cache;
     }
 
     [HttpGet]
@@ -804,23 +807,14 @@ public class PortalController : Controller
 
         var parsedFrom = from != null ? DateTime.Parse(from) : DateTime.Today.AddYears(-1);
         var parsedTo   = to   != null ? DateTime.Parse(to)   : DateTime.Today;
-        var txTypes    = new[] { 2, 8, 16, 32 };
-        var txStatuses = new[] { 1, 2 };
+        int[] txTypes  = [2, 8, 16, 32];
         var facName    = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
 
         string pwd;
         try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
         catch { await Send(new { status = "error", message = "Corrupted password." }); return; }
 
-        var monthChunks = new List<(DateTime Start, DateTime End, string Label)>();
-        var cur = parsedFrom;
-        while (cur <= parsedTo)
-        {
-            var end = new DateTime(cur.Year, cur.Month, DateTime.DaysInMonth(cur.Year, cur.Month));
-            if (end > parsedTo) end = parsedTo;
-            monthChunks.Add((cur, end, cur.ToString("MMM yyyy")));
-            cur = end.AddDays(1);
-        }
+        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         int totalSteps = monthChunks.Count, stepsDone = 0;
@@ -835,16 +829,8 @@ public class PortalController : Controller
             var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
             var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
 
-            var monthRows = new List<PortalFetchResultRow>();
-            foreach (var txStatus in txStatuses)
-            foreach (var txType in txTypes)
-            {
-                var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
-                monthRows.AddRange(rSent); monthRows.AddRange(rRecv);
-            }
-
-            var uniqueMonth = monthRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+            var monthRows   = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
+            var uniqueMonth = PortalSyncService.DeduplicateRows(monthRows);
             grandTotal += uniqueMonth.Count;
             stepsDone++;
             int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
@@ -872,6 +858,7 @@ public class PortalController : Controller
         await _db.SaveChangesAsync(ct);
 
         heartbeatCts.Cancel();
+        _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "facility_done", facilityIndex = 1, facilityName = facName, saved = grandSaved, dups = grandDups, files = grandFiles, pct = 100 });
         await Send(new { status = "done", message = $"Complete — {grandSaved} new · {grandDups} dup · {grandFiles} files · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
@@ -925,19 +912,9 @@ public class PortalController : Controller
 
         var parsedFrom = new DateTime(2024, 1, 1);
         var parsedTo   = DateTime.Today;
-        var txTypes    = new[] { 2, 8, 16, 32 };
-        var txStatuses = new[] { 1, 2 };
+        int[] txTypes  = [2, 8, 16, 32];
 
-        // Build month-wise chunks (never exceeds 100-day portal limit)
-        var monthChunks = new List<(DateTime Start, DateTime End, string Label)>();
-        var cur = parsedFrom;
-        while (cur <= parsedTo)
-        {
-            var end = new DateTime(cur.Year, cur.Month, DateTime.DaysInMonth(cur.Year, cur.Month));
-            if (end > parsedTo) end = parsedTo;
-            monthChunks.Add((cur, end, cur.ToString("MMM yyyy")));
-            cur = end.AddDays(1);
-        }
+        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         int facilityIndex = 0;
@@ -959,39 +936,29 @@ public class PortalController : Controller
 
             await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityName = facName });
 
-            var allRows   = new List<PortalFetchResultRow>();
-            int facSaved  = 0, facDups = 0, facFiles = 0;
+            int facSaved = 0, facDups = 0, facFiles = 0;
 
-            // Process month by month — search then immediately save
             foreach (var (ms, me, mlabel) in monthChunks)
             {
                 if (ct.IsCancellationRequested) break;
                 var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
                 var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
 
-                var monthRows = new List<PortalFetchResultRow>();
-                foreach (var txStatus in txStatuses)
-                foreach (var txType in txTypes)
-                {
-                    var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                    var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
-                    monthRows.AddRange(rSent);
-                    monthRows.AddRange(rRecv);
-                }
-
-                var uniqueMonth = monthRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+                // Parallel search — all type/status combos at once (max 4 concurrent)
+                var monthRows   = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
+                var uniqueMonth = PortalSyncService.DeduplicateRows(monthRows);
                 grandTotal += uniqueMonth.Count;
                 stepsDone++;
                 int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
                 ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                await Send(new { status = "month_done", message = $"  {mlabel}: {uniqueMonth.Count} found", facilityIndex, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
+                await Send(new { status = "month_done", facilityIndex, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
 
                 if (uniqueMonth.Any())
                 {
                     var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
                         uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
-                    facSaved  += ns; facDups += nd; facFiles += nf;
+                    facSaved += ns; facDups += nd; facFiles += nf;
                     grandSaved += ns; grandDups += nd; grandFiles += nf;
 
                     ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
@@ -1012,6 +979,7 @@ public class PortalController : Controller
         }
 
         heartbeatCts.Cancel();
+        _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
     }
@@ -1021,36 +989,70 @@ public class PortalController : Controller
     [HttpGet]
     public async Task<IActionResult> StatusBar()
     {
-        var txCount    = await _db.PortalTransactions.CountAsync();
-        var fileCount  = await _db.PortalTransactions.CountAsync(t => t.FileContentXml != null);
-        var facCount   = await _db.Facilities.CountAsync(f => f.IsActive);
-        var credCount  = await _db.PortalCredentials.CountAsync(c => c.IsActive);
+        var syncState = ActiveSyncState.Get();
+        const string cacheKey = "statusbar_static";
 
-        var lastLog    = await _db.PortalFetchLogs
+        // Static counts change slowly — cache for 20 s.
+        // Invalidated immediately when a sync completes (syncRunning just flipped to false).
+        if (!syncState.IsRunning && _cache.TryGetValue(cacheKey, out object? cached))
+            return Json(BuildStatusBarJson(cached!, syncState, User.Identity?.Name));
+
+        // Fetch all static values in two queries (one for transactions, one for credentials)
+        var txStats = await _db.PortalTransactions
+            .GroupBy(_ => 1)
+            .Select(g => new { Total = g.Count(), Files = g.Count(t => t.FileContentXml != null) })
+            .FirstOrDefaultAsync();
+
+        var credStats = await _db.PortalCredentials
+            .Where(c => c.IsActive)
+            .GroupBy(c => c.Portal)
+            .Select(g => new { Portal = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var facCount = await _db.Facilities.CountAsync(f => f.IsActive);
+
+        var lastLog = await _db.PortalFetchLogs
             .OrderByDescending(l => l.FetchedAt)
             .Select(l => new { l.FetchedAt, l.Status, l.Operation, l.Portal })
             .FirstOrDefaultAsync();
 
-        var dhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "DHA");
-        var rhaCreds   = await _db.PortalCredentials.CountAsync(c => c.IsActive && c.Portal == "RHA");
-
-        var sync = ActiveSyncState.Get();
-        return Json(new
+        var staticData = new
         {
-            txCount,
-            fileCount,
+            txCount        = txStats?.Total    ?? 0,
+            fileCount      = txStats?.Files    ?? 0,
             facCount,
-            credCount,
-            dhaCreds,
-            rhaCreds,
-            lastSyncTime    = lastLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-            lastSyncStatus  = lastLog?.Status,
-            lastSyncOp      = lastLog?.Operation,
-            lastSyncPortal  = lastLog?.Portal,
-            serverTime      = DateTime.Now.ToString("HH:mm:ss"),
-            serverDate      = DateTime.Today.ToString("dd MMM yyyy"),
-            user            = User.Identity?.Name ?? "—",
-            // Live sync progress
+            credCount      = credStats.Sum(c => c.Count),
+            dhaCreds       = credStats.FirstOrDefault(c => c.Portal == "DHA")?.Count ?? 0,
+            rhaCreds       = credStats.FirstOrDefault(c => c.Portal == "RHA")?.Count ?? 0,
+            lastSyncTime   = lastLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+            lastSyncStatus = lastLog?.Status,
+            lastSyncOp     = lastLog?.Operation,
+            lastSyncPortal = lastLog?.Portal
+        };
+
+        _cache.Set(cacheKey, (object)staticData, TimeSpan.FromSeconds(20));
+        return Json(BuildStatusBarJson(staticData, syncState, User.Identity?.Name));
+    }
+
+    private static object BuildStatusBarJson(object staticData, SyncSnapshot sync, string? user)
+    {
+        // Merge static DB snapshot with live sync state (not cached)
+        dynamic d = staticData;
+        return new
+        {
+            txCount        = (int)d.txCount,
+            fileCount      = (int)d.fileCount,
+            facCount       = (int)d.facCount,
+            credCount      = (int)d.credCount,
+            dhaCreds       = (int)d.dhaCreds,
+            rhaCreds       = (int)d.rhaCreds,
+            lastSyncTime   = (string?)d.lastSyncTime,
+            lastSyncStatus = (string?)d.lastSyncStatus,
+            lastSyncOp     = (string?)d.lastSyncOp,
+            lastSyncPortal = (string?)d.lastSyncPortal,
+            serverTime     = DateTime.Now.ToString("HH:mm:ss"),
+            serverDate     = DateTime.Today.ToString("dd MMM yyyy"),
+            user           = user ?? "—",
             syncRunning         = sync.IsRunning,
             syncPct             = sync.Pct,
             syncFacility        = sync.CurrentFacility,
@@ -1059,7 +1061,7 @@ public class PortalController : Controller
             syncTotalFacilities = sync.TotalFacilities,
             syncRecordsSaved    = sync.RecordsSaved,
             syncFilesDownloaded = sync.FilesDownloaded
-        });
+        };
     }
 
     // ── Helpers ────────────────────────────────────────────────────
@@ -1092,5 +1094,19 @@ public class PortalController : Controller
             TotalInDb        = totalInDb,
             TotalFilesInDb   = totalFiles
         };
+    }
+
+    private static List<(DateTime Start, DateTime End, string Label)> BuildMonthChunks(DateTime from, DateTime to)
+    {
+        var chunks = new List<(DateTime, DateTime, string)>();
+        var cur = from;
+        while (cur <= to)
+        {
+            var end = new DateTime(cur.Year, cur.Month, DateTime.DaysInMonth(cur.Year, cur.Month));
+            if (end > to) end = to;
+            chunks.Add((cur, end, cur.ToString("MMM yyyy")));
+            cur = end.AddDays(1);
+        }
+        return chunks;
     }
 }

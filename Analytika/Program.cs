@@ -48,6 +48,7 @@ builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
     new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
 builder.Services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>
     new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
+builder.Services.AddMemoryCache();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession(options =>
 {
@@ -93,6 +94,19 @@ using (var scope = app.Services.CreateScope())
     var db = services.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     // Create new tables added after initial EnsureCreated (no-op if already exist)
+    db.Database.ExecuteSqlRaw(@"
+        -- Performance indexes (safe to re-run — all IF NOT EXISTS)
+        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FetchedAt""
+            ON ""PortalFetchLogs""(""FetchedAt"" DESC);
+        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Status""
+            ON ""PortalFetchLogs""(""FacilityId"", ""Status"");
+        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Operation""
+            ON ""PortalFetchLogs""(""FacilityId"", ""Operation"");
+        CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_FacilityId_FileDownloaded""
+            ON ""PortalTransactions""(""FacilityId"", ""FileDownloaded"");
+        CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
+            ON ""PortalTransactions""(""SyncedAt"" DESC);
+    ");
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
             ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
