@@ -6,6 +6,11 @@
     <RootNamespace>Analytika</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Exclude downloaded XML files from the build — filenames with commas break MSBuild glob parsing -->
+    <Content Remove="wwwroot\portal-downloads\**" />
+    <None Remove="wwwroot\portal-downloads\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0" />
