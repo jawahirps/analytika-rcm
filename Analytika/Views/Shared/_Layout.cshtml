@@ -22,13 +22,13 @@
         <!-- Brand -->
         <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="RCMDashboard">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#1e6b45" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#1e6b45"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#1e6b45"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#1e6b45"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#1e6b45"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#4ade80"/>
+                <circle cx="22" cy="22" r="20" stroke="#2A5674" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#2A5674"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#2A5674"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#2A5674"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#2A5674"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#A1D7D6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#A1D7D6"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi Analytix</span>
@@ -126,14 +126,14 @@
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="min-width:320px;border-radius:12px;overflow:hidden;">
-                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#0d1b3e;">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#1a3a4a;">
                             <span class="fw-semibold text-white" style="font-size:.85rem;">Notifications</span>
                             <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()">Mark all read</button>
                         </div>
                         <div id="notificationList">
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Fetch">
-                                <div class="notif-icon flex-shrink-0" style="background:#e8f0ff;">
-                                    <i class="fas fa-file-download" style="color:#0055a5;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#D1EEEA;">
+                                    <i class="fas fa-file-download" style="color:#3F7994;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">New transactions available</div>
@@ -152,8 +152,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#e8f7ef;">
-                                    <i class="fas fa-sync" style="color:#1e6b45;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#D1EEEA;">
+                                    <i class="fas fa-sync" style="color:#2A5674;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">Daily sync complete</div>
@@ -163,7 +163,7 @@
                             </a>
                         </div>
                         <div class="text-center py-2" style="background:#f8f9fa;border-top:1px solid #eee;">
-                            <a href="/Portal/Fetch" style="font-size:.75rem;color:#0055a5;text-decoration:none;">View all activity</a>
+                            <a href="/Portal/Fetch" style="font-size:.75rem;color:#3F7994;text-decoration:none;">View all activity</a>
                         </div>
                     </div>
                 </li>
@@ -280,7 +280,7 @@
 <script>
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#1e6b45;"></i>All caught up!</div>';
+        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#2A5674;"></i>All caught up!</div>';
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }

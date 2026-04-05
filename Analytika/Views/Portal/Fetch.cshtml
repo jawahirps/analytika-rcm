@@ -5,7 +5,7 @@
 
 <div class="container-fluid py-4 px-4">
     <div class="mb-4">
-        <h4 class="mb-0 fw-bold" style="color:#0d1b3e;">Portal Data Fetch</h4>
+        <h4 class="mb-0 fw-bold" style="color:#1a3a4a;">Portal Data Fetch</h4>
         <small class="text-muted">Retrieve transactions from RHA (Riayati) and DHA (eClaimLink) portals</small>
     </div>
 
@@ -14,7 +14,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm" style="border-radius:12px;">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Fetch Parameters</h6>
+                    <h6 class="fw-bold mb-3" style="color:#1a3a4a;">Fetch Parameters</h6>
                     <form asp-action="Fetch" method="post">
                         @Html.AntiForgeryToken()
 
@@ -140,17 +140,17 @@
             {
                 <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#0d1b3e;">Recent Fetches</h6>
+                        <h6 class="fw-bold mb-3" style="color:#1a3a4a;">Recent Fetches</h6>
                         @foreach (var log in Model.RecentLogs)
                         {
                             <div class="d-flex align-items-start gap-2 mb-3">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#e8f7ef" : "#ffe8e8");">
+                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#D1EEEA" : "#ffe8e8");">
                                     <i class="fas fa-@(log.Status == "Success" ? "check" : "times") fa-xs"
-                                       style="color:@(log.Status == "Success" ? "#1e6b45" : "#dc3545");"></i>
+                                       style="color:@(log.Status == "Success" ? "#2A5674" : "#dc3545");"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
-                                    <div class="fw-semibold" style="color:#0d1b3e;">@log.Portal — @log.Operation</div>
+                                    <div class="fw-semibold" style="color:#1a3a4a;">@log.Portal — @log.Operation</div>
                                     <div class="text-muted">@(log.Facility?.Name) · @log.RecordsFetched records</div>
                                     <div class="text-muted">@log.FetchedAt.ToString("dd MMM HH:mm")</div>
                                 </div>
@@ -176,8 +176,8 @@
                 <div class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="fw-bold" style="color:#0d1b3e;">Fetch Results</span>
-                            <span class="badge ms-2" style="background:#e8f7ef;color:#1e6b45;">@Model.TotalFetched records</span>
+                            <span class="fw-bold" style="color:#1a3a4a;">Fetch Results</span>
+                            <span class="badge ms-2" style="background:#D1EEEA;color:#2A5674;">@Model.TotalFetched records</span>
                         </div>
                         <div class="d-flex gap-2">
                             @if (Model.Operation == "SearchTransactions" && Model.Portal == "DHA")
@@ -221,9 +221,9 @@
                                     @foreach (var r in Model.Results)
                                     {
                                         <tr>
-                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#0d1b3e;">@r.FileId</td>
+                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#1a3a4a;">@r.FileId</td>
                                             <td class="py-2 align-middle">
-                                                <span class="badge rounded-pill" style="background:#e8f0ff;color:#0055a5;font-size:.7rem;">@r.Type</span>
+                                                <span class="badge rounded-pill" style="background:#D1EEEA;color:#3F7994;font-size:.7rem;">@r.Type</span>
                                             </td>
                                             <td class="py-2 align-middle">
                                                 <span class="badge rounded-pill @(r.Status.Contains("Complete") || r.Status == "1" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")" style="font-size:.7rem;">
@@ -263,11 +263,11 @@
                 <div class="card-body p-4">
                     <!-- header row -->
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#e8f0ff;">
-                            <i class="fas fa-spinner fa-spin" style="color:#0055a5;font-size:.85rem;"></i>
+                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#D1EEEA;">
+                            <i class="fas fa-spinner fa-spin" style="color:#3F7994;font-size:.85rem;"></i>
                         </div>
                         <div>
-                            <div class="fw-bold" id="saveStatusTitle" style="color:#0d1b3e;">Searching portal…</div>
+                            <div class="fw-bold" id="saveStatusTitle" style="color:#1a3a4a;">Searching portal…</div>
                             <div class="text-muted small" id="saveStatusSubtitle">Fetching transaction list</div>
                         </div>
                     </div>
@@ -278,7 +278,7 @@
                     <!-- counters -->
                     <div class="row g-2 text-center">
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#0d1b3e;" id="statFound">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#1a3a4a;" id="statFound">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Found</div>
                         </div>
                         <div class="col">
@@ -286,7 +286,7 @@
                             <div class="text-muted" style="font-size:.72rem;">Saved</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#0055a5;" id="statFiles">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#3F7994;" id="statFiles">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Downloaded</div>
                         </div>
                         <div class="col">
@@ -313,7 +313,7 @@
                                 <i class="fas fa-file-download" style="color:#2ec4b6;font-size:1.1rem;"></i>
                             </div>
                             <div>
-                                <div class="fw-bold" style="color:#0d1b3e;">@Model.DownloadedFileName</div>
+                                <div class="fw-bold" style="color:#1a3a4a;">@Model.DownloadedFileName</div>
                                 <div class="text-muted small">Transaction file downloaded and marked on portal</div>
                             </div>
                         </div>
@@ -352,7 +352,7 @@
     font-weight:600; color:#495057; transition:all .15s; user-select:none;
 }
 .portal-toggle input:checked + span {
-    background:#0d1b3e; color:#fff; border-color:#0d1b3e;
+    background:#1a3a4a; color:#fff; border-color:#1a3a4a;
 }
 </style>
 }
@@ -454,7 +454,7 @@ async function bulkSave() {
                     updateSaveUI(json);
                     if (json.status === 'done') {
                         btn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
-                        btn.style.background = '#1e6b45';
+                        btn.style.background = '#2A5674';
                     }
                 } catch {}
             }
@@ -481,8 +481,8 @@ function updateSaveUI(d) {
 
     const icon = document.getElementById('saveStatusIcon');
     if (d.status === 'done') {
-        icon.style.background = '#e8f7ef';
-        icon.innerHTML = '<i class="fas fa-check" style="color:#1e6b45;font-size:.85rem;"></i>';
+        icon.style.background = '#D1EEEA';
+        icon.innerHTML = '<i class="fas fa-check" style="color:#2A5674;font-size:.85rem;"></i>';
     } else if (d.status === 'error') {
         icon.style.background = '#ffe8e8';
         icon.innerHTML = '<i class="fas fa-times" style="color:#dc3545;font-size:.85rem;"></i>';
