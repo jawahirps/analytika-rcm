@@ -774,6 +774,109 @@ public class PortalController : Controller
         });
     }
 
+    // ── Sync Single Facility — month-wise for a date range ──────────
+
+    [HttpGet]
+    public async Task SyncFacilityStream(int facilityId, string? from = null, string? to = null)
+    {
+        var ct = HttpContext.RequestAborted;
+        Response.ContentType = "text/event-stream; charset=utf-8";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        await Response.WriteAsync("retry: 30000\n\n");
+        await Response.Body.FlushAsync(ct);
+
+        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _ = Task.Run(async () =>
+        {
+            try { while (!heartbeatCts.Token.IsCancellationRequested) { await Task.Delay(20_000, heartbeatCts.Token); await Response.WriteAsync(": ping\n\n", heartbeatCts.Token); await Response.Body.FlushAsync(heartbeatCts.Token); } } catch { }
+        }, heartbeatCts.Token);
+
+        async Task Send(object obj)
+        {
+            if (ct.IsCancellationRequested) return;
+            try { await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct); await Response.Body.FlushAsync(ct); } catch { }
+        }
+
+        var cred = await _db.PortalCredentials.Include(c => c.Facility)
+            .FirstOrDefaultAsync(c => c.FacilityId == facilityId && c.IsActive, ct);
+        if (cred == null) { await Send(new { status = "error", message = "Credential not found." }); return; }
+
+        var parsedFrom = from != null ? DateTime.Parse(from) : DateTime.Today.AddYears(-1);
+        var parsedTo   = to   != null ? DateTime.Parse(to)   : DateTime.Today;
+        var txTypes    = new[] { 2, 8, 16, 32 };
+        var txStatuses = new[] { 1, 2 };
+        var facName    = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
+
+        string pwd;
+        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        catch { await Send(new { status = "error", message = "Corrupted password." }); return; }
+
+        var monthChunks = new List<(DateTime Start, DateTime End, string Label)>();
+        var cur = parsedFrom;
+        while (cur <= parsedTo)
+        {
+            var end = new DateTime(cur.Year, cur.Month, DateTime.DaysInMonth(cur.Year, cur.Month));
+            if (end > parsedTo) end = parsedTo;
+            monthChunks.Add((cur, end, cur.ToString("MMM yyyy")));
+            cur = end.AddDays(1);
+        }
+
+        int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
+        int totalSteps = monthChunks.Count, stepsDone = 0;
+
+        ActiveSyncState.Start(1, monthChunks.Count);
+        await Send(new { status = "start", message = $"{facName} · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = 1, months = monthChunks.Count, totalSteps });
+        await Send(new { status = "facility_start", facilityIndex = 1, facilityName = facName });
+
+        foreach (var (ms, me, mlabel) in monthChunks)
+        {
+            if (ct.IsCancellationRequested) break;
+            var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
+            var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
+
+            var monthRows = new List<PortalFetchResultRow>();
+            foreach (var txStatus in txStatuses)
+            foreach (var txType in txTypes)
+            {
+                var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                monthRows.AddRange(rSent); monthRows.AddRange(rRecv);
+            }
+
+            var uniqueMonth = monthRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+            grandTotal += uniqueMonth.Count;
+            stepsDone++;
+            int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
+
+            ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
+            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
+
+            if (uniqueMonth.Any())
+            {
+                var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
+                    uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
+                grandSaved += ns; grandDups += nd; grandFiles += nf;
+                ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
+                await Send(new { status = "processing", facilityIndex = 1, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
+            }
+        }
+
+        _db.PortalFetchLogs.Add(new PortalFetchLog
+        {
+            Portal = "DHA", FacilityId = cred.FacilityId, Operation = "MonthWiseSync",
+            FetchedBy = User.Identity?.Name ?? "system",
+            RecordsFetched = grandSaved, Status = "Success",
+            ResponseSummary = $"{grandSaved} saved, {grandFiles} downloaded, {grandDups} dup — {monthChunks.Count} months"
+        });
+        await _db.SaveChangesAsync(ct);
+
+        heartbeatCts.Cancel();
+        ActiveSyncState.Finish(grandSaved, grandFiles);
+        await Send(new { status = "facility_done", facilityIndex = 1, facilityName = facName, saved = grandSaved, dups = grandDups, files = grandFiles, pct = 100 });
+        await Send(new { status = "done", message = $"Complete — {grandSaved} new · {grandDups} dup · {grandFiles} files · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
+    }
+
     // ── Sync All Facilities — 2-year bulk download ──────────────────
 
     [HttpGet]
