@@ -1,0 +1,32 @@
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="Analytika" Language="1033" Version="1.0.0.0" Manufacturer="Jawahirps" UpgradeCode="PUT-GUID-HERE">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+
+    <MediaTemplate />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="Analytika" />
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="AnalytikaExecutable" Guid="PUT-GUID-HERE">
+        <File Source="path\to\your\analytika.exe" />
+      </Component>
+
+      <Component Id="AnalytikaConfig" Guid="PUT-GUID-HERE">
+        <File Source="path\to\your\config.json" />
+      </Component>
+    </ComponentGroup>
+
+    <Feature Id="ProductFeature" Title="Analytika" Level="1">
+      <ComponentRef Id="AnalytikaExecutable" />
+      <ComponentRef Id="AnalytikaConfig" />
+    </Feature>
+
+    <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="Analytika" 
+              WorkingDirectory="INSTALLFOLDER" Icon="icon.ico" 
+              Target="[INSTALLFOLDER]analytika.exe" />
+  </Product>
+</Wix>
