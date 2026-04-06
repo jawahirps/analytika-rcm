@@ -81,7 +81,8 @@ public class ReportSchedulerController : Controller
             SearchCriteria = model.SearchCriteria,
             Template = model.Template,
             FileFormat = model.FileFormat,
-            RequestedBy = user
+            RequestedBy = user,
+            EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
 
         var reportId = await _reportService.QueueReportAsync(request);

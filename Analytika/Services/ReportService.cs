@@ -12,12 +12,14 @@ public class ReportService : IReportService
     private readonly AppDbContext _context;
     private readonly ILogger<ReportService> _logger;
     private readonly IWebHostEnvironment _env;
+    private readonly IEmailService _emailService;
 
-    public ReportService(AppDbContext context, ILogger<ReportService> logger, IWebHostEnvironment env)
+    public ReportService(AppDbContext context, ILogger<ReportService> logger, IWebHostEnvironment env, IEmailService emailService)
     {
         _context = context;
         _logger = logger;
         _env = env;
+        _emailService = emailService;
     }
 
     public string GetNextReportId()
@@ -266,6 +268,10 @@ public class ReportService : IReportService
             report.Status = "Completed";
             report.GeneratedAt = DateTime.UtcNow;
             report.FilePath = $"/reports/{fileName}";
+
+            // Send email if recipients were specified
+            if (!string.IsNullOrWhiteSpace(report.EmailTo))
+                await _emailService.SendReportAsync(report.EmailTo, report.ReportId, report.ReportType, filePath);
         }
         catch (Exception ex)
         {

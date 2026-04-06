@@ -18,6 +18,7 @@ public class ReportSchedulerViewModel
     public string? EncounterType { get; set; }
     public string? Template { get; set; }
     public string FileFormat { get; set; } = "Excel";
+    public string? EmailTo { get; set; }   // comma-separated recipient addresses
 
     public SelectList? Facilities { get; set; }
     public SelectList? Receivers { get; set; }

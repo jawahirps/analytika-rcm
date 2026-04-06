@@ -178,6 +178,15 @@
                             <option value="PDF">PDF (.pdf)</option>
                         </select>
                     </div>
+                    <div class="col-md-9">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-envelope me-1" style="color:#05B5B7;"></i>Email Report To
+                            <small class="text-muted fw-normal ms-1">(optional — separate multiple addresses with commas)</small>
+                        </label>
+                        <input type="text" name="EmailTo" class="form-control"
+                               placeholder="e.g. manager@hospital.ae, finance@hospital.ae"
+                               value="@Model.EmailTo" />
+                    </div>
                 </div>
 
                 <div class="d-flex gap-2">

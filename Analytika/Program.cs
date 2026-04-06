@@ -38,6 +38,7 @@ builder.Services.AddHangfire(config => config
     .UseInMemoryStorage());
 
 builder.Services.AddHangfireServer();
+builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IPowerBIService, PowerBIService>();
 builder.Services.AddScoped<IDhaPortalService, DhaPortalService>();
@@ -107,6 +108,10 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
             ON ""PortalTransactions""(""SyncedAt"" DESC);
     ");
+    // Add EmailTo column to ReportRequests if not present (SQLite safe migration)
+    try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL"); }
+    catch { /* column already exists */ }
+
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
             ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

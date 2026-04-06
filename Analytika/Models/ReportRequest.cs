@@ -21,6 +21,7 @@ public class ReportRequest
     public DateTime? GeneratedAt { get; set; }
     public string? FilePath { get; set; }
     public string? RequestedBy { get; set; }
+    public string? EmailTo { get; set; }   // comma-separated recipient addresses
 
     public Facility? Branch { get; set; }
     public Receiver? Receiver { get; set; }
