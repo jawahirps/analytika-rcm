@@ -777,6 +777,95 @@ public class PortalController : Controller
         });
     }
 
+    // ── Download saved XML file ─────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadFile(int id)
+    {
+        var tx = await _db.PortalTransactions.FindAsync(id);
+        if (tx?.FileContentXml == null) return NotFound();
+        var fileName = (!string.IsNullOrWhiteSpace(tx.FileName) ? tx.FileName : $"{tx.TransactionId}.xml")
+            .Replace('/', '_').Replace('\\', '_');
+        return File(Encoding.UTF8.GetBytes(tx.FileContentXml), "application/xml", fileName);
+    }
+
+    // ── Manual Fetch (AJAX, JSON result) ───────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> FetchAjax(string portal, int? facilityId, string? operation,
+        string? dateFrom, string? dateTo, string? fileId)
+    {
+        if (facilityId == null) return Json(new { ok = false, message = "Select a facility." });
+        var cred = await _db.PortalCredentials
+            .FirstOrDefaultAsync(c => c.Portal == portal && c.FacilityId == facilityId && c.IsActive);
+        if (cred == null) return Json(new { ok = false, message = $"No active {portal} credentials for this facility." });
+
+        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+        operation ??= "SearchTransactions";
+
+        try
+        {
+            if (portal == "DHA")
+            {
+                if (operation == "DownloadTransactionFile")
+                {
+                    if (string.IsNullOrWhiteSpace(fileId))
+                        return Json(new { ok = false, message = "File ID required." });
+                    var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.Username, pwd, fileId);
+                    if (dlErr != null) return Json(new { ok = false, message = dlErr });
+                    return Json(new { ok = true, message = $"Downloaded: {dlFileName} ({dlBytes?.Length ?? 0:N0} bytes)", rows = Array.Empty<object>() });
+                }
+
+                (int count, List<PortalFetchResultRow> rows, string? error) result;
+                if (operation == "GetNewTransactions")
+                    result = await _dha.GetNewTransactionsAsync(cred.Username, pwd);
+                else if (operation == "GetNewPriorAuthorizations")
+                    result = await _dha.GetNewPriorAuthorizationsAsync(cred.Username, pwd);
+                else
+                {
+                    DateTime.TryParse(dateFrom, out var pFrom);
+                    DateTime.TryParse(dateTo, out var pTo);
+                    var chunks = PortalSyncService.GetDateChunks(pFrom == default ? DateTime.Today.AddMonths(-1) : pFrom,
+                        pTo == default ? DateTime.Today : pTo, 90);
+                    var allRows = new List<PortalFetchResultRow>();
+                    foreach (var (cs, ce) in chunks)
+                    {
+                        var df = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
+                        var dt = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
+                        var (_, r, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, df, dt, 1, 2);
+                        allRows.AddRange(r);
+                    }
+                    result = (allRows.Count, allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList(), null);
+                }
+                if (result.error != null) return Json(new { ok = false, message = result.error });
+                return Json(new
+                {
+                    ok = true,
+                    message = $"Fetched {result.rows.Count} records.",
+                    rows = result.rows.Select(r => new { r.FileId, r.Type, r.Status, r.Payer, r.Amount, r.Date, r.FileName })
+                });
+            }
+
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "");
+            if (authErr != null) return Json(new { ok = false, message = authErr });
+            (List<PortalFetchResultRow> rows, string? error) rhaRes = operation switch
+            {
+                "GetRemittances"         => await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo),
+                "GetPriorAuthorizations" => await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo),
+                _                        => await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo)
+            };
+            if (rhaRes.error != null) return Json(new { ok = false, message = rhaRes.error });
+            return Json(new
+            {
+                ok = true,
+                message = $"Fetched {rhaRes.rows.Count} records.",
+                rows = rhaRes.rows.Select(r => new { r.FileId, r.Type, r.Status, r.Payer, r.Amount, r.Date, r.FileName })
+            });
+        }
+        catch (Exception ex) { return Json(new { ok = false, message = ex.Message }); }
+    }
+
     // ── Sync Single Facility — month-wise for a date range ──────────
 
     [HttpGet]
@@ -867,7 +956,7 @@ public class PortalController : Controller
     // ── Sync All Facilities — 2-year bulk download ──────────────────
 
     [HttpGet]
-    public async Task SyncAllFacilitiesStream()
+    public async Task SyncAllFacilitiesStream([FromQuery] List<int>? facilityIds = null, [FromQuery] List<int>? txTypes = null)
     {
         var ct = HttpContext.RequestAborted;
         Response.ContentType = "text/event-stream; charset=utf-8";
@@ -902,17 +991,17 @@ public class PortalController : Controller
             catch { }
         }
 
-        var creds = await _db.PortalCredentials
-            .Include(c => c.Facility)
-            .Where(c => c.IsActive && c.Portal == "DHA")
-            .ToListAsync(ct);
+        var credsQuery = _db.PortalCredentials.Include(c => c.Facility).Where(c => c.IsActive && c.Portal == "DHA");
+        if (facilityIds?.Count > 0)
+            credsQuery = credsQuery.Where(c => facilityIds.Contains(c.FacilityId));
+        var creds = await credsQuery.ToListAsync(ct);
 
         if (!creds.Any())
         { await Send(new { status = "error", message = "No active DHA credentials found." }); return; }
 
         var parsedFrom = new DateTime(2024, 1, 1);
         var parsedTo   = DateTime.Today;
-        int[] txTypes  = [2, 8, 16, 32];
+        int[] effectiveTxTypes = (txTypes?.Count > 0) ? txTypes.ToArray() : [2, 8, 16, 32];
 
         var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
@@ -945,7 +1034,7 @@ public class PortalController : Controller
                 var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
 
                 // Parallel search — all type/status combos at once (max 4 concurrent)
-                var monthRows   = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
+                var monthRows   = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, effectiveTxTypes);
                 var uniqueMonth = PortalSyncService.DeduplicateRows(monthRows);
                 grandTotal += uniqueMonth.Count;
                 stepsDone++;

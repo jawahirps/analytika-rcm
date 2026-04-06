@@ -133,10 +133,10 @@
                                     <td class="text-center">
                                         @if (t.FileDownloaded)
                                         {
-                                            <span class="status-pill success" title="@(t.FileSizeBytes.HasValue ? $"{t.FileSizeBytes:N0} bytes" : "Downloaded")">
-                                                <i class="fas fa-file-code" style="font-size:.6rem;"></i>
-                                                @(t.FileSizeBytes.HasValue ? $"{t.FileSizeBytes / 1024.0:N1}KB" : "OK")
-                                            </span>
+                                            <a href="/Portal/DownloadFile/@t.Id" class="status-pill success" style="text-decoration:none;" title="Download XML@(t.FileSizeBytes.HasValue ? $" — {t.FileSizeBytes:N0} bytes" : "")">
+                                                <i class="fas fa-download" style="font-size:.6rem;"></i>
+                                                @(t.FileSizeBytes.HasValue ? $"{t.FileSizeBytes / 1024.0:N1}KB" : "XML")
+                                            </a>
                                         }
                                         else
                                         {

@@ -99,6 +99,7 @@ public class XmlParsingViewModel
     public int TotalRemittanceDownloaded => FacilityRows.Sum(r => r.RemittanceDownloaded);
     public int TotalMatched              => FacilityRows.Sum(r => r.Matched);
     public int TotalUnmatched            => FacilityRows.Sum(r => r.UnmatchedSubmissions);
+    public int TotalClaimCount           => FacilityRows.Sum(r => r.ClaimCount);
 }
 
 public class XmlParsingFacilityRow
@@ -115,6 +116,7 @@ public class XmlParsingFacilityRow
     public int Matched              { get; set; }
     public int UnmatchedSubmissions { get; set; }  // claims with no remittance
     public int UnmatchedRemittances { get; set; }  // remittances with no claim
+    public int ClaimCount           { get; set; }  // total <Claim> elements across all submission XMLs
     public decimal MatchRate => SubmissionDownloaded > 0
         ? Math.Round((decimal)Matched / SubmissionDownloaded * 100, 1) : 0;
 }

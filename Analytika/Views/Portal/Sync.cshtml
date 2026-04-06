@@ -15,30 +15,78 @@
             <a asp-action="SyncedData" class="btn btn-ghost btn-sm">
                 <i class="fas fa-database me-1"></i> View Synced Data
             </a>
-            <a asp-action="Fetch" class="btn btn-ghost btn-sm">
-                <i class="fas fa-bolt me-1"></i> Manual Fetch
-            </a>
+            <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#syncAllOptions">
+                <i class="fas fa-sliders-h me-1"></i> Options
+            </button>
+            <button class="btn btn-ghost btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#manualFetchPanel" onclick="mfInit()">
+                <i class="fas fa-bolt me-1" style="color:var(--emerald);"></i> Manual Fetch
+            </button>
             <button id="syncAllBtn" class="btn btn-primary btn-sm" onclick="startSyncAll()">
                 <i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026
             </button>
         </div>
     </div>
 
+    <!-- Month-wise Sync Options (collapsible) -->
+    <div class="collapse mb-3" id="syncAllOptions">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-3">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label">Facilities <span class="text-muted fw-normal">(leave blank = all active)</span></label>
+                        <select id="syncAllFacilities" class="form-select form-select-sm select2-multi" multiple>
+                            @foreach (var f in Model.Facilities)
+                            {
+                                <option value="@f.Value">@f.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Transaction Types</label>
+                        <div class="d-flex gap-3 flex-wrap pt-1">
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input sync-txtype" type="checkbox" id="tt2" value="2" checked>
+                                <label class="form-check-label" for="tt2" style="font-size:.8rem;">Claim (2)</label>
+                            </div>
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input sync-txtype" type="checkbox" id="tt8" value="8" checked>
+                                <label class="form-check-label" for="tt8" style="font-size:.8rem;">Remittance (8)</label>
+                            </div>
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input sync-txtype" type="checkbox" id="tt16" value="16" checked>
+                                <label class="form-check-label" for="tt16" style="font-size:.8rem;">PA Req (16)</label>
+                            </div>
+                            <div class="form-check form-check-inline mb-0">
+                                <input class="form-check-input sync-txtype" type="checkbox" id="tt32" value="32" checked>
+                                <label class="form-check-label" for="tt32" style="font-size:.8rem;">PA Auth (32)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button id="syncAllBtn2" class="btn btn-primary btn-sm w-100" onclick="startSyncAll()">
+                            <i class="fas fa-play me-1"></i> Start
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Single-Facility Sync Panel (hidden until started) -->
-    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #599BAE!important;">
+    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #05B5B7!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
                     <i class="fas fa-calendar-alt fa-spin me-1" id="syncOneSpinner"></i>
                     <span id="syncOneTitle">Facility Sync</span>
                 </h6>
-                <span id="syncOneGrandTotal" class="badge" style="background:#D1EEEA;color:#2A5674;font-size:.75rem;"></span>
+                <span id="syncOneGrandTotal" class="badge" style="background:#ccf7f7;color:#002E5B;font-size:.75rem;"></span>
             </div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncOneProgress" class="progress-bar" style="background:#599BAE;width:0%;transition:width .3s;"></div>
+                    <div id="syncOneProgress" class="progress-bar" style="background:#05B5B7;width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#599BAE;min-width:32px;text-align:right;">0%</span>
+                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#05B5B7;min-width:32px;text-align:right;">0%</span>
             </div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.9;">
@@ -48,21 +96,21 @@
     </div>
 
     <!-- Sync All Progress Panel (hidden until started) -->
-    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #599BAE!important;">
+    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #05B5B7!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
                     <i class="fas fa-calendar-alt fa-spin me-1" id="syncAllSpinner"></i>
                     Month-wise Sync — Jan 2024 → Today
                 </h6>
-                <span id="syncAllGrandTotal" class="badge" style="background:#D1EEEA;color:#2A5674;font-size:.75rem;"></span>
+                <span id="syncAllGrandTotal" class="badge" style="background:#ccf7f7;color:#002E5B;font-size:.75rem;"></span>
             </div>
             <!-- Overall progress -->
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncAllProgress" class="progress-bar" style="background:#599BAE;width:0%;transition:width .3s;"></div>
+                    <div id="syncAllProgress" class="progress-bar" style="background:#05B5B7;width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#2A5674;min-width:32px;text-align:right;">0%</span>
+                <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#002E5B;min-width:32px;text-align:right;">0%</span>
             </div>
             <!-- Current facility + month -->
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
@@ -75,7 +123,83 @@
 
     <div class="row g-4">
 
-        <!-- Left: Config -->
+        <!-- Manual Fetch (consolidated) -->
+    <div class="card border-0 shadow-sm mb-4 collapse" id="manualFetchPanel">
+        <div class="card-body p-3">
+            <h6 class="fw-bold mb-3" style="color:var(--navy);font-size:.88rem;">
+                <i class="fas fa-bolt me-1" style="color:var(--emerald);"></i> Manual API Fetch
+                <small class="text-muted fw-normal ms-2" style="font-size:.72rem;">Raw portal call — results not auto-saved</small>
+            </h6>
+            <form id="fetchForm" class="row g-3 align-items-end">
+                @Html.AntiForgeryToken()
+                <!-- Portal -->
+                <div class="col-auto">
+                    <label class="form-label">Portal</label>
+                    <div class="d-flex gap-2">
+                        <label class="portal-toggle flex-fill">
+                            <input type="radio" name="mfPortal" value="DHA" checked class="d-none" onchange="mfUpdateOps()"/>
+                            <span><i class="fas fa-building me-1"></i>DHA</span>
+                        </label>
+                        <label class="portal-toggle flex-fill">
+                            <input type="radio" name="mfPortal" value="RHA" class="d-none" onchange="mfUpdateOps()"/>
+                            <span><i class="fas fa-hospital me-1"></i>RHA</span>
+                        </label>
+                    </div>
+                </div>
+                <!-- Facility -->
+                <div class="col-md-3">
+                    <label class="form-label">Facility</label>
+                    <select id="mfFacility" class="form-select form-select-sm">
+                        <option value="">— Select —</option>
+                        @foreach (var f in Model.Facilities)
+                        {
+                            <option value="@f.Value">@f.Text</option>
+                        }
+                    </select>
+                </div>
+                <!-- Operation -->
+                <div class="col-md-2">
+                    <label class="form-label">Operation</label>
+                    <select id="mfOperation" class="form-select form-select-sm" onchange="mfUpdateFields()"></select>
+                </div>
+                <!-- Dates -->
+                <div class="col-md-2" id="mfDateSection">
+                    <label class="form-label">From</label>
+                    <input type="date" id="mfDateFrom" class="form-control form-control-sm"/>
+                </div>
+                <div class="col-md-2" id="mfDateSection2">
+                    <label class="form-label">To</label>
+                    <input type="date" id="mfDateTo" class="form-control form-control-sm"/>
+                </div>
+                <!-- File ID (download only) -->
+                <div class="col-md-3" id="mfFileIdSection" style="display:none;">
+                    <label class="form-label">File ID</label>
+                    <input type="text" id="mfFileId" class="form-control form-control-sm" placeholder="e.g. 123456"/>
+                </div>
+                <div class="col-auto">
+                    <button type="button" class="btn btn-sm" style="background:var(--emerald);color:#fff;" onclick="mfFetch()">
+                        <i class="fas fa-cloud-download-alt me-1"></i> Fetch
+                    </button>
+                </div>
+            </form>
+            <!-- Results -->
+            <div id="mfResults" class="mt-3" style="display:none;">
+                <div id="mfStatus" class="mb-2" style="font-size:.82rem;"></div>
+                <div class="table-responsive" style="max-height:320px;overflow-y:auto;">
+                    <table class="table table-hover mb-0" style="font-size:.78rem;">
+                        <thead><tr>
+                            <th class="ps-3">File ID / Tx ID</th>
+                            <th>Type</th><th>Status</th><th>Payer</th><th>Amount</th><th>Date</th>
+                            <th class="pe-3">File</th>
+                        </tr></thead>
+                        <tbody id="mfTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Left: Config -->
         <div class="col-lg-4">
 
             <!-- DHA Sync Strategy Info -->
@@ -154,13 +278,13 @@
                         </button>
                     </form>
 
-                    <!-- Sync New (GetNewTransactions) -->
+                    <!-- Facility-wise Sync -->
                     <div class="divider my-3"></div>
                     <h6 class="fw-bold mb-1" style="color:var(--navy);">
-                        <i class="fas fa-bolt me-1" style="color:var(--warning);"></i> Sync New Transactions
+                        <i class="fas fa-hospital me-1" style="color:var(--emerald);"></i> Facility-wise Sync
                     </h6>
                     <p class="text-muted mb-2" style="font-size:.75rem;">
-                        Uses <strong>GetNewTransactions</strong> to fetch &amp; download only unacknowledged new transactions from the DHA queue
+                        Select a facility, set date range and trigger month-wise or new-only sync
                     </p>
 
                     <div class="mb-2">
@@ -173,12 +297,24 @@
                         </select>
                     </div>
 
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-ghost flex-grow-1" id="syncNewBtn" onclick="syncNew()" style="border-color:var(--warning);color:#b45309;">
-                            <i class="fas fa-sync me-1"></i> Sync New Only
+                    <!-- Per-facility date range -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <input type="date" id="facSyncFrom" class="form-control form-control-sm" />
+                            <small class="text-muted" style="font-size:.68rem;">From (leave blank = 1 yr)</small>
+                        </div>
+                        <div class="col-6">
+                            <input type="date" id="facSyncTo" class="form-control form-control-sm" />
+                            <small class="text-muted" style="font-size:.68rem;">To (leave blank = today)</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-ghost flex-fill" id="syncNewBtn" onclick="syncNew()" style="border-color:var(--warning);color:#b45309;font-size:.78rem;">
+                            <i class="fas fa-bolt me-1"></i> New Only
                         </button>
-                        <button type="button" class="btn btn-ghost flex-grow-1" id="syncOneBtn" onclick="startSyncOne()" style="border-color:#599BAE;color:#599BAE;">
-                            <i class="fas fa-calendar-alt me-1"></i> Sync 1 Year
+                        <button type="button" class="btn btn-ghost flex-fill" id="syncOneBtn" onclick="startSyncOne()" style="border-color:var(--emerald);color:var(--emerald);font-size:.78rem;">
+                            <i class="fas fa-calendar-alt me-1"></i> Month-wise
                         </button>
                     </div>
                     <div id="syncNewResult" class="mt-2" style="font-size:.78rem;display:none;"></div>
@@ -319,14 +455,58 @@
             }
             else if (!Model.HasRun)
             {
-                <div class="card border-0" style="border:2px dashed var(--border)!important;background:transparent!important;box-shadow:none!important;">
-                    <div class="empty-state" style="padding:60px 24px;">
-                        <i class="fas fa-sync" style="color:var(--emerald);opacity:.3;"></i>
-                        <p class="fw-semibold mb-1" style="font-size:.95rem;color:var(--text-secondary);">Ready to Sync</p>
-                        <p style="font-size:.82rem;color:var(--text-muted);max-width:400px;margin:0 auto;">
-                            <strong>Full Sync</strong> uses SearchTransactions to discover file references, then DownloadTransactionFile to fetch each file and persist the XML content to the database.<br/><br/>
-                            <strong>Sync New</strong> uses GetNewTransactions to pick up any new unacknowledged transactions from the DHA queue.
-                        </p>
+                <!-- Facility Quick Sync Panel -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+                        <span class="fw-bold" style="color:var(--navy);font-size:.95rem;">
+                            <i class="fas fa-hospital me-2" style="color:var(--emerald);"></i>Facility-wise Sync Overview
+                        </span>
+                        <small class="text-muted">@Model.Facilities.Count facilities</small>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4">Facility</th>
+                                        <th class="text-center">Month-wise (1 yr)</th>
+                                        <th class="text-center">Month-wise (2 yr)</th>
+                                        <th class="pe-4 text-center">New Only</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var f in Model.Facilities)
+                                    {
+                                        <tr>
+                                            <td class="ps-4 fw-semibold" style="color:var(--navy);font-size:.82rem;">
+                                                <i class="fas fa-hospital-alt me-1 text-muted" style="font-size:.7rem;"></i>@f.Text
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-ghost btn-xs"
+                                                    style="border-color:var(--emerald);color:var(--emerald);"
+                                                    onclick="quickSyncFacility('@f.Value', 12)">
+                                                    <i class="fas fa-calendar-alt me-1"></i>1 yr
+                                                </button>
+                                            </td>
+                                            <td class="text-center">
+                                                <button class="btn btn-ghost btn-xs"
+                                                    style="border-color:var(--navy);color:var(--navy);"
+                                                    onclick="quickSyncFacility('@f.Value', 24)">
+                                                    <i class="fas fa-calendar-alt me-1"></i>2 yr
+                                                </button>
+                                            </td>
+                                            <td class="pe-4 text-center">
+                                                <button class="btn btn-ghost btn-xs"
+                                                    style="border-color:var(--warning);color:#b45309;"
+                                                    onclick="quickSyncNew('@f.Value')">
+                                                    <i class="fas fa-bolt me-1"></i>New
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             }
@@ -386,6 +566,7 @@
     // ── Month-wise Sync 2024–2026 ──────────────────────────────────
     function startSyncAll() {
         const btn      = document.getElementById('syncAllBtn');
+        const btn2     = document.getElementById('syncAllBtn2');
         const panel    = document.getElementById('syncAllPanel');
         const logDiv   = document.getElementById('syncAllLog');
         const bar      = document.getElementById('syncAllProgress');
@@ -394,7 +575,17 @@
         const spinner  = document.getElementById('syncAllSpinner');
         const curLbl   = document.getElementById('syncAllCurrent');
 
+        // Collect options
+        const selFacilities = Array.from(document.querySelectorAll('#syncAllFacilities option:checked')).map(o => o.value);
+        const selTypes = Array.from(document.querySelectorAll('.sync-txtype:checked')).map(c => c.value);
+
+        const params = new URLSearchParams();
+        selFacilities.forEach(f => params.append('facilityIds', f));
+        selTypes.forEach(t => params.append('txTypes', t));
+        const qs = params.toString() ? '?' + params.toString() : '';
+
         btn.disabled = true;
+        if (btn2) btn2.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Syncing…';
         panel.style.display = 'block';
         logDiv.innerHTML = '';
@@ -406,7 +597,7 @@
         // Track current facility header line so month rows can be indented under it
         let lastFacilityEl = null;
 
-        const source = new EventSource('/Portal/SyncAllFacilitiesStream');
+        const source = new EventSource('/Portal/SyncAllFacilitiesStream' + qs);
         let syncCompleted = false;   // set to true when done/error received
 
         function addLog(msg, color, indent) {
@@ -428,10 +619,10 @@
             const d = JSON.parse(e.data);
 
             if (d.status === 'start') {
-                addLog(`▶ ${d.message}`, '#599BAE');
+                addLog(`▶ ${d.message}`, '#05B5B7');
 
             } else if (d.status === 'facility_start') {
-                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#2A5674');
+                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#002E5B');
                 curLbl.textContent = `Facility ${d.facilityIndex}: ${d.facilityName}`;
 
             } else if (d.status === 'month_done') {
@@ -480,6 +671,7 @@
         function done() {
             spinner.classList.remove('fa-spin');
             btn.disabled = false;
+            if (btn2) btn2.disabled = false;
             btn.innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026';
         }
     }
@@ -509,10 +701,13 @@
         title.textContent    = 'Loading…';
         panel.scrollIntoView({ behavior: 'smooth' });
 
-        const from = new Date(); from.setFullYear(from.getFullYear() - 1);
-        const fromStr = from.toISOString().split('T')[0];
+        const fromInput = document.getElementById('facSyncFrom').value;
+        const toInput   = document.getElementById('facSyncTo').value;
+        const defFrom = new Date(); defFrom.setFullYear(defFrom.getFullYear() - 1);
+        const fromStr = fromInput || defFrom.toISOString().split('T')[0];
+        const toStr   = toInput   || new Date().toISOString().split('T')[0];
 
-        const source = new EventSource(`/Portal/SyncFacilityStream?facilityId=${facilityId}&from=${fromStr}`);
+        const source = new EventSource(`/Portal/SyncFacilityStream?facilityId=${facilityId}&from=${fromStr}&to=${toStr}`);
         let syncCompleted = false;
 
         function addLog(msg, color, indent) {
@@ -529,10 +724,10 @@
 
             if (d.status === 'start') {
                 title.textContent = d.message;
-                addLog(`▶ ${d.message}`, '#599BAE');
+                addLog(`▶ ${d.message}`, '#05B5B7');
 
             } else if (d.status === 'facility_start') {
-                addLog(`◆ ${d.facilityName}`, '#2A5674');
+                addLog(`◆ ${d.facilityName}`, '#002E5B');
                 curLbl.textContent = d.facilityName;
 
             } else if (d.status === 'month_done') {
@@ -577,6 +772,100 @@
         function done() {
             spinner.classList.remove('fa-spin');
             btn.disabled = false;
+        }
+    }
+
+    // ── Quick per-facility helpers (from overview table) ──────────
+    function quickSyncFacility(facilityId, months) {
+        document.getElementById('syncNewFacility').value = facilityId;
+        const from = new Date(); from.setMonth(from.getMonth() - months);
+        document.getElementById('facSyncFrom').value = from.toISOString().split('T')[0];
+        document.getElementById('facSyncTo').value   = new Date().toISOString().split('T')[0];
+        // Scroll to the left panel and trigger
+        document.getElementById('syncNewFacility').scrollIntoView({ behavior: 'smooth' });
+        setTimeout(() => startSyncOne(), 400);
+    }
+    function quickSyncNew(facilityId) {
+        document.getElementById('syncNewFacility').value = facilityId;
+        document.getElementById('syncNewFacility').scrollIntoView({ behavior: 'smooth' });
+        setTimeout(() => syncNew(), 400);
+    }
+
+    // ── Manual Fetch ───────────────────────────────────────────────
+    const MF_OPS = {
+        DHA: ['SearchTransactions','GetNewTransactions','GetNewPriorAuthorizations','DownloadTransactionFile'],
+        RHA: ['GetClaims','GetRemittances','GetPriorAuthorizations']
+    };
+    let mfInited = false;
+    function mfInit() {
+        if (mfInited) return;
+        mfInited = true;
+        mfUpdateOps();
+        const today = new Date().toISOString().split('T')[0];
+        const from  = new Date(); from.setMonth(from.getMonth() - 1);
+        document.getElementById('mfDateFrom').value = from.toISOString().split('T')[0];
+        document.getElementById('mfDateTo').value   = today;
+    }
+    function mfUpdateOps() {
+        const portal = document.querySelector('input[name="mfPortal"]:checked')?.value || 'DHA';
+        const sel = document.getElementById('mfOperation');
+        sel.innerHTML = '';
+        (MF_OPS[portal] || []).forEach(op => {
+            const o = document.createElement('option'); o.value = op; o.textContent = op; sel.appendChild(o);
+        });
+        mfUpdateFields();
+    }
+    function mfUpdateFields() {
+        const op = document.getElementById('mfOperation')?.value || '';
+        const isDl = op === 'DownloadTransactionFile';
+        const isDate = !['GetNewTransactions','GetNewPriorAuthorizations'].includes(op);
+        document.getElementById('mfDateSection').style.display  = (isDate && !isDl) ? '' : 'none';
+        document.getElementById('mfDateSection2').style.display = (isDate && !isDl) ? '' : 'none';
+        document.getElementById('mfFileIdSection').style.display= isDl ? '' : 'none';
+    }
+    async function mfFetch() {
+        const facility = document.getElementById('mfFacility').value;
+        if (!facility) { alert('Select a facility.'); return; }
+        const portal  = document.querySelector('input[name="mfPortal"]:checked')?.value || 'DHA';
+        const op      = document.getElementById('mfOperation').value;
+        const from    = document.getElementById('mfDateFrom').value;
+        const to      = document.getElementById('mfDateTo').value;
+        const fileId  = document.getElementById('mfFileId')?.value || '';
+        const token   = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+        const statusEl = document.getElementById('mfStatus');
+        const resultsEl= document.getElementById('mfResults');
+        const tbody    = document.getElementById('mfTableBody');
+
+        statusEl.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Fetching…';
+        resultsEl.style.display = 'block';
+        tbody.innerHTML = '';
+
+        try {
+            const body = new URLSearchParams({ portal, facilityId: facility, operation: op, dateFrom: from, dateTo: to, fileId, __RequestVerificationToken: token });
+            const resp = await fetch('/Portal/FetchAjax', { method: 'POST', body });
+            const data = await resp.json();
+
+            if (!data.ok) {
+                statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>${data.message}</span>`;
+                return;
+            }
+            statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>${data.message}</span>`;
+            (data.rows || []).forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="ps-3 fw-semibold" style="color:var(--navy);font-size:.75rem;">${r.fileId || '—'}</td>
+                    <td><span class="badge badge-navy" style="font-size:.65rem;">${r.type||'—'}</span></td>
+                    <td><span class="badge badge-success" style="font-size:.65rem;">${r.status||'—'}</span></td>
+                    <td class="text-muted">${r.payer||'—'}</td>
+                    <td class="text-muted">${r.amount||'—'}</td>
+                    <td class="text-muted">${r.date||'—'}</td>
+                    <td class="pe-3"><small class="text-muted">${r.fileName||''}</small></td>`;
+                tbody.appendChild(tr);
+            });
+            if (!data.rows?.length) tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No results</td></tr>';
+        } catch (e) {
+            statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Request failed</span>`;
         }
     }
 </script>

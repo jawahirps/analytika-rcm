@@ -80,6 +80,16 @@ public class ReconciliationService
         var remByFacility = remIds.GroupBy(x => x.FacilityId)
             .ToDictionary(g => g.Key, g => ExtractClaimIds(g.Select(x => x.FileContentXml)));
 
+        // Count <Claim occurrences per facility — fast string scan, no full parse needed
+        var claimCountByFacility = subIds.GroupBy(x => x.FacilityId)
+            .ToDictionary(g => g.Key, g => g.Sum(x =>
+            {
+                if (string.IsNullOrEmpty(x.FileContentXml)) return 0;
+                int n = 0, i = 0;
+                while ((i = x.FileContentXml.IndexOf("<Claim", i, StringComparison.Ordinal)) >= 0) { n++; i++; }
+                return n;
+            }));
+
         var facilityMap = facilities.ToDictionary(f => f.Id, f => f.Name);
         var allFacilityIds = subCounts.Select(x => x.FacilityId)
             .Union(remCounts.Select(x => x.FacilityId)).Distinct().ToList();
@@ -106,6 +116,7 @@ public class ReconciliationService
                 Matched             = matched,
                 UnmatchedSubmissions= subClaimIds.Count - matched,
                 UnmatchedRemittances= remClaimIds.Count(id => !subClaimIds.Contains(id)),
+                ClaimCount          = claimCountByFacility.GetValueOrDefault(fid, 0),
             };
         })
         .OrderBy(r => r.FacilityName)

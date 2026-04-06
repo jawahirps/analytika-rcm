@@ -23,14 +23,14 @@
         border-top: 3px solid #e2e8f0;
         text-align: center;
     }
-    .total-card.sub  { border-top-color: #3b82f6; }
+    .total-card.sub  { border-top-color: #05B5B7; }
     .total-card.rem  { border-top-color: #8b5cf6; }
     .total-card.mat  { border-top-color: #10b981; }
     .total-card.unm  { border-top-color: #f59e0b; }
-    .total-card .num { font-size: 1.7rem; font-weight: 700; color: #2A5674; line-height: 1.1; }
+    .total-card .num { font-size: 1.7rem; font-weight: 700; color: #002E5B; line-height: 1.1; }
     .total-card .lbl { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: #94a3b8; margin-top: 4px; }
     .total-card .ic  { font-size: .85rem; margin-bottom: 8px; }
-    .total-card.sub .ic { color: #3b82f6; }
+    .total-card.sub .ic { color: #05B5B7; }
     .total-card.rem .ic { color: #8b5cf6; }
     .total-card.mat .ic { color: #10b981; }
     .total-card.unm .ic { color: #f59e0b; }
@@ -49,7 +49,7 @@
         padding: 18px 22px 14px;
         border-bottom: 1px solid #f1f5f9;
     }
-    .fac-card-header h6 { font-size: .95rem; font-weight: 700; color: #2A5674; margin: 0; }
+    .fac-card-header h6 { font-size: .95rem; font-weight: 700; color: #002E5B; margin: 0; }
     table.xp-table { width: 100%; border-collapse: collapse; }
     .xp-table thead th {
         font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
@@ -61,13 +61,13 @@
     .xp-table tbody tr:last-child { border-bottom: none; }
     .xp-table tbody tr:hover { background: #f8fafc; }
     .xp-table td { padding: 12px 16px; font-size: .85rem; color: #334155; vertical-align: middle; }
-    .xp-table td.facility-name { font-weight: 600; color: #2A5674; }
+    .xp-table td.facility-name { font-weight: 600; color: #002E5B; }
 
     /* Progress bars */
     .bar-wrap { display: flex; align-items: center; gap: 8px; }
     .bar-track { flex: 1; height: 6px; border-radius: 99px; background: #e2e8f0; overflow: hidden; min-width: 60px; }
     .bar-fill  { height: 100%; border-radius: 99px; transition: width .4s ease; }
-    .bar-fill.sub-dl  { background: #3b82f6; }
+    .bar-fill.sub-dl  { background: #05B5B7; }
     .bar-fill.rem-dl  { background: #8b5cf6; }
     .bar-fill.match   { background: #10b981; }
     .bar-pct { font-size: .75rem; font-weight: 600; color: #64748b; min-width: 34px; text-align: right; }
@@ -91,7 +91,7 @@
     <!-- Page header -->
     <div class="d-flex align-items-center justify-content-between mb-3">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#2A5674;">
+            <h4 class="mb-0 fw-bold" style="color:#002E5B;">
                 <i class="fas fa-file-code me-2 text-primary"></i>XML Parsing
             </h4>
             <p class="text-muted small mb-0">Summary of DHA submission &amp; remittance XML files — availability, downloads, and claim matching.</p>
@@ -115,7 +115,7 @@
     </div>
 
     <!-- Grand totals -->
-    <div class="totals-grid">
+    <div class="totals-grid" style="grid-template-columns:repeat(7,1fr);">
         <div class="total-card sub">
             <div class="ic"><i class="fas fa-file-upload"></i></div>
             <div class="num">@Model.TotalSubmission.ToString("N0")</div>
@@ -135,6 +135,11 @@
             <div class="ic"><i class="fas fa-download"></i></div>
             <div class="num">@Model.TotalRemittanceDownloaded.ToString("N0")</div>
             <div class="lbl">Remittances Downloaded</div>
+        </div>
+        <div class="total-card" style="border-top-color:#05B5B7;">
+            <div class="ic" style="color:#05B5B7;"><i class="fas fa-file-medical"></i></div>
+            <div class="num" style="color:#002E5B;">@Model.TotalClaimCount.ToString("N0")</div>
+            <div class="lbl">Total Claims</div>
         </div>
         <div class="total-card mat">
             <div class="ic"><i class="fas fa-link"></i></div>
@@ -159,11 +164,12 @@
                 <tr>
                     <th>Facility</th>
                     <th class="center">Sub Files</th>
-                    <th style="min-width:160px;">Sub Downloaded</th>
+                    <th style="min-width:140px;">Sub Downloaded</th>
                     <th class="center">Rem Files</th>
-                    <th style="min-width:160px;">Rem Downloaded</th>
+                    <th style="min-width:140px;">Rem Downloaded</th>
+                    <th class="center" style="color:#002E5B;">Claims</th>
                     <th class="center">Matched</th>
-                    <th style="min-width:140px;">Match Rate</th>
+                    <th style="min-width:120px;">Match Rate</th>
                     <th class="center">Unmatched</th>
                 </tr>
             </thead>
@@ -171,7 +177,7 @@
                 @if (!Model.FacilityRows.Any())
                 {
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-5">
+                        <td colspan="9" class="text-center text-muted py-5">
                             <i class="fas fa-inbox fa-2x d-block mb-2 opacity-25"></i>
                             No parsed XML files found.
                         </td>
@@ -204,6 +210,13 @@
                                 <div class="bar-track"><div class="bar-fill rem-dl" style="width:@remPct%"></div></div>
                                 <span class="bar-pct">@r.RemittanceDownloaded</span>
                             </div>
+                        </td>
+                        <td class="center">
+                            @if (r.ClaimCount > 0)
+                            {
+                                <span class="fw-semibold" style="color:#002E5B;font-size:.88rem;">@r.ClaimCount.ToString("N0")</span>
+                            }
+                            else { <span class="text-muted">—</span> }
                         </td>
                         <td class="center">
                             @if (r.Matched > 0)

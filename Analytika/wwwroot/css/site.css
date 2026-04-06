@@ -9,43 +9,43 @@
    CSS Custom Properties
    ---------------------------------------------------------------- */
 :root {
-  /* Brand palette — ocean teal scale */
-  --navy:          #2A5674;
-  --navy-mid:      #3F7994;
-  --navy-soft:     #599BAE;
-  --emerald:       #79BBC3;
-  --emerald-dark:  #599BAE;
-  --emerald-light: rgba(121,187,195,0.15);
-  --emerald-pale:  rgba(209,238,234,0.45);
+  /* Brand palette — GHAF Services */
+  --navy:          #002E5B;
+  --navy-mid:      #005a99;
+  --navy-soft:     #0072bf;
+  --emerald:       #05B5B7;
+  --emerald-dark:  #0399a0;
+  --emerald-light: rgba(5,181,183,0.12);
+  --emerald-pale:  rgba(5,181,183,0.07);
 
-  /* Neutral surface — very faint teal tint */
-  --bg:            #f0f8f8;
+  /* Neutral surface */
+  --bg:            #f4fbfb;
   --surface:       #ffffff;
-  --surface-alt:   #e8f5f5;
-  --border:        #c8e4e4;
-  --border-light:  #dff0f0;
+  --surface-alt:   #e5f5f6;
+  --border:        #bce8e9;
+  --border-light:  #d2f0f1;
 
   /* Text */
-  --text:          #1a3a4a;
-  --text-secondary:#4a7080;
-  --text-muted:    #8aacb8;
+  --text:          #1a2e3b;
+  --text-secondary:#4a6a7a;
+  --text-muted:    #7aaab4;
   --text-invert:   #ffffff;
 
   /* Semantic */
   --success:       #3aac8a;
   --warning:       #f59e0b;
   --danger:        #ef4444;
-  --info:          #599BAE;
+  --info:          #05B5B7;
 
   /* Layout */
   --radius-sm:     6px;
   --radius:        10px;
   --radius-lg:     14px;
   --radius-xl:     20px;
-  --shadow-xs:     0 1px 3px rgba(42,86,116,0.06);
-  --shadow-sm:     0 2px 8px rgba(42,86,116,0.08);
-  --shadow-md:     0 4px 20px rgba(42,86,116,0.10);
-  --shadow-lg:     0 12px 40px rgba(42,86,116,0.14);
+  --shadow-xs:     0 1px 3px rgba(0,46,91,0.07);
+  --shadow-sm:     0 2px 8px rgba(0,46,91,0.09);
+  --shadow-md:     0 4px 20px rgba(0,46,91,0.11);
+  --shadow-lg:     0 12px 40px rgba(0,46,91,0.15);
 
   /* Transitions */
   --transition:    0.18s ease;
@@ -573,7 +573,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge-emerald  { background: var(--emerald-light); color: var(--emerald-dark); }
-.badge-navy     { background: rgba(42,86,116,0.08);   color: var(--navy); }
+.badge-navy     { background: rgba(0,46,91,0.08);    color: var(--navy); }
 .badge-warning  { background: rgba(245,158,11,0.12); color: #b45309; }
 .badge-danger   { background: rgba(239,68,68,0.12);  color: #b91c1c; }
 .badge-info     { background: rgba(59,130,246,0.12); color: #1d4ed8; }
@@ -775,9 +775,9 @@ label.portal-toggle span { pointer-events: none; }
   flex-shrink: 0;
 }
 
-.avatar-admin   { background: linear-gradient(135deg, #2A5674 0%, #3F7994 100%); }
-.avatar-analyst { background: linear-gradient(135deg, #599BAE 0%, #79BBC3 100%); }
-.avatar-viewer  { background: linear-gradient(135deg, #3F7994 0%, #599BAE 100%); }
+.avatar-admin   { background: linear-gradient(135deg, #002E5B 0%, #005a99 100%); }
+.avatar-analyst { background: linear-gradient(135deg, #05B5B7 0%, #6ee0e1 100%); }
+.avatar-viewer  { background: linear-gradient(135deg, #005a99 0%, #05B5B7 100%); }
 .avatar-default { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
 
 /* ----------------------------------------------------------------
@@ -946,7 +946,7 @@ label.portal-toggle span { pointer-events: none; }
   border-radius: 50%;
 }
 
-.conn-ok   .dot { background: var(--emerald); box-shadow: 0 0 0 3px rgba(121,187,195,0.25); }
+.conn-ok   .dot { background: var(--emerald); box-shadow: 0 0 0 3px rgba(5,181,183,0.25); }
 .conn-fail .dot { background: var(--danger);  box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
 .conn-idle .dot { background: var(--text-muted); }
 
@@ -954,8 +954,8 @@ label.portal-toggle span { pointer-events: none; }
    Code / XML Preview
    ---------------------------------------------------------------- */
 .xml-preview {
-  background: #1a3a4a;
-  color: #A1D7D6;
+  background: #002E5B;
+  color: #6ee0e1;
   border-radius: var(--radius);
   padding: 14px 16px;
   font-family: 'Fira Code', 'Consolas', monospace;
@@ -1115,7 +1115,7 @@ label.portal-toggle span { pointer-events: none; }
   gap: 2px;
   flex-wrap: nowrap;
 
-  background: rgba(26, 58, 74, 0.88);
+  background: rgba(0, 46, 91, 0.88);
   backdrop-filter: blur(14px) saturate(160%);
   -webkit-backdrop-filter: blur(14px) saturate(160%);
   border: 1px solid rgba(255,255,255,.13);
@@ -1179,7 +1179,7 @@ label.portal-toggle span { pointer-events: none; }
 }
 
 /* sync state colours */
-.sb-ok   { color: #79BBC3; }
+.sb-ok   { color: #05B5B7; }
 .sb-warn { color: #fbbf24; }
 .sb-idle { color: #94a3b8; }
 .sb-err  { color: #f87171; }
@@ -1202,10 +1202,10 @@ label.portal-toggle span { pointer-events: none; }
 .sb-progress-fill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #79BBC3 0%, #A1D7D6 100%);
+  background: linear-gradient(90deg, #05B5B7 0%, #6ee0e1 100%);
   border-radius: 999px;
   transition: width .6s ease;
-  box-shadow: 0 0 6px rgba(121,187,195,.6);
+  box-shadow: 0 0 6px rgba(5,181,183,.6);
 }
 
 /* animated shimmer while running */
