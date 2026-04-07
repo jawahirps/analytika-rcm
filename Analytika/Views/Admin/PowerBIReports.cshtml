@@ -73,11 +73,31 @@
                 <tbody>
                     @foreach (var embed in Model)
                     {
-                        var isReal  = !string.IsNullOrWhiteSpace(embed.ReportId) && !embed.ReportId.Contains("DEMO") && embed.ReportId.Length >= 32;
-                        var expired = embed.TokenExpiry < DateTime.UtcNow;
-                        var tokenBadge = isReal
-                            ? (expired ? "<span class='badge bg-danger'>Expired</span>" : "<span class='badge bg-success'>OK</span>")
-                            : "<span class='badge bg-secondary'>Demo</span>";
+                        // A row is "configured" only when it has a real report ID AND
+                        // a non-demo, non-placeholder embed token stored.
+                        var hasRealToken  = !string.IsNullOrWhiteSpace(embed.EmbedToken)
+                                         && !embed.EmbedToken.StartsWith("DEMO_TOKEN", StringComparison.OrdinalIgnoreCase)
+                                         && embed.EmbedToken != "PENDING";
+                        var hasRealIds    = !string.IsNullOrWhiteSpace(embed.ReportId)
+                                         && embed.ReportId.Length >= 32;
+                        var isConfigured  = hasRealIds && hasRealToken;
+                        var isEntered     = hasRealIds && !hasRealToken;   // IDs saved but no token yet
+                        var tokenExpired  = embed.TokenExpiry < DateTime.UtcNow;
+
+                        string tokenBadge;
+                        if (!hasRealIds)
+                            tokenBadge = "<span class='badge' style='background:#e2e8f0;color:#64748b;'>Not configured</span>";
+                        else if (isEntered)
+                            tokenBadge = "<span class='badge' style='background:rgba(13,114,114,0.12);color:#0D7272;'><i class='fas fa-sync-alt me-1'></i>Will refresh</span>";
+                        else if (!tokenExpired)
+                            tokenBadge = "<span class='badge bg-success'><i class='fas fa-check me-1'></i>Active</span>";
+                        else
+                            tokenBadge = "<span class='badge' style='background:rgba(200,122,16,0.15);color:var(--amber-dark,#A8630A);'><i class='fas fa-sync-alt me-1'></i>Auto-refresh</span>";
+
+                        // Display value: blank out seeded/placeholder IDs (no real GUID entered yet)
+                        var displayGroupId  = hasRealIds ? embed.GroupId  : "";
+                        var displayReportId = hasRealIds ? embed.ReportId : "";
+
                         <tr id="row-@embed.Id">
                             <td class="ps-4 fw-semibold" style="color:var(--navy);font-size:.82rem;vertical-align:middle;">
                                 @embed.TabName
@@ -85,12 +105,12 @@
                             <td style="vertical-align:middle;">
                                 <input id="gid-@embed.Id" class="form-control form-control-sm font-monospace"
                                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                       value="@(embed.GroupId?.Contains("DEMO") == true || embed.GroupId?.Length < 32 ? "" : embed.GroupId)" />
+                                       value="@displayGroupId" />
                             </td>
                             <td style="vertical-align:middle;">
                                 <input id="rid-@embed.Id" class="form-control form-control-sm font-monospace"
                                        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                                       value="@(embed.ReportId?.Contains("DEMO") == true || embed.ReportId?.Length < 32 ? "" : embed.ReportId)" />
+                                       value="@displayReportId" />
                             </td>
                             <td class="text-center" style="vertical-align:middle;">
                                 <div class="form-check form-switch d-flex justify-content-center">
