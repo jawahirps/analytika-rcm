@@ -3,8 +3,8 @@ services:
     name: analytika-rcm
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: free
-    region: singapore          # closest to UAE
+    plan: starter          # free plan does not support persistent disks
+    region: singapore      # closest to UAE
     branch: main
     healthCheckPath: /
     envVars:
@@ -15,4 +15,4 @@ services:
     disk:
       name: analytika-data
       mountPath: /app/data
-      sizeGB: 1
+      sizeGB: 5            # 5 GB gives headroom for the 2 GB DB + downloads
