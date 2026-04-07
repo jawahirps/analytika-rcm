@@ -9,7 +9,17 @@
     <div class="page-header mb-4">
         <div>
             <h4 class="mb-0 fw-bold" style="color:var(--navy);">Synced Transactions</h4>
-            <small class="text-muted">@Model.TotalCount.ToString("N0") records in database</small>
+            <div class="d-flex gap-2 mt-1 flex-wrap">
+                <small class="text-muted">@Model.TotalCount.ToString("N0") records total</small>
+                <small class="text-muted">·</small>
+                <small style="color:#3aac8a;font-weight:600;">
+                    <i class="fas fa-file-download me-1" style="font-size:.65rem;"></i>@Model.FilesDownloadedCount.ToString("N0") files downloaded
+                </small>
+                <small class="text-muted">·</small>
+                <small style="color:var(--amber-dark);font-weight:600;">
+                    <i class="fas fa-history me-1" style="font-size:.65rem;"></i>@Model.PendingFilesCount.ToString("N0") pending download
+                </small>
+            </div>
         </div>
         <div class="d-flex gap-2">
             <a asp-action="Sync" class="btn btn-primary btn-sm">

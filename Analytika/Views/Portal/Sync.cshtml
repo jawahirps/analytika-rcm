@@ -88,6 +88,17 @@
                 </div>
                 <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#0D7272;min-width:32px;text-align:right;">0%</span>
             </div>
+            <div id="syncOneCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
+                <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;">
+                    <i class="fas fa-plus-circle me-1"></i>New: <strong id="syncOneCtrNew">0</strong>
+                </span>
+                <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
+                    <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncOneCtrDup">0</strong>
+                </span>
+                <span class="px-2 py-1 rounded" style="background:rgba(13,114,114,0.12);color:#0D7272;">
+                    <i class="fas fa-file-download me-1"></i>Files: <strong id="syncOneCtrFiles">0</strong>
+                </span>
+            </div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.9;">
                 <span class="text-muted">Initialising…</span>
@@ -111,6 +122,18 @@
                     <div id="syncAllProgress" class="progress-bar" style="background:#0D7272;width:0%;transition:width .3s;"></div>
                 </div>
                 <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#0A1828;min-width:32px;text-align:right;">0%</span>
+            </div>
+            <!-- Live tally counters -->
+            <div id="syncAllCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
+                <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;">
+                    <i class="fas fa-plus-circle me-1"></i>New: <strong id="syncAllCtrNew">0</strong>
+                </span>
+                <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
+                    <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncAllCtrDup">0</strong>
+                </span>
+                <span class="px-2 py-1 rounded" style="background:rgba(13,114,114,0.12);color:#0D7272;">
+                    <i class="fas fa-file-download me-1"></i>Files: <strong id="syncAllCtrFiles">0</strong>
+                </span>
             </div>
             <!-- Current facility + month -->
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
@@ -376,9 +399,9 @@
                         </div>
                     </div>
                     <div class="col-3">
-                        <div class="stat-card text-center">
-                            <div class="stat-label">Duplicates Skipped</div>
-                            <div class="stat-value" style="color:var(--text-muted);">@Model.TotalDuplicates.ToString("N0")</div>
+                        <div class="stat-card text-center" style="border-top:3px solid var(--amber);">
+                            <div class="stat-label">Already in DB</div>
+                            <div class="stat-value" style="color:var(--amber);">@Model.TotalDuplicates.ToString("N0")</div>
                         </div>
                     </div>
                 </div>
@@ -399,7 +422,7 @@
                                         <th class="text-center">Found</th>
                                         <th class="text-center">New</th>
                                         <th class="text-center">Files DL</th>
-                                        <th class="text-center">Dups</th>
+                                        <th class="text-center" style="color:var(--amber);">Already in DB</th>
                                         <th class="pe-4">Status</th>
                                     </tr>
                                 </thead>
@@ -418,7 +441,10 @@
                                                 @if (b.FilesDownloaded > 0) { <span class="fw-semibold" style="color:var(--info);">@b.FilesDownloaded</span> }
                                                 else { <span class="text-muted">0</span> }
                                             </td>
-                                            <td class="text-center text-muted">@b.Duplicates</td>
+                                            <td class="text-center">
+                                                @if (b.Duplicates > 0) { <span class="fw-semibold" style="color:var(--amber);">@b.Duplicates</span> }
+                                                else { <span class="text-muted">0</span> }
+                                            </td>
                                             <td class="pe-4">
                                                 @if (b.IsSuccess) { <span class="status-pill success"><i class="fas fa-check" style="font-size:.55rem;"></i> OK</span> }
                                                 else { <span class="status-pill failed" title="@b.Error"><i class="fas fa-times" style="font-size:.55rem;"></i> Err</span> }
@@ -432,7 +458,7 @@
                                         <td class="text-center fw-bold text-muted">@Model.BatchResults.Sum(b => b.Fetched)</td>
                                         <td class="text-center fw-bold text-emerald">+@Model.TotalNew</td>
                                         <td class="text-center fw-bold" style="color:var(--info);">@Model.TotalFilesDownloaded</td>
-                                        <td class="text-center fw-bold text-muted">@Model.TotalDuplicates</td>
+                                        <td class="text-center fw-bold" style="color:var(--amber);">@Model.TotalDuplicates</td>
                                         <td class="pe-4">
                                             @if (Model.TotalErrors == 0) { <span class="status-pill success">All OK</span> }
                                             else { <span class="status-pill warning">@Model.TotalErrors errors</span> }
@@ -551,8 +577,24 @@
             const data = await resp.json();
 
             result.style.display = 'block';
-            result.className = data.ok ? 'mt-2 text-emerald' : 'mt-2 text-danger';
-            result.innerHTML = `<i class="fas fa-${data.ok ? 'check-circle' : 'exclamation-circle'} me-1"></i>${data.message}`;
+            if (!data.ok) {
+                result.className = 'mt-2 text-danger';
+                result.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i>${data.message}`;
+            } else {
+                result.className = 'mt-2';
+                result.innerHTML = `
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;font-size:.75rem;">
+                            <i class="fas fa-plus-circle me-1"></i>New: <strong>${data.newRecords ?? 0}</strong>
+                        </span>
+                        <span class="px-2 py-1 rounded" style="background:rgba(200,122,16,0.15);color:#A8630A;font-size:.75rem;">
+                            <i class="fas fa-history me-1"></i>Already in DB: <strong>${data.dups ?? 0}</strong>
+                        </span>
+                        <span class="px-2 py-1 rounded" style="background:rgba(13,114,114,0.12);color:#0D7272;font-size:.75rem;">
+                            <i class="fas fa-file-download me-1"></i>Files: <strong>${data.filesDownloaded ?? 0}</strong>
+                        </span>
+                    </div>`;
+            }
         } catch (e) {
             result.style.display = 'block';
             result.className = 'mt-2 text-danger';
@@ -596,6 +638,12 @@
 
         // Track current facility header line so month rows can be indented under it
         let lastFacilityEl = null;
+        // Live tally counters
+        let ctrNew = 0, ctrDup = 0, ctrFiles = 0;
+        const ctrNewEl   = document.getElementById('syncAllCtrNew');
+        const ctrDupEl   = document.getElementById('syncAllCtrDup');
+        const ctrFilesEl = document.getElementById('syncAllCtrFiles');
+        function updateAllCtrs(n, d, f) { ctrNew += n; ctrDup += d; ctrFiles += f; ctrNewEl.textContent = ctrNew.toLocaleString(); ctrDupEl.textContent = ctrDup.toLocaleString(); ctrFilesEl.textContent = ctrFiles.toLocaleString(); }
 
         const source = new EventSource('/Portal/SyncAllFacilitiesStream' + qs);
         let syncCompleted = false;   // set to true when done/error received
@@ -632,11 +680,12 @@
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
 
             } else if (d.status === 'processing') {
-                grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Dup: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
+                grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 setProgress(d.pct || 0);
 
             } else if (d.status === 'facility_done') {
-                addLog(`  ✓ ${d.saved} new · ${d.dups} dup · ${d.files} files`, '#3aac8a', true);
+                updateAllCtrs(d.saved||0, d.dups||0, d.files||0);
+                addLog(`  ✓ ${d.saved} new · ${d.dups} already in DB · ${d.files} files`, '#3aac8a', true);
                 setProgress(d.pct || 0);
 
             } else if (d.status === 'warning') {
@@ -653,7 +702,7 @@
                 setProgress(100);
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
-                grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} dup · ${(d.grandFiles||0).toLocaleString()} files`;
+                grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
                 curLbl.textContent = 'Complete';
                 source.close();
                 done();
@@ -707,6 +756,13 @@
         const fromStr = fromInput || defFrom.toISOString().split('T')[0];
         const toStr   = toInput   || new Date().toISOString().split('T')[0];
 
+        // Live tally counters for SyncOne
+        let oneCtrNew = 0, oneCtrDup = 0, oneCtrFiles = 0;
+        const oneCtrNewEl   = document.getElementById('syncOneCtrNew');
+        const oneCtrDupEl   = document.getElementById('syncOneCtrDup');
+        const oneCtrFilesEl = document.getElementById('syncOneCtrFiles');
+        function updateOneCtrs(n, d, f) { oneCtrNew += n; oneCtrDup += d; oneCtrFiles += f; oneCtrNewEl.textContent = oneCtrNew.toLocaleString(); oneCtrDupEl.textContent = oneCtrDup.toLocaleString(); oneCtrFilesEl.textContent = oneCtrFiles.toLocaleString(); }
+
         const source = new EventSource(`/Portal/SyncFacilityStream?facilityId=${facilityId}&from=${fromStr}&to=${toStr}`);
         let syncCompleted = false;
 
@@ -738,12 +794,13 @@
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
 
             } else if (d.status === 'processing') {
-                grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Dup: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
+                grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
 
             } else if (d.status === 'facility_done') {
-                addLog(`✓ ${d.saved} new · ${d.dups} dup · ${d.files} files`, '#3aac8a');
+                updateOneCtrs(d.saved||0, d.dups||0, d.files||0);
+                addLog(`✓ ${d.saved} new · ${d.dups} already in DB · ${d.files} files`, '#3aac8a');
                 bar.style.width = '100%'; pctLbl.textContent = '100%';
 
             } else if (d.status === 'error') {
@@ -756,7 +813,7 @@
                 bar.style.width = '100%'; pctLbl.textContent = '100%';
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
-                grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} dup · ${(d.grandFiles||0).toLocaleString()} files`;
+                grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
                 curLbl.textContent = 'Complete';
                 source.close(); done();
             }

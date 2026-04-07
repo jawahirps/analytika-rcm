@@ -176,6 +176,8 @@ public class SyncedDataViewModel
     public string? SearchText { get; set; }
     public List<PortalTransaction> Transactions { get; set; } = new();
     public int TotalCount { get; set; }
+    public int FilesDownloadedCount { get; set; }   // records with FileDownloaded = true
+    public int PendingFilesCount { get; set; }       // records awaiting file download
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);

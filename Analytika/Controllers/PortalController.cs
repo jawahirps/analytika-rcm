@@ -467,7 +467,8 @@ public class PortalController : Controller
         if (!string.IsNullOrEmpty(search))
             query = query.Where(t => t.TransactionId.Contains(search) || (t.Payer != null && t.Payer.Contains(search)) || t.Status.Contains(search));
 
-        var total = await query.CountAsync();
+        var total           = await query.CountAsync();
+        var filesDownloaded = await query.CountAsync(t => t.FileDownloaded);
         const int pageSize = 50;
         var items = await query
             .OrderByDescending(t => t.SyncedAt)
@@ -477,16 +478,18 @@ public class PortalController : Controller
 
         var vm = new SyncedDataViewModel
         {
-            Facilities  = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            FacilityIds = facilityId ?? new(),
-            Portal      = portal,
-            DateFrom = dateFrom,
-            DateTo = dateTo,
-            SearchText = search,
-            Transactions = items,
-            TotalCount = total,
-            Page = page,
-            PageSize = pageSize
+            Facilities           = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityIds          = facilityId ?? new(),
+            Portal               = portal,
+            DateFrom             = dateFrom,
+            DateTo               = dateTo,
+            SearchText           = search,
+            Transactions         = items,
+            TotalCount           = total,
+            FilesDownloadedCount = filesDownloaded,
+            PendingFilesCount    = total - filesDownloaded,
+            Page                 = page,
+            PageSize             = pageSize
         };
 
         return View(vm);
