@@ -22,9 +22,66 @@
             </div>
         </div>
         <div class="d-flex gap-2">
+            @if (Model.PendingFilesCount > 0)
+            {
+                <button id="dlPendingBtn" class="btn btn-sm fw-semibold"
+                        style="background:var(--amber);color:#fff;border:none;"
+                        onclick="startDownloadPending()">
+                    <i class="fas fa-cloud-download-alt me-1"></i>
+                    Download @Model.PendingFilesCount.ToString("N0") Pending Files
+                </button>
+            }
             <a asp-action="Sync" class="btn btn-primary btn-sm">
                 <i class="fas fa-sync me-1"></i> Run Sync
             </a>
+        </div>
+    </div>
+
+    <!-- Download Pending Resume Banner -->
+    <div id="dlResumeBanner" class="alert mb-3" role="alert"
+         style="display:none;border-left:4px solid var(--amber);background:var(--amber-light);color:var(--amber-dark);border-radius:var(--radius);">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <i class="fas fa-history me-2"></i>
+                <strong>Download interrupted</strong>
+                <span id="dlResumeBannerDetail" class="ms-2" style="font-size:.82rem;"></span>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm fw-semibold" style="background:var(--amber);color:#fff;border:none;" onclick="resumeDownloadPending()">
+                    <i class="fas fa-play me-1"></i> Resume
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="discardDlCheckpoint()">
+                    <i class="fas fa-times me-1"></i> Discard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Download Pending Progress Panel -->
+    <div id="dlPendingPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid var(--amber)!important;">
+        <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
+                    <i class="fas fa-cloud-download-alt fa-spin me-1" id="dlPendingSpinner"></i>
+                    Downloading Pending Files
+                </h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="dlPendingTally" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                    <button id="dlPauseBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseDownloadPending()">
+                        <i class="fas fa-pause me-1"></i>Pause
+                    </button>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
+                    <div id="dlPendingBar" class="progress-bar" style="background:var(--amber);width:0%;transition:width .3s;"></div>
+                </div>
+                <span id="dlPendingPct" style="font-size:.72rem;font-weight:600;color:var(--amber-dark);min-width:32px;text-align:right;">0%</span>
+            </div>
+            <div id="dlPendingCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
+            <div id="dlPendingLog" style="max-height:260px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.9;">
+                <span class="text-muted">Initialising…</span>
+            </div>
         </div>
     </div>
 
@@ -225,5 +282,170 @@ function setSyncedRange(months) {
     document.querySelector('input[name="dateFrom"]').value = from.toISOString().split('T')[0];
     document.querySelector('input[name="dateTo"]').value   = today.toISOString().split('T')[0];
 }
+
+// ── Download Pending Files ─────────────────────────────────────
+const DL_CKPT_KEY = 'analytika_dl_checkpoint';
+let dlSource = null;
+let dlCompleted = false;
+
+function saveDlCkpt(data) { localStorage.setItem(DL_CKPT_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() })); }
+function loadDlCkpt() { try { return JSON.parse(localStorage.getItem(DL_CKPT_KEY)); } catch { return null; } }
+function clearDlCkpt() { localStorage.removeItem(DL_CKPT_KEY); }
+
+function showDlResumeBanner(cp) {
+    if (!cp) return;
+    const banner = document.getElementById('dlResumeBanner');
+    const detail = document.getElementById('dlResumeBannerDetail');
+    const parts  = [];
+    if (cp.done)    parts.push(`<strong>${cp.done}</strong> downloaded`);
+    if (cp.failed)  parts.push(`${cp.failed} failed`);
+    if (cp.lastId)  parts.push(`last record #${cp.lastId}`);
+    if (cp.savedAt) parts.push(`at ${new Date(cp.savedAt).toLocaleTimeString()}`);
+    const verb = cp.reason === 'paused' ? 'Paused' : 'Disconnected';
+    detail.innerHTML = `${verb} — ${parts.join(' · ')}`;
+    banner.style.display = 'block';
+}
+
+function discardDlCheckpoint() {
+    clearDlCkpt();
+    document.getElementById('dlResumeBanner').style.display = 'none';
+}
+
+function resumeDownloadPending() {
+    const cp = loadDlCkpt();
+    if (!cp) return;
+    discardDlCheckpoint();
+    startDownloadPending(cp.lastId || 0, cp.done || 0, cp.failed || 0);
+}
+
+function pauseDownloadPending() {
+    if (!dlSource) return;
+    const cp = loadDlCkpt() || {};
+    cp.reason = 'paused';
+    saveDlCkpt(cp);
+    dlCompleted = true;
+    dlSource.close(); dlSource = null;
+    document.getElementById('dlPauseBtn').style.display = 'none';
+    document.getElementById('dlPendingSpinner').classList.remove('fa-spin');
+    if (document.getElementById('dlPendingBtn')) {
+        document.getElementById('dlPendingBtn').disabled = false;
+        document.getElementById('dlPendingBtn').innerHTML = '<i class="fas fa-cloud-download-alt me-1"></i> Resume Download';
+    }
+    const logDiv = document.getElementById('dlPendingLog');
+    const line   = document.createElement('div');
+    line.style.color = '#C87A10'; line.style.fontWeight = '600';
+    line.textContent = '⏸ Paused — use the Resume button above to continue.';
+    logDiv.appendChild(line);
+    showDlResumeBanner(loadDlCkpt());
+}
+
+function startDownloadPending(resumeFromId, seedDone, seedFailed) {
+    resumeFromId = resumeFromId || 0;
+    let dlDone   = seedDone   || 0;
+    let dlFailed = seedFailed || 0;
+
+    const panel   = document.getElementById('dlPendingPanel');
+    const logDiv  = document.getElementById('dlPendingLog');
+    const bar     = document.getElementById('dlPendingBar');
+    const pctLbl  = document.getElementById('dlPendingPct');
+    const tally   = document.getElementById('dlPendingTally');
+    const curLbl  = document.getElementById('dlPendingCurrent');
+    const spinner = document.getElementById('dlPendingSpinner');
+    const pauseBtn= document.getElementById('dlPauseBtn');
+    const startBtn= document.getElementById('dlPendingBtn');
+
+    if (startBtn) { startBtn.disabled = true; startBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Downloading…'; }
+    panel.style.display = 'block';
+    if (!resumeFromId) logDiv.innerHTML = '';
+    bar.style.width = '0%'; pctLbl.textContent = '0%';
+    tally.textContent = ''; curLbl.textContent = '';
+    pauseBtn.style.display = 'inline-flex';
+    panel.scrollIntoView({ behavior: 'smooth' });
+
+    // Init checkpoint
+    let ckpt = { lastId: resumeFromId, done: dlDone, failed: dlFailed, reason: 'running' };
+    saveDlCkpt(ckpt);
+
+    dlCompleted = false;
+    const params = new URLSearchParams();
+    if (resumeFromId) params.append('resumeFromId', resumeFromId);
+    dlSource = new EventSource('/Portal/DownloadPendingStream' + (params.toString() ? '?' + params : ''));
+    const source = dlSource;
+
+    function addLog(msg, color) {
+        const line = document.createElement('div');
+        line.style.color = color || '#333';
+        line.textContent = msg;
+        logDiv.appendChild(line);
+        logDiv.scrollTop = logDiv.scrollHeight;
+        return line;
+    }
+
+    function done() {
+        spinner.classList.remove('fa-spin');
+        pauseBtn.style.display = 'none';
+        if (startBtn) { startBtn.disabled = false; startBtn.innerHTML = '<i class="fas fa-cloud-download-alt me-1"></i> Download Pending Files'; }
+    }
+
+    source.onmessage = function(e) {
+        const d = JSON.parse(e.data);
+
+        if (d.status === 'start') {
+            addLog(`▶ ${d.message}`, '#C87A10');
+            tally.textContent = `0 / ${d.total}`;
+
+        } else if (d.status === 'resumed') {
+            addLog(`⏩ Resuming — ${d.message}`, '#C87A10');
+
+        } else if (d.status === 'progress') {
+            dlDone = d.done; dlFailed = d.failed;
+            bar.style.width = (d.pct || 0) + '%';
+            pctLbl.textContent = (d.pct || 0) + '%';
+            tally.textContent = `${d.done + d.failed} / ${d.total}`;
+            curLbl.textContent = d.facilityName || '';
+            ckpt.lastId  = d.lastId || d.txId;
+            ckpt.done    = d.done;
+            ckpt.failed  = d.failed;
+            saveDlCkpt(ckpt);
+
+        } else if (d.status === 'progress_fail' || d.status === 'skip') {
+            dlFailed = d.failed;
+            ckpt.lastId = d.txId; ckpt.failed = d.failed;
+            saveDlCkpt(ckpt);
+            addLog(`  ✗ #${d.txId} — ${d.message || d.error || 'failed'}`, '#dc3545');
+
+        } else if (d.status === 'done') {
+            dlCompleted = true;
+            bar.style.width = '100%'; pctLbl.textContent = '100%';
+            tally.textContent = `${d.done} / ${d.total}`;
+            addLog('', '');
+            addLog(`✅ ${d.message}`, '#3aac8a');
+            if (d.failed > 0) addLog(`  ⚠ ${d.failed} file(s) could not be downloaded`, '#856404');
+            clearDlCkpt();
+            source.close(); done();
+            // Reload page after 2 s so counts update
+            setTimeout(() => location.reload(), 2000);
+        }
+    };
+
+    source.onerror = function() {
+        source.close();
+        if (dlCompleted) return;
+        const cp = loadDlCkpt() || ckpt;
+        cp.reason = 'disconnected';
+        saveDlCkpt(cp);
+        addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#856404');
+        pauseBtn.style.display = 'none';
+        showDlResumeBanner(loadDlCkpt());
+        done();
+    };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cp = loadDlCkpt();
+    if (cp && cp.reason !== 'running') showDlResumeBanner(cp);
+    // If reason is 'running', it was an unexpected disconnect — also show banner
+    if (cp && cp.reason === 'running') { cp.reason = 'disconnected'; saveDlCkpt(cp); showDlResumeBanner(cp); }
+});
 </script>
 }

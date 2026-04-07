@@ -1093,6 +1093,94 @@ public class PortalController : Controller
         await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
     }
 
+    // ── Download Pending Files — SSE stream ───────────────────────
+
+    [HttpGet]
+    public async Task DownloadPendingStream(int? facilityId = null, int resumeFromId = 0)
+    {
+        var ct = HttpContext.RequestAborted;
+        Response.ContentType = "text/event-stream; charset=utf-8";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+        await Response.WriteAsync("retry: 30000\n\n");
+        await Response.Body.FlushAsync(ct);
+
+        using var heartbeatCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _ = Task.Run(async () =>
+        {
+            try { while (!heartbeatCts.Token.IsCancellationRequested) { await Task.Delay(20_000, heartbeatCts.Token); await Response.WriteAsync(": ping\n\n", heartbeatCts.Token); await Response.Body.FlushAsync(heartbeatCts.Token); } } catch { }
+        }, heartbeatCts.Token);
+
+        async Task Send(object obj)
+        {
+            if (ct.IsCancellationRequested) return;
+            try { await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct); await Response.Body.FlushAsync(ct); } catch { }
+        }
+
+        // Build pending query
+        var query = _db.PortalTransactions.Include(t => t.Facility)
+            .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA");
+        if (facilityId.HasValue) query = query.Where(t => t.FacilityId == facilityId.Value);
+        if (resumeFromId > 0)   query = query.Where(t => t.Id > resumeFromId);
+
+        var pending = await query.OrderBy(t => t.FacilityId).ThenBy(t => t.Id).ToListAsync(ct);
+        int total   = pending.Count;
+
+        if (total == 0)
+        {
+            await Send(new { status = "done", message = "No pending files to download.", done = 0, failed = 0, total = 0, lastId = resumeFromId });
+            heartbeatCts.Cancel(); return;
+        }
+
+        await Send(new { status = "start", message = $"{total} pending files to download", total });
+        if (resumeFromId > 0)
+            await Send(new { status = "resumed", message = $"Resuming after record #{resumeFromId}", resumeFromId });
+
+        // Cache credentials by facilityId to avoid repeated DB calls
+        var credCache = new Dictionary<int, (string username, string pwd)>();
+        int done = 0, failed = 0, lastId = resumeFromId;
+
+        foreach (var tx in pending)
+        {
+            if (ct.IsCancellationRequested) break;
+
+            if (!credCache.TryGetValue(tx.FacilityId, out var cred))
+            {
+                var cr = await _db.PortalCredentials
+                    .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId && c.IsActive && c.Portal == "DHA", ct);
+                if (cr == null) { failed++; lastId = tx.Id; await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total }); continue; }
+                try   { cred = (cr.Username, Encoding.UTF8.GetString(Convert.FromBase64String(cr.PasswordEncrypted))); credCache[tx.FacilityId] = cred; }
+                catch { failed++; lastId = tx.Id; continue; }
+            }
+
+            try
+            {
+                var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.username, cred.pwd, tx.FileId!);
+                if (dlErr == null && dlBytes?.Length > 0)
+                {
+                    var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
+                    await _db.PortalTransactions.Where(t => t.Id == tx.Id)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(t => t.FileDownloaded,   true)
+                            .SetProperty(t => t.FileContentXml,   contentXml)
+                            .SetProperty(t => t.FileSizeBytes,    (long?)dlBytes.Length)
+                            .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
+                    done++;
+                }
+                else { failed++; }
+            }
+            catch { failed++; }
+
+            lastId = tx.Id;
+            int pct = (int)((double)(done + failed) / total * 100);
+            await Send(new { status = "progress", txId = tx.Id, facilityName = tx.Facility?.Name ?? $"Facility {tx.FacilityId}", done, failed, total, pct, lastId });
+        }
+
+        heartbeatCts.Cancel();
+        _cache.Remove("statusbar_static");
+        await Send(new { status = "done", message = $"Complete — {done} downloaded · {failed} failed", done, failed, total, lastId });
+    }
+
     // ── Live Status Bar API ────────────────────────────────────────
 
     [HttpGet]
