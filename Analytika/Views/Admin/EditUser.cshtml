@@ -9,7 +9,7 @@
             <i class="fas fa-arrow-left"></i>
         </a>
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#002E5B;">Edit User</h4>
+            <h4 class="mb-0 fw-bold" style="color:#0A1828;">Edit User</h4>
             <small class="text-muted">@Model.Email</small>
         </div>
     </div>
@@ -21,7 +21,7 @@
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#002E5B;">Account Details</h6>
+                        <h6 class="fw-bold mb-3" style="color:#0A1828;">Account Details</h6>
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Full Name</label>
                             <input asp-for="FullName" class="form-control" />
@@ -54,7 +54,7 @@
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#002E5B;">Facility Access</h6>
+                        <h6 class="fw-bold mb-3" style="color:#0A1828;">Facility Access</h6>
                         @foreach (var f in Model.AvailableFacilities)
                         {
                             <div class="form-check mb-2">
@@ -70,7 +70,7 @@
             <div class="col-12">
                 <div class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#002E5B;"><i class="fas fa-shield-alt me-2" style="color:#05B5B7;"></i>Dashboard & Report Access</h6>
+                        <h6 class="fw-bold mb-3" style="color:#0A1828;"><i class="fas fa-shield-alt me-2" style="color:#0D7272;"></i>Dashboard & Report Access</h6>
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <p class="fw-semibold small mb-2">Dashboard Tabs</p>
@@ -105,7 +105,7 @@
 
             <div class="col-12 d-flex gap-2 justify-content-end">
                 <a asp-action="Users" class="btn btn-outline-secondary px-4">Cancel</a>
-                <button type="submit" class="btn px-4" style="background:#002E5B;color:#fff;border-radius:8px;">
+                <button type="submit" class="btn px-4" style="background:#0A1828;color:#fff;border-radius:8px;">
                     <i class="fas fa-save me-1"></i> Save Changes
                 </button>
             </div>
@@ -122,7 +122,7 @@
     color:#495057; transition:all .15s; user-select:none;
 }
 .access-chip input:checked + span, .access-chip span.chip-on {
-    background:#002E5B; color:#fff; border-color:#002E5B;
+    background:#0A1828; color:#fff; border-color:#0A1828;
 }
 </style>
 }

@@ -8,13 +8,13 @@
 <style>
     .page-wrapper { padding: 20px 24px; background: #f5f6fa; min-height: calc(100vh - 120px); }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #7b4fd4; text-decoration: none; }
+    .breadcrumb-item a { color: #0D7272; text-decoration: none; }
     .filter-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
-    .filter-card .card-header { background: linear-gradient(135deg, #002E5B, #2541a0); color: white; border-radius: 12px 12px 0 0; padding: 12px 20px; font-weight: 600; }
+    .filter-card .card-header { background: linear-gradient(135deg, #0A1828, #164055); color: white; border-radius: 12px 12px 0 0; padding: 12px 20px; font-weight: 600; }
     .date-range-btn { border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; margin-right: 6px; border: 1px solid #dee2e6; background: white; cursor: pointer; transition: all 0.2s; }
-    .date-range-btn.active { background: #7b4fd4; color: white; border-color: #7b4fd4; }
+    .date-range-btn.active { background: #0D7272; color: white; border-color: #0D7272; }
     .table-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .table-card .card-header { background: white; border-radius: 12px 12px 0 0; padding: 14px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #002E5B; }
+    .table-card .card-header { background: white; border-radius: 12px 12px 0 0; padding: 14px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #0A1828; }
     .table thead th { background: #f8f9fa; font-weight: 600; font-size: 0.82rem; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
     .table tbody td { font-size: 0.83rem; vertical-align: middle; }
     .report-id-link { color: #28a745; font-weight: 600; text-decoration: none; }
@@ -23,12 +23,12 @@
     .status-pending { color: #ffc107; font-weight: 600; }
     .status-processing { color: #17a2b8; font-weight: 600; }
     .status-failed { color: #dc3545; font-weight: 600; }
-    .btn-download { background: #1a6fa3; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: #145a8a; }
+    .btn-download { background: #0D7272; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: #0B5C5C; }
     .pagination-info { font-size: 0.82rem; color: #6c757d; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: linear-gradient(135deg, #1a6fa3, #2541a0); color: white; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 600; }
+    .btn-submit-report { background: linear-gradient(135deg, #0D7272, #164055); color: white; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 600; }
     .btn-reset-report { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 8px; }
 </style>
 }
@@ -180,7 +180,7 @@
                     </div>
                     <div class="col-md-9">
                         <label class="form-label fw-semibold">
-                            <i class="fas fa-envelope me-1" style="color:#05B5B7;"></i>Email Report To
+                            <i class="fas fa-envelope me-1" style="color:#0D7272;"></i>Email Report To
                             <small class="text-muted fw-normal ms-1">(optional — separate multiple addresses with commas)</small>
                         </label>
                         <input type="text" name="EmailTo" class="form-control"

@@ -1,6 +1,6 @@
 /* ================================================================
-   Ghaf Bi Analytix — Design System v2
-   Elegant · Minimalistic · Modern
+   Ghaf Bi Analytix — Design System v3
+   Deep Navy · Teal · Amber — Hexagonal Palette
    ================================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -10,42 +10,47 @@
    ---------------------------------------------------------------- */
 :root {
   /* Brand palette — GHAF Services */
-  --navy:          #002E5B;
-  --navy-mid:      #005a99;
-  --navy-soft:     #0072bf;
-  --emerald:       #05B5B7;
-  --emerald-dark:  #0399a0;
-  --emerald-light: rgba(5,181,183,0.12);
-  --emerald-pale:  rgba(5,181,183,0.07);
+  --navy:          #0A1828;
+  --navy-mid:      #164055;
+  --navy-soft:     #1A5870;
+  --emerald:       #0D7272;
+  --emerald-dark:  #0B5C5C;
+  --emerald-light: rgba(13,114,114,0.12);
+  --emerald-pale:  rgba(13,114,114,0.07);
+
+  /* Amber accent (warm gold from hexagonal motif) */
+  --amber:         #C87A10;
+  --amber-dark:    #A8630A;
+  --amber-light:   rgba(200,122,16,0.15);
 
   /* Neutral surface */
-  --bg:            #f4fbfb;
+  --bg:            #EFF6F6;
   --surface:       #ffffff;
-  --surface-alt:   #e5f5f6;
-  --border:        #bce8e9;
-  --border-light:  #d2f0f1;
+  --surface-alt:   #DDE9EA;
+  --border:        #AACFD0;
+  --border-light:  #BEE0E1;
 
   /* Text */
-  --text:          #1a2e3b;
-  --text-secondary:#4a6a7a;
-  --text-muted:    #7aaab4;
+  --text:          #0C1E2E;
+  --text-secondary:#3A5870;
+  --text-muted:    #6A9AAE;
   --text-invert:   #ffffff;
 
   /* Semantic */
   --success:       #3aac8a;
   --warning:       #f59e0b;
   --danger:        #ef4444;
-  --info:          #05B5B7;
+  --info:          #0D7272;
 
   /* Layout */
   --radius-sm:     6px;
   --radius:        10px;
   --radius-lg:     14px;
   --radius-xl:     20px;
-  --shadow-xs:     0 1px 3px rgba(0,46,91,0.07);
-  --shadow-sm:     0 2px 8px rgba(0,46,91,0.09);
-  --shadow-md:     0 4px 20px rgba(0,46,91,0.11);
-  --shadow-lg:     0 12px 40px rgba(0,46,91,0.15);
+  --shadow-xs:     0 1px 3px rgba(10,24,40,0.07);
+  --shadow-sm:     0 2px 8px rgba(10,24,40,0.09);
+  --shadow-md:     0 4px 20px rgba(10,24,40,0.11);
+  --shadow-lg:     0 12px 40px rgba(10,24,40,0.15);
 
   /* Transitions */
   --transition:    0.18s ease;
@@ -573,7 +578,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge-emerald  { background: var(--emerald-light); color: var(--emerald-dark); }
-.badge-navy     { background: rgba(0,46,91,0.08);    color: var(--navy); }
+.badge-navy     { background: rgba(10,24,40,0.08);    color: var(--navy); }
+.badge-amber    { background: var(--amber-light);    color: var(--amber-dark); }
 .badge-warning  { background: rgba(245,158,11,0.12); color: #b45309; }
 .badge-danger   { background: rgba(239,68,68,0.12);  color: #b91c1c; }
 .badge-info     { background: rgba(59,130,246,0.12); color: #1d4ed8; }
@@ -775,10 +781,10 @@ label.portal-toggle span { pointer-events: none; }
   flex-shrink: 0;
 }
 
-.avatar-admin   { background: linear-gradient(135deg, #002E5B 0%, #005a99 100%); }
-.avatar-analyst { background: linear-gradient(135deg, #05B5B7 0%, #6ee0e1 100%); }
-.avatar-viewer  { background: linear-gradient(135deg, #005a99 0%, #05B5B7 100%); }
-.avatar-default { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+.avatar-admin   { background: linear-gradient(135deg, #0A1828 0%, #164055 100%); }
+.avatar-analyst { background: linear-gradient(135deg, #0D7272 0%, #3AABAB 100%); }
+.avatar-viewer  { background: linear-gradient(135deg, #C87A10 0%, #E8A030 100%); }
+.avatar-default { background: linear-gradient(135deg, #164055 0%, #0D7272 100%); }
 
 /* ----------------------------------------------------------------
    Empty State
@@ -946,7 +952,7 @@ label.portal-toggle span { pointer-events: none; }
   border-radius: 50%;
 }
 
-.conn-ok   .dot { background: var(--emerald); box-shadow: 0 0 0 3px rgba(5,181,183,0.25); }
+.conn-ok   .dot { background: var(--emerald); box-shadow: 0 0 0 3px rgba(13,114,114,0.25); }
 .conn-fail .dot { background: var(--danger);  box-shadow: 0 0 0 3px rgba(239,68,68,0.2); }
 .conn-idle .dot { background: var(--text-muted); }
 
@@ -954,8 +960,8 @@ label.portal-toggle span { pointer-events: none; }
    Code / XML Preview
    ---------------------------------------------------------------- */
 .xml-preview {
-  background: #002E5B;
-  color: #6ee0e1;
+  background: #0A1828;
+  color: #3AABAB;
   border-radius: var(--radius);
   padding: 14px 16px;
   font-family: 'Fira Code', 'Consolas', monospace;
@@ -1179,7 +1185,7 @@ label.portal-toggle span { pointer-events: none; }
 }
 
 /* sync state colours */
-.sb-ok   { color: #05B5B7; }
+.sb-ok   { color: #C87A10; }
 .sb-warn { color: #fbbf24; }
 .sb-idle { color: #94a3b8; }
 .sb-err  { color: #f87171; }
@@ -1202,10 +1208,10 @@ label.portal-toggle span { pointer-events: none; }
 .sb-progress-fill {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #05B5B7 0%, #6ee0e1 100%);
+  background: linear-gradient(90deg, #C87A10 0%, #E8A030 100%);
   border-radius: 999px;
   transition: width .6s ease;
-  box-shadow: 0 0 6px rgba(5,181,183,.6);
+  box-shadow: 0 0 6px rgba(200,122,16,.6);
 }
 
 /* animated shimmer while running */
