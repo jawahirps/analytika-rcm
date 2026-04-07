@@ -40,6 +40,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TabName).HasMaxLength(50);
+            entity.HasIndex(e => e.TabName);  // looked up by tab name in PowerBIService
         });
 
         builder.Entity<UserFacility>(entity =>
@@ -64,6 +65,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         builder.Entity<PortalFetchLog>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.FetchedAt);  // ORDER BY FetchedAt DESC is used in many queries
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -71,7 +73,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Portal, e.FacilityId, e.TransactionId }).IsUnique();
+            entity.HasIndex(e => new { e.FacilityId, e.FileDownloaded });  // PendingDownloadService WHERE FileDownloaded = false
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<SystemSetting>(entity =>
+        {
+            entity.HasIndex(e => new { e.Category, e.Key }).IsUnique();  // queried by Category + Key in email settings
         });
 
         builder.Entity<DhpoCodingSet>(entity =>

@@ -75,12 +75,15 @@ public class PowerBIService : IPowerBIService
 
     public async Task RefreshTokensAsync()
     {
-        var expiring = await _context.DashboardEmbeds
+        // Load only the tab names — GetEmbedConfigAsync will re-query with tracking when it needs to save
+        var expiringTabs = await _context.DashboardEmbeds
+            .AsNoTracking()
             .Where(e => e.IsActive && e.TokenExpiry <= DateTime.UtcNow.AddMinutes(10))
+            .Select(e => e.TabName)
             .ToListAsync();
 
-        foreach (var embed in expiring)
-            await GetEmbedConfigAsync(embed.TabName);
+        foreach (var tabName in expiringTabs)
+            await GetEmbedConfigAsync(tabName);
     }
 
     /// <summary>

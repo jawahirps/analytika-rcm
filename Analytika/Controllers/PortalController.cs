@@ -202,6 +202,7 @@ public class PortalController : Controller
 
         freshVm.RecentLogs = await _db.PortalFetchLogs
             .Include(l => l.Facility)
+            .AsNoTracking()
             .OrderByDescending(l => l.FetchedAt)
             .Take(10)
             .ToListAsync();
@@ -459,7 +460,7 @@ public class PortalController : Controller
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
-        var query = _db.PortalTransactions.Include(t => t.Facility).AsQueryable();
+        var query = _db.PortalTransactions.Include(t => t.Facility).AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrEmpty(portal))              query = query.Where(t => t.Portal == portal);
         if (facilityId != null && facilityId.Count > 0) query = query.Where(t => facilityId.Contains(t.FacilityId));
@@ -468,8 +469,13 @@ public class PortalController : Controller
         if (!string.IsNullOrEmpty(search))
             query = query.Where(t => t.TransactionId.Contains(search) || (t.Payer != null && t.Payer.Contains(search)) || t.Status.Contains(search));
 
-        var total           = await query.CountAsync();
-        var filesDownloaded = await query.CountAsync(t => t.FileDownloaded);
+        // Combine counts into a single DB round-trip instead of two separate CountAsync calls
+        var counts = await query
+            .GroupBy(_ => 1)
+            .Select(g => new { Total = g.Count(), FilesDownloaded = g.Count(t => t.FileDownloaded) })
+            .FirstOrDefaultAsync();
+        var total           = counts?.Total ?? 0;
+        var filesDownloaded = counts?.FilesDownloaded ?? 0;
         const int pageSize = 50;
         var items = await query
             .OrderByDescending(t => t.SyncedAt)
@@ -588,7 +594,7 @@ public class PortalController : Controller
         await _db.SaveChangesAsync();
 
         freshVm.RecentLogs    = await _db.PortalFetchLogs.Include(l => l.Facility)
-                                    .OrderByDescending(l => l.FetchedAt).Take(10).ToListAsync();
+                                    .AsNoTracking().OrderByDescending(l => l.FetchedAt).Take(10).ToListAsync();
         freshVm.StatusMessage = $"Saved {newCount} new record(s) to DB, {filesDownloaded} file(s) downloaded, {dups} duplicate(s) skipped.";
         return View("Fetch", freshVm);
     }
@@ -1133,6 +1139,7 @@ public class PortalController : Controller
             .Select(t => t.Trim()).ToList();
 
         var records = await _db.PortalTransactions
+            .AsNoTracking()
             .Where(t => t.FacilityId == facilityId
                      && t.FileDownloaded
                      && t.FileContentXml != null
@@ -1270,11 +1277,13 @@ public class PortalController : Controller
 
         // Fetch all static values in two queries (one for transactions, one for credentials)
         var txStats = await _db.PortalTransactions
+            .AsNoTracking()
             .GroupBy(_ => 1)
             .Select(g => new { Total = g.Count(), Files = g.Count(t => t.FileContentXml != null) })
             .FirstOrDefaultAsync();
 
         var credStats = await _db.PortalCredentials
+            .AsNoTracking()
             .Where(c => c.IsActive)
             .GroupBy(c => c.Portal)
             .Select(g => new { Portal = g.Key, Count = g.Count() })
@@ -1283,6 +1292,7 @@ public class PortalController : Controller
         var facCount = await _db.Facilities.CountAsync(f => f.IsActive);
 
         var lastLog = await _db.PortalFetchLogs
+            .AsNoTracking()
             .OrderByDescending(l => l.FetchedAt)
             .Select(l => new { l.FetchedAt, l.Status, l.Operation, l.Portal })
             .FirstOrDefaultAsync();
@@ -1339,9 +1349,10 @@ public class PortalController : Controller
 
     private async Task<PortalFetchViewModel> BuildFetchVmAsync()
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
         var logs = await _db.PortalFetchLogs
             .Include(l => l.Facility)
+            .AsNoTracking()
             .OrderByDescending(l => l.FetchedAt)
             .Take(10)
             .ToListAsync();
@@ -1355,7 +1366,7 @@ public class PortalController : Controller
 
     private async Task<PortalSyncViewModel> BuildSyncVmAsync()
     {
-        var facilities    = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities    = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
         var totalInDb     = await _db.PortalTransactions.CountAsync();
         var totalFiles    = await _db.PortalTransactions.CountAsync(t => t.FileDownloaded);
 

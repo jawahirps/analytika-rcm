@@ -102,6 +102,7 @@ public class PendingDownloadService : BackgroundService
             if (!credCache.TryGetValue(tx.FacilityId, out var cred))
             {
                 var cr = await db.PortalCredentials
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId
                                            && c.IsActive
                                            && c.Portal == "DHA", ct);

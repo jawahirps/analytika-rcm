@@ -22,18 +22,24 @@ public class AdminController : Controller
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IDhaPortalService _dha;
     private readonly IRhaPortalService _rha;
+    private readonly IPowerBIService _powerBi;
+    private readonly IEmailService _email;
+    private readonly IConfiguration _configuration;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-        IDhaPortalService dha, IRhaPortalService rha)
+        IDhaPortalService dha, IRhaPortalService rha, IPowerBIService powerBi, IEmailService email, IConfiguration configuration)
     {
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
         _dha = dha;
         _rha = rha;
+        _powerBi = powerBi;
+        _email = email;
+        _configuration = configuration;
     }
 
     // ─── Users ───────────────────────────────────────────────────────────────
@@ -41,7 +47,7 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Users(string filter = "All")
     {
-        var query = _userManager.Users.Include(u => u.UserFacilities).ThenInclude(uf => uf.Facility).AsQueryable();
+        var query = _userManager.Users.Include(u => u.UserFacilities).ThenInclude(uf => uf.Facility).AsNoTracking().AsQueryable();
 
         if (filter == "Global") query = query.Where(u => u.UserType == "Global");
         else if (filter == "Facility") query = query.Where(u => u.UserType == "Facility");
@@ -228,8 +234,8 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Credentials()
     {
-        var creds = await _db.PortalCredentials.Include(c => c.Facility).OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var creds = await _db.PortalCredentials.Include(c => c.Facility).AsNoTracking().OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
+        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
 
         return View(new CredentialListViewModel
         {
@@ -376,7 +382,7 @@ public class AdminController : Controller
     public async Task<IActionResult> TestAllCredentials()
     {
         var creds = await _db.PortalCredentials.Include(c => c.Facility)
-            .Where(c => c.IsActive).ToListAsync();
+            .Where(c => c.IsActive).AsNoTracking().ToListAsync();
 
         var results = new List<object>();
         foreach (var cred in creds)
@@ -413,7 +419,7 @@ public class AdminController : Controller
     public async Task<IActionResult> ExportCredentials()
     {
         var creds = await _db.PortalCredentials.Include(c => c.Facility)
-            .OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
+            .AsNoTracking().OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
 
         var sb = new StringBuilder();
         sb.AppendLine("Portal,FacilityName,CredentialName,Username,Password,ApiBaseUrl,LicenseCode,IsActive");
@@ -509,7 +515,7 @@ public class AdminController : Controller
     {
         var users = await _userManager.Users
             .Include(u => u.UserFacilities).ThenInclude(uf => uf.Facility)
-            .OrderBy(u => u.Email).ToListAsync();
+            .AsNoTracking().OrderBy(u => u.Email).ToListAsync();
 
         var sb = new StringBuilder();
         sb.AppendLine("Email,FullName,Department,UserType,Role,IsActive,Facilities");
@@ -560,7 +566,9 @@ public class AdminController : Controller
                     Department = dept, UserType = userType, IsActive = isActive,
                     EmailConfirmed = true
                 };
-                var result = await _userManager.CreateAsync(newUser, "Temp@1234!"); // temp password
+                // Generate a random temporary password to avoid hardcoding a known weak default
+                var tempPassword = $"Tmp!{Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(9)).Replace("=", "").Replace("+", "A").Replace("/", "B")}1";
+                var result = await _userManager.CreateAsync(newUser, tempPassword);
                 if (!result.Succeeded) { skipped++; continue; }
 
                 if (!string.IsNullOrWhiteSpace(roleStr))
@@ -587,7 +595,7 @@ public class AdminController : Controller
             }
         }
 
-        TempData["Success"] = $"Import complete — {added} added (temp password: Temp@1234!), {updated} updated, {skipped} skipped.";
+        TempData["Success"] = $"Import complete — {added} added (use Password Reset to set their passwords), {updated} updated, {skipped} skipped.";
         return RedirectToAction(nameof(Users));
     }
 
@@ -757,7 +765,7 @@ public class AdminController : Controller
     public async Task<IActionResult> CodingSetSearch(string category, string? q, int page = 1)
     {
         const int pageSize = 50;
-        var query = _db.DhpoCodingSets.Where(x => x.Category == category);
+        var query = _db.DhpoCodingSets.AsNoTracking().Where(x => x.Category == category);
         if (!string.IsNullOrWhiteSpace(q))
             query = query.Where(x => x.Code.Contains(q) || x.Name.Contains(q));
 
@@ -773,10 +781,10 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> PowerBIReports()
     {
-        var embeds = await _db.DashboardEmbeds.OrderBy(e => e.Id).ToListAsync();
-        var tenantId     = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:TenantId"] ?? "";
-        var clientId     = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:ClientId"] ?? "";
-        var clientSecret = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:ClientSecret"] ?? "";
+        var embeds = await _db.DashboardEmbeds.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
+        var tenantId     = _configuration["PowerBI:TenantId"] ?? "";
+        var clientId     = _configuration["PowerBI:ClientId"] ?? "";
+        var clientSecret = _configuration["PowerBI:ClientSecret"] ?? "";
         ViewBag.TenantId     = tenantId.StartsWith("YOUR_") ? "" : tenantId;
         ViewBag.ClientId     = clientId.StartsWith("YOUR_") ? "" : clientId;
         ViewBag.ClientSecret = clientSecret.StartsWith("YOUR_") ? "" : clientSecret;
@@ -804,8 +812,7 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> TestPowerBIConnection()
     {
-        var pbi = HttpContext.RequestServices.GetRequiredService<IPowerBIService>();
-        var err = await ((PowerBIService)pbi).TestConnectionAsync();
+        var err = await _powerBi.TestConnectionAsync();
         return Json(err == null ? new { ok = true, message = "Connected successfully." } : new { ok = false, message = err });
     }
 
@@ -814,8 +821,7 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> EmailSettings()
     {
-        var email = HttpContext.RequestServices.GetRequiredService<IEmailService>();
-        var smtp  = await email.GetSmtpSettingsAsync();
+        var smtp = await _email.GetSmtpSettingsAsync();
         return View(smtp);
     }
 
@@ -864,11 +870,10 @@ public class AdminController : Controller
             return Json(new { ok = false, message = "Enter a recipient address." });
         try
         {
-            var email = HttpContext.RequestServices.GetRequiredService<IEmailService>();
             // Create a dummy temp file for the test
             var tmpFile = Path.Combine(Path.GetTempPath(), "test-report.txt");
             await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from GhafBI.");
-            await email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
+            await _email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
             System.IO.File.Delete(tmpFile);
             return Json(new { ok = true, message = $"Test email sent to {testTo}." });
         }
@@ -898,9 +903,9 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> ReportSchedules()
     {
-        var schedules = await _db.ReportSchedules.OrderByDescending(s => s.CreatedAt).ToListAsync();
+        var schedules = await _db.ReportSchedules.AsNoTracking().OrderByDescending(s => s.CreatedAt).ToListAsync();
         var facilities = await _db.Facilities.Where(f => f.IsActive)
-            .Select(f => new { f.Id, f.Name }).ToListAsync();
+            .AsNoTracking().Select(f => new { f.Id, f.Name }).ToListAsync();
         ViewBag.ReportTypes  = ReportTypeOptions;
         ViewBag.CronPresets  = CronPresets;
         ViewBag.Facilities   = facilities;

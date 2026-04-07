@@ -30,6 +30,7 @@ public class PortalSyncService
         _logger.LogInformation("[CronSync] Starting daily DHA sync");
 
         var credentials = await _db.PortalCredentials
+            .AsNoTracking()
             .Where(c => c.Portal == "DHA" && c.IsActive)
             .ToListAsync();
 
@@ -215,12 +216,12 @@ public class PortalSyncService
                                     var name = string.IsNullOrWhiteSpace(dlFileName) ? $"{row.FileId}.xml" : dlFileName;
                                     await File.WriteAllBytesAsync(Path.Combine(dir, name), dlBytes);
                                 }
-                                catch { }
+                                catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] Disk write failed for {FileId}", row.FileId); }
                             });
                             return;
                         }
                     }
-                    catch { }
+                    catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] Download failed for {FileId}", row.FileId); }
                 }
                 results.Add((row, null, null, false));
             }
@@ -253,7 +254,7 @@ public class PortalSyncService
                 foreach (var r in sent) bag.Add(r);
                 foreach (var r in recv) bag.Add(r);
             }
-            catch { }
+            catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] SearchAllCombos failed for combo ({TxType}, {Status})", combo.t, combo.s); }
             finally { sem.Release(); }
         }));
 

@@ -74,6 +74,7 @@ public class EmailService : IEmailService
             using var scope = _services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var rows = await db.SystemSettings
+                .AsNoTracking()
                 .Where(s => s.Category == "SMTP")
                 .ToListAsync();
             dbValues = rows.ToDictionary(r => r.Key, r => r.Value);
