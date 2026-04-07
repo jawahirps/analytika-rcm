@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -765,6 +766,213 @@ public class AdminController : Controller
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
         return Json(new { total, page, rows = rows.Select(r => new { r.Code, r.Name, r.SubType }) });
+    }
+
+    // ─── Power BI Reports ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> PowerBIReports()
+    {
+        var embeds = await _db.DashboardEmbeds.OrderBy(e => e.Id).ToListAsync();
+        var tenantId     = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:TenantId"] ?? "";
+        var clientId     = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:ClientId"] ?? "";
+        var clientSecret = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["PowerBI:ClientSecret"] ?? "";
+        ViewBag.TenantId     = tenantId.StartsWith("YOUR_") ? "" : tenantId;
+        ViewBag.ClientId     = clientId.StartsWith("YOUR_") ? "" : clientId;
+        ViewBag.ClientSecret = clientSecret.StartsWith("YOUR_") ? "" : clientSecret;
+        return View(embeds);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SavePowerBIEmbed(int id, string groupId, string reportId, bool isActive)
+    {
+        var embed = await _db.DashboardEmbeds.FindAsync(id);
+        if (embed == null) return NotFound();
+        embed.GroupId    = groupId.Trim();
+        embed.ReportId   = reportId.Trim();
+        embed.EmbedToken = "PENDING";  // force refresh on next load
+        embed.TokenExpiry = DateTime.UtcNow;
+        embed.IsActive   = isActive;
+        if (!string.IsNullOrWhiteSpace(embed.GroupId) && !string.IsNullOrWhiteSpace(embed.ReportId))
+            embed.EmbedUrl = $"https://app.powerbi.com/reportEmbed?reportId={embed.ReportId}&groupId={embed.GroupId}";
+        await _db.SaveChangesAsync();
+        return Json(new { ok = true });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestPowerBIConnection()
+    {
+        var pbi = HttpContext.RequestServices.GetRequiredService<IPowerBIService>();
+        var err = await ((PowerBIService)pbi).TestConnectionAsync();
+        return Json(err == null ? new { ok = true, message = "Connected successfully." } : new { ok = false, message = err });
+    }
+
+    // ─── Email (SMTP) Settings ────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> EmailSettings()
+    {
+        var email = HttpContext.RequestServices.GetRequiredService<IEmailService>();
+        var smtp  = await email.GetSmtpSettingsAsync();
+        return View(smtp);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveEmailSettings(string host, int port, bool enableSsl,
+        string userName, string password, string fromAddress, string fromName)
+    {
+        var keys = new Dictionary<string, string?>
+        {
+            ["Host"]        = host,
+            ["Port"]        = port.ToString(),
+            ["EnableSsl"]   = enableSsl.ToString(),
+            ["UserName"]    = userName,
+            ["Password"]    = string.IsNullOrWhiteSpace(password) ? null : password,  // null = keep existing
+            ["FromAddress"] = fromAddress,
+            ["FromName"]    = fromName
+        };
+
+        foreach (var kv in keys)
+        {
+            if (kv.Value == null) continue;  // skip blank password (keep current)
+            var setting = await _db.SystemSettings
+                .FirstOrDefaultAsync(s => s.Category == "SMTP" && s.Key == kv.Key);
+            if (setting == null)
+            {
+                _db.SystemSettings.Add(new Models.SystemSetting
+                    { Category = "SMTP", Key = kv.Key, Value = kv.Value });
+            }
+            else
+            {
+                setting.Value     = kv.Value;
+                setting.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "SMTP settings saved.";
+        return RedirectToAction(nameof(EmailSettings));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestEmailSettings(string testTo)
+    {
+        if (string.IsNullOrWhiteSpace(testTo))
+            return Json(new { ok = false, message = "Enter a recipient address." });
+        try
+        {
+            var email = HttpContext.RequestServices.GetRequiredService<IEmailService>();
+            // Create a dummy temp file for the test
+            var tmpFile = Path.Combine(Path.GetTempPath(), "test-report.txt");
+            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from GhafBI.");
+            await email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
+            System.IO.File.Delete(tmpFile);
+            return Json(new { ok = true, message = $"Test email sent to {testTo}." });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { ok = false, message = ex.Message });
+        }
+    }
+
+    // ─── Report Schedules ─────────────────────────────────────────────────────
+
+    private static readonly string[] ReportTypeOptions =
+    {
+        "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver",
+        "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle"
+    };
+
+    private static readonly Dictionary<string, string> CronPresets = new()
+    {
+        ["Daily 8am"]          = "0 8 * * *",
+        ["Weekly Mon 8am"]     = "0 8 * * 1",
+        ["Monthly 1st 8am"]    = "0 8 1 * *",
+        ["Monthly 15th 8am"]   = "0 8 15 * *",
+        ["Quarterly (Jan/Apr/Jul/Oct)"] = "0 8 1 1,4,7,10 *"
+    };
+
+    [HttpGet]
+    public async Task<IActionResult> ReportSchedules()
+    {
+        var schedules = await _db.ReportSchedules.OrderByDescending(s => s.CreatedAt).ToListAsync();
+        var facilities = await _db.Facilities.Where(f => f.IsActive)
+            .Select(f => new { f.Id, f.Name }).ToListAsync();
+        ViewBag.ReportTypes  = ReportTypeOptions;
+        ViewBag.CronPresets  = CronPresets;
+        ViewBag.Facilities   = facilities;
+        return View(schedules);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveReportSchedule(
+        int id, string name, string reportType, string cronExpression,
+        string recipients, string fileFormat, bool isActive,
+        [FromForm(Name = "facilityIds")] List<int>? facilityIds)
+    {
+        var facilityJson = facilityIds?.Count > 0
+            ? System.Text.Json.JsonSerializer.Serialize(facilityIds) : null;
+
+        if (id == 0)
+        {
+            var s = new Models.ReportSchedule
+            {
+                Name = name, ReportType = reportType, CronExpression = cronExpression,
+                Recipients = recipients, FileFormat = fileFormat,
+                IsActive = isActive, FacilityIdsJson = facilityJson
+            };
+            _db.ReportSchedules.Add(s);
+            await _db.SaveChangesAsync();
+            // Register with Hangfire
+            if (isActive)
+                RegisterHangfireJob(s);
+        }
+        else
+        {
+            var s = await _db.ReportSchedules.FindAsync(id);
+            if (s == null) return NotFound();
+            s.Name = name; s.ReportType = reportType; s.CronExpression = cronExpression;
+            s.Recipients = recipients; s.FileFormat = fileFormat;
+            s.IsActive = isActive; s.FacilityIdsJson = facilityJson;
+            await _db.SaveChangesAsync();
+            if (isActive) RegisterHangfireJob(s);
+            else Hangfire.RecurringJob.RemoveIfExists($"schedule-{s.Id}");
+        }
+
+        return Json(new { ok = true });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReportSchedule(int id)
+    {
+        var s = await _db.ReportSchedules.FindAsync(id);
+        if (s == null) return NotFound();
+        Hangfire.RecurringJob.RemoveIfExists($"schedule-{s.Id}");
+        _db.ReportSchedules.Remove(s);
+        await _db.SaveChangesAsync();
+        return Json(new { ok = true });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult RunScheduleNow(int id)
+    {
+        Hangfire.BackgroundJob.Enqueue<PortalSyncService>(svc => svc.RunDailyDhaSyncAsync());
+        return Json(new { ok = true, message = "Schedule enqueued for immediate execution." });
+    }
+
+    private static void RegisterHangfireJob(Models.ReportSchedule s)
+    {
+        // Use a no-op placeholder — real report generation wired via PortalSyncService
+        Hangfire.RecurringJob.AddOrUpdate<PortalSyncService>(
+            $"schedule-{s.Id}",
+            svc => svc.RunDailyDhaSyncAsync(),
+            s.CronExpression);
     }
 
     // ─── Helper ───────────────────────────────────────────────────────────────

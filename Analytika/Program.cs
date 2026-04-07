@@ -126,6 +126,34 @@ using (var scope = app.Services.CreateScope())
         CREATE UNIQUE INDEX IF NOT EXISTS ""IX_DhpoCodingSets_Category_Code""
             ON ""DhpoCodingSets""(""Category"", ""Code"");
     ");
+    // SystemSettings and ReportSchedules tables (SQLite safe — no-op if already exist)
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""SystemSettings"" (
+            ""Id""         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""Category""   TEXT NOT NULL,
+            ""Key""        TEXT NOT NULL,
+            ""Value""      TEXT NULL,
+            ""UpdatedAt""  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_SystemSettings_Category_Key""
+            ON ""SystemSettings""(""Category"", ""Key"");
+
+        CREATE TABLE IF NOT EXISTS ""ReportSchedules"" (
+            ""Id""              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""Name""            TEXT NOT NULL,
+            ""ReportType""      TEXT NOT NULL,
+            ""CronExpression""  TEXT NOT NULL DEFAULT '0 8 1 * *',
+            ""Recipients""      TEXT NOT NULL,
+            ""FileFormat""      TEXT NOT NULL DEFAULT 'Excel',
+            ""FacilityIdsJson"" TEXT NULL,
+            ""ParametersJson""  TEXT NULL,
+            ""IsActive""        INTEGER NOT NULL DEFAULT 1,
+            ""LastRunAt""       TEXT NULL,
+            ""LastRunStatus""   TEXT NULL,
+            ""CreatedAt""       TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+    ");
+
     await SeedData.InitializeAsync(services);
 }
 

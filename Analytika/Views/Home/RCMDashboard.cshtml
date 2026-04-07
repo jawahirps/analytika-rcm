@@ -126,8 +126,8 @@
         var reportContainer = document.getElementById('embedContainer');
         reportContainer.src = '';
 
-        if (!accessToken || accessToken.startsWith('DEMO_TOKEN')) {
-            $('#DBpreloader').html('<div class="text-center p-4"><i class="fas fa-chart-pie fa-4x text-muted mb-3"></i><p class="text-muted">Power BI report will appear here once configured.</p><small class="text-muted">Configure your Power BI credentials in appsettings.json</small></div>');
+        if (!accessToken || accessToken.startsWith('DEMO_TOKEN') || accessToken === 'PENDING') {
+            $('#DBpreloader').html('<div class="text-center p-4"><i class="fas fa-chart-pie fa-4x text-muted mb-3"></i><p class="text-muted">No report configured for this tab.</p><a href="/Admin/PowerBIReports" class="btn btn-sm mt-2" style="background:var(--amber,#C87A10);color:#fff;border:none;"><i class="fas fa-cog me-1"></i>Configure</a></div>');
             return;
         }
 
@@ -166,7 +166,7 @@
         if (embedData.accessToken && !embedData.accessToken.startsWith('DEMO_TOKEN')) {
             embedReport(embedData.accessToken, embedData.embedUrl, embedData.reportId);
         } else {
-            $('#DBpreloader').html('<div class="text-center p-4"><i class="fas fa-chart-pie fa-4x text-muted mb-3 d-block"></i><p class="text-muted fs-5">Power BI Dashboard</p><small class="text-muted">Configure your Power BI credentials in appsettings.json to load live reports.</small></div>');
+            $('#DBpreloader').html('<div class="text-center p-4"><i class="fas fa-chart-pie fa-4x text-muted mb-3 d-block"></i><p class="text-muted fs-5">Power BI Dashboard</p><small class="text-muted">No live reports configured.</small><div class="mt-3"><a href="/Admin/PowerBIReports" class="btn btn-sm" style="background:var(--amber);color:#fff;border:none;"><i class="fas fa-cog me-1"></i> Configure Power BI Reports</a></div></div>');
         }
     });
 </script>

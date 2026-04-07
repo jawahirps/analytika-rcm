@@ -4,6 +4,8 @@ public interface IPowerBIService
 {
     Task<EmbedConfig?> GetEmbedConfigAsync(string tabName);
     Task RefreshTokensAsync();
+    /// <summary>Returns null on success, or an error message string on failure.</summary>
+    Task<string?> TestConnectionAsync();
 }
 
 public class EmbedConfig

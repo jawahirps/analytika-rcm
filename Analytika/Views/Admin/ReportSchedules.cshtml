@@ -1,0 +1,278 @@
+@model List<Analytika.Models.ReportSchedule>
+@{
+    ViewData["Title"] = "Report Schedules";
+    var reportTypes = (string[])ViewBag.ReportTypes;
+    var cronPresets = (Dictionary<string, string>)ViewBag.CronPresets;
+    var facilities  = ViewBag.Facilities as dynamic;
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Automated Report Schedules</h4>
+            <small class="text-muted">Schedule recurring Excel reports to be generated and emailed automatically</small>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openScheduleModal(0)">
+            <i class="fas fa-plus me-1"></i> New Schedule
+        </button>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-calendar-plus fa-3x text-muted mb-3"></i>
+                <p class="text-muted mb-1">No scheduled reports yet.</p>
+                <small class="text-muted">Click "New Schedule" to set up an automated Excel report delivery.</small>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Name</th>
+                            <th>Report Type</th>
+                            <th>Schedule</th>
+                            <th>Recipients</th>
+                            <th class="text-center">Format</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Last Run</th>
+                            <th class="pe-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-semibold" style="color:var(--navy);font-size:.82rem;vertical-align:middle;">
+                                    @s.Name
+                                </td>
+                                <td style="vertical-align:middle;font-size:.8rem;">
+                                    <span class="badge badge-navy">@s.ReportType</span>
+                                </td>
+                                <td style="vertical-align:middle;font-size:.78rem;font-family:monospace;">
+                                    <span title="@s.CronExpression">@s.CronExpression</span>
+                                </td>
+                                <td style="vertical-align:middle;font-size:.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@s.Recipients">
+                                    @s.Recipients
+                                </td>
+                                <td class="text-center" style="vertical-align:middle;">
+                                    <span class="badge badge-info">@s.FileFormat</span>
+                                </td>
+                                <td class="text-center" style="vertical-align:middle;">
+                                    @if (s.IsActive)
+                                    { <span class="status-pill success"><i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Active</span> }
+                                    else
+                                    { <span class="status-pill" style="background:rgba(148,163,184,0.15);color:#64748b;">Paused</span> }
+                                </td>
+                                <td class="text-center" style="vertical-align:middle;font-size:.75rem;">
+                                    @if (s.LastRunAt.HasValue)
+                                    {
+                                        <span title="@(s.LastRunStatus ?? "OK")" style="color:@(s.LastRunStatus?.StartsWith("Error") == true ? "#dc3545" : "#3aac8a")">
+                                            @s.LastRunAt.Value.ToString("dd MMM HH:mm")
+                                        </span>
+                                    }
+                                    else { <span class="text-muted">Never</span> }
+                                </td>
+                                <td class="pe-4 text-center" style="vertical-align:middle;">
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <button class="btn btn-xs btn-ghost" title="Edit" onclick="openScheduleModal(@s.Id)">
+                                            <i class="fas fa-edit" style="font-size:.7rem;"></i>
+                                        </button>
+                                        <button class="btn btn-xs" style="background:#0D7272;color:#fff;border:none;font-size:.65rem;" title="Run Now" onclick="runNow(@s.Id, this)">
+                                            <i class="fas fa-play"></i>
+                                        </button>
+                                        <button class="btn btn-xs btn-ghost" style="color:#dc3545;" title="Delete" onclick="deleteSchedule(@s.Id, this)">
+                                            <i class="fas fa-trash" style="font-size:.7rem;"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" style="color:var(--navy);" id="scheduleModalTitle">New Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sch_id" value="0" />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Schedule Name <span class="text-danger">*</span></label>
+                        <input id="sch_name" class="form-control" placeholder="e.g. Monthly Claim Summary" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Report Type <span class="text-danger">*</span></label>
+                        <select id="sch_type" class="form-select">
+                            @foreach (var rt in reportTypes)
+                            { <option value="@rt">@rt</option> }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Recipients <span class="text-danger">*</span></label>
+                        <input id="sch_recipients" class="form-control"
+                               placeholder="email1@domain.com, email2@domain.com" />
+                        <small class="text-muted" style="font-size:.72rem;">Comma-separated email addresses</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">File Format</label>
+                        <select id="sch_format" class="form-select">
+                            <option value="Excel">Excel (.xlsx)</option>
+                            <option value="PDF">PDF</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Active</label>
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="sch_active" checked role="switch" />
+                            <label class="form-check-label" for="sch_active">Enabled</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Cron Schedule <span class="text-danger">*</span></label>
+                        <div class="d-flex gap-2 mb-2 flex-wrap">
+                            @foreach (var p in cronPresets)
+                            {
+                                <button type="button" class="btn btn-ghost btn-xs"
+                                        onclick="setCron('@p.Value')" style="font-size:.72rem;">
+                                    @p.Key
+                                </button>
+                            }
+                        </div>
+                        <div class="input-group">
+                            <input id="sch_cron" class="form-control form-control-sm font-monospace"
+                                   placeholder="0 8 1 * *" value="0 8 1 * *" />
+                            <span class="input-group-text" style="font-size:.75rem;background:#f8f9fa;">
+                                <a href="https://crontab.guru/" target="_blank" class="text-decoration-none">
+                                    <i class="fas fa-external-link-alt me-1"></i>crontab.guru
+                                </a>
+                            </span>
+                        </div>
+                        <small id="cronHint" class="text-muted" style="font-size:.72rem;"></small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Facilities <small class="text-muted fw-normal">(leave blank = all)</small></label>
+                        <select id="sch_facilities" class="form-select form-select-sm" multiple style="height:90px;">
+                            @foreach (var f in (IEnumerable<dynamic>)ViewBag.Facilities)
+                            {
+                                <option value="@f.Id">@f.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSchedule(this)">
+                    <i class="fas fa-save me-1"></i> Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+@Html.AntiForgeryToken()
+function getToken() { return document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''; }
+
+// Cron human-readable hint
+const cronDescriptions = {
+    '0 8 * * *':       'Every day at 08:00',
+    '0 8 * * 1':       'Every Monday at 08:00',
+    '0 8 1 * *':       'On the 1st of every month at 08:00',
+    '0 8 15 * *':      'On the 15th of every month at 08:00',
+    '0 8 1 1,4,7,10 *':'1st of Jan, Apr, Jul, Oct at 08:00'
+};
+
+document.getElementById('sch_cron').addEventListener('input', function() {
+    document.getElementById('cronHint').textContent =
+        cronDescriptions[this.value.trim()] || '';
+});
+
+function setCron(val) {
+    document.getElementById('sch_cron').value = val;
+    document.getElementById('cronHint').textContent = cronDescriptions[val] || '';
+}
+
+function openScheduleModal(id) {
+    document.getElementById('sch_id').value = id;
+    document.getElementById('scheduleModalTitle').textContent = id ? 'Edit Schedule' : 'New Schedule';
+    if (!id) {
+        // Reset form
+        ['sch_name','sch_recipients'].forEach(i => document.getElementById(i).value = '');
+        document.getElementById('sch_cron').value = '0 8 1 * *';
+        document.getElementById('sch_active').checked = true;
+        Array.from(document.getElementById('sch_facilities').options).forEach(o => o.selected = false);
+    }
+    new bootstrap.Modal(document.getElementById('scheduleModal')).show();
+}
+
+async function saveSchedule(btn) {
+    const name = document.getElementById('sch_name').value.trim();
+    const cron = document.getElementById('sch_cron').value.trim();
+    const reci = document.getElementById('sch_recipients').value.trim();
+    if (!name || !cron || !reci) { alert('Name, recipients, and cron expression are required.'); return; }
+
+    const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…'; btn.disabled = true;
+
+    const form = new FormData();
+    form.append('id',             document.getElementById('sch_id').value);
+    form.append('name',           name);
+    form.append('reportType',     document.getElementById('sch_type').value);
+    form.append('cronExpression', cron);
+    form.append('recipients',     reci);
+    form.append('fileFormat',     document.getElementById('sch_format').value);
+    form.append('isActive',       document.getElementById('sch_active').checked);
+    Array.from(document.getElementById('sch_facilities').selectedOptions)
+         .forEach(o => form.append('facilityIds', o.value));
+    form.append('__RequestVerificationToken', getToken());
+
+    try {
+        const r = await fetch('/Admin/SaveReportSchedule', { method: 'POST', body: form });
+        const d = await r.json();
+        if (d.ok) { location.reload(); }
+        else { alert(d.message || 'Save failed.'); }
+    } catch { alert('Request failed.'); }
+    btn.innerHTML = orig; btn.disabled = false;
+}
+
+async function deleteSchedule(id, btn) {
+    if (!confirm('Delete this schedule? This cannot be undone.')) return;
+    const form = new FormData();
+    form.append('id', id); form.append('__RequestVerificationToken', getToken());
+    try {
+        const r = await fetch('/Admin/DeleteReportSchedule', { method: 'POST', body: form });
+        const d = await r.json();
+        if (d.ok) btn.closest('tr').remove();
+    } catch { alert('Delete failed.'); }
+}
+
+async function runNow(id, btn) {
+    const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+    const form = new FormData();
+    form.append('id', id); form.append('__RequestVerificationToken', getToken());
+    try {
+        const r = await fetch('/Admin/RunScheduleNow', { method: 'POST', body: form });
+        const d = await r.json();
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.style.background = '#3aac8a';
+        setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#0D7272'; btn.disabled = false; }, 2500);
+    } catch { btn.innerHTML = orig; btn.disabled = false; }
+}
+</script>
+}

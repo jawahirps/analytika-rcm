@@ -20,6 +20,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<PortalFetchLog> PortalFetchLogs { get; set; }
     public DbSet<PortalTransaction> PortalTransactions { get; set; }
     public DbSet<DhpoCodingSet> DhpoCodingSets { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
+    public DbSet<ReportSchedule> ReportSchedules { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -1,3 +1,5 @@
+using Analytika.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Net.Mail;
 
@@ -7,24 +9,20 @@ public class EmailService : IEmailService
 {
     private readonly IConfiguration _config;
     private readonly ILogger<EmailService> _logger;
+    private readonly IServiceProvider _services;
 
-    public EmailService(IConfiguration config, ILogger<EmailService> logger)
+    public EmailService(IConfiguration config, ILogger<EmailService> logger, IServiceProvider services)
     {
-        _config = config;
-        _logger = logger;
+        _config   = config;
+        _logger   = logger;
+        _services = services;
     }
 
     public async Task SendReportAsync(string to, string reportId, string reportType, string filePath)
     {
-        var host        = _config["Smtp:Host"]        ?? string.Empty;
-        var port        = int.Parse(_config["Smtp:Port"] ?? "587");
-        var enableSsl   = bool.Parse(_config["Smtp:EnableSsl"] ?? "true");
-        var userName    = _config["Smtp:UserName"]    ?? string.Empty;
-        var password    = _config["Smtp:Password"]    ?? string.Empty;
-        var fromAddress = _config["Smtp:FromAddress"] ?? userName;
-        var fromName    = _config["Smtp:FromName"]    ?? "Analytika Reports";
+        var smtp = await GetSmtpSettingsAsync();
 
-        if (string.IsNullOrWhiteSpace(host))
+        if (string.IsNullOrWhiteSpace(smtp.Host))
         {
             _logger.LogWarning("SMTP host is not configured — skipping email for {ReportId}.", reportId);
             return;
@@ -37,9 +35,9 @@ public class EmailService : IEmailService
         {
             using var message = new MailMessage
             {
-                From    = new MailAddress(fromAddress, fromName),
-                Subject = $"[Analytika] Report {reportId} — {reportType}",
-                Body    = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached to this email.\n\nThis is an automated message from Analytika. Please do not reply.\n\nRegards,\nAnalytika Reports",
+                From       = new MailAddress(smtp.FromAddress, smtp.FromName),
+                Subject    = $"[GhafBI] Report {reportId} — {reportType}",
+                Body       = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached.\n\nThis is an automated message from GhafBI. Please do not reply.\n\nRegards,\nGhafBI Reports",
                 IsBodyHtml = false
             };
 
@@ -49,12 +47,12 @@ public class EmailService : IEmailService
             if (File.Exists(filePath))
                 message.Attachments.Add(new Attachment(filePath));
 
-            using var client = new SmtpClient(host, port)
+            using var client = new SmtpClient(smtp.Host, smtp.Port)
             {
-                EnableSsl            = enableSsl,
-                DeliveryMethod       = SmtpDeliveryMethod.Network,
+                EnableSsl             = smtp.EnableSsl,
+                DeliveryMethod        = SmtpDeliveryMethod.Network,
                 UseDefaultCredentials = false,
-                Credentials          = new NetworkCredential(userName, password)
+                Credentials           = new NetworkCredential(smtp.UserName, smtp.Password)
             };
 
             await client.SendMailAsync(message);
@@ -63,7 +61,49 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send report {ReportId} to {To}.", reportId, to);
-            // Do not re-throw — email failure should not fail the whole report job
         }
     }
+
+    // ── Read SMTP config from DB → fallback to appsettings ────────
+
+    public async Task<SmtpSettings> GetSmtpSettingsAsync()
+    {
+        Dictionary<string, string?> dbValues = new();
+        try
+        {
+            using var scope = _services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var rows = await db.SystemSettings
+                .Where(s => s.Category == "SMTP")
+                .ToListAsync();
+            dbValues = rows.ToDictionary(r => r.Key, r => r.Value);
+        }
+        catch { /* DB not ready yet — use appsettings only */ }
+
+        string Cfg(string key, string fallback) =>
+            dbValues.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v
+            : _config[$"Smtp:{key}"] ?? fallback;
+
+        return new SmtpSettings
+        {
+            Host        = Cfg("Host",        string.Empty),
+            Port        = int.TryParse(Cfg("Port",  "587"), out var p) ? p : 587,
+            EnableSsl   = bool.TryParse(Cfg("EnableSsl", "true"), out var ssl) && ssl,
+            UserName    = Cfg("UserName",    string.Empty),
+            Password    = Cfg("Password",    string.Empty),
+            FromAddress = Cfg("FromAddress", string.Empty),
+            FromName    = Cfg("FromName",    "GhafBI Reports")
+        };
+    }
+}
+
+public record SmtpSettings
+{
+    public string Host        { get; init; } = string.Empty;
+    public int    Port        { get; init; } = 587;
+    public bool   EnableSsl   { get; init; } = true;
+    public string UserName    { get; init; } = string.Empty;
+    public string Password    { get; init; } = string.Empty;
+    public string FromAddress { get; init; } = string.Empty;
+    public string FromName    { get; init; } = "GhafBI Reports";
 }

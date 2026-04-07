@@ -10,4 +10,5 @@ public interface IEmailService
     /// <param name="reportType">Human-readable report type name.</param>
     /// <param name="filePath">Absolute path to the generated file on disk.</param>
     Task SendReportAsync(string to, string reportId, string reportType, string filePath);
+    Task<SmtpSettings> GetSmtpSettingsAsync();
 }

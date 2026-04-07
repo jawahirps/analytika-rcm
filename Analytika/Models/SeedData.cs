@@ -86,12 +86,12 @@ public static class SeedData
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
 
-        if (await userManager.FindByEmailAsync("admin@analytika.ae") == null)
+        if (await userManager.FindByEmailAsync("admin@ghafbi.ae") == null)
         {
             var admin = new ApplicationUser
             {
-                UserName = "admin@analytika.ae",
-                Email = "admin@analytika.ae",
+                UserName = "admin@ghafbi.ae",
+                Email = "admin@ghafbi.ae",
                 FullName = "System Administrator",
                 EmailConfirmed = true
             };
@@ -124,7 +124,7 @@ public static class SeedData
                     RequestedAt = from.AddDays(-1),
                     GeneratedAt = DateTime.UtcNow.AddDays(-random.Next(1, 30)),
                     FileFormat = "Excel",
-                    RequestedBy = "admin@analytika.ae"
+                    RequestedBy = "admin@ghafbi.ae"
                 });
             }
             await context.SaveChangesAsync();
