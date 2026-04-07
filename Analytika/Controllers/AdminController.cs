@@ -980,6 +980,64 @@ public class AdminController : Controller
             s.CronExpression);
     }
 
+    // ─── Database Backup & Migration ─────────────────────────────────────────
+
+    private string GetDbPath()
+    {
+        var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
+            ?? System.IO.Path.Combine(AppContext.BaseDirectory);
+        return System.IO.Path.Combine(dataDir, "analytika.db");
+    }
+
+    [HttpGet]
+    public IActionResult Database()
+    {
+        var dbPath = GetDbPath();
+        var info   = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
+        ViewBag.DbPath  = dbPath;
+        ViewBag.DbSizeMb = info != null ? Math.Round(info.Length / 1_048_576.0, 1) : 0;
+        ViewBag.DbModified = info?.LastWriteTimeUtc.ToString("dd MMM yyyy HH:mm UTC");
+        ViewBag.PendingExists = System.IO.File.Exists(dbPath + ".pending");
+        return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportDatabase()
+    {
+        // Flush WAL into the main file so the download is self-contained
+        await _db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(FULL)");
+        var dbPath = GetDbPath();
+        if (!System.IO.File.Exists(dbPath)) return NotFound();
+        var bytes = await System.IO.File.ReadAllBytesAsync(dbPath);
+        return File(bytes, "application/octet-stream", $"analytika_{DateTime.UtcNow:yyyyMMdd_HHmm}.db");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Microsoft.AspNetCore.Mvc.RequestSizeLimit(3L * 1024 * 1024 * 1024)]
+    [Microsoft.AspNetCore.Mvc.RequestFormLimits(MultipartBodyLengthLimit = 3L * 1024 * 1024 * 1024)]
+    public async Task<IActionResult> ImportDatabase(IFormFile dbFile)
+    {
+        if (dbFile == null || dbFile.Length == 0)
+            return Json(new { ok = false, message = "No file selected." });
+
+        // Validate SQLite magic header (first 16 bytes)
+        var magic = new byte[16];
+        using (var peek = dbFile.OpenReadStream())
+            await peek.ReadExactlyAsync(magic, 0, 16);
+
+        var expected = System.Text.Encoding.ASCII.GetBytes("SQLite format 3\0");
+        if (!magic.AsSpan().SequenceEqual(expected))
+            return Json(new { ok = false, message = "File is not a valid SQLite database." });
+
+        var pendingPath = GetDbPath() + ".pending";
+        using (var fs = System.IO.File.Create(pendingPath))
+            await dbFile.CopyToAsync(fs);
+
+        var sizeMb = Math.Round(dbFile.Length / 1_048_576.0, 1);
+        return Json(new { ok = true, message = $"Database uploaded ({sizeMb} MB). Restart the service to apply it." });
+    }
+
     // ─── Helper ───────────────────────────────────────────────────────────────
 
     private async Task<CreateUserViewModel> BuildCreateVmAsync()

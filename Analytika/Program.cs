@@ -6,11 +6,22 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow large DB uploads (up to 3 GB) via the migration endpoint
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 3L * 1024 * 1024 * 1024);
+
 // In Docker the DB lives in /app/data (mounted volume); locally stays beside the app
 var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
     ?? builder.Environment.ContentRootPath;
 Directory.CreateDirectory(dataDir);
 var dbPath = Path.Combine(dataDir, "analytika.db");
+
+// If a pending DB was uploaded via the migration endpoint, swap it in now (before EF opens the file)
+var pendingDb = dbPath + ".pending";
+if (System.IO.File.Exists(pendingDb))
+{
+    if (System.IO.File.Exists(dbPath)) System.IO.File.Delete(dbPath);
+    System.IO.File.Move(pendingDb, dbPath);
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite($"Data Source={dbPath}"));
 
