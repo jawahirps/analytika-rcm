@@ -527,7 +527,8 @@
                                         <th class="ps-4">Facility</th>
                                         <th class="text-center">Month-wise (1 yr)</th>
                                         <th class="text-center">Month-wise (2 yr)</th>
-                                        <th class="pe-4 text-center">New Only</th>
+                                        <th class="text-center">New Only</th>
+                                        <th class="pe-4 text-center">Download XML</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -551,12 +552,36 @@
                                                     <i class="fas fa-calendar-alt me-1"></i>2 yr
                                                 </button>
                                             </td>
-                                            <td class="pe-4 text-center">
+                                            <td class="text-center">
                                                 <button class="btn btn-ghost btn-xs"
                                                     style="border-color:var(--warning);color:#b45309;"
                                                     onclick="quickSyncNew('@f.Value')">
                                                     <i class="fas fa-bolt me-1"></i>New
                                                 </button>
+                                            </td>
+                                            <td class="pe-4 text-center">
+                                                <div class="d-flex align-items-center gap-1 justify-content-center flex-nowrap">
+                                                    <button class="btn btn-xs dl-toggle"
+                                                            data-fid="@f.Value" data-type="2"
+                                                            title="Submission / Claims XML"
+                                                            onclick="dlToggle(this)"
+                                                            style="font-size:.66rem;border:1px solid #0D7272;background:rgba(13,114,114,0.12);color:#0D7272;border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                        <i class="fas fa-file-medical me-1"></i>Claim
+                                                    </button>
+                                                    <button class="btn btn-xs dl-toggle"
+                                                            data-fid="@f.Value" data-type="8"
+                                                            title="Remittance XML"
+                                                            onclick="dlToggle(this)"
+                                                            style="font-size:.66rem;border:1px solid var(--amber);background:var(--amber-light);color:var(--amber-dark);border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                        <i class="fas fa-file-invoice-dollar me-1"></i>Remit
+                                                    </button>
+                                                    <button class="btn btn-xs"
+                                                            title="Download selected XML files as ZIP"
+                                                            onclick="dlXml('@f.Value', this)"
+                                                            style="font-size:.66rem;border:1px solid var(--navy);color:var(--navy);border-radius:4px;padding:2px 7px;">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
@@ -1054,6 +1079,37 @@
         document.getElementById('syncNewFacility').value = facilityId;
         document.getElementById('syncNewFacility').scrollIntoView({ behavior: 'smooth' });
         setTimeout(() => syncNew(), 400);
+    }
+
+    // ── Download XML toggles ───────────────────────────────────────
+    function dlToggle(btn) {
+        const on = btn.getAttribute('data-on') !== 'true';
+        btn.setAttribute('data-on', on);
+        const type = btn.dataset.type;
+        if (type === '2') {
+            btn.style.background  = on ? 'rgba(13,114,114,0.12)' : 'transparent';
+            btn.style.opacity     = on ? '1' : '0.35';
+        } else {
+            btn.style.background  = on ? 'var(--amber-light)' : 'transparent';
+            btn.style.opacity     = on ? '1' : '0.35';
+        }
+    }
+    // Initialise all toggles to "on"
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.dl-toggle').forEach(b => b.setAttribute('data-on', 'true'));
+    });
+
+    function dlXml(facilityId, btn) {
+        const row   = btn.closest('tr');
+        const types = Array.from(row.querySelectorAll('.dl-toggle'))
+            .filter(b => b.getAttribute('data-on') === 'true')
+            .map(b => b.dataset.type);
+        if (!types.length) { alert('Enable at least one XML type (Claim or Remit) before downloading.'); return; }
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled  = true;
+        setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 4000);
+        window.location.href = `/Portal/DownloadFacilityXml?facilityId=${facilityId}&types=${types.join(',')}`;
     }
 
     // ── Manual Fetch ───────────────────────────────────────────────

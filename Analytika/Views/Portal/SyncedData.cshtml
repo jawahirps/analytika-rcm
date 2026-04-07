@@ -85,6 +85,38 @@
         </div>
     </div>
 
+    <!-- Background Download Service Status -->
+    <div class="card border-0 shadow-sm mb-4" style="border-left:3px solid #0D7272!important;">
+        <div class="card-body py-2 px-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <span class="fw-semibold" style="color:var(--navy);font-size:.82rem;">
+                        <i class="fas fa-robot me-1" style="color:#0D7272;"></i>Background Download Service
+                    </span>
+                    <span id="bgSvcStatus" class="badge" style="font-size:.72rem;background:rgba(13,114,114,0.12);color:#0D7272;">
+                        <i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Checking…
+                    </span>
+                    <span id="bgSvcInfo" class="text-muted" style="font-size:.75rem;"></span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <div id="bgSvcProgressWrap" style="display:none;min-width:120px;">
+                        <div class="progress" style="height:5px;border-radius:3px;width:120px;">
+                            <div id="bgSvcBar" class="progress-bar" style="background:var(--amber);width:0%;transition:width .4s;"></div>
+                        </div>
+                        <span id="bgSvcPct" style="font-size:.68rem;color:var(--amber-dark);"></span>
+                    </div>
+                    <form id="bgTriggerForm" onsubmit="triggerBgDownload(event)">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" id="bgTriggerBtn" class="btn btn-sm"
+                                style="border:1px solid #0D7272;color:#0D7272;font-size:.78rem;padding:3px 10px;">
+                            <i class="fas fa-play me-1"></i>Run Now
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filters -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3 px-4">
@@ -444,8 +476,63 @@ function startDownloadPending(resumeFromId, seedDone, seedFailed) {
 document.addEventListener('DOMContentLoaded', () => {
     const cp = loadDlCkpt();
     if (cp && cp.reason !== 'running') showDlResumeBanner(cp);
-    // If reason is 'running', it was an unexpected disconnect — also show banner
     if (cp && cp.reason === 'running') { cp.reason = 'disconnected'; saveDlCkpt(cp); showDlResumeBanner(cp); }
+    // Start polling background service status
+    pollBgStatus();
+    setInterval(pollBgStatus, 6000);
 });
+
+// ── Background Download Service status polling ─────────────────
+let _bgPolling = false;
+
+async function pollBgStatus() {
+    if (_bgPolling) return;
+    _bgPolling = true;
+    try {
+        const d = await fetch('/Portal/PendingDownloadStatusApi').then(r => r.json());
+        const statusEl  = document.getElementById('bgSvcStatus');
+        const infoEl    = document.getElementById('bgSvcInfo');
+        const wrapEl    = document.getElementById('bgSvcProgressWrap');
+        const barEl     = document.getElementById('bgSvcBar');
+        const pctEl     = document.getElementById('bgSvcPct');
+        const trigBtn   = document.getElementById('bgTriggerBtn');
+
+        if (d.isRunning) {
+            statusEl.innerHTML = '<i class="fas fa-circle fa-fade me-1" style="font-size:.5rem;color:var(--amber);"></i>Running';
+            statusEl.style.background = 'var(--amber-light)'; statusEl.style.color = 'var(--amber-dark)';
+            wrapEl.style.display = 'flex'; wrapEl.style.flexDirection = 'column'; wrapEl.style.alignItems = 'flex-end';
+            barEl.style.width = (d.pct || 0) + '%';
+            pctEl.textContent = `${d.done} / ${d.total} (${d.pct}%)`;
+            infoEl.textContent = d.currentFacility ? `Processing: ${d.currentFacility}` : '';
+            trigBtn.disabled = true;
+        } else {
+            statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Idle';
+            statusEl.style.background = 'rgba(13,114,114,0.12)'; statusEl.style.color = '#0D7272';
+            wrapEl.style.display = 'none';
+            trigBtn.disabled = false;
+            if (d.lastRunAt) {
+                const ago = new Date(d.lastRunAt);
+                infoEl.textContent = `Last run: ${ago.toLocaleString()} — ${d.lastDone} downloaded`;
+            } else { infoEl.textContent = 'Not yet run this session'; }
+        }
+    } catch { /* silently ignore poll errors */ }
+    finally { _bgPolling = false; }
+}
+
+async function triggerBgDownload(e) {
+    e.preventDefault();
+    const btn  = document.getElementById('bgTriggerBtn');
+    const token = document.querySelector('#bgTriggerForm input[name="__RequestVerificationToken"]')?.value || '';
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Starting…';
+    try {
+        await fetch('/Portal/TriggerPendingDownload', {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': token }
+        });
+        setTimeout(pollBgStatus, 1500);
+    } catch { }
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-play me-1"></i>Run Now'; }, 3000);
+}
 </script>
 }

@@ -45,6 +45,7 @@ builder.Services.AddScoped<IDhaPortalService, DhaPortalService>();
 builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
 builder.Services.AddScoped<PortalSyncService>();
 builder.Services.AddScoped<ReconciliationService>();
+builder.Services.AddHostedService<PendingDownloadService>();
 builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
     new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
 builder.Services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>

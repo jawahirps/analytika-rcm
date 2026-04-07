@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 
@@ -1091,6 +1092,79 @@ public class PortalController : Controller
         _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "done", message = $"Complete — {grandSaved} new records, {grandDups} dup, {grandFiles} files · {creds.Count} facilities · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
+    }
+
+    // ── Background Download Service — trigger + status ────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult TriggerPendingDownload()
+    {
+        PendingDownloadState.Trigger();
+        return Json(new { ok = true, message = "Background download triggered." });
+    }
+
+    [HttpGet]
+    public IActionResult PendingDownloadStatusApi()
+    {
+        var s = PendingDownloadState.Get();
+        return Json(new
+        {
+            isRunning       = s.IsRunning,
+            total           = s.Total,
+            done            = s.Done,
+            failed          = s.Failed,
+            currentFacility = s.CurrentFacility,
+            pct             = s.Total > 0 ? (int)((double)(s.Done + s.Failed) / s.Total * 100) : 0,
+            startedAt       = s.StartedAt == default ? (DateTime?)null : s.StartedAt,
+            finishedAt      = s.FinishedAt,
+            lastRunAt       = s.LastRunAt,
+            lastDone        = s.LastDone
+        });
+    }
+
+    // ── Download Facility XML as ZIP ──────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> DownloadFacilityXml(int facilityId, string? types = "2,8")
+    {
+        var typeList = (types ?? "2,8")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim()).ToList();
+
+        var records = await _db.PortalTransactions
+            .Where(t => t.FacilityId == facilityId
+                     && t.FileDownloaded
+                     && t.FileContentXml != null
+                     && typeList.Contains(t.Type))
+            .Select(t => new { t.FileName, t.TransactionId, t.Type, t.FileContentXml, t.SyncPeriod })
+            .ToListAsync();
+
+        if (!records.Any())
+            return NotFound("No downloaded XML files found for the selected types and facility.");
+
+        var facility = await _db.Facilities.FindAsync(facilityId);
+        var safeFac  = (facility?.Name ?? $"facility-{facilityId}")
+            .Replace(' ', '_').Replace('/', '_').Replace('\\', '_');
+
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var r in records)
+            {
+                var folder = r.Type switch { "2" => "Claims", "8" => "Remittance", "16" => "PA_Requests", "32" => "PA_Auth", _ => "Other" };
+                var period = string.IsNullOrWhiteSpace(r.SyncPeriod) ? "misc" : r.SyncPeriod;
+                var fn = string.IsNullOrWhiteSpace(r.FileName)
+                    ? $"{r.TransactionId}.xml"
+                    : r.FileName.Replace('/', '_').Replace('\\', '_');
+                var entry = zip.CreateEntry($"{folder}/{period}/{fn}", CompressionLevel.Optimal);
+                using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+                await writer.WriteAsync(r.FileContentXml);
+            }
+        }
+
+        var typeLabel = string.Join("-", typeList.Select(t => t switch { "2" => "claims", "8" => "remittance", "16" => "pa-req", "32" => "pa-auth", _ => $"type{t}" }));
+        return File(ms.ToArray(), "application/zip", $"{safeFac}-{typeLabel}.zip");
     }
 
     // ── Download Pending Files — SSE stream ───────────────────────
