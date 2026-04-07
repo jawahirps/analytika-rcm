@@ -872,7 +872,7 @@ public class PortalController : Controller
     // ── Sync Single Facility — month-wise for a date range ──────────
 
     [HttpGet]
-    public async Task SyncFacilityStream(int facilityId, string? from = null, string? to = null)
+    public async Task SyncFacilityStream(int facilityId, string? from = null, string? to = null, int resumeMonthIdx = 0)
     {
         var ct = HttpContext.RequestAborted;
         Response.ContentType = "text/event-stream; charset=utf-8";
@@ -909,15 +909,21 @@ public class PortalController : Controller
         var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
-        int totalSteps = monthChunks.Count, stepsDone = 0;
+        int totalSteps = monthChunks.Count;
+        int stepsDone  = Math.Min(resumeMonthIdx, totalSteps);  // pre-credit already-done months
 
         ActiveSyncState.Start(1, monthChunks.Count);
         await Send(new { status = "start", message = $"{facName} · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = 1, months = monthChunks.Count, totalSteps });
+        if (resumeMonthIdx > 0)
+            await Send(new { status = "resumed", resumeMonthIdx, message = $"Resuming from month {resumeMonthIdx + 1} of {totalSteps}" });
         await Send(new { status = "facility_start", facilityIndex = 1, facilityName = facName });
 
-        foreach (var (ms, me, mlabel) in monthChunks)
+        for (int mi = 0; mi < monthChunks.Count; mi++)
         {
             if (ct.IsCancellationRequested) break;
+            if (mi < resumeMonthIdx) continue;  // skip already-completed months
+
+            var (ms, me, mlabel) = monthChunks[mi];
             var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
             var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
 
@@ -928,7 +934,7 @@ public class PortalController : Controller
             int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
             ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
-            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
+            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
 
             if (uniqueMonth.Any())
             {
@@ -959,7 +965,7 @@ public class PortalController : Controller
     // ── Sync All Facilities — 2-year bulk download ──────────────────
 
     [HttpGet]
-    public async Task SyncAllFacilitiesStream([FromQuery] List<int>? facilityIds = null, [FromQuery] List<int>? txTypes = null)
+    public async Task SyncAllFacilitiesStream([FromQuery] List<int>? facilityIds = null, [FromQuery] List<int>? txTypes = null, [FromQuery] int resumeFacilityIdx = 0, [FromQuery] int resumeMonthIdx = 0)
     {
         var ct = HttpContext.RequestAborted;
         Response.ContentType = "text/event-stream; charset=utf-8";
@@ -1011,28 +1017,39 @@ public class PortalController : Controller
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         int facilityIndex = 0;
         int totalSteps = creds.Count * monthChunks.Count;
-        int stepsDone  = 0;
+        // Pre-credit already-completed work so progress % starts correctly
+        int stepsDone = resumeFacilityIdx * monthChunks.Count + Math.Min(resumeMonthIdx, monthChunks.Count);
 
         ActiveSyncState.Start(creds.Count, monthChunks.Count);
         await Send(new { status = "start", message = $"Month-wise sync · {creds.Count} facilities · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = creds.Count, months = monthChunks.Count, totalSteps });
+        if (resumeFacilityIdx > 0 || resumeMonthIdx > 0)
+            await Send(new { status = "resumed", resumeFacilityIdx, resumeMonthIdx, message = $"Resuming from facility {resumeFacilityIdx + 1}, month {resumeMonthIdx + 1}" });
 
         foreach (var cred in creds)
         {
             if (ct.IsCancellationRequested) break;
             facilityIndex++;
+            int fi = facilityIndex - 1;  // 0-based facility index
             var facName = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
+
+            // Skip fully-completed facilities
+            if (fi < resumeFacilityIdx) continue;
 
             string pwd;
             try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
             catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); stepsDone += monthChunks.Count; continue; }
 
-            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityName = facName });
+            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityFi = fi, facilityName = facName });
 
             int facSaved = 0, facDups = 0, facFiles = 0;
+            int monthStart = (fi == resumeFacilityIdx) ? resumeMonthIdx : 0;
 
-            foreach (var (ms, me, mlabel) in monthChunks)
+            for (int mi = 0; mi < monthChunks.Count; mi++)
             {
                 if (ct.IsCancellationRequested) break;
+                if (mi < monthStart) continue;  // skip already-completed months for resume facility
+
+                var (ms, me, mlabel) = monthChunks[mi];
                 var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
                 var dhpoTo   = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
 
@@ -1044,7 +1061,7 @@ public class PortalController : Controller
                 int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
                 ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                await Send(new { status = "month_done", facilityIndex, facilityName = facName, month = mlabel, found = uniqueMonth.Count, grandTotal, pct });
+                await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
 
                 if (uniqueMonth.Any())
                 {
@@ -1054,7 +1071,7 @@ public class PortalController : Controller
                     grandSaved += ns; grandDups += nd; grandFiles += nf;
 
                     ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                    await Send(new { status = "processing", facilityIndex, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
+                    await Send(new { status = "processing", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
                 }
             }
 
@@ -1067,7 +1084,7 @@ public class PortalController : Controller
             });
             await _db.SaveChangesAsync(ct);
 
-            await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
+            await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityFi = fi, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
         }
 
         heartbeatCts.Cancel();

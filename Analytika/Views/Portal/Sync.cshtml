@@ -27,6 +27,26 @@
         </div>
     </div>
 
+    <!-- Resume Banner (shown when a checkpoint exists in localStorage) -->
+    <div id="syncResumeBanner" class="alert mb-3" role="alert"
+         style="display:none;border-left:4px solid var(--amber);background:var(--amber-light);color:var(--amber-dark);border-radius:var(--radius);">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+                <i class="fas fa-history me-2"></i>
+                <strong id="resumeBannerTitle">Sync interrupted</strong>
+                <span id="resumeBannerDetail" class="ms-2" style="font-size:.82rem;"></span>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm fw-semibold" style="background:var(--amber);color:#fff;border:none;" onclick="resumeFromCheckpoint()">
+                    <i class="fas fa-play me-1"></i> Resume
+                </button>
+                <button class="btn btn-ghost btn-sm" onclick="discardCheckpoint()">
+                    <i class="fas fa-times me-1"></i> Discard
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Month-wise Sync Options (collapsible) -->
     <div class="collapse mb-3" id="syncAllOptions">
         <div class="card border-0 shadow-sm">
@@ -80,7 +100,12 @@
                     <i class="fas fa-calendar-alt fa-spin me-1" id="syncOneSpinner"></i>
                     <span id="syncOneTitle">Facility Sync</span>
                 </h6>
-                <span id="syncOneGrandTotal" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="syncOneGrandTotal" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                    <button id="pauseOneBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseSyncOne()">
+                        <i class="fas fa-pause me-1"></i>Pause
+                    </button>
+                </div>
             </div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
@@ -114,7 +139,12 @@
                     <i class="fas fa-calendar-alt fa-spin me-1" id="syncAllSpinner"></i>
                     Month-wise Sync — Jan 2024 → Today
                 </h6>
-                <span id="syncAllGrandTotal" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="syncAllGrandTotal" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                    <button id="pauseAllBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseSyncAll()">
+                        <i class="fas fa-pause me-1"></i>Pause
+                    </button>
+                </div>
             </div>
             <!-- Overall progress -->
             <div class="d-flex align-items-center gap-2 mb-1">
@@ -542,6 +572,74 @@
 
 @section Scripts {
 <script>
+    // ── Pause/Resume Checkpoint ────────────────────────────────────
+    const CKPT_KEY = 'analytika_sync_checkpoint';
+    let syncAllSource = null;   // module-level so pauseSyncAll() can close it
+    let syncOneSource = null;
+    let syncAllCompleted = false;
+    let syncOneCompleted = false;
+
+    function saveCkpt(data) {
+        localStorage.setItem(CKPT_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
+    }
+    function loadCkpt() {
+        try { return JSON.parse(localStorage.getItem(CKPT_KEY)); } catch { return null; }
+    }
+    function clearCkpt() { localStorage.removeItem(CKPT_KEY); }
+
+    function showResumeBanner(cp) {
+        if (!cp) return;
+        const banner = document.getElementById('syncResumeBanner');
+        const title  = document.getElementById('resumeBannerTitle');
+        const detail = document.getElementById('resumeBannerDetail');
+        const icon   = cp.reason === 'paused' ? 'pause-circle' : 'exclamation-triangle';
+        const verb   = cp.reason === 'paused' ? 'Paused' : cp.reason === 'error' ? 'Interrupted (error)' : 'Disconnected';
+        const who    = cp.type === 'all' ? 'Month-wise Sync' : `Facility sync`;
+        title.innerHTML = `<i class="fas fa-${icon} me-1"></i>${verb} — ${who}`;
+        const parts = [];
+        if (cp.lastFacilityName) parts.push(`Last: <strong>${cp.lastFacilityName}</strong>`);
+        if (cp.lastMonth)        parts.push(`Month: <strong>${cp.lastMonth}</strong>`);
+        if (cp.totalSaved)       parts.push(`${cp.totalSaved.toLocaleString()} saved so far`);
+        if (cp.savedAt) {
+            const d = new Date(cp.savedAt);
+            parts.push(`at ${d.toLocaleTimeString()}`);
+        }
+        detail.innerHTML = parts.join(' · ');
+        banner.style.display = 'block';
+        banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function discardCheckpoint() {
+        clearCkpt();
+        document.getElementById('syncResumeBanner').style.display = 'none';
+    }
+
+    function resumeFromCheckpoint() {
+        const cp = loadCkpt();
+        if (!cp) return;
+        discardCheckpoint();
+        if (cp.type === 'all') {
+            // Restore options selections
+            if (cp.facilityIds?.length) {
+                const sel = document.getElementById('syncAllFacilities');
+                if (sel) { Array.from(sel.options).forEach(o => o.selected = cp.facilityIds.includes(parseInt(o.value))); try { $(sel).trigger('change'); } catch {} }
+            }
+            startSyncAll({ facilityIdx: cp.facilityIdx, monthIdx: cp.monthIdx, facilityIds: cp.facilityIds, txTypes: cp.txTypes, totalSaved: cp.totalSaved || 0, totalDups: cp.totalDups || 0, totalFiles: cp.totalFiles || 0 });
+        } else {
+            // Restore facility selection
+            if (cp.facilityId) document.getElementById('syncNewFacility').value = cp.facilityId;
+            if (cp.from) document.getElementById('facSyncFrom').value = cp.from;
+            if (cp.to)   document.getElementById('facSyncTo').value   = cp.to;
+            startSyncOne({ monthIdx: cp.monthIdx, totalSaved: cp.totalSaved || 0, totalDups: cp.totalDups || 0, totalFiles: cp.totalFiles || 0 });
+        }
+    }
+
+    // Check for saved checkpoint on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const cp = loadCkpt();
+        if (cp) showResumeBanner(cp);
+    });
+
     function setRange(months) {
         const today = new Date();
         const from = new Date(today);
@@ -606,7 +704,28 @@
     }
 
     // ── Month-wise Sync 2024–2026 ──────────────────────────────────
-    function startSyncAll() {
+    function pauseSyncAll() {
+        if (!syncAllSource) return;
+        const cp = JSON.parse(localStorage.getItem(CKPT_KEY) || '{}');
+        cp.reason = 'paused';
+        saveCkpt(cp);
+        syncAllCompleted = true;  // prevent onerror from overwriting reason
+        syncAllSource.close();
+        syncAllSource = null;
+        document.getElementById('pauseAllBtn').style.display = 'none';
+        const logDiv = document.getElementById('syncAllLog');
+        const line = document.createElement('div');
+        line.style.color = '#C87A10'; line.style.fontWeight = '600';
+        line.textContent = '⏸ Sync paused — use the Resume button above to continue.';
+        logDiv.appendChild(line);
+        document.getElementById('syncAllSpinner').classList.remove('fa-spin');
+        document.getElementById('syncAllBtn').disabled = false;
+        if (document.getElementById('syncAllBtn2')) document.getElementById('syncAllBtn2').disabled = false;
+        document.getElementById('syncAllBtn').innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026';
+        showResumeBanner(loadCkpt());
+    }
+
+    function startSyncAll(resumeState) {
         const btn      = document.getElementById('syncAllBtn');
         const btn2     = document.getElementById('syncAllBtn2');
         const panel    = document.getElementById('syncAllPanel');
@@ -617,14 +736,16 @@
         const spinner  = document.getElementById('syncAllSpinner');
         const curLbl   = document.getElementById('syncAllCurrent');
 
-        // Collect options
-        const selFacilities = Array.from(document.querySelectorAll('#syncAllFacilities option:checked')).map(o => o.value);
-        const selTypes = Array.from(document.querySelectorAll('.sync-txtype:checked')).map(c => c.value);
+        // Collect options (or inherit from resume state)
+        const selFacilities = resumeState?.facilityIds?.map(String) ?? Array.from(document.querySelectorAll('#syncAllFacilities option:checked')).map(o => o.value);
+        const selTypes      = resumeState?.txTypes?.map(String)     ?? Array.from(document.querySelectorAll('.sync-txtype:checked')).map(c => c.value);
 
         const params = new URLSearchParams();
         selFacilities.forEach(f => params.append('facilityIds', f));
         selTypes.forEach(t => params.append('txTypes', t));
-        const qs = params.toString() ? '?' + params.toString() : '';
+        if (resumeState?.facilityIdx) params.append('resumeFacilityIdx', resumeState.facilityIdx);
+        if (resumeState?.monthIdx)    params.append('resumeMonthIdx',    resumeState.monthIdx);
+        const qs = '?' + params.toString();
 
         btn.disabled = true;
         if (btn2) btn2.disabled = true;
@@ -634,19 +755,25 @@
         bar.style.width = '0%';
         pctLbl.textContent = '0%';
         curLbl.textContent = '';
+        document.getElementById('pauseAllBtn').style.display = 'inline-flex';
         panel.scrollIntoView({ behavior: 'smooth' });
 
-        // Track current facility header line so month rows can be indented under it
-        let lastFacilityEl = null;
-        // Live tally counters
-        let ctrNew = 0, ctrDup = 0, ctrFiles = 0;
+        // Live tally counters (pre-seed from resume state)
+        let ctrNew = resumeState?.totalSaved || 0, ctrDup = resumeState?.totalDups || 0, ctrFiles = resumeState?.totalFiles || 0;
         const ctrNewEl   = document.getElementById('syncAllCtrNew');
         const ctrDupEl   = document.getElementById('syncAllCtrDup');
         const ctrFilesEl = document.getElementById('syncAllCtrFiles');
+        ctrNewEl.textContent = ctrNew.toLocaleString(); ctrDupEl.textContent = ctrDup.toLocaleString(); ctrFilesEl.textContent = ctrFiles.toLocaleString();
         function updateAllCtrs(n, d, f) { ctrNew += n; ctrDup += d; ctrFiles += f; ctrNewEl.textContent = ctrNew.toLocaleString(); ctrDupEl.textContent = ctrDup.toLocaleString(); ctrFilesEl.textContent = ctrFiles.toLocaleString(); }
 
-        const source = new EventSource('/Portal/SyncAllFacilitiesStream' + qs);
-        let syncCompleted = false;   // set to true when done/error received
+        // Checkpoint state
+        let ckpt = { type: 'all', facilityIdx: resumeState?.facilityIdx || 0, monthIdx: resumeState?.monthIdx || 0, facilityIds: selFacilities.map(Number), txTypes: selTypes.map(Number), totalSaved: ctrNew, totalDups: ctrDup, totalFiles: ctrFiles, lastFacilityName: '', lastMonth: '', reason: 'running' };
+        saveCkpt(ckpt);
+
+        syncAllCompleted = false;
+        syncAllSource = new EventSource('/Portal/SyncAllFacilitiesStream' + qs);
+        const source = syncAllSource;
+        let syncCompleted = false;
 
         function addLog(msg, color, indent) {
             const line = document.createElement('div');
@@ -669,15 +796,25 @@
             if (d.status === 'start') {
                 addLog(`▶ ${d.message}`, '#0D7272');
 
+            } else if (d.status === 'resumed') {
+                addLog(`⏩ Resuming — ${d.message || ''}`, '#C87A10');
+
             } else if (d.status === 'facility_start') {
                 lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#0A1828');
                 curLbl.textContent = `Facility ${d.facilityIndex}: ${d.facilityName}`;
+                ckpt.facilityIdx = d.facilityIndex || 0;
+                ckpt.lastFacilityName = d.facilityName || '';
+                ckpt.monthIdx = 0;
+                saveCkpt(ckpt);
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
                 addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#94a3b8', true);
                 setProgress(d.pct || 0);
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
+                ckpt.monthIdx = (d.monthIdx ?? 0) + 1;   // next month to resume from
+                ckpt.lastMonth = d.month || '';
+                saveCkpt(ckpt);
 
             } else if (d.status === 'processing') {
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
@@ -687,6 +824,10 @@
                 updateAllCtrs(d.saved||0, d.dups||0, d.files||0);
                 addLog(`  ✓ ${d.saved} new · ${d.dups} already in DB · ${d.files} files`, '#3aac8a', true);
                 setProgress(d.pct || 0);
+                ckpt.facilityIdx = (d.facilityFi ?? ckpt.facilityIdx ?? 0) + 1;
+                ckpt.monthIdx = 0;
+                ckpt.totalSaved = ctrNew; ckpt.totalDups = ctrDup; ckpt.totalFiles = ctrFiles;
+                saveCkpt(ckpt);
 
             } else if (d.status === 'warning') {
                 addLog(`⚠ ${d.message}`, '#856404');
@@ -699,11 +840,13 @@
 
             } else if (d.status === 'done') {
                 syncCompleted = true;
+                syncAllCompleted = true;
                 setProgress(100);
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
                 curLbl.textContent = 'Complete';
+                clearCkpt();
                 source.close();
                 done();
             }
@@ -711,9 +854,14 @@
 
         source.onerror = function() {
             source.close();
-            if (syncCompleted) return;   // clean close after done — not a real error
-            addLog('⚠ Connection dropped — sync may still be running on the server.', '#856404');
-            addLog('Refresh the page to check current status.', '#6c757d');
+            if (syncAllCompleted) return;   // clean close after done — not a real error
+            const existCp = loadCkpt() || {};
+            existCp.reason = 'disconnected';
+            existCp.totalSaved = ctrNew; existCp.totalDups = ctrDup; existCp.totalFiles = ctrFiles;
+            saveCkpt(existCp);
+            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#856404');
+            document.getElementById('pauseAllBtn').style.display = 'none';
+            showResumeBanner(loadCkpt());
             done();
         };
 
@@ -722,12 +870,34 @@
             btn.disabled = false;
             if (btn2) btn2.disabled = false;
             btn.innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise Sync 2024–2026';
+            document.getElementById('pauseAllBtn').style.display = 'none';
         }
     }
 
+    // ── Single-Facility Pause ──────────────────────────────────────
+    function pauseSyncOne() {
+        if (!syncOneSource) return;
+        const cp = JSON.parse(localStorage.getItem(CKPT_KEY) || '{}');
+        cp.reason = 'paused';
+        saveCkpt(cp);
+        syncOneCompleted = true;  // prevent onerror from overwriting reason
+        syncOneSource.close();
+        syncOneSource = null;
+        document.getElementById('pauseOneBtn').style.display = 'none';
+        const logDiv = document.getElementById('syncOneLog');
+        const line = document.createElement('div');
+        line.style.color = '#C87A10'; line.style.fontWeight = '600';
+        line.textContent = '⏸ Sync paused — use the Resume button above to continue.';
+        logDiv.appendChild(line);
+        document.getElementById('syncOneSpinner').classList.remove('fa-spin');
+        document.getElementById('syncOneBtn').disabled = false;
+        document.getElementById('syncOneBtn').innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise';
+        showResumeBanner(loadCkpt());
+    }
+
     // ── Single-Facility 1-Year Sync ────────────────────────────────
-    function startSyncOne() {
-        const facilityId = document.getElementById('syncNewFacility').value;
+    function startSyncOne(resumeState) {
+        const facilityId = resumeState?.facilityId || document.getElementById('syncNewFacility').value;
         if (!facilityId) { alert('Please select a facility first.'); return; }
 
         const btn      = document.getElementById('syncOneBtn');
@@ -741,6 +911,7 @@
         const title    = document.getElementById('syncOneTitle');
 
         btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Syncing…';
         panel.style.display = 'block';
         logDiv.innerHTML = '';
         bar.style.width  = '0%';
@@ -748,22 +919,39 @@
         grandLbl.textContent = '';
         curLbl.textContent   = '';
         title.textContent    = 'Loading…';
+        document.getElementById('pauseOneBtn').style.display = 'inline-flex';
         panel.scrollIntoView({ behavior: 'smooth' });
 
-        const fromInput = document.getElementById('facSyncFrom').value;
-        const toInput   = document.getElementById('facSyncTo').value;
+        const fromInput = resumeState?.from || document.getElementById('facSyncFrom').value;
+        const toInput   = resumeState?.to   || document.getElementById('facSyncTo').value;
         const defFrom = new Date(); defFrom.setFullYear(defFrom.getFullYear() - 1);
         const fromStr = fromInput || defFrom.toISOString().split('T')[0];
         const toStr   = toInput   || new Date().toISOString().split('T')[0];
 
-        // Live tally counters for SyncOne
-        let oneCtrNew = 0, oneCtrDup = 0, oneCtrFiles = 0;
+        // Live tally counters for SyncOne (pre-seed from resume state)
+        let oneCtrNew   = resumeState?.totalSaved  || 0;
+        let oneCtrDup   = resumeState?.totalDups   || 0;
+        let oneCtrFiles = resumeState?.totalFiles  || 0;
         const oneCtrNewEl   = document.getElementById('syncOneCtrNew');
         const oneCtrDupEl   = document.getElementById('syncOneCtrDup');
         const oneCtrFilesEl = document.getElementById('syncOneCtrFiles');
+        oneCtrNewEl.textContent = oneCtrNew.toLocaleString();
+        oneCtrDupEl.textContent = oneCtrDup.toLocaleString();
+        oneCtrFilesEl.textContent = oneCtrFiles.toLocaleString();
         function updateOneCtrs(n, d, f) { oneCtrNew += n; oneCtrDup += d; oneCtrFiles += f; oneCtrNewEl.textContent = oneCtrNew.toLocaleString(); oneCtrDupEl.textContent = oneCtrDup.toLocaleString(); oneCtrFilesEl.textContent = oneCtrFiles.toLocaleString(); }
 
-        const source = new EventSource(`/Portal/SyncFacilityStream?facilityId=${facilityId}&from=${fromStr}&to=${toStr}`);
+        // Build SSE URL with optional resume param
+        const params = new URLSearchParams({ facilityId, from: fromStr, to: toStr });
+        if (resumeState?.monthIdx) params.append('resumeMonthIdx', resumeState.monthIdx);
+        const qs = '?' + params.toString();
+
+        // Checkpoint state
+        let oneCkpt = { type: 'one', facilityId, from: fromStr, to: toStr, monthIdx: resumeState?.monthIdx || 0, totalSaved: oneCtrNew, totalDups: oneCtrDup, totalFiles: oneCtrFiles, lastMonth: '', reason: 'running' };
+        saveCkpt(oneCkpt);
+
+        syncOneCompleted = false;
+        syncOneSource = new EventSource('/Portal/SyncFacilityStream' + qs);
+        const source = syncOneSource;
         let syncCompleted = false;
 
         function addLog(msg, color, indent) {
@@ -782,9 +970,14 @@
                 title.textContent = d.message;
                 addLog(`▶ ${d.message}`, '#0D7272');
 
+            } else if (d.status === 'resumed') {
+                addLog(`⏩ Resuming — ${d.message || ''}`, '#C87A10');
+
             } else if (d.status === 'facility_start') {
                 addLog(`◆ ${d.facilityName}`, '#0A1828');
                 curLbl.textContent = d.facilityName;
+                oneCkpt.lastFacilityName = d.facilityName || '';
+                saveCkpt(oneCkpt);
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
@@ -792,6 +985,9 @@
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
+                oneCkpt.monthIdx = (d.monthIdx ?? 0) + 1;  // next month to resume from
+                oneCkpt.lastMonth = d.month || '';
+                saveCkpt(oneCkpt);
 
             } else if (d.status === 'processing') {
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
@@ -802,6 +998,8 @@
                 updateOneCtrs(d.saved||0, d.dups||0, d.files||0);
                 addLog(`✓ ${d.saved} new · ${d.dups} already in DB · ${d.files} files`, '#3aac8a');
                 bar.style.width = '100%'; pctLbl.textContent = '100%';
+                oneCkpt.totalSaved = oneCtrNew; oneCkpt.totalDups = oneCtrDup; oneCkpt.totalFiles = oneCtrFiles;
+                saveCkpt(oneCkpt);
 
             } else if (d.status === 'error') {
                 syncCompleted = true;
@@ -810,25 +1008,35 @@
 
             } else if (d.status === 'done') {
                 syncCompleted = true;
+                syncOneCompleted = true;
                 bar.style.width = '100%'; pctLbl.textContent = '100%';
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
                 curLbl.textContent = 'Complete';
+                clearCkpt();
                 source.close(); done();
             }
         };
 
         source.onerror = function() {
             source.close();
-            if (syncCompleted) return;
-            addLog('⚠ Connection dropped — sync may still be running on the server.', '#856404');
+            if (syncOneCompleted) return;   // clean close — not a real error
+            const existCp = loadCkpt() || oneCkpt;
+            existCp.reason = 'disconnected';
+            existCp.totalSaved = oneCtrNew; existCp.totalDups = oneCtrDup; existCp.totalFiles = oneCtrFiles;
+            saveCkpt(existCp);
+            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#856404');
+            document.getElementById('pauseOneBtn').style.display = 'none';
+            showResumeBanner(loadCkpt());
             done();
         };
 
         function done() {
             spinner.classList.remove('fa-spin');
             btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-calendar-alt me-1"></i> Month-wise';
+            document.getElementById('pauseOneBtn').style.display = 'none';
         }
     }
 
