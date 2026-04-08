@@ -4,6 +4,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Analytika</RootNamespace>
+    <!-- Windows Service support -->
+    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
     <!-- Exclude downloaded XML files from the build — filenames with commas break MSBuild glob parsing -->

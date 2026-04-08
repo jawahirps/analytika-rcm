@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# GhafBI – Step 3: Cloudflare Tunnel Config
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# SETUP INSTRUCTIONS (run in PowerShell on the office server):
+#
+#   1. Install cloudflared
+#        winget install Cloudflare.cloudflared
+#
+#   2. Login to Cloudflare (opens browser)
+#        cloudflared tunnel login
+#
+#   3. Create the tunnel
+#        cloudflared tunnel create ghafbi
+#      → Note the Tunnel ID printed (looks like: a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+#
+#   4. Edit this file:
+#        - Replace YOUR_TUNNEL_ID with the ID from step 3
+#        - Replace rcm.yourdomain.com with your actual domain
+#        - Save as:  C:\Users\<you>\.cloudflared\config.yml
+#
+#   5. Create a DNS record pointing to your tunnel
+#        cloudflared tunnel route dns ghafbi rcm.yourdomain.com
+#
+#   6. Install cloudflared as a Windows Service (auto-starts on boot)
+#        cloudflared service install
+#        net start cloudflared
+#
+#   7. Verify
+#        Open https://rcm.yourdomain.com in any browser
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+tunnel: YOUR_TUNNEL_ID
+credentials-file: C:\Users\YOUR_USERNAME\.cloudflared\YOUR_TUNNEL_ID.json
+
+ingress:
+  # Main app
+  - hostname: rcm.yourdomain.com
+    service: http://localhost:5200
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: false
+
+  # Catch-all (required)
+  - service: http_status:404
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OPTIONAL: Cloudflare Access (extra login wall before the app)
+# ─────────────────────────────────────────────────────────────────────────────
+# In the Cloudflare dashboard (zero-cost for up to 50 users):
+#
+#   Zero Trust → Access → Applications → Add an Application → Self-hosted
+#     Application name : GhafBI RCM
+#     Subdomain        : rcm.yourdomain.com
+#     Policy name      : Company email only
+#     Rule             : Emails ending in   @yourcompany.com
+#
+# Users will receive an email OTP before reaching the app login page.
+# ─────────────────────────────────────────────────────────────────────────────
