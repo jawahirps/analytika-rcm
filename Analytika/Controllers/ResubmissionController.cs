@@ -65,7 +65,7 @@ public class ResubmissionController : Controller
 
         var items = await query
             .OrderByDescending(rc => rc.Task == null ? 1 : 0) // unassigned first
-            .ThenByDescending(rc => rc.DeniedAmount)
+            .ThenByDescending(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount)
             .Skip((page - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
@@ -78,9 +78,9 @@ public class ResubmissionController : Controller
         ViewBag.InProgress     = await all.CountAsync(rc => rc.Task != null && (rc.Task.Status == ResubmissionStatus.InReview || rc.Task.Status == ResubmissionStatus.Assigned));
         ViewBag.Resubmitted    = await all.CountAsync(rc => rc.Task != null && rc.Task.Status == ResubmissionStatus.Resubmitted);
         ViewBag.Closed         = await all.CountAsync(rc => rc.Task != null && (rc.Task.Status == ResubmissionStatus.Closed || rc.Task.Status == ResubmissionStatus.Rejected));
-        ViewBag.TotalDenied    = await all.SumAsync(rc => rc.OriginalAmount - rc.PaidAmount);
+        ViewBag.TotalDenied    = await all.SumAsync(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount);
         ViewBag.TotalRecovered = await all.Where(rc => rc.Task != null && rc.Task.Status == ResubmissionStatus.Resubmitted)
-                                          .SumAsync(rc => rc.OriginalAmount - rc.PaidAmount);
+                                          .SumAsync(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount);
 
         ViewBag.Facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
         ViewBag.Coders     = isAdmin ? await _userManager.Users.Where(u => u.IsActive).AsNoTracking().ToListAsync() : new List<ApplicationUser>();
@@ -283,7 +283,7 @@ public class ResubmissionController : Controller
             .Where(rc => isAdmin || (rc.Task != null && rc.Task.AssignedToUserId == userId))
             .AsNoTracking()
             .GroupBy(rc => rc.Facility!.Name)
-            .Select(g => new { Facility = g.Key, Count = g.Count(), Denied = g.Sum(c => c.OriginalAmount - c.PaidAmount) })
+            .Select(g => new { Facility = g.Key, Count = g.Count(), Denied = g.Sum(c => (double)c.OriginalAmount - (double)c.PaidAmount) })
             .OrderByDescending(x => x.Denied)
             .ToListAsync();
 
