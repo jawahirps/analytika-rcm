@@ -1,0 +1,268 @@
+@model List<Analytika.Controllers.WorkloadRow>
+@using Analytika.Models
+@{
+    ViewData["Title"] = "Workload Allocation";
+    var unassigned       = (int)ViewBag.UnassignedCount;
+    var unassignedDenied = (double)ViewBag.UnassignedDenied;
+    var facilities       = (List<Facility>)ViewBag.Facilities;
+    var priorities       = (string[])ViewBag.Priorities;
+    var totalActive      = Model.Sum(r => r.TotalActive);
+    var maxActive        = Model.Max(r => (int?)r.TotalActive) ?? 1;
+}
+
+@section Styles {
+<style>
+.wl-card  { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; margin-bottom:1rem; }
+.wl-label { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
+.wl-val   { font-size:1.1rem; font-weight:700; color:#0A1828; }
+.bar-bg   { height:8px; background:#f3f4f6; border-radius:4px; margin-top:6px; }
+.bar-fill { height:8px; border-radius:4px; background:#C87A10; transition:width .4s; }
+.coder-row:hover { background:#fafafa; }
+.count-input { width:70px; text-align:center; }
+.overdue-badge { font-size:.68rem; color:#991b1b; background:#fee2e2; padding:.2em .5em; border-radius:4px; font-weight:600; }
+</style>
+}
+
+<div class="container-fluid py-3 px-4" style="max-width:1200px;">
+
+    <!-- Breadcrumb -->
+    <nav style="font-size:.78rem;" class="mb-3">
+        <a href="/Resubmission" class="text-decoration-none" style="color:#C87A10;">
+            <i class="fas fa-tasks me-1"></i>Resubmission
+        </a>
+        <span class="mx-2 text-muted">/</span>
+        <span class="text-muted">Workload</span>
+    </nav>
+
+    <!-- KPI row -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="wl-card text-center">
+                <div class="wl-label">Unassigned</div>
+                <div class="wl-val text-danger">@unassigned.ToString("N0")</div>
+                <div style="font-size:.72rem; color:#6b7280;">AED @unassignedDenied.ToString("N0") denied</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="wl-card text-center">
+                <div class="wl-label">Active (All Coders)</div>
+                <div class="wl-val">@totalActive.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="wl-card text-center">
+                <div class="wl-label">Coders</div>
+                <div class="wl-val">@Model.Count</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="wl-card text-center">
+                <div class="wl-label">Overdue</div>
+                <div class="wl-val text-danger">@Model.Sum(r => r.Overdue).ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- Left: workload table -->
+        <div class="col-lg-7">
+            <div class="wl-card">
+                <h6 class="fw-semibold mb-3">
+                    <i class="fas fa-chart-bar me-2" style="color:#C87A10;"></i>Per-Coder Workload
+                    <span class="text-muted fw-normal" style="font-size:.75rem;">(today / this week / active)</span>
+                </h6>
+
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle" style="font-size:.82rem;">
+                        <thead style="background:#f9fafb;">
+                            <tr>
+                                <th>Coder</th>
+                                <th class="text-center">Today</th>
+                                <th class="text-center">This Week</th>
+                                <th class="text-center">Active</th>
+                                <th class="text-center">Resubmitted</th>
+                                <th class="text-center">Closed</th>
+                                <th style="min-width:120px;">Load</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model.OrderByDescending(x => x.TotalActive))
+                            {
+                                var pct = maxActive > 0 ? (int)Math.Round(r.TotalActive * 100.0 / maxActive) : 0;
+                                <tr class="coder-row">
+                                    <td>
+                                        <div class="fw-semibold">@r.Name</div>
+                                        @if (r.Overdue > 0)
+                                        {
+                                            <span class="overdue-badge">@r.Overdue overdue</span>
+                                        }
+                                    </td>
+                                    <td class="text-center fw-semibold">@r.TodayCount</td>
+                                    <td class="text-center">@r.WeekCount</td>
+                                    <td class="text-center fw-semibold" style="color:#1e40af;">@r.TotalActive</td>
+                                    <td class="text-center text-success">@r.Resubmitted</td>
+                                    <td class="text-center text-muted">@r.Closed</td>
+                                    <td>
+                                        <div class="bar-bg">
+                                            <div class="bar-fill" style="width:@pct%;"></div>
+                                        </div>
+                                        <div style="font-size:.65rem; color:#9ca3af;">@pct%</div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: distribute panel -->
+        <div class="col-lg-5">
+            <div class="wl-card">
+                <h6 class="fw-semibold mb-3">
+                    <i class="fas fa-random me-2" style="color:#C87A10;"></i>Distribute Unassigned
+                    <span class="badge bg-danger ms-1">@unassigned</span>
+                </h6>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold" style="font-size:.8rem;">Facility</label>
+                        <select id="distFacility" class="form-select form-select-sm">
+                            <option value="">All Facilities</option>
+                            @foreach (var f in facilities)
+                            {
+                                <option value="@f.Id">@f.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold" style="font-size:.8rem;">Priority</label>
+                        <select id="distPriority" class="form-select form-select-sm">
+                            @foreach (var p in priorities)
+                            {
+                                <option value="@p" selected="@(p == "Normal")">@p</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold" style="font-size:.8rem;">Due Date</label>
+                        <input type="date" id="distDueDate" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-6 d-flex align-items-end">
+                        <button class="btn btn-sm w-100" style="background:#6b7280;color:#fff;border:none;"
+                                onclick="setEqual()">
+                            <i class="fas fa-balance-scale me-1"></i>Split Equally
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm align-middle" style="font-size:.82rem;">
+                        <thead style="background:#f9fafb;">
+                            <tr>
+                                <th>Coder</th>
+                                <th class="text-center" style="min-width:80px;">Active</th>
+                                <th class="text-center" style="min-width:90px;">Assign</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in Model.OrderBy(x => x.TotalActive))
+                            {
+                                <tr>
+                                    <td>
+                                        <input type="hidden" class="uid-input" value="@r.UserId" />
+                                        <div style="font-size:.8rem;" class="fw-semibold">@r.Name</div>
+                                    </td>
+                                    <td class="text-center" style="color:#6b7280;">@r.TotalActive</td>
+                                    <td class="text-center">
+                                        <input type="number" class="form-control form-control-sm count-input assign-count"
+                                               min="0" max="@unassigned" value="0" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#f9fafb;">
+                                <td colspan="2" class="fw-semibold" style="font-size:.78rem;">Total to assign</td>
+                                <td class="text-center fw-semibold" id="totalToAssign">0</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div id="distAlert" class="alert alert-warning py-2" style="font-size:.8rem; display:none;"></div>
+
+                <button class="btn btn-sm w-100 fw-semibold"
+                        style="background:#0A1828;color:#fff;border:none;"
+                        onclick="distribute()">
+                    <i class="fas fa-paper-plane me-1"></i>Distribute Claims
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const unassigned = @unassigned;
+const token = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+// Update total counter
+document.querySelectorAll('.assign-count').forEach(inp => {
+    inp.addEventListener('input', updateTotal);
+});
+function updateTotal() {
+    const sum = [...document.querySelectorAll('.assign-count')].reduce((a, i) => a + (parseInt(i.value) || 0), 0);
+    const el = document.getElementById('totalToAssign');
+    el.textContent = sum;
+    el.style.color = sum > unassigned ? '#dc2626' : '#0A1828';
+}
+
+// Split equally among all coders
+function setEqual() {
+    const inputs = [...document.querySelectorAll('.assign-count')];
+    if (!inputs.length) return;
+    const each = Math.floor(unassigned / inputs.length);
+    const rem  = unassigned % inputs.length;
+    inputs.forEach((inp, i) => inp.value = each + (i === 0 ? rem : 0));
+    updateTotal();
+}
+
+// Distribute
+async function distribute() {
+    const uids   = [...document.querySelectorAll('.uid-input')].map(i => i.value);
+    const counts = [...document.querySelectorAll('.assign-count')].map(i => parseInt(i.value) || 0);
+    const total  = counts.reduce((a, b) => a + b, 0);
+    if (total === 0) return;
+    if (total > unassigned) {
+        showAlert(`Total (${total}) exceeds unassigned pool (${unassigned}).`);
+        return;
+    }
+
+    const form = new FormData();
+    uids.forEach(u => form.append('userIds', u));
+    counts.forEach(c => form.append('counts', c));
+    form.append('priority',    document.getElementById('distPriority').value);
+    form.append('dueDate',     document.getElementById('distDueDate').value);
+    form.append('facilityId',  document.getElementById('distFacility').value);
+    form.append('__RequestVerificationToken', token());
+
+    const r = await fetch('/Resubmission/Distribute', { method: 'POST', body: form });
+    const j = await r.json();
+    if (j.ok) {
+        location.reload();
+    } else {
+        showAlert(j.message);
+    }
+}
+
+function showAlert(msg) {
+    const el = document.getElementById('distAlert');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
+}
+</script>
+<form style="display:none;">@Html.AntiForgeryToken()</form>
+}

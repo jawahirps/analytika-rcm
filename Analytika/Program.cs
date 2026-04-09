@@ -98,6 +98,12 @@ RecurringJob.AddOrUpdate<PortalSyncService>(
     svc => svc.RunDailyDhaSyncAsync(),
     Cron.Daily(2));
 
+// Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
+RecurringJob.AddOrUpdate<RemittanceParserService>(
+    "remittance-auto-parse",
+    svc => svc.ParsePendingAsync(null),
+    "0 */2 * * *");
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -207,6 +213,10 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status""         ON ""ResubmissionTasks""(""Status"");
         CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
     ");
+
+    // Add ClaimCategory column if it doesn't exist yet
+    try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'"); }
+    catch { /* column already exists */ }
 
     await SeedData.InitializeAsync(services);
 }

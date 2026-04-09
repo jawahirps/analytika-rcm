@@ -38,6 +38,13 @@ public class RemittanceClaim
 
     public DateTime ParsedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Technical | Medical | Mixed | Unknown — derived from denial codes at parse time.
+    /// Technical: PRCE, CLAI, AUTH, DUPL, ELIG, COPY, WRNG, SURC
+    /// Medical: MNEC, CODE, NCOV, BENX
+    /// </summary>
+    public string ClaimCategory { get; set; } = "Unknown";
+
     // Navigation
     public ResubmissionTask? Task { get; set; }
 }

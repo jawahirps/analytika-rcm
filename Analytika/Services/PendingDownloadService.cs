@@ -70,9 +70,10 @@ public class PendingDownloadService : BackgroundService
     private async Task RunAsync(CancellationToken ct)
     {
         using var scope = _services.CreateScope();
-        var db    = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var dha   = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
-        var cache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
+        var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dha    = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
+        var cache  = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
+        var parser = scope.ServiceProvider.GetRequiredService<RemittanceParserService>();
 
         var pending = await db.PortalTransactions
             .Include(t => t.Facility)
@@ -83,7 +84,8 @@ public class PendingDownloadService : BackgroundService
 
         if (!pending.Any())
         {
-            _logger.LogDebug("[PendingDownload] Nothing pending — skipping run");
+            // Even with no new downloads, parse anything not yet converted to claims
+            await AutoParseAsync(parser, 0);
             return;
         }
 
@@ -92,7 +94,7 @@ public class PendingDownloadService : BackgroundService
 
         // Cache credentials per facility to avoid repeated DB round-trips
         var credCache = new Dictionary<int, (string username, string pwd)>();
-        int done = 0, failed = 0;
+        int done = 0, failed = 0, doneRemittance = 0;
 
         foreach (var tx in pending)
         {
@@ -143,6 +145,7 @@ public class PendingDownloadService : BackgroundService
                             .SetProperty(t => t.FileSizeBytes,    (long?)dlBytes.Length)
                             .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
                     done++;
+                    if (tx.Type == "Remittance") doneRemittance++;
                 }
                 else
                 {
@@ -163,7 +166,25 @@ public class PendingDownloadService : BackgroundService
 
         cache.Remove("statusbar_static");
         PendingDownloadState.Finish(done, failed);
-        _logger.LogInformation("[PendingDownload] Run complete — {done} downloaded, {failed} failed / {total} total",
-            done, failed, pending.Count);
+        _logger.LogInformation("[PendingDownload] Run complete — {done} downloaded ({rem} remittance), {failed} failed / {total} total",
+            done, doneRemittance, failed, pending.Count);
+
+        // Auto-parse: convert newly downloaded remittance XMLs into claims (reads FileContentXml already in DB)
+        await AutoParseAsync(parser, doneRemittance);
+    }
+
+    private async Task AutoParseAsync(RemittanceParserService parser, int newRemittanceCount)
+    {
+        try
+        {
+            var (parsed, skipped, errors) = await parser.ParsePendingAsync();
+            if (parsed > 0 || newRemittanceCount > 0)
+                _logger.LogInformation("[PendingDownload] Auto-parse: {parsed} new claims created, {skipped} skipped, {errors} errors",
+                    parsed, skipped, errors);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[PendingDownload] Auto-parse failed");
+        }
     }
 }

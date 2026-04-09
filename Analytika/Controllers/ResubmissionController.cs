@@ -289,4 +289,212 @@ public class ResubmissionController : Controller
 
         return Json(new { byFacility });
     }
+
+    // ─── Workload / Allocation Dashboard ─────────────────────────────────────
+
+    [HttpGet]
+    [Authorize(Roles = "Admin,FacilityAdmin,Analyst")]
+    public async Task<IActionResult> Workload()
+    {
+        var today = DateTime.UtcNow.Date;
+        var weekStart = today.AddDays(-(int)today.DayOfWeek + (int)DayOfWeek.Monday);
+
+        var coders = await _userManager.Users
+            .Where(u => u.IsActive)
+            .OrderBy(u => u.FullName ?? u.Email)
+            .AsNoTracking()
+            .ToListAsync();
+
+        // All tasks with assignment dates
+        var tasks = await _db.ResubmissionTasks
+            .Include(t => t.RemittanceClaim)
+            .AsNoTracking()
+            .ToListAsync();
+
+        var rows = coders.Select(u =>
+        {
+            var mine = tasks.Where(t => t.AssignedToUserId == u.Id).ToList();
+            return new WorkloadRow
+            {
+                UserId      = u.Id,
+                Name        = u.FullName ?? u.Email ?? u.Id,
+                Email       = u.Email ?? "",
+                TotalActive = mine.Count(t => t.Status is ResubmissionStatus.Assigned or ResubmissionStatus.InReview),
+                TodayCount  = mine.Count(t => t.AssignedAt.Date == today),
+                WeekCount   = mine.Count(t => t.AssignedAt.Date >= weekStart),
+                Resubmitted = mine.Count(t => t.Status == ResubmissionStatus.Resubmitted),
+                Closed      = mine.Count(t => t.Status is ResubmissionStatus.Closed or ResubmissionStatus.Rejected),
+                Overdue     = mine.Count(t => t.DueDate.HasValue && t.DueDate.Value.Date < today
+                                           && t.Status is ResubmissionStatus.Assigned or ResubmissionStatus.InReview),
+                TotalDenied = mine.Sum(t => (double)(t.RemittanceClaim?.OriginalAmount ?? 0) - (double)(t.RemittanceClaim?.PaidAmount ?? 0)),
+            };
+        }).ToList();
+
+        ViewBag.UnassignedCount  = await _db.RemittanceClaims.CountAsync(rc => rc.Task == null);
+        ViewBag.UnassignedDenied = await _db.RemittanceClaims
+            .Where(rc => rc.Task == null)
+            .SumAsync(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount);
+        ViewBag.Facilities       = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
+        ViewBag.Priorities       = ResubmissionPriority.All;
+
+        return View(rows);
+    }
+
+    // ─── Distribute unassigned claims across coders ───────────────────────────
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,FacilityAdmin,Analyst")]
+    public async Task<IActionResult> Distribute([FromForm] List<string> userIds,
+        [FromForm] List<int> counts, string priority, string? dueDate, int? facilityId)
+    {
+        if (userIds.Count != counts.Count || userIds.Count == 0)
+            return Json(new { ok = false, message = "Invalid input." });
+
+        var byUserId = _userManager.GetUserId(User);
+        var due = string.IsNullOrWhiteSpace(dueDate) ? (DateTime?)null : DateTime.Parse(dueDate);
+
+        // Pull unassigned claims ordered by denied amount desc (highest priority first)
+        var unassigned = await _db.RemittanceClaims
+            .Where(rc => rc.Task == null && (facilityId == null || rc.FacilityId == facilityId))
+            .OrderByDescending(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount)
+            .ToListAsync();
+
+        int totalAssigned = 0;
+        int offset = 0;
+
+        for (int i = 0; i < userIds.Count; i++)
+        {
+            var uid = userIds[i];
+            var n   = Math.Min(counts[i], unassigned.Count - offset);
+            if (n <= 0) continue;
+
+            var batch = unassigned.Skip(offset).Take(n).ToList();
+            foreach (var claim in batch)
+            {
+                _db.ResubmissionTasks.Add(new ResubmissionTask
+                {
+                    RemittanceClaimId = claim.Id,
+                    AssignedToUserId  = uid,
+                    AssignedByUserId  = byUserId,
+                    AssignedAt        = DateTime.UtcNow,
+                    DueDate           = due,
+                    Priority          = priority,
+                    Status            = ResubmissionStatus.Assigned
+                });
+            }
+            offset       += n;
+            totalAssigned += n;
+        }
+
+        await _db.SaveChangesAsync();
+        return Json(new { ok = true, message = $"{totalAssigned} claim(s) distributed.", totalAssigned });
+    }
+
+    // ─── Denial Dashboard ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> DenialDashboard()
+    {
+        var userId  = _userManager.GetUserId(User);
+        var isAdmin = User.IsInRole("Admin") || User.IsInRole("FacilityAdmin") || User.IsInRole("Analyst");
+
+        var claims = await _db.RemittanceClaims
+            .Include(rc => rc.Facility)
+            .AsNoTracking()
+            .ToListAsync();
+
+        if (!isAdmin)
+            claims = claims.Where(rc => rc.Task?.AssignedToUserId == userId).ToList();
+
+        // Facility summary
+        var facilities = claims
+            .GroupBy(rc => new { rc.FacilityId, Name = rc.Facility?.Name ?? $"Facility {rc.FacilityId}" })
+            .Select(g => new FacilityDenialRow
+            {
+                FacilityId    = g.Key.FacilityId,
+                FacilityName  = g.Key.Name,
+                TotalClaims   = g.Count(),
+                TotalBilled   = (double)g.Sum(rc => rc.OriginalAmount),
+                TotalPaid     = (double)g.Sum(rc => rc.PaidAmount),
+                TotalDenied   = (double)g.Sum(rc => rc.OriginalAmount - rc.PaidAmount),
+                FullyDenied   = g.Count(rc => rc.PaidAmount == 0 && rc.OriginalAmount > 0),
+                PartiallyPaid = g.Count(rc => rc.PaidAmount > 0 && rc.PaidAmount < rc.OriginalAmount),
+                FullyCovered  = g.Count(rc => rc.PaidAmount >= rc.OriginalAmount && rc.OriginalAmount > 0),
+                TopCodes      = g.Where(rc => rc.DenialCodesJson != null && rc.DenialCodesJson != "[]")
+                                 .SelectMany(rc => JsonSerializer.Deserialize<List<string>>(rc.DenialCodesJson!)!)
+                                 .GroupBy(c => c)
+                                 .OrderByDescending(x => x.Count())
+                                 .Take(5)
+                                 .Select(x => $"{x.Key}({x.Count()})")
+                                 .ToList()
+            })
+            .OrderByDescending(f => f.DenialPct)
+            .ToList();
+
+        // Overall KPIs
+        ViewBag.TotalClaims   = claims.Count;
+        ViewBag.TotalBilled   = (double)claims.Sum(rc => rc.OriginalAmount);
+        ViewBag.TotalPaid     = (double)claims.Sum(rc => rc.PaidAmount);
+        ViewBag.TotalDenied   = (double)claims.Sum(rc => rc.OriginalAmount - rc.PaidAmount);
+        ViewBag.OverallDenialPct = ViewBag.TotalBilled > 0
+            ? Math.Round((double)ViewBag.TotalDenied * 100.0 / (double)ViewBag.TotalBilled, 1) : 0.0;
+
+        // Top 10 denial codes overall
+        ViewBag.TopCodes = claims
+            .Where(rc => rc.DenialCodesJson != null && rc.DenialCodesJson != "[]")
+            .SelectMany(rc => JsonSerializer.Deserialize<List<string>>(rc.DenialCodesJson!)!)
+            .GroupBy(c => c)
+            .OrderByDescending(x => x.Count())
+            .Take(10)
+            .Select(x => new { Code = x.Key, Count = x.Count(), Category = DenialCategory(x.Key) })
+            .ToList();
+
+        return View(facilities);
+    }
+
+    private static string DenialCategory(string code)
+    {
+        var prefix = code.Split('-')[0];
+        return prefix switch
+        {
+            "MNEC" or "CODE" or "NCOV" or "BENX" => "Medical",
+            "PRCE" or "CLAI" or "AUTH" or "DUPL"
+                or "ELIG" or "COPY" or "WRNG" or "SURC"
+                or "TIME" => "Technical",
+            _ => "Other"
+        };
+    }
+}
+
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+
+public class FacilityDenialRow
+{
+    public int    FacilityId    { get; set; }
+    public string FacilityName  { get; set; } = "";
+    public int    TotalClaims   { get; set; }
+    public double TotalBilled   { get; set; }
+    public double TotalPaid     { get; set; }
+    public double TotalDenied   { get; set; }
+    public int    FullyDenied   { get; set; }
+    public int    PartiallyPaid { get; set; }
+    public int    FullyCovered  { get; set; }
+    public List<string> TopCodes { get; set; } = new();
+    public double DenialPct => TotalBilled > 0 ? Math.Round(TotalDenied * 100.0 / TotalBilled, 1) : 0;
+    public double RecoveryPct => TotalBilled > 0 ? Math.Round(TotalPaid * 100.0 / TotalBilled, 1) : 0;
+}
+
+public class WorkloadRow
+{
+    public string UserId      { get; set; } = "";
+    public string Name        { get; set; } = "";
+    public string Email       { get; set; } = "";
+    public int    TotalActive { get; set; }
+    public int    TodayCount  { get; set; }
+    public int    WeekCount   { get; set; }
+    public int    Resubmitted { get; set; }
+    public int    Closed      { get; set; }
+    public int    Overdue     { get; set; }
+    public double TotalDenied { get; set; }
 }

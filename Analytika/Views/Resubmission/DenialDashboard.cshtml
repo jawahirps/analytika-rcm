@@ -1,0 +1,356 @@
+@model List<Analytika.Controllers.FacilityDenialRow>
+@{
+    ViewData["Title"] = "Denial Dashboard";
+    double totalBilled     = ViewBag.TotalBilled;
+    double totalPaid       = ViewBag.TotalPaid;
+    double totalDenied     = ViewBag.TotalDenied;
+    double overallPct      = ViewBag.OverallDenialPct;
+    int    totalClaims     = ViewBag.TotalClaims;
+
+    // For Chart.js
+    var chartLabels = string.Join(",", Model.Select(f => $"'{f.FacilityName.Replace("'","")}'"));
+    var chartDenialPct = string.Join(",", Model.Select(f => f.DenialPct));
+    var chartDeniedAed = string.Join(",", Model.Select(f => Math.Round(f.TotalDenied)));
+    var chartBilledAed = string.Join(",", Model.Select(f => Math.Round(f.TotalBilled)));
+    var topCodes = (dynamic)ViewBag.TopCodes;
+
+    string BadgeColor(string cat) => cat switch {
+        "Medical" => "#dc2626",
+        "Technical" => "#1d4ed8",
+        _ => "#6b7280"
+    };
+}
+
+@section Styles {
+<style>
+:root { --gold:#C87A10; --navy:#0A1828; }
+.dd-card { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; height:100%; }
+.kpi-val { font-size:1.6rem; font-weight:800; color:var(--navy); line-height:1; }
+.kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#6b7280; margin-top:.25rem; }
+.denial-bar { height:10px; border-radius:5px; background:#f3f4f6; position:relative; overflow:hidden; }
+.denial-fill { height:100%; border-radius:5px; transition:width .5s ease; }
+.table-dd th { font-size:.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; padding:.5rem .75rem; }
+.table-dd td { font-size:.82rem; padding:.6rem .75rem; vertical-align:middle; border-bottom:1px solid #f3f4f6; }
+.table-dd tbody tr:hover { background:#fffbf5; }
+.code-chip { font-size:.65rem; padding:.18em .5em; border-radius:3px; font-weight:600; display:inline-block; margin:.1em; }
+.chip-med  { background:#fee2e2; color:#991b1b; }
+.chip-tec  { background:#dbeafe; color:#1e40af; }
+.chip-oth  { background:#f3f4f6; color:#4b5563; }
+.pct-badge { font-size:.85rem; font-weight:700; padding:.2em .55em; border-radius:5px; }
+.rank-dot  { width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+             font-size:.72rem; font-weight:700; color:#fff; }
+</style>
+}
+
+<div class="container-fluid py-3 px-4">
+
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <nav style="font-size:.78rem;" class="mb-1">
+                <a href="/Resubmission" class="text-decoration-none" style="color:var(--gold);">
+                    <i class="fas fa-tasks me-1"></i>Resubmission
+                </a>
+                <span class="mx-2 text-muted">/</span>
+                <span class="fw-semibold">Denial Dashboard</span>
+            </nav>
+            <h5 class="fw-bold mb-0" style="color:var(--navy);">
+                <i class="fas fa-chart-pie me-2" style="color:var(--gold);"></i>Facility-Wise Denial Analysis
+            </h5>
+        </div>
+        <div class="text-muted" style="font-size:.78rem;">
+            <i class="fas fa-database me-1"></i>@totalClaims.ToString("N0") remittance claims loaded
+        </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="dd-card text-center">
+                <div class="kpi-val">@totalClaims.ToString("N0")</div>
+                <div class="kpi-lbl">Total Claims</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="dd-card text-center">
+                <div class="kpi-val">AED @((totalBilled/1000).ToString("N0"))K</div>
+                <div class="kpi-lbl">RA Received (Net)</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="dd-card text-center" style="border-color:#fee2e2;">
+                <div class="kpi-val" style="color:#dc2626;">AED @((totalDenied/1000).ToString("N0"))K</div>
+                <div class="kpi-lbl">Total Denied</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="dd-card text-center" style="border-color:@(overallPct > 30 ? "#fee2e2" : overallPct > 15 ? "#fef9c3" : "#dcfce7");">
+                <div class="kpi-val" style="color:@(overallPct > 30 ? "#dc2626" : overallPct > 15 ? "#ca8a04" : "#16a34a");">
+                    @overallPct.ToString("N1")%
+                </div>
+                <div class="kpi-lbl">Overall Denial Rate</div>
+                <div style="font-size:.65rem; color:#9ca3af; margin-top:.2rem;">Denied ÷ RA Received</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+        <!-- Denial % bar chart -->
+        <div class="col-lg-6">
+            <div class="dd-card">
+                <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+                    <i class="fas fa-chart-bar me-2" style="color:var(--gold);"></i>Denial Rate by Facility
+                </h6>
+                <div style="position:relative; height:240px;">
+                    <canvas id="denialPctChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <!-- Denied AED stacked bar -->
+        <div class="col-lg-6">
+            <div class="dd-card">
+                <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+                    <i class="fas fa-coins me-2" style="color:var(--gold);"></i>RA Received vs Denied (AED)
+                </h6>
+                <div style="position:relative; height:240px;">
+                    <canvas id="billedDeniedChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Denial Codes + Doughnut -->
+    <div class="row g-3 mb-4">
+        <div class="col-lg-5">
+            <div class="dd-card">
+                <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+                    <i class="fas fa-exclamation-circle me-2" style="color:var(--gold);"></i>Top Denial Codes
+                </h6>
+                <table class="table table-dd table-borderless mb-0">
+                    <thead><tr><th>#</th><th>Code</th><th>Category</th><th class="text-end">Count</th></tr></thead>
+                    <tbody>
+                        @{ int rank = 1; }
+                        @foreach (var code in topCodes)
+                        {
+                            string cat     = (string)code.Category;
+                            string chipCls = cat == "Medical" ? "chip-med" : cat == "Technical" ? "chip-tec" : "chip-oth";
+                            string dotClr  = cat == "Medical" ? "#dc2626" : cat == "Technical" ? "#1d4ed8" : "#6b7280";
+                            <tr>
+                                <td><span class="rank-dot" style="background:@dotClr; width:22px; height:22px; font-size:.65rem;">@rank</span></td>
+                                <td><span class="fw-semibold" style="font-size:.82rem;">@code.Code</span></td>
+                                <td><span class="code-chip @chipCls">@cat</span></td>
+                                <td class="text-end fw-semibold">@((int)code.Count)</td>
+                            </tr>
+                            rank++;
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="dd-card">
+                <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+                    <i class="fas fa-circle-notch me-2" style="color:var(--gold);"></i>Claim Outcomes
+                </h6>
+                <div style="position:relative; height:210px;">
+                    <canvas id="outcomeChart"></canvas>
+                </div>
+                <div class="mt-2 text-center" style="font-size:.72rem; color:#6b7280;">
+                    @Model.Sum(f => f.FullyDenied) fully denied &bull;
+                    @Model.Sum(f => f.PartiallyPaid) partial &bull;
+                    @Model.Sum(f => f.FullyCovered) covered
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="dd-card">
+                <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+                    <i class="fas fa-tachometer-alt me-2" style="color:var(--gold);"></i>Recovery Rate by Facility
+                </h6>
+                @foreach (var f in Model.OrderByDescending(x => x.RecoveryPct))
+                {
+                    string clr = f.RecoveryPct >= 80 ? "#16a34a" : f.RecoveryPct >= 60 ? "#ca8a04" : "#dc2626";
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span style="font-size:.73rem; color:#374151; font-weight:500; max-width:150px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">@f.FacilityName</span>
+                            <span style="font-size:.73rem; font-weight:700; color:@clr;">@f.RecoveryPct.ToString("N0")%</span>
+                        </div>
+                        <div class="denial-bar">
+                            <div class="denial-fill" style="width:@f.RecoveryPct%;background:@clr;"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Table -->
+    <div class="dd-card">
+        <h6 class="fw-semibold mb-3" style="font-size:.85rem; color:var(--navy);">
+            <i class="fas fa-table me-2" style="color:var(--gold);"></i>Facility Detail
+        </h6>
+        <div class="table-responsive">
+            <table class="table table-dd">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Facility</th>
+                        <th class="text-end">Claims</th>
+                        <th class="text-end">RA Received (AED)</th>
+                        <th class="text-end">Paid (AED)</th>
+                        <th class="text-end">Denied (AED)</th>
+                        <th class="text-center" title="Denied ÷ RA Received">Denial %</th>
+                        <th class="text-center">Fully Denied</th>
+                        <th class="text-center">Partial</th>
+                        <th>Top Codes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{ int i = 1; }
+                    @foreach (var f in Model)
+                    {
+                        string pctClr = f.DenialPct >= 50 ? "#dc2626" : f.DenialPct >= 30 ? "#d97706" : f.DenialPct >= 15 ? "#ca8a04" : "#16a34a";
+                        string pctBg  = f.DenialPct >= 50 ? "#fee2e2" : f.DenialPct >= 30 ? "#fef3c7" : f.DenialPct >= 15 ? "#fef9c3" : "#dcfce7";
+                        <tr>
+                            <td class="text-muted">@i</td>
+                            <td class="fw-semibold" style="max-width:160px;">
+                                <a href="/Resubmission?facilityId=@f.FacilityId" class="text-decoration-none" style="color:var(--navy);">@f.FacilityName</a>
+                            </td>
+                            <td class="text-end">@f.TotalClaims.ToString("N0")</td>
+                            <td class="text-end">@f.TotalBilled.ToString("N0")</td>
+                            <td class="text-end text-success">@f.TotalPaid.ToString("N0")</td>
+                            <td class="text-end" style="color:#dc2626; font-weight:600;">@f.TotalDenied.ToString("N0")</td>
+                            <td class="text-center">
+                                <span class="pct-badge" style="background:@pctBg; color:@pctClr;">@f.DenialPct.ToString("N1")%</span>
+                            </td>
+                            <td class="text-center text-danger fw-semibold">@f.FullyDenied</td>
+                            <td class="text-center" style="color:#d97706;">@f.PartiallyPaid</td>
+                            <td>
+                                @foreach (var c in f.TopCodes)
+                                {
+                                    string code = c.Split('(')[0];
+                                    string chipCls = DenialChipClass(code);
+                                    <span class="code-chip @chipCls">@c</span>
+                                }
+                            </td>
+                        </tr>
+                        i++;
+                    }
+                </tbody>
+                <tfoot style="background:#f9fafb; font-weight:700;">
+                    <tr>
+                        <td colspan="2" style="font-size:.8rem;">TOTAL</td>
+                        <td class="text-end" style="font-size:.8rem;">@totalClaims.ToString("N0")</td>
+                        <td class="text-end" style="font-size:.8rem;">@totalBilled.ToString("N0")</td>
+                        <td class="text-end text-success" style="font-size:.8rem;">@totalPaid.ToString("N0")</td>
+                        <td class="text-end" style="color:#dc2626; font-size:.8rem;">@totalDenied.ToString("N0")</td>
+                        <td class="text-center">
+                            <span class="pct-badge"
+                                  style="background:@(overallPct>30?"#fee2e2":overallPct>15?"#fef9c3":"#dcfce7");
+                                         color:@(overallPct>30?"#dc2626":overallPct>15?"#ca8a04":"#16a34a");">
+                                @overallPct.ToString("N1")%
+                            </span>
+                        </td>
+                        <td class="text-center" style="color:#dc2626;">@Model.Sum(f => f.FullyDenied)</td>
+                        <td class="text-center" style="color:#d97706;">@Model.Sum(f => f.PartiallyPaid)</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+@{
+    string DenialChipClass(string code) {
+        var prefix = code.Split('-')[0];
+        return prefix switch {
+            "MNEC" or "CODE" or "NCOV" or "BENX" => "chip-med",
+            "PRCE" or "CLAI" or "AUTH" or "DUPL" or "ELIG" or "COPY" or "WRNG" or "SURC" or "TIME" => "chip-tec",
+            _ => "chip-oth"
+        };
+    }
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
+Chart.defaults.color = '#6b7280';
+
+const labels  = [@Html.Raw(chartLabels)];
+const denPct  = [@Html.Raw(chartDenialPct)];
+const denied  = [@Html.Raw(chartDeniedAed)];
+const billed  = [@Html.Raw(chartBilledAed)];
+
+// ── Denial % horizontal bar chart ─────────────────────────────────────────
+new Chart(document.getElementById('denialPctChart'), {
+    type: 'bar',
+    data: {
+        labels,
+        datasets: [{
+            label: 'Denial %',
+            data: denPct,
+            backgroundColor: denPct.map(v => v >= 50 ? '#fca5a5' : v >= 30 ? '#fcd34d' : v >= 15 ? '#fde68a' : '#86efac'),
+            borderColor:     denPct.map(v => v >= 50 ? '#dc2626' : v >= 30 ? '#d97706' : v >= 15 ? '#ca8a04' : '#16a34a'),
+            borderWidth: 1.5, borderRadius: 4,
+        }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.raw}% denial rate` }}},
+        scales: {
+            x: { ticks: { callback: v => v + '%' }, max: Math.min(110, Math.max(...denPct) + 10), grid: { color: '#f3f4f6' } },
+            y: { grid: { display: false } }
+        }
+    }
+});
+
+// ── Billed vs Denied grouped bar ──────────────────────────────────────────
+new Chart(document.getElementById('billedDeniedChart'), {
+    type: 'bar',
+    data: {
+        labels,
+        datasets: [
+            { label: 'RA Received', data: billed, backgroundColor: '#bfdbfe', borderColor: '#3b82f6', borderWidth:1, borderRadius:3 },
+            { label: 'Denied',  data: denied, backgroundColor: '#fca5a5', borderColor: '#ef4444', borderWidth:1, borderRadius:3 }
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: { callbacks: { label: ctx => ` AED ${ctx.raw.toLocaleString()}` }}},
+        scales: {
+            x: { grid: { display: false } },
+            y: { ticks: { callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v },
+                 grid: { color: '#f3f4f6' } }
+        }
+    }
+});
+
+// ── Outcome doughnut ──────────────────────────────────────────────────────
+const fd = @Model.Sum(f => f.FullyDenied);
+const pp = @Model.Sum(f => f.PartiallyPaid);
+const fc = @Model.Sum(f => f.FullyCovered);
+new Chart(document.getElementById('outcomeChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Fully Denied', 'Partially Paid', 'Fully Covered'],
+        datasets: [{ data: [fd, pp, fc],
+            backgroundColor: ['#fca5a5','#fde68a','#86efac'],
+            borderColor: ['#dc2626','#d97706','#16a34a'],
+            borderWidth: 1.5 }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString()} claims` }}
+        },
+        cutout: '68%'
+    }
+});
+</script>
+}
