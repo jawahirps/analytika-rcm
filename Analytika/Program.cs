@@ -56,6 +56,7 @@ builder.Services.AddScoped<IDhaPortalService, DhaPortalService>();
 builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
 builder.Services.AddScoped<PortalSyncService>();
 builder.Services.AddScoped<ReconciliationService>();
+builder.Services.AddScoped<RemittanceParserService>();
 builder.Services.AddHostedService<PendingDownloadService>();
 builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
     new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
@@ -163,6 +164,48 @@ using (var scope = app.Services.CreateScope())
             ""LastRunStatus""   TEXT NULL,
             ""CreatedAt""       TEXT NOT NULL DEFAULT (datetime('now'))
         );
+    ");
+
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""RemittanceClaims"" (
+            ""Id""                       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""RemittanceTransactionId""  INTEGER NOT NULL UNIQUE REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
+            ""FacilityId""               INTEGER NOT NULL REFERENCES ""Facilities""(""Id"") ON DELETE CASCADE,
+            ""ClaimId""                  TEXT NOT NULL,
+            ""PayerClaimId""             TEXT NULL,
+            ""PayerCode""                TEXT NULL,
+            ""ClinicianLicense""         TEXT NULL,
+            ""OriginalAmount""           REAL NOT NULL DEFAULT 0,
+            ""PaidAmount""               REAL NOT NULL DEFAULT 0,
+            ""DenialCodesJson""          TEXT NULL,
+            ""Comments""                 TEXT NULL,
+            ""ActivityCount""            INTEGER NOT NULL DEFAULT 0,
+            ""SettlementDate""           TEXT NULL,
+            ""PaymentReference""         TEXT NULL,
+            ""ParsedAt""                 TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_FacilityId"" ON ""RemittanceClaims""(""FacilityId"");
+        CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_ClaimId""    ON ""RemittanceClaims""(""ClaimId"");
+
+        CREATE TABLE IF NOT EXISTS ""ResubmissionTasks"" (
+            ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""RemittanceClaimId""   INTEGER NOT NULL UNIQUE REFERENCES ""RemittanceClaims""(""Id"") ON DELETE CASCADE,
+            ""AssignedToUserId""    TEXT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE SET NULL,
+            ""AssignedByUserId""    TEXT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE SET NULL,
+            ""AssignedAt""          TEXT NOT NULL DEFAULT (datetime('now')),
+            ""DueDate""             TEXT NULL,
+            ""Status""              TEXT NOT NULL DEFAULT 'Unassigned',
+            ""Priority""            TEXT NOT NULL DEFAULT 'Normal',
+            ""Notes""               TEXT NULL,
+            ""ActionTaken""         TEXT NULL,
+            ""StartedAt""           TEXT NULL,
+            ""ResubmittedAt""       TEXT NULL,
+            ""ClosedAt""            TEXT NULL,
+            ""CreatedAt""           TEXT NOT NULL DEFAULT (datetime('now')),
+            ""UpdatedAt""           TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status""         ON ""ResubmissionTasks""(""Status"");
+        CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
     ");
 
     await SeedData.InitializeAsync(services);

@@ -22,6 +22,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DhpoCodingSet> DhpoCodingSets { get; set; }
     public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<ReportSchedule> ReportSchedules { get; set; }
+    public DbSet<RemittanceClaim> RemittanceClaims { get; set; }
+    public DbSet<ResubmissionTask> ResubmissionTasks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -86,6 +88,29 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Category, e.Code }).IsUnique();
+        });
+
+        builder.Entity<RemittanceClaim>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ClaimId);
+            entity.HasIndex(e => e.FacilityId);
+            entity.HasIndex(e => e.RemittanceTransactionId).IsUnique(); // one parse per remittance TX
+            entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.RemittanceTransaction).WithMany().HasForeignKey(e => e.RemittanceTransactionId).OnDelete(DeleteBehavior.Cascade);
+            entity.Ignore(e => e.DeniedAmount);
+            entity.Ignore(e => e.IsFullyDenied);
+            entity.Ignore(e => e.IsPartiallyPaid);
+        });
+
+        builder.Entity<ResubmissionTask>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.AssignedToUserId);
+            entity.HasOne(e => e.RemittanceClaim).WithOne(c => c.Task).HasForeignKey<ResubmissionTask>(e => e.RemittanceClaimId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.AssignedTo).WithMany().HasForeignKey(e => e.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.AssignedBy).WithMany().HasForeignKey(e => e.AssignedByUserId).OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

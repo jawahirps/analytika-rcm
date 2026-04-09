@@ -1,0 +1,458 @@
+@model List<Analytika.Models.RemittanceClaim>
+@using Analytika.Models
+@{
+    ViewData["Title"] = "Resubmission Allocation";
+    bool isAdmin = ViewBag.IsAdmin;
+    var facilities = (List<Facility>)ViewBag.Facilities;
+    var coders     = (List<ApplicationUser>)ViewBag.Coders;
+}
+
+@section Styles {
+<style>
+.rsb-card { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1rem 1.25rem; }
+.rsb-stat-val { font-size:1.6rem; font-weight:700; color:#0A1828; line-height:1.1; }
+.rsb-stat-lbl { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
+.rsb-stat-sub { font-size:.75rem; color:#C87A10; font-weight:600; margin-top:2px; }
+.badge-status { font-size:.68rem; padding:.25em .6em; border-radius:99px; font-weight:600; }
+.bs-Unassigned  { background:#f3f4f6; color:#374151; }
+.bs-Assigned    { background:#dbeafe; color:#1e40af; }
+.bs-InReview    { background:#fef3c7; color:#92400e; }
+.bs-Resubmitted { background:#d1fae5; color:#065f46; }
+.bs-Appealed    { background:#ede9fe; color:#5b21b6; }
+.bs-Closed      { background:#f0fdf4; color:#166534; }
+.bs-Rejected    { background:#fee2e2; color:#991b1b; }
+.prio-Urgent { color:#dc2626; font-weight:700; }
+.prio-High   { color:#ea580c; font-weight:600; }
+.prio-Normal { color:#2563eb; }
+.prio-Low    { color:#6b7280; }
+.claim-row { cursor:pointer; transition:background .12s; }
+.claim-row:hover { background:#f8fafc; }
+.claim-row.selected { background:#eff6ff; }
+.denied-amt { font-weight:700; color:#dc2626; }
+.paid-amt   { font-weight:600; color:#16a34a; }
+.filter-bar { background:#f8f9fa; border:1px solid #e5e7eb; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; }
+</style>
+}
+
+<div class="container-fluid py-3 px-4">
+
+    <!-- ── Header ─────────────────────────────────────────────────────────── -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="fw-bold mb-0"><i class="fas fa-tasks me-2" style="color:#C87A10;"></i>Resubmission Allocation</h4>
+            <span class="text-muted" style="font-size:.8rem;">Delegate denied/partial claims to medical coders</span>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            @if (ViewBag.UnparsedCount > 0 && isAdmin)
+            {
+                <form asp-action="Parse" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button class="btn btn-sm btn-warning fw-semibold">
+                        <i class="fas fa-sync me-1"></i>Parse @ViewBag.UnparsedCount New Remittance(s)
+                    </button>
+                </form>
+            }
+            @if (isAdmin)
+            {
+                <button class="btn btn-sm btn-primary fw-semibold" id="bulkAssignBtn" style="background:#0A1828;border-color:#0A1828;" disabled
+                        onclick="showBulkModal()">
+                    <i class="fas fa-user-plus me-1"></i>Assign Selected
+                </button>
+            }
+        </div>
+    </div>
+
+    <!-- ── KPI Cards ──────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val">@ViewBag.TotalClaims</div>
+                <div class="rsb-stat-lbl">Total Claims</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val text-danger">@ViewBag.Unassigned</div>
+                <div class="rsb-stat-lbl">Unassigned</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val" style="color:#C87A10;">@ViewBag.InProgress</div>
+                <div class="rsb-stat-lbl">In Progress</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val text-success">@ViewBag.Resubmitted</div>
+                <div class="rsb-stat-lbl">Resubmitted</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val text-secondary">@ViewBag.Closed</div>
+                <div class="rsb-stat-lbl">Closed</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="rsb-card text-center">
+                <div class="rsb-stat-val text-danger" style="font-size:1.2rem;">AED @(((decimal)ViewBag.TotalDenied).ToString("N0"))</div>
+                <div class="rsb-stat-lbl">Total Denied</div>
+                <div class="rsb-stat-sub">AED @(((decimal)ViewBag.TotalRecovered).ToString("N0")) resubmitted</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filters ────────────────────────────────────────────────────────── -->
+    <form method="get" class="filter-bar d-flex flex-wrap gap-2 align-items-end">
+        <div>
+            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">STATUS</label>
+            <select name="status" class="form-select form-select-sm" style="min-width:110px;">
+                <option value="">All</option>
+                @foreach (var s in (string[])ViewBag.Statuses)
+                {
+                    <option value="@s" selected="@(ViewBag.FilterStatus == s)">@s</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">FACILITY</label>
+            <select name="facilityId" class="form-select form-select-sm" style="min-width:130px;">
+                <option value="">All</option>
+                @foreach (var f in facilities)
+                {
+                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString())">@f.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">PRIORITY</label>
+            <select name="priority" class="form-select form-select-sm" style="min-width:100px;">
+                <option value="">All</option>
+                @foreach (var p in (string[])ViewBag.Priorities)
+                {
+                    <option value="@p" selected="@(ViewBag.FilterPriority == p)">@p</option>
+                }
+            </select>
+        </div>
+        @if (isAdmin)
+        {
+            <div>
+                <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">ASSIGNEE</label>
+                <select name="assignee" class="form-select form-select-sm" style="min-width:130px;">
+                    <option value="">All</option>
+                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__")">Unassigned</option>
+                    @foreach (var u in coders)
+                    {
+                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id)">@(u.FullName ?? u.Email)</option>
+                    }
+                </select>
+            </div>
+        }
+        <div>
+            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">SEARCH</label>
+            <input name="search" value="@ViewBag.FilterSearch" class="form-control form-select-sm"
+                   placeholder="Claim ID / payer ref…" style="min-width:160px;" />
+        </div>
+        <button class="btn btn-sm btn-dark">Filter</button>
+        <a href="/Resubmission" class="btn btn-sm btn-outline-secondary">Reset</a>
+        <span class="ms-auto text-muted" style="font-size:.78rem;">@ViewBag.TotalFiltered result(s)</span>
+    </form>
+
+    <!-- ── Claims Table ───────────────────────────────────────────────────── -->
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" style="font-size:.8rem;">
+                <thead style="background:#0A1828; color:#fff;">
+                    <tr>
+                        @if (isAdmin)
+                        {
+                            <th style="width:36px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input" />
+                            </th>
+                        }
+                        <th>Claim ID</th>
+                        <th>Facility</th>
+                        <th class="text-end">Original</th>
+                        <th class="text-end">Paid</th>
+                        <th class="text-end">Denied</th>
+                        <th>Denial Codes</th>
+                        <th>Status</th>
+                        @if (isAdmin) { <th>Assigned To</th> }
+                        <th>Priority</th>
+                        <th>Due</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var rc in Model)
+                    {
+                        var task      = rc.Task;
+                        var status    = task?.Status ?? ResubmissionStatus.Unassigned;
+                        var priority  = task?.Priority ?? ResubmissionPriority.Normal;
+                        var denied    = rc.OriginalAmount - rc.PaidAmount;
+                        var codes     = rc.DenialCodesJson != null
+                            ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(rc.DenialCodesJson) ?? new()
+                            : new List<string>();
+                        <tr class="claim-row" data-id="@rc.Id" onclick="rowClick(event, @rc.Id)">
+                            @if (isAdmin)
+                            {
+                                <td onclick="event.stopPropagation()">
+                                    <input type="checkbox" class="form-check-input row-check" value="@rc.Id"
+                                           onchange="updateBulkBtn()" />
+                                </td>
+                            }
+                            <td class="fw-semibold" style="color:#0A1828;">
+                                <a href="/Resubmission/Claim/@rc.Id" class="text-decoration-none"
+                                   onclick="event.stopPropagation()">@rc.ClaimId</a>
+                                @if (!string.IsNullOrEmpty(rc.PayerClaimId))
+                                {
+                                    <div class="text-muted" style="font-size:.68rem;">@rc.PayerClaimId</div>
+                                }
+                            </td>
+                            <td>@rc.Facility?.Name</td>
+                            <td class="text-end">@rc.OriginalAmount.ToString("N2")</td>
+                            <td class="text-end paid-amt">@rc.PaidAmount.ToString("N2")</td>
+                            <td class="text-end denied-amt">@denied.ToString("N2")</td>
+                            <td>
+                                @foreach (var code in codes.Take(3))
+                                {
+                                    <span class="badge bg-light text-dark border me-1" style="font-size:.65rem;">@code</span>
+                                }
+                                @if (codes.Count > 3)
+                                {
+                                    <span class="text-muted" style="font-size:.68rem;">+@(codes.Count-3)</span>
+                                }
+                            </td>
+                            <td><span class="badge-status bs-@status">@status</span></td>
+                            @if (isAdmin)
+                            {
+                                <td>
+                                    @if (task?.AssignedTo != null)
+                                    {
+                                        <span style="font-size:.75rem;">@(task.AssignedTo.FullName ?? task.AssignedTo.Email?.Split('@')[0])</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted" style="font-size:.72rem;">—</span>
+                                    }
+                                </td>
+                            }
+                            <td><span class="prio-@priority" style="font-size:.75rem;">@priority</span></td>
+                            <td style="font-size:.72rem; color:#6b7280;">
+                                @(task?.DueDate?.ToString("dd MMM") ?? "—")
+                            </td>
+                            <td onclick="event.stopPropagation()">
+                                @if (isAdmin)
+                                {
+                                    <button class="btn btn-xs btn-outline-primary py-0 px-2"
+                                            style="font-size:.7rem;"
+                                            onclick="openAssignModal(@rc.Id, '@rc.ClaimId', '@(task?.AssignedToUserId ?? "")', '@priority', '@(task?.DueDate?.ToString("yyyy-MM-dd") ?? "")')">
+                                        <i class="fas fa-user-plus"></i>
+                                    </button>
+                                }
+                                <a href="/Resubmission/Claim/@rc.Id" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.7rem;">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="12" class="text-center text-muted py-5">
+                                <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                No claims found.
+                                @if (ViewBag.UnparsedCount > 0 && isAdmin)
+                                {
+                                    <span>Click <strong>Parse Remittances</strong> to load them.</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Pagination ─────────────────────────────────────────────────────── -->
+    @if ((int)ViewBag.TotalPages > 1)
+    {
+        <div class="d-flex justify-content-between align-items-center mt-3">
+            <span class="text-muted" style="font-size:.78rem;">
+                Page @ViewBag.Page of @ViewBag.TotalPages
+            </span>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    @for (int p = 1; p <= (int)ViewBag.TotalPages; p++)
+                    {
+                        var url = $"?page={p}&status={ViewBag.FilterStatus}&facilityId={ViewBag.FilterFacility}&priority={ViewBag.FilterPriority}&assignee={ViewBag.FilterAssignee}&search={ViewBag.FilterSearch}";
+                        <li class="page-item @(p == (int)ViewBag.Page ? "active" : "")">
+                            <a class="page-link" href="@url">@p</a>
+                        </li>
+                    }
+                </ul>
+            </nav>
+        </div>
+    }
+</div>
+
+<!-- ── Assign Modal ───────────────────────────────────────────────────────── -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#0A1828; color:#fff;">
+                <h6 class="modal-title mb-0"><i class="fas fa-user-plus me-2"></i>Assign Claim</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-1 text-muted" style="font-size:.78rem;">Claim: <strong id="modalClaimId"></strong></div>
+                <input type="hidden" id="modalClaimIdVal" />
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" style="font-size:.82rem;">Assign To</label>
+                    <select id="modalAssignee" class="form-select form-select-sm">
+                        @foreach (var u in coders)
+                        {
+                            <option value="@u.Id">@(u.FullName ?? u.Email)</option>
+                        }
+                    </select>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                        <select id="modalPriority" class="form-select form-select-sm">
+                            @foreach (var p in (string[])ViewBag.Priorities)
+                            {
+                                <option value="@p">@p</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                        <input type="date" id="modalDue" class="form-control form-control-sm" />
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                    <textarea id="modalNotes" class="form-control form-control-sm" rows="2" placeholder="Optional notes for coder…"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-sm btn-primary" style="background:#0A1828;border-color:#0A1828;"
+                        onclick="saveAssign()">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Bulk Assign Modal ──────────────────────────────────────────────────── -->
+<div class="modal fade" id="bulkModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#0A1828; color:#fff;">
+                <h6 class="modal-title mb-0"><i class="fas fa-users me-2"></i>Bulk Assign</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkForm" asp-action="BulkAssign" method="post">
+                @Html.AntiForgeryToken()
+                <div id="bulkClaimInputs"></div>
+                <div class="modal-body">
+                    <p class="text-muted" style="font-size:.82rem;"><span id="bulkCount">0</span> claim(s) selected</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Assign To</label>
+                        <select name="assignToUserId" class="form-select form-select-sm">
+                            @foreach (var u in coders)
+                            {
+                                <option value="@u.Id">@(u.FullName ?? u.Email)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                            <select name="priority" class="form-select form-select-sm">
+                                @foreach (var p in (string[])ViewBag.Priorities)
+                                {
+                                    <option value="@p" selected="@(p == "Normal")">@p</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                            <input type="date" name="dueDate" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary" style="background:#0A1828;border-color:#0A1828;">Assign All</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
+const bulkModal   = new bootstrap.Modal(document.getElementById('bulkModal'));
+
+function rowClick(e, id) {
+    if (e.target.closest('a,button,input')) return;
+    window.location.href = '/Resubmission/Claim/' + id;
+}
+
+function openAssignModal(claimId, claimLabel, currentAssignee, priority, dueDate) {
+    document.getElementById('modalClaimIdVal').value = claimId;
+    document.getElementById('modalClaimId').textContent = claimLabel;
+    if (currentAssignee) document.getElementById('modalAssignee').value = currentAssignee;
+    document.getElementById('modalPriority').value = priority || 'Normal';
+    document.getElementById('modalDue').value      = dueDate || '';
+    document.getElementById('modalNotes').value    = '';
+    assignModal.show();
+}
+
+async function saveAssign() {
+    const claimId  = document.getElementById('modalClaimIdVal').value;
+    const assignee = document.getElementById('modalAssignee').value;
+    const priority = document.getElementById('modalPriority').value;
+    const due      = document.getElementById('modalDue').value;
+    const notes    = document.getElementById('modalNotes').value;
+    const token    = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+    const form = new FormData();
+    form.append('claimId', claimId);
+    form.append('assignToUserId', assignee);
+    form.append('priority', priority);
+    form.append('dueDate', due);
+    form.append('notes', notes);
+    form.append('__RequestVerificationToken', token);
+
+    const r = await fetch('/Resubmission/Assign', { method:'POST', body: form });
+    const j = await r.json();
+    if (j.ok) { assignModal.hide(); location.reload(); }
+    else       alert(j.message);
+}
+
+document.getElementById('selectAll')?.addEventListener('change', function() {
+    document.querySelectorAll('.row-check').forEach(c => c.checked = this.checked);
+    updateBulkBtn();
+});
+
+function updateBulkBtn() {
+    const checked = document.querySelectorAll('.row-check:checked').length;
+    const btn     = document.getElementById('bulkAssignBtn');
+    if (btn) { btn.disabled = checked === 0; btn.textContent = checked > 0 ? `Assign ${checked} Selected` : 'Assign Selected'; }
+}
+
+function showBulkModal() {
+    const ids  = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+    const wrap = document.getElementById('bulkClaimInputs');
+    wrap.innerHTML = ids.map(id => `<input type="hidden" name="claimIds" value="${id}">`).join('');
+    document.getElementById('bulkCount').textContent = ids.length;
+    bulkModal.show();
+}
+</script>
+<form style="display:none;">@Html.AntiForgeryToken()</form>
+}

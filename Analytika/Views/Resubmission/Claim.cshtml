@@ -1,0 +1,321 @@
+@model Analytika.Models.RemittanceClaim
+@using Analytika.Models
+@{
+    ViewData["Title"] = $"Claim {Model.ClaimId}";
+    var task      = Model.Task;
+    var isAdmin   = (bool)ViewBag.IsAdmin;
+    var coders    = (List<ApplicationUser>)ViewBag.Coders;
+    var codes     = (List<string>)ViewBag.DenialCodes;
+    var status    = task?.Status ?? ResubmissionStatus.Unassigned;
+    var denied    = Model.OriginalAmount - Model.PaidAmount;
+}
+
+@section Styles {
+<style>
+.detail-card { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; margin-bottom:1rem; }
+.detail-label { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
+.detail-value { font-size:.92rem; font-weight:600; color:#111827; margin-top:2px; }
+.badge-status { font-size:.75rem; padding:.3em .75em; border-radius:99px; font-weight:600; }
+.bs-Unassigned  { background:#f3f4f6; color:#374151; }
+.bs-Assigned    { background:#dbeafe; color:#1e40af; }
+.bs-InReview    { background:#fef3c7; color:#92400e; }
+.bs-Resubmitted { background:#d1fae5; color:#065f46; }
+.bs-Appealed    { background:#ede9fe; color:#5b21b6; }
+.bs-Closed      { background:#f0fdf4; color:#166534; }
+.bs-Rejected    { background:#fee2e2; color:#991b1b; }
+.denial-badge   { font-size:.72rem; padding:.25em .6em; background:#fee2e2; color:#991b1b; border-radius:4px; font-weight:600; }
+.timeline-dot   { width:10px; height:10px; border-radius:50%; background:#0A1828; flex-shrink:0; margin-top:4px; }
+.timeline-line  { width:2px; background:#e5e7eb; margin:0 auto; flex-grow:1; }
+</style>
+}
+
+<div class="container-fluid py-3 px-4" style="max-width:1100px;">
+
+    <!-- ── Breadcrumb ─────────────────────────────────────────────────────── -->
+    <nav style="font-size:.78rem;" class="mb-3">
+        <a href="/Resubmission" class="text-decoration-none" style="color:#C87A10;">
+            <i class="fas fa-tasks me-1"></i>Resubmission
+        </a>
+        <span class="mx-2 text-muted">/</span>
+        <span class="text-muted">@Model.ClaimId</span>
+    </nav>
+
+    <div class="row g-3">
+
+        <!-- ── Left: Claim Details ────────────────────────────────────────── -->
+        <div class="col-lg-8">
+
+            <!-- Claim header -->
+            <div class="detail-card">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-1" style="color:#0A1828;">@Model.ClaimId</h5>
+                        @if (!string.IsNullOrEmpty(Model.PayerClaimId))
+                        {
+                            <div class="text-muted" style="font-size:.78rem;">
+                                Payer Ref: <strong>@Model.PayerClaimId</strong>
+                            </div>
+                        }
+                    </div>
+                    <span class="badge-status bs-@status">@status</span>
+                </div>
+
+                <hr class="my-3" />
+
+                <div class="row g-3">
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Facility</div>
+                        <div class="detail-value">@Model.Facility?.Name</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Payer</div>
+                        <div class="detail-value">@(Model.PayerCode ?? "—")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Settlement Date</div>
+                        <div class="detail-value">@(Model.SettlementDate ?? "—")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Clinician</div>
+                        <div class="detail-value" style="font-size:.8rem;">@(Model.ClinicianLicense ?? "—")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Original Amount</div>
+                        <div class="detail-value">AED @Model.OriginalAmount.ToString("N2")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Paid Amount</div>
+                        <div class="detail-value text-success">AED @Model.PaidAmount.ToString("N2")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Denied Amount</div>
+                        <div class="detail-value text-danger">AED @denied.ToString("N2")</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="detail-label">Activities</div>
+                        <div class="detail-value">@Model.ActivityCount line item(s)</div>
+                    </div>
+                </div>
+
+                @if (codes.Any())
+                {
+                    <div class="mt-3">
+                        <div class="detail-label mb-1">Denial Codes</div>
+                        @foreach (var code in codes)
+                        {
+                            <span class="denial-badge me-1 mb-1 d-inline-block">@code</span>
+                        }
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Comments))
+                {
+                    <div class="mt-3">
+                        <div class="detail-label mb-1">Payer Comments</div>
+                        <div class="p-2 rounded" style="background:#fef3c7; font-size:.8rem; color:#92400e;">
+                            <i class="fas fa-exclamation-triangle me-1"></i>@Model.Comments
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Source remittance file -->
+            <div class="detail-card">
+                <h6 class="fw-semibold mb-2"><i class="fas fa-file-code me-2" style="color:#C87A10;"></i>Source File</h6>
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <div class="detail-label">File Name</div>
+                        <div style="font-size:.78rem; word-break:break-all; color:#374151;">
+                            @(Model.RemittanceTransaction?.FileName ?? "—")
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-label">Synced At</div>
+                        <div style="font-size:.78rem; color:#374151;">
+                            @(Model.RemittanceTransaction?.SyncedAt.ToString("dd MMM yyyy HH:mm") ?? "—")
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coder work area -->
+            @if (task != null || !isAdmin)
+            {
+                <div class="detail-card">
+                    <h6 class="fw-semibold mb-3">
+                        <i class="fas fa-pencil-alt me-2" style="color:#C87A10;"></i>
+                        @(isAdmin ? "Task Details" : "My Work")
+                    </h6>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Update Status</label>
+                        <select id="newStatus" class="form-select form-select-sm" style="max-width:220px;">
+                            @foreach (var s in (string[])ViewBag.Statuses)
+                            {
+                                <option value="@s" selected="@(status == s)">@s</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Action Taken / Resubmission Reference</label>
+                        <input id="actionTaken" class="form-control form-control-sm"
+                               value="@(task?.ActionTaken ?? "")"
+                               placeholder="e.g. Re-coded activity 3 with CPT 85027 — ref RES-2026-4411" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                        <textarea id="workNotes" class="form-control form-control-sm" rows="3"
+                                  placeholder="Add notes, findings, or escalation reasons…">@(task?.Notes ?? "")</textarea>
+                    </div>
+                    <button class="btn btn-sm btn-primary" style="background:#0A1828;border-color:#0A1828;"
+                            onclick="saveStatus()">
+                        <i class="fas fa-save me-1"></i>Save
+                    </button>
+
+                    @if (task != null)
+                    {
+                        <div class="mt-3 pt-3 border-top d-flex gap-4 flex-wrap" style="font-size:.75rem; color:#6b7280;">
+                            @if (task.StartedAt.HasValue)
+                            {
+                                <span><i class="fas fa-play me-1"></i>Started: @task.StartedAt.Value.ToString("dd MMM HH:mm")</span>
+                            }
+                            @if (task.ResubmittedAt.HasValue)
+                            {
+                                <span><i class="fas fa-check me-1 text-success"></i>Resubmitted: @task.ResubmittedAt.Value.ToString("dd MMM HH:mm")</span>
+                            }
+                            @if (task.ClosedAt.HasValue)
+                            {
+                                <span><i class="fas fa-lock me-1"></i>Closed: @task.ClosedAt.Value.ToString("dd MMM HH:mm")</span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- ── Right: Assignment Panel ────────────────────────────────────── -->
+        <div class="col-lg-4">
+            <div class="detail-card">
+                <h6 class="fw-semibold mb-3"><i class="fas fa-user-tag me-2" style="color:#C87A10;"></i>Assignment</h6>
+
+                @if (task != null)
+                {
+                    <div class="mb-3 p-2 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
+                        <div class="detail-label">Assigned To</div>
+                        <div class="fw-semibold" style="font-size:.88rem;">
+                            @(task.AssignedTo?.FullName ?? task.AssignedTo?.Email ?? "—")
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <div class="detail-label">Priority</div>
+                            <div class="fw-semibold prio-@(task.Priority)" style="font-size:.85rem;">@task.Priority</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="detail-label">Due Date</div>
+                            <div class="fw-semibold" style="font-size:.85rem;">
+                                @(task.DueDate.HasValue ? task.DueDate.Value.ToString("dd MMM yyyy") : "—")
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="detail-label">Assigned By</div>
+                        <div style="font-size:.78rem; color:#374151;">
+                            @(task.AssignedBy?.FullName ?? task.AssignedBy?.Email ?? "—")
+                            &nbsp;on @task.AssignedAt.ToString("dd MMM yyyy")
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted" style="font-size:.8rem;">This claim has not been assigned yet.</p>
+                }
+
+                @if (isAdmin)
+                {
+                    <hr />
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">@(task != null ? "Re-assign To" : "Assign To")</label>
+                        <select id="assigneeSelect" class="form-select form-select-sm">
+                            @foreach (var u in coders)
+                            {
+                                <option value="@u.Id" selected="@(task?.AssignedToUserId == u.Id)">@(u.FullName ?? u.Email)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                            <select id="prioritySelect" class="form-select form-select-sm">
+                                @foreach (var p in (string[])ViewBag.Priorities)
+                                {
+                                    <option value="@p" selected="@(task?.Priority == p || (task == null && p == "Normal"))">@p</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                            <input type="date" id="dueDate" class="form-control form-control-sm"
+                                   value="@(task?.DueDate?.ToString("yyyy-MM-dd") ?? "")" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                        <textarea id="assignNotes" class="form-control form-control-sm" rows="2"
+                                  placeholder="Instructions for coder…"></textarea>
+                    </div>
+                    <button class="btn btn-sm w-100 fw-semibold"
+                            style="background:#0A1828;border-color:#0A1828;color:#fff;"
+                            onclick="saveAssign()">
+                        <i class="fas fa-user-plus me-1"></i>@(task != null ? "Update Assignment" : "Assign")
+                    </button>
+                }
+            </div>
+
+            <!-- Parsed at info -->
+            <div class="detail-card">
+                <h6 class="fw-semibold mb-2" style="font-size:.8rem;"><i class="fas fa-info-circle me-1 text-muted"></i>Record Info</h6>
+                <div class="row g-1" style="font-size:.75rem; color:#6b7280;">
+                    <div class="col-5">Payment Ref</div>
+                    <div class="col-7 fw-semibold text-dark">@(Model.PaymentReference ?? "—")</div>
+                    <div class="col-5">Parsed At</div>
+                    <div class="col-7">@Model.ParsedAt.ToString("dd MMM yyyy HH:mm")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const taskId = @(task?.Id.ToString() ?? "0");
+const token  = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+async function saveStatus() {
+    if (!taskId) { alert('No task — assign first.'); return; }
+    const form = new FormData();
+    form.append('taskId',      taskId);
+    form.append('status',      document.getElementById('newStatus').value);
+    form.append('actionTaken', document.getElementById('actionTaken').value);
+    form.append('notes',       document.getElementById('workNotes').value);
+    form.append('__RequestVerificationToken', token());
+    const r = await fetch('/Resubmission/UpdateStatus', { method:'POST', body:form });
+    const j = await r.json();
+    if (j.ok) location.reload(); else alert(j.message);
+}
+
+async function saveAssign() {
+    const form = new FormData();
+    form.append('claimId',         @Model.Id);
+    form.append('assignToUserId',  document.getElementById('assigneeSelect').value);
+    form.append('priority',        document.getElementById('prioritySelect').value);
+    form.append('dueDate',         document.getElementById('dueDate').value);
+    form.append('notes',           document.getElementById('assignNotes')?.value ?? '');
+    form.append('__RequestVerificationToken', token());
+    const r = await fetch('/Resubmission/Assign', { method:'POST', body:form });
+    const j = await r.json();
+    if (j.ok) location.reload(); else alert(j.message);
+}
+</script>
+<form style="display:none;">@Html.AntiForgeryToken()</form>
+}
