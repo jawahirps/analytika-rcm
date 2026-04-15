@@ -99,14 +99,16 @@ public class HomeController : Controller
             .Select(l => l.FacilityId)
             .ToHashSet();
 
-        // Record & file counts per facility
+        // Record & file counts per facility (including downloaded/pending breakdown)
         var txStats = await _db.PortalTransactions
             .GroupBy(t => t.FacilityId)
             .Select(g => new
             {
-                FacilityId  = g.Key,
-                Records     = g.Count(),
-                Files       = g.Count(t => t.FileDownloaded)
+                FacilityId      = g.Key,
+                Records         = g.Count(),
+                Files           = g.Count(t => t.FileDownloaded),
+                DownloadedFiles = g.Count(t => t.FileDownloaded),
+                PendingFiles    = g.Count(t => !t.FileDownloaded)
             })
             .ToListAsync();
 
@@ -129,14 +131,16 @@ public class HomeController : Controller
 
             return new FacilityStatusRow
             {
-                FacilityId      = f.Id,
-                FacilityName    = f.Name,
-                HasCredential   = cred != null,
-                Portal          = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
-                LastSyncTime    = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-                LastSyncStatus  = effectiveStatus,
-                RecordCount     = tx?.Records ?? 0,
-                FileCount       = tx?.Files ?? 0,
+                FacilityId            = f.Id,
+                FacilityName          = f.Name,
+                HasCredential         = cred != null,
+                Portal                = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
+                LastSyncTime          = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+                LastSyncStatus        = effectiveStatus,
+                RecordCount           = tx?.Records ?? 0,
+                FileCount             = tx?.Files ?? 0,
+                DownloadedFilesCount  = tx?.DownloadedFiles ?? 0,
+                PendingFilesCount     = tx?.PendingFiles ?? 0,
             };
         })
         .OrderBy(r => r.Status)

@@ -34,6 +34,9 @@ public class FacilityStatusRow
     public string? LastSyncStatus{ get; set; }   // Success / Error / null
     public int    RecordCount    { get; set; }
     public int    FileCount      { get; set; }
+    public int    DownloadedFilesCount { get; set; }  // files where FileDownloaded = true
+    public int    PendingFilesCount    { get; set; }  // files where FileDownloaded = false
+    public int    TotalFilesWithStatus => DownloadedFilesCount + PendingFilesCount;
 
     public FacilityConnectionStatus Status
     {
