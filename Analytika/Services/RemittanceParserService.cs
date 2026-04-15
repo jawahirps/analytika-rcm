@@ -22,20 +22,17 @@ public class RemittanceParserService
     /// </summary>
     public async Task<(int Parsed, int Skipped, int Errors)> ParsePendingAsync(int? facilityId = null)
     {
-        var alreadyParsed = await _db.RemittanceClaims
-            .Select(rc => rc.RemittanceTransactionId)
-            .ToHashSetAsync();
-
+        // Use NOT EXISTS at database level instead of loading HashSet into memory
         var query = _db.PortalTransactions
             .Where(pt => pt.Type == "Remittance"
                       && pt.FileDownloaded
-                      && pt.FileContentXml != null && pt.FileContentXml != "");
+                      && pt.FileContentXml != null && pt.FileContentXml != "")
+            .Where(pt => !_db.RemittanceClaims.Any(rc => rc.RemittanceTransactionId == pt.Id));
 
         if (facilityId.HasValue)
             query = query.Where(pt => pt.FacilityId == facilityId.Value);
 
         var transactions = await query
-            .Where(pt => !alreadyParsed.Contains(pt.Id))
             .AsNoTracking()
             .ToListAsync();
 

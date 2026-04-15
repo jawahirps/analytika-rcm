@@ -76,8 +76,8 @@ public class PendingDownloadService : BackgroundService
         var parser = scope.ServiceProvider.GetRequiredService<RemittanceParserService>();
 
         var pending = await db.PortalTransactions
-            .Include(t => t.Facility)
             .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA")
+            .Select(t => new { t.Id, t.FacilityId, t.FileId, t.Type, t.TransactionId })
             .OrderBy(t => t.FacilityId)
             .ThenBy(t => t.Id)
             .ToListAsync(ct);
@@ -92,40 +92,39 @@ public class PendingDownloadService : BackgroundService
         _logger.LogInformation("[PendingDownload] Starting run — {count} files to download", pending.Count);
         PendingDownloadState.Start(pending.Count);
 
-        // Cache credentials per facility to avoid repeated DB round-trips
+        // Batch-load all DHA credentials upfront instead of one-by-one in loop
+        var allCredentials = await db.PortalCredentials
+            .Where(c => c.IsActive && c.Portal == "DHA")
+            .Select(c => new { c.FacilityId, c.Username, c.PasswordEncrypted })
+            .AsNoTracking()
+            .ToListAsync(ct);
+
         var credCache = new Dictionary<int, (string username, string pwd)>();
+        foreach (var cr in allCredentials)
+        {
+            try
+            {
+                var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cr.PasswordEncrypted));
+                credCache[cr.FacilityId] = (cr.Username, pwd);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[PendingDownload] Failed to decode password for facility {fid}", cr.FacilityId);
+            }
+        }
+
         int done = 0, failed = 0, doneRemittance = 0;
 
         foreach (var tx in pending)
         {
             if (ct.IsCancellationRequested) break;
 
-            // Resolve credentials
+            // Resolve credentials from pre-loaded cache
             if (!credCache.TryGetValue(tx.FacilityId, out var cred))
             {
-                var cr = await db.PortalCredentials
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId
-                                           && c.IsActive
-                                           && c.Portal == "DHA", ct);
-                if (cr == null)
-                {
-                    _logger.LogWarning("[PendingDownload] No DHA credentials for facility {fid} — skipping", tx.FacilityId);
-                    failed++;
-                    continue;
-                }
-                try
-                {
-                    var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cr.PasswordEncrypted));
-                    cred = (cr.Username, pwd);
-                    credCache[tx.FacilityId] = cred;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[PendingDownload] Failed to decode password for facility {fid}", tx.FacilityId);
-                    failed++;
-                    continue;
-                }
+                _logger.LogWarning("[PendingDownload] No DHA credentials for facility {fid} — skipping", tx.FacilityId);
+                failed++;
+                continue;
             }
 
             // Download file
@@ -145,7 +144,8 @@ public class PendingDownloadService : BackgroundService
                             .SetProperty(t => t.FileSizeBytes,    (long?)dlBytes.Length)
                             .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
                     done++;
-                    if (tx.Type == "Remittance") doneRemittance++;
+                    if (tx.Type == "Remittance")
+                        doneRemittance++;
                 }
                 else
                 {
@@ -161,7 +161,7 @@ public class PendingDownloadService : BackgroundService
 
             // Report progress every 10 records
             if ((done + failed) % 10 == 0)
-                PendingDownloadState.Update(done, failed, tx.Facility?.Name ?? $"Facility {tx.FacilityId}");
+                PendingDownloadState.Update(done, failed, $"Facility {tx.FacilityId}");
         }
 
         cache.Remove("statusbar_static");
