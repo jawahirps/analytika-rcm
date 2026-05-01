@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Analytika.Services;
 
 namespace Analytika.Models;
 
@@ -60,16 +61,15 @@ public static class SeedData
 
         if (!context.DashboardEmbeds.Any())
         {
-            var tabs = new[] { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
-            foreach (var tab in tabs)
+            foreach (var dashboard in HardcodedDashboardCatalog.Dashboards)
             {
                 context.DashboardEmbeds.Add(new DashboardEmbed
                 {
-                    TabName = tab,
-                    ReportId = Guid.NewGuid().ToString(),
-                    GroupId = Guid.NewGuid().ToString(),
-                    EmbedToken = "DEMO_TOKEN_" + tab.ToUpper(),
-                    EmbedUrl = "https://app.powerbi.com/reportEmbed",
+                    TabName = dashboard.TabName,
+                    ReportId = dashboard.ReportId,
+                    GroupId = dashboard.GroupId,
+                    EmbedToken = "PENDING",
+                    EmbedUrl = dashboard.EmbedUrl,
                     TokenExpiry = DateTime.UtcNow.AddHours(1),
                     IsActive = true
                 });

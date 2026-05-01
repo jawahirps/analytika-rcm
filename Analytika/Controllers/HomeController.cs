@@ -61,98 +61,93 @@ public class HomeController : Controller
 
     [Authorize]
     [HttpGet]
-    [ResponseCache(Duration = 60, VaryByQueryKeys = new string[] { })]
     public async Task<IActionResult> Dashboard()
     {
+        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+
+        // Active credentials per facility
+        var credsByFacility = await _db.PortalCredentials
+            .Where(c => c.IsActive)
+            .GroupBy(c => c.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Portals = g.Select(c => c.Portal).ToList() })
+            .ToListAsync();
+
+        // Latest MEANINGFUL sync log per facility
         var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
+        var logProjection = await _db.PortalFetchLogs
+            .AsNoTracking()
+            .Select(l => new { l.FacilityId, l.Status, l.Operation, l.FetchedAt })
+            .ToListAsync();
+
+        var latestMeaningful = logProjection
+            .Where(l => meaningfulOps.Contains(l.Operation))
+            .GroupBy(l => l.FacilityId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
+
+        var latestAny = logProjection
+            .GroupBy(l => l.FacilityId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
+
         var cutoff = DateTime.UtcNow.AddHours(-48);
+        var recentSuccess = logProjection
+            .Where(l => l.Status == "Success" && l.FetchedAt >= cutoff)
+            .Select(l => l.FacilityId)
+            .ToHashSet();
 
-        // Consolidate into 2 queries instead of 4
-        // Query 1: All facility data in single round-trip
-        var facilities = await _db.Facilities
-            .Where(f => f.IsActive)
-            .Select(f => new
-            {
-                f.Id,
-                f.Name,
-                Portals = _db.PortalCredentials
-                    .Where(c => c.FacilityId == f.Id && c.IsActive)
-                    .Select(c => c.Portal)
-                    .Distinct()
-                    .ToList()
-            })
-            .ToListAsync();
-
-        // Query 2: Sync logs and transaction stats in single round-trip
-        var syncStats = await (from l in _db.PortalFetchLogs
-            group l by l.FacilityId into g
-            select new
-            {
-                FacilityId = g.Key,
-                LatestMeaningful = g
-                    .Where(x => meaningfulOps.Contains(x.Operation))
-                    .OrderByDescending(x => x.FetchedAt)
-                    .FirstOrDefault(),
-                LatestAny = g.OrderByDescending(x => x.FetchedAt).FirstOrDefault(),
-                HasRecentSuccess = g.Any(x => x.Status == "Success" && x.FetchedAt >= cutoff)
-            })
-            .ToListAsync();
-
-        var syncMap = syncStats.ToDictionary(s => s.FacilityId);
-
-        // Query 3: Transaction stats (optimized count query)
+        // Record & file counts per facility
         var txStats = await _db.PortalTransactions
+            .AsNoTracking()
             .GroupBy(t => t.FacilityId)
             .Select(g => new
             {
-                FacilityId      = g.Key,
-                TotalCount      = g.Count(),
-                DownloadedCount = g.Count(t => t.FileDownloaded)
+                FacilityId = g.Key,
+                Records = g.Count(),
+                DownloadedFiles = g.Count(t => t.FileDownloaded),
+                PendingFiles = g.Count(t => !t.FileDownloaded)
             })
             .ToListAsync();
 
-        var txMap = txStats.ToDictionary(s => s.FacilityId);
+        var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
+        var txMap = txStats.ToDictionary(x => x.FacilityId);
 
         var rows = facilities.Select(f =>
         {
-            syncMap.TryGetValue(f.Id, out var sync);
+            credMap.TryGetValue(f.Id, out var cred);
             txMap.TryGetValue(f.Id, out var tx);
 
-            var displayLog = sync?.LatestMeaningful ?? sync?.LatestAny;
-            var effectiveStatus = sync?.HasRecentSuccess == true ? "Success" : sync?.LatestMeaningful?.Status;
-            var totalDownloaded = tx?.DownloadedCount ?? 0;
-            var totalTx = tx?.TotalCount ?? 0;
+            latestMeaningful.TryGetValue(f.Id, out var mLog);
+            latestAny.TryGetValue(f.Id, out var anyLog);
+            var displayLog = mLog ?? anyLog;
+
+            var effectiveStatus = recentSuccess.Contains(f.Id) ? "Success"
+                                : mLog?.Status ?? anyLog?.Status;
 
             return new FacilityStatusRow
             {
-                FacilityId            = f.Id,
-                FacilityName          = f.Name,
-                HasCredential         = f.Portals.Count > 0,
-                Portal                = f.Portals.Count > 0 ? string.Join(" · ", f.Portals.Distinct()) : null,
-                LastSyncTime          = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-                LastSyncStatus        = effectiveStatus,
-                RecordCount           = totalTx,
-                FileCount             = totalDownloaded,
-                DownloadedFilesCount  = totalDownloaded,
-                PendingFilesCount     = totalTx - totalDownloaded,
+                FacilityId = f.Id,
+                FacilityName = f.Name,
+                HasCredential = cred != null,
+                Portal = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
+                LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+                LastSyncStatus = effectiveStatus,
+                RecordCount = tx?.Records ?? 0,
+                FileCount = tx?.DownloadedFiles ?? 0,
+                DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
+                PendingFilesCount = tx?.PendingFiles ?? 0,
             };
         })
         .OrderBy(r => r.Status)
         .ThenBy(r => r.FacilityName)
         .ToList();
 
-        var totalTxCount = txStats.Sum(x => x.TotalCount);
-        var totalDlCount = txStats.Sum(x => x.DownloadedCount);
-
         var vm = new FacilityStatusViewModel
         {
-            Facilities   = rows,
-            TotalRecords = totalTxCount,
-            TotalFiles   = totalDlCount,
-            LastSyncTime = syncStats.SelectMany(s => new[] { s.LatestMeaningful, s.LatestAny })
-                .Where(s => s != null)
-                .Max(s => s!.FetchedAt)
-                .ToString("dd MMM yyyy HH:mm")
+            Facilities = rows,
+            TotalRecords = txStats.Sum(x => x.Records),
+            TotalFiles = txStats.Sum(x => x.DownloadedFiles),
+            LastSyncTime = logProjection.Count > 0
+                ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
+                : null
         };
         return View(vm);
     }

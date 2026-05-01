@@ -23,36 +23,36 @@ public class PowerBIService : IPowerBIService
         IHttpClientFactory httpFactory,
         IMemoryCache cache)
     {
-        _context    = context;
-        _logger     = logger;
-        _config     = config;
+        _context = context;
+        _logger = logger;
+        _config = config;
         _httpFactory = httpFactory;
-        _cache      = cache;
+        _cache = cache;
     }
 
     // ── Public API ────────────────────────────────────────────────
 
     public async Task<EmbedConfig?> GetEmbedConfigAsync(string tabName)
     {
-        var embed = await _context.DashboardEmbeds
-            .FirstOrDefaultAsync(e => e.TabName == tabName && e.IsActive);
-        if (embed == null) return null;
+        var dashboard = HardcodedDashboardCatalog.Find(tabName);
+        if (dashboard == null) return null;
+
+        var accessToken = "PENDING";
+        var tokenExpiry = DateTime.UtcNow;
 
         // Try to get a live embed token if credentials are properly configured
-        if (IsConfigured() && HasRealIds(embed))
+        if (IsConfigured())
         {
             try
             {
                 var aadToken = await GetAadTokenAsync();
                 if (aadToken != null)
                 {
-                    var result = await GenerateEmbedTokenAsync(aadToken, embed.GroupId, embed.ReportId);
+                    var result = await GenerateEmbedTokenAsync(aadToken, dashboard.GroupId, dashboard.ReportId);
                     if (result.HasValue)
                     {
-                        embed.EmbedToken  = result.Value.Token;
-                        embed.TokenExpiry = result.Value.Expiry;
-                        embed.EmbedUrl    = $"https://app.powerbi.com/reportEmbed?reportId={embed.ReportId}&groupId={embed.GroupId}";
-                        await _context.SaveChangesAsync();
+                        accessToken = result.Value.Token;
+                        tokenExpiry = result.Value.Expiry;
 
                         _logger.LogInformation("[PowerBI] Refreshed embed token for tab {tab}", tabName);
                     }
@@ -66,23 +66,16 @@ public class PowerBIService : IPowerBIService
 
         return new EmbedConfig
         {
-            AccessToken = embed.EmbedToken,
-            EmbedUrl    = embed.EmbedUrl,
-            ReportId    = embed.ReportId,
-            TabName     = embed.TabName
+            AccessToken = accessToken,
+            EmbedUrl = dashboard.EmbedUrl,
+            ReportId = dashboard.ReportId,
+            TabName = dashboard.TabName
         };
     }
 
     public async Task RefreshTokensAsync()
     {
-        // Load only the tab names — GetEmbedConfigAsync will re-query with tracking when it needs to save
-        var expiringTabs = await _context.DashboardEmbeds
-            .AsNoTracking()
-            .Where(e => e.IsActive && e.TokenExpiry <= DateTime.UtcNow.AddMinutes(10))
-            .Select(e => e.TabName)
-            .ToListAsync();
-
-        foreach (var tabName in expiringTabs)
+        foreach (var tabName in HardcodedDashboardCatalog.Dashboards.Select(d => d.TabName))
             await GetEmbedConfigAsync(tabName);
     }
 
@@ -117,19 +110,13 @@ public class PowerBIService : IPowerBIService
             && !string.IsNullOrWhiteSpace(s) && !s.StartsWith("YOUR_");
     }
 
-    private static bool HasRealIds(DashboardEmbed embed) =>
-        !string.IsNullOrWhiteSpace(embed.GroupId)
-     && !string.IsNullOrWhiteSpace(embed.ReportId)
-     && embed.GroupId.Length >= 32   // real GUIDs are 36 chars
-     && !embed.ReportId.Contains("DEMO", StringComparison.OrdinalIgnoreCase);
-
     private async Task<string?> GetAadTokenAsync(bool forceRefresh = false)
     {
         if (!forceRefresh && _cache.TryGetValue(AadTokenCacheKey, out string? cached))
             return cached;
 
-        var tenantId     = _config["PowerBI:TenantId"]!;
-        var clientId     = _config["PowerBI:ClientId"]!;
+        var tenantId = _config["PowerBI:TenantId"]!;
+        var clientId = _config["PowerBI:ClientId"]!;
         var clientSecret = _config["PowerBI:ClientSecret"]!;
 
         var http = _httpFactory.CreateClient();
@@ -169,8 +156,8 @@ public class PowerBIService : IPowerBIService
         var http = _httpFactory.CreateClient();
         http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", aadToken);
 
-        var payload  = JsonSerializer.Serialize(new { accessLevel = "View" });
-        var content  = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+        var payload = JsonSerializer.Serialize(new { accessLevel = "View" });
+        var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
         var endpoint = $"https://api.powerbi.com/v1.0/myorg/groups/{groupId}/reports/{reportId}/GenerateToken";
 
         var resp = await http.PostAsync(endpoint, content);

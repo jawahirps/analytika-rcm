@@ -137,9 +137,9 @@ public class ReportService : IReportService
                     // Date filter based on SearchCriteria
                     var filterDate = report.SearchCriteria switch
                     {
-                        "SubmissionDate"    => ParseDhpoDate(row.SubmissionDate),
-                        "EncounterEndDate"  => ParseDhpoDate(row.TreatmentDateEnd),
-                        _                  => ParseDhpoDate(row.TreatmentDate)   // default: encounter start
+                        "SubmissionDate" => ParseDhpoDate(row.SubmissionDate),
+                        "EncounterEndDate" => ParseDhpoDate(row.TreatmentDateEnd),
+                        _ => ParseDhpoDate(row.TreatmentDate)   // default: encounter start
                     };
                     if (filterDate.HasValue &&
                         (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
@@ -191,36 +191,36 @@ public class ReportService : IReportService
             // Data rows
             for (int i = 0; i < rows.Count; i++)
             {
-                var r   = rows[i];
-                var ra  = r.Ra;
-                var rn  = i + 2;
+                var r = rows[i];
+                var ra = r.Ra;
+                var rn = i + 2;
 
-                var netInitial   = r.NetAmtInitial;
-                var approvedAmt  = ra?.ApprovedAmt ?? 0m;
-                var receivedAmt  = ra?.ReceivedAmt ?? 0m;
-                var unsettled    = ra == null ? netInitial : Math.Max(0m, netInitial - approvedAmt);
-                var rejInitial   = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
-                var payStatus    = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < netInitial - 0.01m ? "Partial" : "Paid");
+                var netInitial = r.NetAmtInitial;
+                var approvedAmt = ra?.ApprovedAmt ?? 0m;
+                var receivedAmt = ra?.ReceivedAmt ?? 0m;
+                var unsettled = ra == null ? netInitial : Math.Max(0m, netInitial - approvedAmt);
+                var rejInitial = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
+                var payStatus = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < netInitial - 0.01m ? "Partial" : "Paid");
 
                 // TAT in days
                 var tatDays = "";
                 if (ra != null && !string.IsNullOrEmpty(ra.SettlementDate))
                 {
-                    var subDt  = ParseDhpoDate(r.SubmissionDate);
+                    var subDt = ParseDhpoDate(r.SubmissionDate);
                     var settDt = ParseDhpoDate(ra.SettlementDate);
                     if (subDt.HasValue && settDt.HasValue)
                         tatDays = ((int)(settDt.Value - subDt.Value).TotalDays).ToString();
                 }
 
-                ws.Cell(rn, 1).Value  = r.Facility;
-                ws.Cell(rn, 2).Value  = r.ClaimId;
-                ws.Cell(rn, 3).Value  = r.ReceiverId;
-                ws.Cell(rn, 4).Value  = r.ReceiverName;
-                ws.Cell(rn, 5).Value  = r.PayerId;
-                ws.Cell(rn, 6).Value  = r.PayerName;
-                ws.Cell(rn, 7).Value  = r.PatientId;
-                ws.Cell(rn, 8).Value  = r.MemberId;
-                ws.Cell(rn, 9).Value  = r.TreatmentDate;
+                ws.Cell(rn, 1).Value = r.Facility;
+                ws.Cell(rn, 2).Value = r.ClaimId;
+                ws.Cell(rn, 3).Value = r.ReceiverId;
+                ws.Cell(rn, 4).Value = r.ReceiverName;
+                ws.Cell(rn, 5).Value = r.PayerId;
+                ws.Cell(rn, 6).Value = r.PayerName;
+                ws.Cell(rn, 7).Value = r.PatientId;
+                ws.Cell(rn, 8).Value = r.MemberId;
+                ws.Cell(rn, 9).Value = r.TreatmentDate;
                 ws.Cell(rn, 10).Value = r.DateOfAdmission;
                 ws.Cell(rn, 11).Value = r.SubmissionDate;
                 ws.Cell(rn, 12).Value = r.EncounterType;
@@ -291,30 +291,30 @@ public class ReportService : IReportService
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
-        var header      = doc.Root?.Element("Header");
-        var receiverId  = header?.Element("ReceiverID")?.Value ?? "";
-        var submDate    = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
+        var header = doc.Root?.Element("Header");
+        var receiverId = header?.Element("ReceiverID")?.Value ?? "";
+        var submDate = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
 
         foreach (var claim in doc.Descendants("Claim"))
         {
-            var enc           = claim.Element("Encounter");
-            var treatStart    = enc?.Element("Start")?.Value ?? "";
-            var treatEnd      = enc?.Element("End")?.Value ?? "";
-            var encTypeRaw    = enc?.Element("Type")?.Value ?? "";
-            var encType       = MapEncounterType(encTypeRaw);
-            var clinician     = claim.Descendants("Activity")
+            var enc = claim.Element("Encounter");
+            var treatStart = enc?.Element("Start")?.Value ?? "";
+            var treatEnd = enc?.Element("End")?.Value ?? "";
+            var encTypeRaw = enc?.Element("Type")?.Value ?? "";
+            var encType = MapEncounterType(encTypeRaw);
+            var clinician = claim.Descendants("Activity")
                                      .FirstOrDefault()?.Element("Clinician")?.Value ?? "";
             var principalDiag = claim.Elements("Diagnosis")
                                      .FirstOrDefault(d => d.Element("Type")?.Value == "Principal")
                                      ?.Element("Code")?.Value ?? "";
 
-            var serviceYear  = "";
+            var serviceYear = "";
             var serviceMonth = "";
-            var admDate      = "";
+            var admDate = "";
             if (DateTime.TryParseExact(treatStart, "dd/MM/yyyy HH:mm",
                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var td))
             {
-                serviceYear  = td.Year.ToString();
+                serviceYear = td.Year.ToString();
                 serviceMonth = td.ToString("MMMM");
                 if (encTypeRaw == "2") admDate = treatStart; // inpatient only
             }
@@ -324,26 +324,26 @@ public class ReportService : IReportService
 
             yield return new ClaimRow
             {
-                Facility         = facilityName,
-                ClaimId          = claim.Element("ID")?.Value ?? "",
-                ReceiverId       = receiverId,
-                ReceiverName     = receiverId,  // plain code — no receiver name table
-                PayerId          = claim.Element("PayerID")?.Value ?? "",
-                PayerName        = claim.Element("PayerID")?.Value ?? "",
-                PatientId        = enc?.Element("PatientID")?.Value ?? "",
-                MemberId         = claim.Element("MemberID")?.Value ?? "",
-                TreatmentDate    = treatStart,
+                Facility = facilityName,
+                ClaimId = claim.Element("ID")?.Value ?? "",
+                ReceiverId = receiverId,
+                ReceiverName = receiverId,  // plain code — no receiver name table
+                PayerId = claim.Element("PayerID")?.Value ?? "",
+                PayerName = claim.Element("PayerID")?.Value ?? "",
+                PatientId = enc?.Element("PatientID")?.Value ?? "",
+                MemberId = claim.Element("MemberID")?.Value ?? "",
+                TreatmentDate = treatStart,
                 TreatmentDateEnd = treatEnd,
-                DateOfAdmission  = admDate,
-                SubmissionDate   = submDate,
-                EncounterType    = encType,
-                Clinician        = clinician,
-                ServiceYear      = serviceYear,
-                ServiceMonth     = serviceMonth,
-                SubmissionLevel  = "Initial",
-                NetAmtInitial    = net,
-                IdPayer          = claim.Element("IDPayer")?.Value ?? "",
-                SubmissionFile   = fileName ?? fileId ?? "",
+                DateOfAdmission = admDate,
+                SubmissionDate = submDate,
+                EncounterType = encType,
+                Clinician = clinician,
+                ServiceYear = serviceYear,
+                ServiceMonth = serviceMonth,
+                SubmissionLevel = "Initial",
+                NetAmtInitial = net,
+                IdPayer = claim.Element("IDPayer")?.Value ?? "",
+                SubmissionFile = fileName ?? fileId ?? "",
                 PrincipalDiagnosis = principalDiag
             };
         }
@@ -355,9 +355,9 @@ public class ReportService : IReportService
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
-        var header  = doc.Root?.Element("Header");
-        var raDate  = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
-        var payRef  = header?.Element("PaymentReference")?.Value
+        var header = doc.Root?.Element("Header");
+        var raDate = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
+        var payRef = header?.Element("PaymentReference")?.Value
                    ?? doc.Root?.Element("PaymentReference")?.Value ?? "";
 
         foreach (var claim in doc.Descendants("Claim"))
@@ -377,16 +377,16 @@ public class ReportService : IReportService
 
             yield return new RaEntry
             {
-                ClaimId          = claimId,
-                ApprovedAmt      = approved,
-                ReceivedAmt      = received,
-                RaFile           = fileName ?? "",
-                RaDate           = raDate,
-                SettlementDate   = raDate,
-                PaymentRef       = payRef,
-                DenialCode       = denialCode,
+                ClaimId = claimId,
+                ApprovedAmt = approved,
+                ReceivedAmt = received,
+                RaFile = fileName ?? "",
+                RaDate = raDate,
+                SettlementDate = raDate,
+                PaymentRef = payRef,
+                DenialCode = denialCode,
                 DenialDescription = denialDesc,
-                Status           = approved <= 0 ? "Rejected" : "Paid"
+                Status = approved <= 0 ? "Rejected" : "Paid"
             };
         }
     }
@@ -407,7 +407,7 @@ public class ReportService : IReportService
         "2" => "Inpatient",
         "3" => "Emergency",
         "4" => "Dental",
-        _   => code ?? ""
+        _ => code ?? ""
     };
 
     // ── Internal DTOs ──────────────────────────────────────────────────

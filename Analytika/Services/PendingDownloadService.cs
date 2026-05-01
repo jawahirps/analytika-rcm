@@ -18,7 +18,7 @@ namespace Analytika.Services;
 /// </summary>
 public class PendingDownloadService : BackgroundService
 {
-    private static readonly TimeSpan StartupDelay    = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan PollingInterval = TimeSpan.FromMinutes(30);
 
     private readonly IServiceProvider _services;
@@ -27,7 +27,7 @@ public class PendingDownloadService : BackgroundService
     public PendingDownloadService(IServiceProvider services, ILogger<PendingDownloadService> logger)
     {
         _services = services;
-        _logger   = logger;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -70,9 +70,9 @@ public class PendingDownloadService : BackgroundService
     private async Task RunAsync(CancellationToken ct)
     {
         using var scope = _services.CreateScope();
-        var db     = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var dha    = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
-        var cache  = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dha = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
+        var cache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
         var parser = scope.ServiceProvider.GetRequiredService<RemittanceParserService>();
 
         var pending = await db.PortalTransactions
@@ -139,9 +139,9 @@ public class PendingDownloadService : BackgroundService
                     await db.PortalTransactions
                         .Where(t => t.Id == tx.Id)
                         .ExecuteUpdateAsync(s => s
-                            .SetProperty(t => t.FileDownloaded,   true)
-                            .SetProperty(t => t.FileContentXml,   contentXml)
-                            .SetProperty(t => t.FileSizeBytes,    (long?)dlBytes.Length)
+                            .SetProperty(t => t.FileDownloaded, true)
+                            .SetProperty(t => t.FileContentXml, contentXml)
+                            .SetProperty(t => t.FileSizeBytes, (long?)dlBytes.Length)
                             .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
                     done++;
                     if (tx.Type == "Remittance")

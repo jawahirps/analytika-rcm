@@ -50,18 +50,18 @@ public class PortalSyncService
 
     private async Task SyncFacilityAsync(PortalCredential cred)
     {
-        var pwd      = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         var dateFrom = DateTime.Today.AddDays(-90);
-        var dateTo   = DateTime.Today;
-        var chunks   = GetDateChunks(dateFrom, dateTo, 90);
+        var dateTo = DateTime.Today;
+        var chunks = GetDateChunks(dateFrom, dateTo, 90);
         int[] txTypes = [2, 8, 16, 32];
         int totalNew = 0, totalFiles = 0;
 
         foreach (var (start, end) in chunks)
         {
             var dhpoFrom = DhaPortalService.FormatDhpoDate(start.ToString("yyyy-MM-dd"));
-            var dhpoTo   = DhaPortalService.FormatDhpoDate(end.ToString("yyyy-MM-dd"), endOfDay: true);
-            var period   = start.ToString("yyyy-MM");
+            var dhpoTo = DhaPortalService.FormatDhpoDate(end.ToString("yyyy-MM-dd"), endOfDay: true);
+            var period = start.ToString("yyyy-MM");
 
             var allRows = await SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes, statuses: [1]);
             var uniqueRows = DeduplicateRows(allRows);
@@ -77,8 +77,12 @@ public class PortalSyncService
 
         _db.PortalFetchLogs.Add(new PortalFetchLog
         {
-            Portal = "DHA", FacilityId = cred.FacilityId, Operation = "CronSync",
-            FetchedBy = "system", RecordsFetched = totalNew, Status = "Success",
+            Portal = "DHA",
+            FacilityId = cred.FacilityId,
+            Operation = "CronSync",
+            FetchedBy = "system",
+            RecordsFetched = totalNew,
+            Status = "Success",
             ResponseSummary = $"Cron: {totalNew} new records, {totalFiles} files (last 90 days)"
         });
         await _db.SaveChangesAsync();
@@ -114,11 +118,11 @@ public class PortalSyncService
             .Select(t => new { t.TransactionId, t.FileDownloaded })
             .ToListAsync();
 
-        var existingSet     = existing.Select(e => e.TransactionId).ToHashSet();
-        var needsRetrySet   = existing.Where(e => !e.FileDownloaded).Select(e => e.TransactionId).ToHashSet();
-        var newRows         = uniqueRows.Where(r => !existingSet.Contains(r.FileId)).ToList();
-        var retryRows       = uniqueRows.Where(r => needsRetrySet.Contains(r.FileId)).ToList();
-        int dupCount        = existingSet.Count - needsRetrySet.Count;   // already-downloaded = true dup
+        var existingSet = existing.Select(e => e.TransactionId).ToHashSet();
+        var needsRetrySet = existing.Where(e => !e.FileDownloaded).Select(e => e.TransactionId).ToHashSet();
+        var newRows = uniqueRows.Where(r => !existingSet.Contains(r.FileId)).ToList();
+        var retryRows = uniqueRows.Where(r => needsRetrySet.Contains(r.FileId)).ToList();
+        int dupCount = existingSet.Count - needsRetrySet.Count;   // already-downloaded = true dup
 
         int newCount = 0, filesDownloaded = 0;
 
@@ -133,13 +137,24 @@ public class PortalSyncService
             {
                 _db.PortalTransactions.Add(new PortalTransaction
                 {
-                    Portal = portal, FacilityId = facilityId,
-                    TransactionId = row.FileId, FileId = row.FileId,
-                    Type = row.Type, Status = row.Status, FileName = row.FileName,
-                    FileDownloaded = dlOk, FileContentXml = contentXml,
-                    FileSizeBytes = sizeBytes, FileDownloadedAt = dlOk ? now : null,
-                    TransactionDate = row.Date, Payer = row.Payer, Amount = row.Amount,
-                    RawXml = row.RawXml, Operation = operation, SyncPeriod = period, SyncedAt = now
+                    Portal = portal,
+                    FacilityId = facilityId,
+                    TransactionId = row.FileId,
+                    FileId = row.FileId,
+                    Type = row.Type,
+                    Status = row.Status,
+                    FileName = row.FileName,
+                    FileDownloaded = dlOk,
+                    FileContentXml = contentXml,
+                    FileSizeBytes = sizeBytes,
+                    FileDownloadedAt = dlOk ? now : null,
+                    TransactionDate = row.Date,
+                    Payer = row.Payer,
+                    Amount = row.Amount,
+                    RawXml = row.RawXml,
+                    Operation = operation,
+                    SyncPeriod = period,
+                    SyncedAt = now
                 });
 
                 if (dlOk) filesDownloaded++;
@@ -168,9 +183,9 @@ public class PortalSyncService
                 await _db.PortalTransactions
                     .Where(t => t.Portal == portal && t.FacilityId == facilityId && t.TransactionId == row.FileId)
                     .ExecuteUpdateAsync(s => s
-                        .SetProperty(t => t.FileDownloaded,   true)
-                        .SetProperty(t => t.FileContentXml,   contentXml)
-                        .SetProperty(t => t.FileSizeBytes,    sizeBytes)
+                        .SetProperty(t => t.FileDownloaded, true)
+                        .SetProperty(t => t.FileContentXml, contentXml)
+                        .SetProperty(t => t.FileSizeBytes, sizeBytes)
                         .SetProperty(t => t.FileDownloadedAt, retryNow));
                 filesDownloaded++;
             }

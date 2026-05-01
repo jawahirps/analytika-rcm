@@ -452,13 +452,13 @@ public class AdminController : Controller
             var cols = SplitCsv(line);
             if (cols.Length < 5) { skipped++; continue; }
 
-            var portal   = cols[0].Trim();
-            var facName  = cols[1].Trim();
+            var portal = cols[0].Trim();
+            var facName = cols[1].Trim();
             var credName = cols.Length > 2 ? cols[2].Trim() : "";
             var username = cols.Length > 3 ? cols[3].Trim() : "";
             var password = cols.Length > 4 ? cols[4].Trim() : "";
-            var apiUrl   = cols.Length > 5 ? cols[5].Trim() : "";
-            var license  = cols.Length > 6 ? cols[6].Trim() : "";
+            var apiUrl = cols.Length > 5 ? cols[5].Trim() : "";
+            var license = cols.Length > 6 ? cols[6].Trim() : "";
             bool isActive = cols.Length <= 7 || !cols[7].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
 
             if (string.IsNullOrWhiteSpace(portal) || string.IsNullOrWhiteSpace(username)) { skipped++; continue; }
@@ -484,9 +484,14 @@ public class AdminController : Controller
             {
                 _db.PortalCredentials.Add(new PortalCredential
                 {
-                    Portal = portal, FacilityId = facility.Id, CredentialName = credName.Length > 0 ? credName : null,
-                    Username = username, PasswordEncrypted = enc, ApiBaseUrl = apiUrl.Length > 0 ? apiUrl : null,
-                    LicenseCode = license.Length > 0 ? license : null, IsActive = isActive
+                    Portal = portal,
+                    FacilityId = facility.Id,
+                    CredentialName = credName.Length > 0 ? credName : null,
+                    Username = username,
+                    PasswordEncrypted = enc,
+                    ApiBaseUrl = apiUrl.Length > 0 ? apiUrl : null,
+                    LicenseCode = license.Length > 0 ? license : null,
+                    IsActive = isActive
                 });
                 added++;
             }
@@ -547,13 +552,13 @@ public class AdminController : Controller
             var cols = SplitCsv(line);
             if (cols.Length < 4) { skipped++; continue; }
 
-            var email      = cols[0].Trim();
-            var fullName   = cols.Length > 1 ? cols[1].Trim() : "";
-            var dept       = cols.Length > 2 ? cols[2].Trim() : "";
-            var userType   = cols.Length > 3 ? cols[3].Trim() : "Global";
-            var roleStr    = cols.Length > 4 ? cols[4].Trim() : "Viewer";
-            bool isActive  = cols.Length <= 5 || !cols[5].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
-            var facNames   = cols.Length > 6 ? cols[6].Split('|', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
+            var email = cols[0].Trim();
+            var fullName = cols.Length > 1 ? cols[1].Trim() : "";
+            var dept = cols.Length > 2 ? cols[2].Trim() : "";
+            var userType = cols.Length > 3 ? cols[3].Trim() : "Global";
+            var roleStr = cols.Length > 4 ? cols[4].Trim() : "Viewer";
+            bool isActive = cols.Length <= 5 || !cols[5].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
+            var facNames = cols.Length > 6 ? cols[6].Split('|', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
 
             if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
 
@@ -562,8 +567,12 @@ public class AdminController : Controller
             {
                 var newUser = new ApplicationUser
                 {
-                    UserName = email, Email = email, FullName = fullName,
-                    Department = dept, UserType = userType, IsActive = isActive,
+                    UserName = email,
+                    Email = email,
+                    FullName = fullName,
+                    Department = dept,
+                    UserType = userType,
+                    IsActive = isActive,
                     EmailConfirmed = true
                 };
                 // Generate a random temporary password to avoid hardcoding a known weak default
@@ -586,10 +595,10 @@ public class AdminController : Controller
             }
             else
             {
-                existingUser.FullName   = fullName;
+                existingUser.FullName = fullName;
                 existingUser.Department = dept;
-                existingUser.UserType   = userType;
-                existingUser.IsActive   = isActive;
+                existingUser.UserType = userType;
+                existingUser.IsActive = isActive;
                 await _userManager.UpdateAsync(existingUser);
                 updated++;
             }
@@ -631,12 +640,12 @@ public class AdminController : Controller
             .Select(g => new { Category = g.Key, Count = g.Count(), Latest = g.Max(x => x.ImportedAt) })
             .ToListAsync();
 
-        ViewBag.FacilityCount  = counts.FirstOrDefault(c => c.Category == "Facility")?.Count ?? 0;
+        ViewBag.FacilityCount = counts.FirstOrDefault(c => c.Category == "Facility")?.Count ?? 0;
         ViewBag.ClinicianCount = counts.FirstOrDefault(c => c.Category == "Clinician")?.Count ?? 0;
-        ViewBag.PayerCount     = counts.FirstOrDefault(c => c.Category == "Payer")?.Count ?? 0;
-        ViewBag.FacilityDate   = counts.FirstOrDefault(c => c.Category == "Facility")?.Latest.ToString("dd MMM yyyy HH:mm");
-        ViewBag.ClinicianDate  = counts.FirstOrDefault(c => c.Category == "Clinician")?.Latest.ToString("dd MMM yyyy HH:mm");
-        ViewBag.PayerDate      = counts.FirstOrDefault(c => c.Category == "Payer")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.PayerCount = counts.FirstOrDefault(c => c.Category == "Payer")?.Count ?? 0;
+        ViewBag.FacilityDate = counts.FirstOrDefault(c => c.Category == "Facility")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.ClinicianDate = counts.FirstOrDefault(c => c.Category == "Clinician")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.PayerDate = counts.FirstOrDefault(c => c.Category == "Payer")?.Latest.ToString("dd MMM yyyy HH:mm");
         return View();
     }
 
@@ -657,7 +666,7 @@ public class AdminController : Controller
         try
         {
             using var stream = file.OpenReadStream();
-            using var wb     = new XLWorkbook(stream);
+            using var wb = new XLWorkbook(stream);
             var ws = wb.Worksheet(1);
 
             // Read header row (row 1) — build column index map
@@ -680,10 +689,10 @@ public class AdminController : Controller
 
             int? codeCol = category switch
             {
-                "Facility"  => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
+                "Facility" => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
                 "Clinician" => Col(headers, "Clinician ID", "ClinicianID", "Provider ID", "ProviderID", "License Number", "Code", "ID"),
-                "Payer"     => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
-                _           => null
+                "Payer" => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
+                _ => null
             };
 
             int? nameCol = Col(headers, "Name", "Full Name", "FullName", "Facility Name", "FacilityName",
@@ -692,9 +701,9 @@ public class AdminController : Controller
             int? subTypeCol = category switch
             {
                 "Clinician" => Col(headers, "Specialty", "Speciality", "Type", "Category"),
-                "Payer"     => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
-                "Facility"  => Col(headers, "Type", "Facility Type", "License Type"),
-                _           => null
+                "Payer" => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
+                "Facility" => Col(headers, "Type", "Facility Type", "License Type"),
+                _ => null
             };
 
             if (codeCol == null || nameCol == null)
@@ -711,8 +720,8 @@ public class AdminController : Controller
             await _db.Database.ExecuteSqlAsync(
                 $"DELETE FROM DhpoCodingSets WHERE Category = {category}");
 
-            var now    = DateTime.UtcNow;
-            int added  = 0;
+            var now = DateTime.UtcNow;
+            int added = 0;
             var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
             for (int r = 2; r <= lastRow; r++)
@@ -737,11 +746,11 @@ public class AdminController : Controller
 
                 _db.DhpoCodingSets.Add(new DhpoCodingSet
                 {
-                    Category   = category,
-                    Code       = code,
-                    Name       = name,
-                    SubType    = subType,
-                    ExtraJson  = extraJson,
+                    Category = category,
+                    Code = code,
+                    Name = name,
+                    SubType = subType,
+                    ExtraJson = extraJson,
                     ImportedAt = now
                 });
                 added++;
@@ -770,7 +779,7 @@ public class AdminController : Controller
             query = query.Where(x => x.Code.Contains(q) || x.Name.Contains(q));
 
         var total = await query.CountAsync();
-        var rows  = await query.OrderBy(x => x.Code)
+        var rows = await query.OrderBy(x => x.Code)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
         return Json(new { total, page, rows = rows.Select(r => new { r.Code, r.Name, r.SubType }) });
@@ -779,33 +788,23 @@ public class AdminController : Controller
     // ─── Power BI Reports ─────────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> PowerBIReports()
+    public IActionResult PowerBIReports()
     {
-        var embeds = await _db.DashboardEmbeds.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
-        var tenantId     = _configuration["PowerBI:TenantId"] ?? "";
-        var clientId     = _configuration["PowerBI:ClientId"] ?? "";
+        var embeds = HardcodedDashboardCatalog.ToDashboardEmbeds();
+        var tenantId = _configuration["PowerBI:TenantId"] ?? "";
+        var clientId = _configuration["PowerBI:ClientId"] ?? "";
         var clientSecret = _configuration["PowerBI:ClientSecret"] ?? "";
-        ViewBag.TenantId     = tenantId.StartsWith("YOUR_") ? "" : tenantId;
-        ViewBag.ClientId     = clientId.StartsWith("YOUR_") ? "" : clientId;
+        ViewBag.TenantId = tenantId.StartsWith("YOUR_") ? "" : tenantId;
+        ViewBag.ClientId = clientId.StartsWith("YOUR_") ? "" : clientId;
         ViewBag.ClientSecret = clientSecret.StartsWith("YOUR_") ? "" : clientSecret;
         return View(embeds);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SavePowerBIEmbed(int id, string groupId, string reportId, bool isActive)
+    public IActionResult SavePowerBIEmbed(int id, string groupId, string reportId, bool isActive)
     {
-        var embed = await _db.DashboardEmbeds.FindAsync(id);
-        if (embed == null) return NotFound();
-        embed.GroupId    = groupId.Trim();
-        embed.ReportId   = reportId.Trim();
-        embed.EmbedToken = "PENDING";  // force refresh on next load
-        embed.TokenExpiry = DateTime.UtcNow;
-        embed.IsActive   = isActive;
-        if (!string.IsNullOrWhiteSpace(embed.GroupId) && !string.IsNullOrWhiteSpace(embed.ReportId))
-            embed.EmbedUrl = $"https://app.powerbi.com/reportEmbed?reportId={embed.ReportId}&groupId={embed.GroupId}";
-        await _db.SaveChangesAsync();
-        return Json(new { ok = true });
+        return BadRequest(new { ok = false, message = "Dashboard IDs are hardcoded in the application." });
     }
 
     [HttpPost]
@@ -832,13 +831,13 @@ public class AdminController : Controller
     {
         var keys = new Dictionary<string, string?>
         {
-            ["Host"]        = host,
-            ["Port"]        = port.ToString(),
-            ["EnableSsl"]   = enableSsl.ToString(),
-            ["UserName"]    = userName,
-            ["Password"]    = string.IsNullOrWhiteSpace(password) ? null : password,  // null = keep existing
+            ["Host"] = host,
+            ["Port"] = port.ToString(),
+            ["EnableSsl"] = enableSsl.ToString(),
+            ["UserName"] = userName,
+            ["Password"] = string.IsNullOrWhiteSpace(password) ? null : password,  // null = keep existing
             ["FromAddress"] = fromAddress,
-            ["FromName"]    = fromName
+            ["FromName"] = fromName
         };
 
         foreach (var kv in keys)
@@ -849,11 +848,11 @@ public class AdminController : Controller
             if (setting == null)
             {
                 _db.SystemSettings.Add(new Models.SystemSetting
-                    { Category = "SMTP", Key = kv.Key, Value = kv.Value });
+                { Category = "SMTP", Key = kv.Key, Value = kv.Value });
             }
             else
             {
-                setting.Value     = kv.Value;
+                setting.Value = kv.Value;
                 setting.UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -893,10 +892,10 @@ public class AdminController : Controller
 
     private static readonly Dictionary<string, string> CronPresets = new()
     {
-        ["Daily 8am"]          = "0 8 * * *",
-        ["Weekly Mon 8am"]     = "0 8 * * 1",
-        ["Monthly 1st 8am"]    = "0 8 1 * *",
-        ["Monthly 15th 8am"]   = "0 8 15 * *",
+        ["Daily 8am"] = "0 8 * * *",
+        ["Weekly Mon 8am"] = "0 8 * * 1",
+        ["Monthly 1st 8am"] = "0 8 1 * *",
+        ["Monthly 15th 8am"] = "0 8 15 * *",
         ["Quarterly (Jan/Apr/Jul/Oct)"] = "0 8 1 1,4,7,10 *"
     };
 
@@ -906,9 +905,9 @@ public class AdminController : Controller
         var schedules = await _db.ReportSchedules.AsNoTracking().OrderByDescending(s => s.CreatedAt).ToListAsync();
         var facilities = await _db.Facilities.Where(f => f.IsActive)
             .AsNoTracking().Select(f => new { f.Id, f.Name }).ToListAsync();
-        ViewBag.ReportTypes  = ReportTypeOptions;
-        ViewBag.CronPresets  = CronPresets;
-        ViewBag.Facilities   = facilities;
+        ViewBag.ReportTypes = ReportTypeOptions;
+        ViewBag.CronPresets = CronPresets;
+        ViewBag.Facilities = facilities;
         return View(schedules);
     }
 
@@ -926,9 +925,13 @@ public class AdminController : Controller
         {
             var s = new Models.ReportSchedule
             {
-                Name = name, ReportType = reportType, CronExpression = cronExpression,
-                Recipients = recipients, FileFormat = fileFormat,
-                IsActive = isActive, FacilityIdsJson = facilityJson
+                Name = name,
+                ReportType = reportType,
+                CronExpression = cronExpression,
+                Recipients = recipients,
+                FileFormat = fileFormat,
+                IsActive = isActive,
+                FacilityIdsJson = facilityJson
             };
             _db.ReportSchedules.Add(s);
             await _db.SaveChangesAsync();
@@ -993,8 +996,8 @@ public class AdminController : Controller
     public IActionResult Database()
     {
         var dbPath = GetDbPath();
-        var info   = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
-        ViewBag.DbPath  = dbPath;
+        var info = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
+        ViewBag.DbPath = dbPath;
         ViewBag.DbSizeMb = info != null ? Math.Round(info.Length / 1_048_576.0, 1) : 0;
         ViewBag.DbModified = info?.LastWriteTimeUtc.ToString("dd MMM yyyy HH:mm UTC");
         ViewBag.PendingExists = System.IO.File.Exists(dbPath + ".pending");

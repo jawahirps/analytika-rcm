@@ -29,26 +29,26 @@ public class DhaPortalService : IDhaPortalService
     private readonly IHttpClientFactory _httpClientFactory;
 
     // Primary (active) endpoint
-    private const string PrimaryUrl  = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
+    private const string PrimaryUrl = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
     // Archive endpoint — for claims >24 months old, auth/PA >6 months old
-    private const string ArchiveUrl  = "https://dhpo.eclaimlink.ae/ClaimsAndAuthorizationsArchive.asmx";
-    private const string SoapNs      = "http://www.eClaimLink.ae/";
+    private const string ArchiveUrl = "https://dhpo.eclaimlink.ae/ClaimsAndAuthorizationsArchive.asmx";
+    private const string SoapNs = "http://www.eClaimLink.ae/";
 
     // SearchTransactions direction values (per spec)
-    public const int DirectionSent     = 1;
+    public const int DirectionSent = 1;
     public const int DirectionReceived = 2;
 
     // SearchTransactions transactionStatus values (per spec)
-    public const int StatusNew        = 1;
+    public const int StatusNew = 1;
     public const int StatusDownloaded = 2;
 
     // SearchTransactions transactionID values (per spec)
-    public const int TxTypeAll              = -1;
-    public const int TxTypeClaim            =  2;
-    public const int TxTypePersonRegister   =  4;
-    public const int TxTypeRemittance       =  8;
-    public const int TxTypePriorRequest     = 16;
-    public const int TxTypePriorAuth        = 32;
+    public const int TxTypeAll = -1;
+    public const int TxTypeClaim = 2;
+    public const int TxTypePersonRegister = 4;
+    public const int TxTypeRemittance = 8;
+    public const int TxTypePriorRequest = 16;
+    public const int TxTypePriorAuth = 32;
 
     public DhaPortalService(IHttpClientFactory httpClientFactory)
     {
@@ -96,9 +96,9 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "GetNewTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
         // SPEC: output element is "xmlTransactions" (plural)
-        var xml       = doc.Descendants(ns + "xmlTransactions").FirstOrDefault()?.Value;
+        var xml = doc.Descendants(ns + "xmlTransactions").FirstOrDefault()?.Value;
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
@@ -120,8 +120,8 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "GetNewPriorAuthorizationTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml       = doc.Descendants(ns + "xmlTransaction").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var xml = doc.Descendants(ns + "xmlTransaction").FirstOrDefault()?.Value;
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
@@ -172,9 +172,9 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
         // SPEC: output element is "foundTransactions"
-        var xml       = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var xml = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
@@ -210,8 +210,8 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml       = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var xml = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
@@ -231,9 +231,9 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "DownloadTransactionFileResult").FirstOrDefault()?.Value;
-        var fileName  = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
-        var fileB64   = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var fileName = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
+        var fileB64 = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
 
         byte[]? fileBytes = null;
         if (!string.IsNullOrWhiteSpace(fileB64))
@@ -257,9 +257,9 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "DownloadTransactionFileResult").FirstOrDefault()?.Value;
-        var fileName  = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
-        var fileB64   = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var fileName = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
+        var fileB64 = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
 
         byte[]? fileBytes = null;
         if (!string.IsNullOrWhiteSpace(fileB64))
@@ -286,7 +286,7 @@ public class DhaPortalService : IDhaPortalService
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "SetTransactionDownloadedResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
         int.TryParse(resultStr, out var result);
         return (result, string.IsNullOrEmpty(error) ? null : error);
     }
@@ -319,19 +319,19 @@ public class DhaPortalService : IDhaPortalService
                 }
 
                 // FileID is the key — used as parameter for DownloadTransactionFile
-                var fileId   = Attr("FileID");
+                var fileId = Attr("FileID");
                 var fileName = Attr("FileName");
 
                 rows.Add(new PortalFetchResultRow
                 {
-                    FileId   = fileId ?? fileName ?? "-",
+                    FileId = fileId ?? fileName ?? "-",
                     FileName = fileName,
-                    Type          = DetermineType(fileName),
-                    Status        = Attr("IsDownloaded") == "True" ? "Downloaded" : "New",
-                    Payer         = Attr("ReceiverID"),       // ReceiverID = payer/receiver side
-                    Date          = Attr("TransactionDate"),
-                    Amount        = Attr("RecordCount"),       // RecordCount = # claims in file
-                    RawXml        = file.ToString()
+                    Type = DetermineType(fileName),
+                    Status = Attr("IsDownloaded") == "True" ? "Downloaded" : "New",
+                    Payer = Attr("ReceiverID"),       // ReceiverID = payer/receiver side
+                    Date = Attr("TransactionDate"),
+                    Amount = Attr("RecordCount"),       // RecordCount = # claims in file
+                    RawXml = file.ToString()
                 });
             }
         }
@@ -347,10 +347,10 @@ public class DhaPortalService : IDhaPortalService
         var fn = fileName.ToLowerInvariant();
         if (fn.Contains("remit") || fn.StartsWith("ra_") || fn.StartsWith("rem"))
             return "Remittance";
-        if (fn.Contains("claim"))      return "Claim";
+        if (fn.Contains("claim")) return "Claim";
         if (fn.Contains("prior") || fn.Contains("auth")) return "Prior Auth";
-        if (fn.Contains("person"))     return "Person Register";
-        if (fn.Contains("prescrip"))   return "Prescription";
+        if (fn.Contains("person")) return "Person Register";
+        if (fn.Contains("prescrip")) return "Prescription";
         return "Claim"; // Default
     }
 
@@ -407,13 +407,13 @@ public class DhaPortalService : IDhaPortalService
                 innerRows.Add(new PortalFetchResultRow
                 {
                     FileId = Get("ID", "ClaimID", "TransactionID", "id") ?? el.Attribute("ID")?.Value ?? "-",
-                    Type          = el.Name.LocalName,
-                    Status        = Get("Status", "ClaimStatus") ?? "-",
-                    FileName      = originalFileName,
-                    Date          = Get("Date", "ServiceDate", "SubmissionDate", "TransactionDate"),
-                    Payer         = Get("PayerID", "Payer", "ReceiverID", "InsuranceCompanyID"),
-                    Amount        = Get("GrossAmount", "NetAmount", "Amount", "TotalAmount"),
-                    RawXml        = el.ToString()
+                    Type = el.Name.LocalName,
+                    Status = Get("Status", "ClaimStatus") ?? "-",
+                    FileName = originalFileName,
+                    Date = Get("Date", "ServiceDate", "SubmissionDate", "TransactionDate"),
+                    Payer = Get("PayerID", "Payer", "ReceiverID", "InsuranceCompanyID"),
+                    Amount = Get("GrossAmount", "NetAmount", "Amount", "TotalAmount"),
+                    RawXml = el.ToString()
                 });
             }
         }
@@ -443,10 +443,10 @@ public class DhaPortalService : IDhaPortalService
 
     public static string DescribeResult(int code) => code switch
     {
-        3  => "No approved trade drugs (prescription not returned)",
-        2  => "No new prior auth transactions available",
-        1  => "Success with warnings",
-        0  => "Success",
+        3 => "No approved trade drugs (prescription not returned)",
+        2 => "No new prior auth transactions available",
+        1 => "Success with warnings",
+        0 => "Success",
         -1 => "Login failed",
         -2 => "Validation failed with errors",
         -3 => "Invalid or missing parameter",
@@ -455,6 +455,6 @@ public class DhaPortalService : IDhaPortalService
         -6 => "File not found",
         -7 => "Transaction type not supported",
         -10 => "No search criteria provided",
-        _  => $"Unknown result code: {code}"
+        _ => $"Unknown result code: {code}"
     };
 }

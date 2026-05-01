@@ -32,7 +32,7 @@ public static class PendingDownloadState
             {
                 IsRunning = true,
                 StartedAt = DateTime.UtcNow,
-                Total     = total
+                Total = total
             };
         }
     }
@@ -52,12 +52,12 @@ public static class PendingDownloadState
         {
             _snap = _snap with
             {
-                IsRunning   = false,
-                Done        = done,
-                Failed      = failed,
-                FinishedAt  = DateTime.UtcNow,
-                LastRunAt   = DateTime.UtcNow,
-                LastDone    = done
+                IsRunning = false,
+                Done = done,
+                Failed = failed,
+                FinishedAt = DateTime.UtcNow,
+                LastRunAt = DateTime.UtcNow,
+                LastDone = done
             };
         }
     }
@@ -67,13 +67,13 @@ public static class PendingDownloadState
 
 public record PendingDownloadSnapshot
 {
-    public bool      IsRunning       { get; init; }
-    public int       Total           { get; init; }
-    public int       Done            { get; init; }
-    public int       Failed          { get; init; }
-    public string    CurrentFacility { get; init; } = "";
-    public DateTime  StartedAt       { get; init; }
-    public DateTime? FinishedAt      { get; init; }
-    public DateTime? LastRunAt       { get; init; }
-    public int       LastDone        { get; init; }
+    public bool IsRunning { get; init; }
+    public int Total { get; init; }
+    public int Done { get; init; }
+    public int Failed { get; init; }
+    public string CurrentFacility { get; init; } = "";
+    public DateTime StartedAt { get; init; }
+    public DateTime? FinishedAt { get; init; }
+    public DateTime? LastRunAt { get; init; }
+    public int LastDone { get; init; }
 }

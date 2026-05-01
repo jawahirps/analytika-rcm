@@ -1,0 +1,53 @@
+DOWNLOADED RECORDS EXPORT - 2026-04-15
+
+===== TABLE STATISTICS =====
+TABLE_NAME,RECORD_COUNT,DESCRIPTION
+Facilities,13,Active healthcare facilities
+PortalTransactions,52957,All downloaded/pending files from DHA portal
+PortalTransactions (Downloaded),32375,Successfully downloaded files ready for processing
+PortalTransactions (Pending),20582,Files awaiting download from portal
+RemittanceClaims,5539,Parsed remittance claims from downloaded XMLs
+PortalCredentials,13,Configured portal login credentials
+PortalFetchLogs,264,Sync and fetch operation logs
+Clinicians,3,Unique healthcare clinicians in system
+Payers,4,Insurance payers
+Departments,4,Hospital departments
+Receivers,3,Message receivers
+
+===== FACILITY-WISE BREAKDOWN =====
+Facility,Total Files,Downloaded,Pending,Remittance Downloaded,Submission Downloaded,Parsed Claims
+"Alnoor Deira",30949,15628,15321,2579,0,2392
+"New Lotus MC",9562,4814,4748,1194,0,1077
+"Alnoor Qusais",6216,6012,204,848,0,799
+"Alnoor Rashidiya",2023,1023,1000,74,0,68
+Apollo,1664,1664,0,685,0,642
+"Sabah Alnoor MC",691,691,0,240,0,0
+"Axon -Rashidiya",567,567,0,328,0,327
+wecare,565,565,0,166,0,166
+"San Lucas MC",420,406,14,11,0,11
+"Marinca MC",243,243,0,17,0,17
+"Nafeesa MC",57,57,0,40,0,40
+"Sabah Alnoor Al Taif",0,0,0,0,0,0
+"Alnoor Muhaisnah",0,0,0,0,0,0
+
+===== TRANSACTION TYPES SUMMARY =====
+Type,Total Count,Downloaded,Pending,Earliest Date,Latest Date
+Claim,40986,25740,15246,2026-03-29 07:40:20,2026-04-15 00:37:58
+Prior Auth,5789,453,5336,2026-04-03 10:09:36,2026-04-07 14:28:25
+Remittance,6182,6182,0,2026-04-03 02:35:46,2026-04-15 00:37:58
+
+===== PORTAL STATUS =====
+Portal,Total,Downloaded,Pending,Download Percentage
+DHA,52957,32375,20582,61.13%
+
+===== KEY METRICS =====
+Metric,Value,Unit
+Total Files Downloaded,32375,files
+Total Files Pending,20582,files
+Download Completion Rate,61.13,%
+Total Remittance Claims Parsed,5539,claims
+Active Facilities,13,facilities
+Portal Credentials Configured,13,credentials
+Unique Clinicians,3,records
+Insurance Payers,4,records
+Hospital Departments,4,records

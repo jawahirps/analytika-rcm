@@ -107,16 +107,16 @@ public class ReconciliationService
 
             return new XmlParsingFacilityRow
             {
-                FacilityId          = fid,
-                FacilityName        = facilityMap.GetValueOrDefault(fid, $"Facility {fid}"),
-                SubmissionTotal     = sub?.Total ?? 0,
-                SubmissionDownloaded= sub?.Downloaded ?? 0,
-                RemittanceTotal     = rem?.Total ?? 0,
-                RemittanceDownloaded= rem?.Downloaded ?? 0,
-                Matched             = matched,
-                UnmatchedSubmissions= subClaimIds.Count - matched,
-                UnmatchedRemittances= remClaimIds.Count(id => !subClaimIds.Contains(id)),
-                ClaimCount          = claimCountByFacility.GetValueOrDefault(fid, 0),
+                FacilityId = fid,
+                FacilityName = facilityMap.GetValueOrDefault(fid, $"Facility {fid}"),
+                SubmissionTotal = sub?.Total ?? 0,
+                SubmissionDownloaded = sub?.Downloaded ?? 0,
+                RemittanceTotal = rem?.Total ?? 0,
+                RemittanceDownloaded = rem?.Downloaded ?? 0,
+                Matched = matched,
+                UnmatchedSubmissions = subClaimIds.Count - matched,
+                UnmatchedRemittances = remClaimIds.Count(id => !subClaimIds.Contains(id)),
+                ClaimCount = claimCountByFacility.GetValueOrDefault(fid, 0),
             };
         })
         .OrderBy(r => r.FacilityName)
@@ -124,7 +124,7 @@ public class ReconciliationService
 
         return new XmlParsingViewModel
         {
-            Facilities  = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            Facilities = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
             FacilityIds = facilityIds ?? new(),
             FacilityRows = rows
         };
@@ -142,23 +142,23 @@ public class ReconciliationService
         if (facilityIds != null && facilityIds.Count > 0)
             query = query.Where(t => facilityIds.Contains(t.FacilityId));
         if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
-        if (!string.IsNullOrEmpty(dateTo))   query = query.Where(t => string.Compare(t.TransactionDate, dateTo)   <= 0);
+        if (!string.IsNullOrEmpty(dateTo)) query = query.Where(t => string.Compare(t.TransactionDate, dateTo) <= 0);
 
         // Only fetch columns needed for parsing — avoids loading large RawXml into memory
         var transactions = await query
             .Select(t => new PortalTransaction
             {
-                TransactionId  = t.TransactionId,
-                FileId         = t.FileId,
-                Type           = t.Type,
-                FileName       = t.FileName,
+                TransactionId = t.TransactionId,
+                FileId = t.FileId,
+                Type = t.Type,
+                FileName = t.FileName,
                 FileContentXml = t.FileContentXml,
-                FacilityId     = t.FacilityId
+                FacilityId = t.FacilityId
             })
             .ToListAsync();   // no cap — unlimited records
 
         // Parse claims and remittances from XML content
-        var claimMap      = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
+        var claimMap = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
         var remittanceMap = new Dictionary<string, RemittanceEntry>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var tx in transactions)
@@ -179,27 +179,27 @@ public class ReconciliationService
 
         // Join on ClaimID
         var allIds = claimMap.Keys.Union(remittanceMap.Keys, StringComparer.OrdinalIgnoreCase).ToList();
-        var rows   = new List<ReconciliationRow>();
+        var rows = new List<ReconciliationRow>();
 
         foreach (var id in allIds)
         {
-            claimMap     .TryGetValue(id, out var claim);
+            claimMap.TryGetValue(id, out var claim);
             remittanceMap.TryGetValue(id, out var remit);
 
             var status = DetermineStatus(claim, remit);
 
             rows.Add(new ReconciliationRow
             {
-                ClaimId          = id,
-                Payer            = claim?.Payer ?? remit?.Payer,
-                ServiceDate      = claim?.ServiceDate,
-                SubmittedAmount  = claim?.SubmittedAmount,
-                RemittanceDate   = remit?.RemittanceDate,
-                PaidAmount       = remit?.PaidAmount,
-                PaymentStatus    = status,
-                ClaimFileId      = claim?.SourceFileId,
+                ClaimId = id,
+                Payer = claim?.Payer ?? remit?.Payer,
+                ServiceDate = claim?.ServiceDate,
+                SubmittedAmount = claim?.SubmittedAmount,
+                RemittanceDate = remit?.RemittanceDate,
+                PaidAmount = remit?.PaidAmount,
+                PaymentStatus = status,
+                ClaimFileId = claim?.SourceFileId,
                 RemittanceFileId = remit?.SourceFileId,
-                FacilityId       = facilityIds?.Count == 1 ? facilityIds[0] : 0
+                FacilityId = facilityIds?.Count == 1 ? facilityIds[0] : 0
             });
         }
 
@@ -207,21 +207,21 @@ public class ReconciliationService
             rows = rows.Where(r => statusFilters.Contains(r.PaymentStatus)).ToList();
 
         rows = rows.OrderBy(r => r.PaymentStatus == "Rejected" ? 0
-                               : r.PaymentStatus == "Partial"  ? 1
-                               : r.PaymentStatus == "Pending"  ? 2
+                               : r.PaymentStatus == "Partial" ? 1
+                               : r.PaymentStatus == "Pending" ? 2
                                : 3)
                    .ThenBy(r => r.ServiceDate)
                    .ToList();
 
         return new ReconciliationViewModel
         {
-            Facilities    = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            FacilityIds   = facilityIds ?? new(),
+            Facilities = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityIds = facilityIds ?? new(),
             StatusFilters = statusFilters ?? new(),
-            DateFrom      = dateFrom,
-            DateTo        = dateTo,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
             TotalRowCount = rows.Count,
-            Rows          = rows   // unlimited — no display cap
+            Rows = rows   // unlimited — no display cap
         };
     }
 
@@ -270,11 +270,11 @@ public class ReconciliationService
 
             yield return new ClaimEntry
             {
-                ClaimId         = claimId,
-                Payer           = Val(el, "PayerID", "InsuranceCompanyID", "Payer", "ReceiverID"),
-                ServiceDate     = serviceDate,
+                ClaimId = claimId,
+                Payer = Val(el, "PayerID", "InsuranceCompanyID", "Payer", "ReceiverID"),
+                ServiceDate = serviceDate,
                 SubmittedAmount = amount > 0 ? amount : null,
-                SourceFileId    = tx.FileId ?? tx.TransactionId
+                SourceFileId = tx.FileId ?? tx.TransactionId
             };
         }
     }
@@ -285,8 +285,8 @@ public class ReconciliationService
         XDocument doc;
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
-        var header    = doc.Root?.Element("Header");
-        var rootDate  = Val(header, "TransactionDate", "RemittanceDate", "Date")
+        var header = doc.Root?.Element("Header");
+        var rootDate = Val(header, "TransactionDate", "RemittanceDate", "Date")
                      ?? (doc.Root != null ? Attr(doc.Root, "TransactionDate", "RemittanceDate", "Date") : null);
         var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
                      ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
@@ -322,12 +322,12 @@ public class ReconciliationService
 
             yield return new RemittanceEntry
             {
-                ClaimId         = claimId,
-                PaidAmount      = paid,
-                RemittanceDate  = remitDate,
-                PaymentStatus   = Val(el, "Status", "PaymentStatus", "ClaimStatus", "Comments") ?? "Unknown",
-                Payer           = Val(el, "IDPayer", "PayerID", "Payer") ?? rootPayer,
-                SourceFileId    = tx.FileId ?? tx.TransactionId
+                ClaimId = claimId,
+                PaidAmount = paid,
+                RemittanceDate = remitDate,
+                PaymentStatus = Val(el, "Status", "PaymentStatus", "ClaimStatus", "Comments") ?? "Unknown",
+                Payer = Val(el, "IDPayer", "PayerID", "Payer") ?? rootPayer,
+                SourceFileId = tx.FileId ?? tx.TransactionId
             };
         }
     }
@@ -364,10 +364,10 @@ public class ReconciliationService
     private static string DetermineStatus(ClaimEntry? claim, RemittanceEntry? remit)
     {
         if (remit == null) return "Pending";
-        var paid      = remit.PaidAmount ?? 0;
+        var paid = remit.PaidAmount ?? 0;
         var submitted = claim?.SubmittedAmount ?? 0;
 
-        if (paid <= 0)                                return "Rejected";
+        if (paid <= 0) return "Rejected";
         if (submitted > 0 && paid < submitted - 0.01m) return "Partial";
         return "Paid";
     }

@@ -5,20 +5,20 @@ namespace Analytika.Models.ViewModels;
 public class PortalFetchViewModel
 {
     public string Portal { get; set; } = "DHA"; // "DHA" or "RHA"
-    public List<int> FacilityIds         { get; set; } = new();              // multi-select
-    public int?      FacilityId          => FacilityIds.Count > 0 ? FacilityIds[0] : null;
-    public string    Operation           { get; set; } = "GetNewTransactions";
-    public string?   DateFrom            { get; set; }
-    public string?   DateTo              { get; set; }
-    public string?   SearchText          { get; set; }
+    public List<int> FacilityIds { get; set; } = new();              // multi-select
+    public int? FacilityId => FacilityIds.Count > 0 ? FacilityIds[0] : null;
+    public string Operation { get; set; } = "GetNewTransactions";
+    public string? DateFrom { get; set; }
+    public string? DateTo { get; set; }
+    public string? SearchText { get; set; }
     // multi-select lists (replace old single-value fields)
     public List<int> TransactionStatuses { get; set; } = new() { 1 };       // 1=new, 2=downloaded
-    public List<int> Directions          { get; set; } = new() { 2 };       // 1=sent, 2=received
-    public List<int> TransactionIds      { get; set; } = new() { 2 };       // 2=Claim, 8=Remittance, 16=PA.Req, 32=PA.Auth
+    public List<int> Directions { get; set; } = new() { 2 };       // 1=sent, 2=received
+    public List<int> TransactionIds { get; set; } = new() { 2 };       // 2=Claim, 8=Remittance, 16=PA.Req, 32=PA.Auth
     // single-value compat (first selected or default)
     public int TransactionStatus => TransactionStatuses.Count > 0 ? TransactionStatuses[0] : 1;
-    public int Direction         => Directions.Count > 0 ? Directions[0] : 2;
-    public int TransactionId     => TransactionIds.Count > 0 ? TransactionIds[0] : 2;
+    public int Direction => Directions.Count > 0 ? Directions[0] : 2;
+    public int TransactionId => TransactionIds.Count > 0 ? TransactionIds[0] : 2;
     public int MinRecord { get; set; } = -1;           // -1=no filter (per DHPO spec)
     public int MaxRecord { get; set; } = -1;           // -1=no filter (per DHPO spec)
     public string? FileId { get; set; }
@@ -88,35 +88,35 @@ public class SyncBatchResult
 
 public class XmlParsingViewModel
 {
-    public List<SelectListItem>      Facilities  { get; set; } = new();
-    public List<int>                 FacilityIds { get; set; } = new();
+    public List<SelectListItem> Facilities { get; set; } = new();
+    public List<int> FacilityIds { get; set; } = new();
     public List<XmlParsingFacilityRow> FacilityRows { get; set; } = new();
 
     // Grand totals
-    public int TotalSubmission           => FacilityRows.Sum(r => r.SubmissionTotal);
+    public int TotalSubmission => FacilityRows.Sum(r => r.SubmissionTotal);
     public int TotalSubmissionDownloaded => FacilityRows.Sum(r => r.SubmissionDownloaded);
-    public int TotalRemittance           => FacilityRows.Sum(r => r.RemittanceTotal);
+    public int TotalRemittance => FacilityRows.Sum(r => r.RemittanceTotal);
     public int TotalRemittanceDownloaded => FacilityRows.Sum(r => r.RemittanceDownloaded);
-    public int TotalMatched              => FacilityRows.Sum(r => r.Matched);
-    public int TotalUnmatched            => FacilityRows.Sum(r => r.UnmatchedSubmissions);
-    public int TotalClaimCount           => FacilityRows.Sum(r => r.ClaimCount);
+    public int TotalMatched => FacilityRows.Sum(r => r.Matched);
+    public int TotalUnmatched => FacilityRows.Sum(r => r.UnmatchedSubmissions);
+    public int TotalClaimCount => FacilityRows.Sum(r => r.ClaimCount);
 }
 
 public class XmlParsingFacilityRow
 {
-    public int    FacilityId   { get; set; }
+    public int FacilityId { get; set; }
     public string FacilityName { get; set; } = "";
     // Submission (Claim) files
-    public int SubmissionTotal      { get; set; }
+    public int SubmissionTotal { get; set; }
     public int SubmissionDownloaded { get; set; }
     // Remittance files
-    public int RemittanceTotal      { get; set; }
+    public int RemittanceTotal { get; set; }
     public int RemittanceDownloaded { get; set; }
     // Matching
-    public int Matched              { get; set; }
+    public int Matched { get; set; }
     public int UnmatchedSubmissions { get; set; }  // claims with no remittance
     public int UnmatchedRemittances { get; set; }  // remittances with no claim
-    public int ClaimCount           { get; set; }  // total <Claim> elements across all submission XMLs
+    public int ClaimCount { get; set; }  // total <Claim> elements across all submission XMLs
     public decimal MatchRate => SubmissionDownloaded > 0
         ? Math.Round((decimal)Matched / SubmissionDownloaded * 100, 1) : 0;
 }
@@ -126,26 +126,26 @@ public class XmlParsingFacilityRow
 public class ReconciliationViewModel
 {
     public List<SelectListItem> Facilities { get; set; } = new();
-    public List<int>    FacilityIds   { get; set; } = new();   // multi-select
+    public List<int> FacilityIds { get; set; } = new();   // multi-select
     public List<string> StatusFilters { get; set; } = new();   // multi-select
     // single-value helpers for backward compat
-    public int?    FacilityId    => FacilityIds.Count == 1 ? FacilityIds[0] : null;
-    public string? StatusFilter  => StatusFilters.Count == 1 ? StatusFilters[0] : null;
+    public int? FacilityId => FacilityIds.Count == 1 ? FacilityIds[0] : null;
+    public string? StatusFilter => StatusFilters.Count == 1 ? StatusFilters[0] : null;
     public string? DateFrom { get; set; }
     public string? DateTo { get; set; }
     public List<ReconciliationRow> Rows { get; set; } = new();
 
     // Summary (computed from capped Rows list)
-    public int  TotalRowCount  { get; set; }
-    public int  TotalClaims    => Rows.Count;
-    public bool IsCapped       => false;   // cap removed — all rows displayed
-    public decimal TotalSubmitted   => Rows.Sum(r => r.SubmittedAmount ?? 0);
-    public decimal TotalPaid        => Rows.Sum(r => r.PaidAmount ?? 0);
+    public int TotalRowCount { get; set; }
+    public int TotalClaims => Rows.Count;
+    public bool IsCapped => false;   // cap removed — all rows displayed
+    public decimal TotalSubmitted => Rows.Sum(r => r.SubmittedAmount ?? 0);
+    public decimal TotalPaid => Rows.Sum(r => r.PaidAmount ?? 0);
     public decimal TotalOutstanding => TotalSubmitted - TotalPaid;
-    public int PaidCount      => Rows.Count(r => r.PaymentStatus == "Paid");
-    public int PartialCount   => Rows.Count(r => r.PaymentStatus == "Partial");
-    public int RejectedCount  => Rows.Count(r => r.PaymentStatus == "Rejected");
-    public int PendingCount   => Rows.Count(r => r.PaymentStatus == "Pending");
+    public int PaidCount => Rows.Count(r => r.PaymentStatus == "Paid");
+    public int PartialCount => Rows.Count(r => r.PaymentStatus == "Partial");
+    public int RejectedCount => Rows.Count(r => r.PaymentStatus == "Rejected");
+    public int PendingCount => Rows.Count(r => r.PaymentStatus == "Pending");
 }
 
 public class ReconciliationRow
@@ -168,7 +168,7 @@ public class ReconciliationRow
 public class SyncedDataViewModel
 {
     public List<SelectListItem> Facilities { get; set; } = new();
-    public List<int>  FacilityIds { get; set; } = new();   // multi-select
+    public List<int> FacilityIds { get; set; } = new();   // multi-select
     public int? FacilityId => FacilityIds.Count == 1 ? FacilityIds[0] : null;
     public string? Portal { get; set; }
     public string? DateFrom { get; set; }
