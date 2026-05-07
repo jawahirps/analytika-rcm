@@ -11,36 +11,42 @@ namespace Analytika.Services;
 /// DB itself is the persistent queue.
 ///
 /// Scheduling:
-///   • Runs once ~30 s after app boot (catches any files left pending from the last run).
-///   • Repeats every 30 minutes automatically.
+///   • Runs one small batch daily at the configured least-used local time.
 ///   • Can be woken immediately via PendingDownloadState.Trigger() (called by the
 ///     "Run Now" UI button through the TriggerPendingDownload controller action).
 /// </summary>
 public class PendingDownloadService : BackgroundService
 {
-    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan PollingInterval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan DefaultScheduledLocalTime = new(2, 30, 0);
 
     private readonly IServiceProvider _services;
+    private readonly IConfiguration _config;
     private readonly ILogger<PendingDownloadService> _logger;
 
-    public PendingDownloadService(IServiceProvider services, ILogger<PendingDownloadService> logger)
+    public PendingDownloadService(IServiceProvider services, IConfiguration config, ILogger<PendingDownloadService> logger)
     {
         _services = services;
+        _config = config;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("[PendingDownload] Service started — first run in {delay}s", StartupDelay.TotalSeconds);
-
-        // Brief startup delay so the app/EF fully initialises before we touch the DB
-        await Task.Delay(StartupDelay, stoppingToken).ConfigureAwait(false);
+        var scheduledRunEnabled = _config.GetValue("BackgroundJobs:PendingDownloads:ScheduledRunEnabled", true);
+        var scheduledLocalTime = GetScheduledLocalTime();
+        var batchSize = GetBatchSize();
+        _logger.LogInformation("[PendingDownload] Service started — scheduled run {mode} at {time}, batch size {batchSize}",
+            scheduledRunEnabled ? "enabled" : "disabled",
+            scheduledLocalTime.ToString(@"hh\:mm"),
+            batchSize);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                var reason = await WaitForNextRunAsync(scheduledRunEnabled, scheduledLocalTime, stoppingToken)
+                    .ConfigureAwait(false);
+                _logger.LogInformation("[PendingDownload] Starting {reason} batch", reason);
                 await RunAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
@@ -48,18 +54,6 @@ public class PendingDownloadService : BackgroundService
             {
                 _logger.LogError(ex, "[PendingDownload] Unhandled error during run");
             }
-
-            // Sleep until the next scheduled interval or an explicit trigger, whichever comes first
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            try
-            {
-                await Task.WhenAny(
-                    Task.Delay(PollingInterval, cts.Token),
-                    PendingDownloadState.TriggerReader.ReadAsync(stoppingToken).AsTask()
-                ).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) { break; }
-            finally { cts.Cancel(); }
         }
 
         _logger.LogInformation("[PendingDownload] Service stopping");
@@ -69,6 +63,9 @@ public class PendingDownloadService : BackgroundService
 
     private async Task RunAsync(CancellationToken ct)
     {
+        var batchSize = GetBatchSize();
+        var autoParse = _config.GetValue("BackgroundJobs:PendingDownloads:AutoParseRemittance", false);
+
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var dha = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
@@ -80,16 +77,19 @@ public class PendingDownloadService : BackgroundService
             .Select(t => new { t.Id, t.FacilityId, t.FileId, t.Type, t.TransactionId })
             .OrderBy(t => t.FacilityId)
             .ThenBy(t => t.Id)
+            .Take(batchSize)
+            .AsNoTracking()
             .ToListAsync(ct);
 
         if (!pending.Any())
         {
             // Even with no new downloads, parse anything not yet converted to claims
-            await AutoParseAsync(parser, 0);
+            if (autoParse)
+                await AutoParseAsync(parser, 0);
             return;
         }
 
-        _logger.LogInformation("[PendingDownload] Starting run — {count} files to download", pending.Count);
+        _logger.LogInformation("[PendingDownload] Starting run — processing up to {count} pending files", pending.Count);
         PendingDownloadState.Start(pending.Count);
 
         // Batch-load all DHA credentials upfront instead of one-by-one in loop
@@ -170,7 +170,60 @@ public class PendingDownloadService : BackgroundService
             done, doneRemittance, failed, pending.Count);
 
         // Auto-parse: convert newly downloaded remittance XMLs into claims (reads FileContentXml already in DB)
-        await AutoParseAsync(parser, doneRemittance);
+        if (autoParse)
+            await AutoParseAsync(parser, doneRemittance);
+    }
+
+    private async Task<string> WaitForNextRunAsync(bool scheduledRunEnabled, TimeSpan scheduledLocalTime, CancellationToken stoppingToken)
+    {
+        using var waitCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var triggerTask = PendingDownloadState.TriggerReader.ReadAsync(waitCts.Token).AsTask();
+        var delayTask = scheduledRunEnabled
+            ? Task.Delay(GetDelayUntilNextRun(scheduledLocalTime, DateTime.Now), waitCts.Token)
+            : Task.Delay(Timeout.InfiniteTimeSpan, waitCts.Token);
+
+        try
+        {
+            var completed = await Task.WhenAny(triggerTask, delayTask).ConfigureAwait(false);
+            waitCts.Cancel();
+
+            if (completed == triggerTask)
+            {
+                await triggerTask.ConfigureAwait(false);
+                return "manual";
+            }
+
+            await delayTask.ConfigureAwait(false);
+            return "scheduled";
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return "manual";
+        }
+    }
+
+    private int GetBatchSize()
+    {
+        return Math.Clamp(_config.GetValue("BackgroundJobs:PendingDownloads:BatchSize", 25), 1, 500);
+    }
+
+    private TimeSpan GetScheduledLocalTime()
+    {
+        var configured = _config.GetValue<string>("BackgroundJobs:PendingDownloads:ScheduledLocalTime");
+        return TimeSpan.TryParse(configured, out var parsed) ? parsed : DefaultScheduledLocalTime;
+    }
+
+    private static TimeSpan GetDelayUntilNextRun(TimeSpan scheduledLocalTime, DateTime now)
+    {
+        var nextRun = now.Date.Add(scheduledLocalTime);
+        if (nextRun <= now)
+            nextRun = nextRun.AddDays(1);
+
+        return nextRun - now;
     }
 
     private async Task AutoParseAsync(RemittanceParserService parser, int newRemittanceCount)

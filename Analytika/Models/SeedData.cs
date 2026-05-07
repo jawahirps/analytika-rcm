@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Analytika.Services;
 
 namespace Analytika.Models;
 
@@ -59,30 +58,13 @@ public static class SeedData
             );
         }
 
-        if (!context.DashboardEmbeds.Any())
-        {
-            foreach (var dashboard in HardcodedDashboardCatalog.Dashboards)
-            {
-                context.DashboardEmbeds.Add(new DashboardEmbed
-                {
-                    TabName = dashboard.TabName,
-                    ReportId = dashboard.ReportId,
-                    GroupId = dashboard.GroupId,
-                    EmbedToken = "PENDING",
-                    EmbedUrl = dashboard.EmbedUrl,
-                    TokenExpiry = DateTime.UtcNow.AddHours(1),
-                    IsActive = true
-                });
-            }
-        }
-
         await context.SaveChangesAsync();
 
         // Seed admin user
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        foreach (var role in new[] { "Admin", "FacilityAdmin", "Analyst", "Viewer" })
+        foreach (var role in new[] { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer" })
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
 

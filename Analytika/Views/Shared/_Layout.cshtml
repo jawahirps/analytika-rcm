@@ -114,6 +114,9 @@
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users">
                                 <i class="fas fa-users me-2 text-muted"></i>User Management
                             </a></li>
+                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Roles">
+                                <i class="fas fa-user-shield me-2 text-muted"></i>User Roles
+                            </a></li>
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="Credentials">
                                 <i class="fas fa-key me-2 text-muted"></i>Portal Credentials
                             </a></li>
@@ -126,9 +129,6 @@
                             </a></li>
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="ReportSchedules">
                                 <i class="fas fa-calendar-alt me-2 text-muted"></i>Report Schedules
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="PowerBIReports">
-                                <i class="fas fa-chart-pie me-2 text-muted"></i>Power BI Reports
                             </a></li>
                             <li><hr class="dropdown-divider" /></li>
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="Database">
@@ -204,7 +204,7 @@
                         </span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#"><i class="fas fa-user me-2 text-muted"></i>Profile</a></li>
+                        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i>Profile</a></li>
                         <li><hr class="dropdown-divider my-1"></li>
                         <li>
                             <form asp-controller="Home" asp-action="LogOut" method="post">

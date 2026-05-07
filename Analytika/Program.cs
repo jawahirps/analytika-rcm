@@ -3,6 +3,7 @@ using Analytika.Services;
 using Hangfire;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,10 +49,10 @@ builder.Services.AddHangfire(config => config
     .UseRecommendedSerializerSettings()
     .UseInMemoryStorage());
 
-builder.Services.AddHangfireServer();
+if (builder.Configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false))
+    builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IReportService, ReportService>();
-builder.Services.AddScoped<IPowerBIService, PowerBIService>();
 builder.Services.AddScoped<IDhaPortalService, DhaPortalService>();
 builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
 builder.Services.AddScoped<PortalSyncService>();
@@ -77,6 +78,7 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://localhost:{port}");
 
 var app = builder.Build();
+Console.WriteLine("[Startup] Built app");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -88,49 +90,86 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+        var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+        var user = await userManager.GetUserAsync(context.User);
+
+        if (user == null || !user.IsActive)
+        {
+            await signInManager.SignOutAsync();
+            context.Response.Redirect("/Home/Index");
+            return;
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 app.UseHangfireDashboard("/hangfire");
 
-// Daily cron: sync last 90 days of DHA transactions for all active credentials (2 AM)
-RecurringJob.AddOrUpdate<PortalSyncService>(
-    "dha-daily-sync",
-    svc => svc.RunDailyDhaSyncAsync(),
-    Cron.Daily(2));
+if (app.Configuration.GetValue("BackgroundJobs:RecurringJobsEnabled", false))
+{
+    // Daily cron: sync last 90 days of DHA transactions for all active credentials (2 AM)
+    RecurringJob.AddOrUpdate<PortalSyncService>(
+        "dha-daily-sync",
+        svc => svc.RunDailyDhaSyncAsync(),
+        Cron.Daily(2));
 
-// Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
-RecurringJob.AddOrUpdate<RemittanceParserService>(
-    "remittance-auto-parse",
-    svc => svc.ParsePendingAsync(null),
-    "0 */2 * * *");
+    // Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
+    RecurringJob.AddOrUpdate<RemittanceParserService>(
+        "remittance-auto-parse",
+        svc => svc.ParsePendingAsync(null),
+        "0 */2 * * *");
+}
+else
+{
+    // Hangfire is in-memory here and the server is disabled, so there is no recurring
+    // work to clean up on startup. Skipping storage calls keeps local startup light.
+}
 
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+Console.WriteLine("[Startup] Route mapped");
 
 using (var scope = app.Services.CreateScope())
 {
+    Console.WriteLine("[Startup] DB init begin");
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<AppDbContext>();
+    Console.WriteLine("[Startup] EnsureCreated begin");
     db.Database.EnsureCreated();
-    // Create new tables added after initial EnsureCreated (no-op if already exist)
-    db.Database.ExecuteSqlRaw(@"
-        -- Performance indexes (safe to re-run — all IF NOT EXISTS)
-        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FetchedAt""
-            ON ""PortalFetchLogs""(""FetchedAt"" DESC);
-        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Status""
-            ON ""PortalFetchLogs""(""FacilityId"", ""Status"");
-        CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Operation""
-            ON ""PortalFetchLogs""(""FacilityId"", ""Operation"");
-        CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_FacilityId_FileDownloaded""
-            ON ""PortalTransactions""(""FacilityId"", ""FileDownloaded"");
-        CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
-            ON ""PortalTransactions""(""SyncedAt"" DESC);
-    ");
+    Console.WriteLine("[Startup] EnsureCreated done");
+    if (app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false))
+    {
+        Console.WriteLine("[Startup] Index maintenance begin");
+        db.Database.ExecuteSqlRaw(@"
+            -- Performance indexes. Run only during planned maintenance on large local DBs.
+            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FetchedAt""
+                ON ""PortalFetchLogs""(""FetchedAt"" DESC);
+            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Status""
+                ON ""PortalFetchLogs""(""FacilityId"", ""Status"");
+            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Operation""
+                ON ""PortalFetchLogs""(""FacilityId"", ""Operation"");
+            CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_FacilityId_FileDownloaded""
+                ON ""PortalTransactions""(""FacilityId"", ""FileDownloaded"");
+            CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
+                ON ""PortalTransactions""(""SyncedAt"" DESC);
+        ");
+        Console.WriteLine("[Startup] Index maintenance done");
+    }
     // Add EmailTo column to ReportRequests if not present (SQLite safe migration)
-    try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL"); }
-    catch { /* column already exists */ }
+    Console.WriteLine("[Startup] ReportRequests column check begin");
+    if (!ColumnExists(db, "ReportRequests", "EmailTo"))
+        db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL");
+    Console.WriteLine("[Startup] ReportRequests column check done");
 
+    Console.WriteLine("[Startup] Static table setup begin");
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
             ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -171,7 +210,9 @@ using (var scope = app.Services.CreateScope())
             ""CreatedAt""       TEXT NOT NULL DEFAULT (datetime('now'))
         );
     ");
+    Console.WriteLine("[Startup] Static table setup done");
 
+    Console.WriteLine("[Startup] Remittance table setup begin");
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""RemittanceClaims"" (
             ""Id""                       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -215,10 +256,40 @@ using (var scope = app.Services.CreateScope())
     ");
 
     // Add ClaimCategory column if it doesn't exist yet
-    try { db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'"); }
-    catch { /* column already exists */ }
+    if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
+        db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
+    Console.WriteLine("[Startup] Remittance table setup done");
 
+    Console.WriteLine("[Startup] Seed begin");
     await SeedData.InitializeAsync(services);
+    Console.WriteLine("[Startup] Seed done");
 }
 
+Console.WriteLine("[Startup] Run begin");
 app.Run();
+
+static bool ColumnExists(AppDbContext db, string tableName, string columnName)
+{
+    var connection = db.Database.GetDbConnection();
+    var shouldClose = connection.State != ConnectionState.Open;
+    if (shouldClose) connection.Open();
+
+    try
+    {
+        using var command = connection.CreateCommand();
+        var safeTableName = tableName.Replace("\"", "\"\"");
+        command.CommandText = $@"PRAGMA table_info(""{safeTableName}"")";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+    finally
+    {
+        if (shouldClose) connection.Close();
+    }
+}

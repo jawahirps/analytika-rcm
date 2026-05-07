@@ -1113,7 +1113,7 @@ public class PortalController : Controller
     public IActionResult TriggerPendingDownload()
     {
         PendingDownloadState.Trigger();
-        return Json(new { ok = true, message = "Background download triggered." });
+        return Json(new { ok = true, message = "Background download triggered for the configured limited batch." });
     }
 
     [HttpGet]

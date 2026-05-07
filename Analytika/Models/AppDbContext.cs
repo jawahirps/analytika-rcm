@@ -13,7 +13,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Payer> Payers { get; set; }
     public DbSet<Clinician> Clinicians { get; set; }
     public DbSet<Department> Departments { get; set; }
-    public DbSet<DashboardEmbed> DashboardEmbeds { get; set; }
     public DbSet<UserFacility> UserFacilities { get; set; }
     public DbSet<PortalCredential> PortalCredentials { get; set; }
     public DbSet<UserReportAccess> UserReportAccesses { get; set; }
@@ -36,13 +35,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.ReportType).HasMaxLength(100);
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.FileFormat).HasMaxLength(20);
-        });
-
-        builder.Entity<DashboardEmbed>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TabName).HasMaxLength(50);
-            entity.HasIndex(e => e.TabName);  // looked up by tab name in PowerBIService
         });
 
         builder.Entity<UserFacility>(entity =>

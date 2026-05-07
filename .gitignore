@@ -9,3 +9,11 @@ Analytika/wwwroot/reports/
 Analytika/analytika.db.gz
 Analytika/analytika.db-shm
 Analytika/analytika.db-wal
+
+# Python prototype artifacts
+car-poster-proto/.env
+car-poster-proto/google_creds.json
+car-poster-proto/venv/
+car-poster-proto/.venv/
+car-poster-proto/__pycache__/
+car-poster-proto/.streamlit/secrets.toml

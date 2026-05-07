@@ -22,24 +22,142 @@ public class AdminController : Controller
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IDhaPortalService _dha;
     private readonly IRhaPortalService _rha;
-    private readonly IPowerBIService _powerBi;
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
+    private static readonly string[] StandardRoles = { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer" };
+    private static readonly string[] ProtectedRoles = { "Admin", "FacilityAdmin" };
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-        IDhaPortalService dha, IRhaPortalService rha, IPowerBIService powerBi, IEmailService email, IConfiguration configuration)
+        IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration)
     {
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
         _dha = dha;
         _rha = rha;
-        _powerBi = powerBi;
         _email = email;
         _configuration = configuration;
+    }
+
+    // ─── Roles ───────────────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Roles()
+    {
+        return View(await BuildRoleListVmAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EnsureStandardRoles()
+    {
+        var created = 0;
+        foreach (var role in StandardRoles)
+        {
+            if (!await _roleManager.RoleExistsAsync(role))
+            {
+                var result = await _roleManager.CreateAsync(new IdentityRole(role));
+                if (result.Succeeded) created++;
+                else TempData["Error"] = string.Join("; ", result.Errors.Select(e => e.Description));
+            }
+        }
+
+        if (TempData["Error"] == null)
+            TempData["Success"] = created == 0 ? "Standard roles already exist." : $"Created {created} standard role(s).";
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateRole(string newRoleName)
+    {
+        var roleName = NormalizeRoleName(newRoleName);
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            TempData["Error"] = "Role name is required.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        if (await _roleManager.RoleExistsAsync(roleName))
+        {
+            TempData["Error"] = $"Role '{roleName}' already exists.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? $"Role '{roleName}' created."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditRole(string id, string roleName)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null) return NotFound();
+
+        if (IsProtectedRole(role.Name))
+        {
+            TempData["Error"] = $"Protected role '{role.Name}' cannot be renamed.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var nextName = NormalizeRoleName(roleName);
+        if (string.IsNullOrWhiteSpace(nextName))
+        {
+            TempData["Error"] = "Role name is required.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var existing = await _roleManager.FindByNameAsync(nextName);
+        if (existing != null && existing.Id != role.Id)
+        {
+            TempData["Error"] = $"Role '{nextName}' already exists.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        role.Name = nextName;
+        var result = await _roleManager.UpdateAsync(role);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? "Role updated."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteRole(string id)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null) return NotFound();
+
+        if (IsProtectedRole(role.Name))
+        {
+            TempData["Error"] = $"Protected role '{role.Name}' cannot be deleted.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var userCount = await CountUsersInRoleAsync(role.Name ?? string.Empty);
+        if (userCount > 0)
+        {
+            TempData["Error"] = $"Role '{role.Name}' is assigned to {userCount} user(s). Reassign users before deleting it.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var result = await _roleManager.DeleteAsync(role);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? $"Role '{role.Name}' deleted."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
     }
 
     // ─── Users ───────────────────────────────────────────────────────────────
@@ -785,36 +903,6 @@ public class AdminController : Controller
         return Json(new { total, page, rows = rows.Select(r => new { r.Code, r.Name, r.SubType }) });
     }
 
-    // ─── Power BI Reports ─────────────────────────────────────────────────────
-
-    [HttpGet]
-    public IActionResult PowerBIReports()
-    {
-        var embeds = HardcodedDashboardCatalog.ToDashboardEmbeds();
-        var tenantId = _configuration["PowerBI:TenantId"] ?? "";
-        var clientId = _configuration["PowerBI:ClientId"] ?? "";
-        var clientSecret = _configuration["PowerBI:ClientSecret"] ?? "";
-        ViewBag.TenantId = tenantId.StartsWith("YOUR_") ? "" : tenantId;
-        ViewBag.ClientId = clientId.StartsWith("YOUR_") ? "" : clientId;
-        ViewBag.ClientSecret = clientSecret.StartsWith("YOUR_") ? "" : clientSecret;
-        return View(embeds);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public IActionResult SavePowerBIEmbed(int id, string groupId, string reportId, bool isActive)
-    {
-        return BadRequest(new { ok = false, message = "Dashboard IDs are hardcoded in the application." });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TestPowerBIConnection()
-    {
-        var err = await _powerBi.TestConnectionAsync();
-        return Json(err == null ? new { ok = true, message = "Connected successfully." } : new { ok = false, message = err });
-    }
-
     // ─── Email (SMTP) Settings ────────────────────────────────────────────────
 
     [HttpGet]
@@ -1055,4 +1143,43 @@ public class AdminController : Controller
             AllReportTypes = ReportTypes.ToList()
         };
     }
+
+    private async Task<RoleListViewModel> BuildRoleListVmAsync()
+    {
+        var roles = await _roleManager.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
+        var rows = new List<RoleRowViewModel>();
+
+        foreach (var role in roles)
+        {
+            var name = role.Name ?? string.Empty;
+            rows.Add(new RoleRowViewModel
+            {
+                Id = role.Id,
+                Name = name,
+                UserCount = await CountUsersInRoleAsync(name),
+                IsProtected = IsProtectedRole(name),
+                IsStandard = StandardRoles.Contains(name, StringComparer.OrdinalIgnoreCase)
+            });
+        }
+
+        return new RoleListViewModel
+        {
+            Roles = rows,
+            StandardRoles = StandardRoles.ToList()
+        };
+    }
+
+    private async Task<int> CountUsersInRoleAsync(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName)) return 0;
+        var users = await _userManager.GetUsersInRoleAsync(roleName);
+        return users.Count;
+    }
+
+    private static bool IsProtectedRole(string? roleName) =>
+        !string.IsNullOrWhiteSpace(roleName)
+        && ProtectedRoles.Contains(roleName, StringComparer.OrdinalIgnoreCase);
+
+    private static string NormalizeRoleName(string? roleName) =>
+        string.Join(' ', (roleName ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 }

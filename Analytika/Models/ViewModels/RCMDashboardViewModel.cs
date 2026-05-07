@@ -3,10 +3,42 @@ namespace Analytika.Models.ViewModels;
 public class RCMDashboardViewModel
 {
     public string ActiveTab { get; set; } = "Submissions";
-    public string? EmbedToken { get; set; }
-    public string? EmbedUrl { get; set; }
-    public string? ReportId { get; set; }
     public List<string> Tabs { get; set; } = new() { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
+    public List<DashboardMetric> Metrics { get; set; } = new();
+    public List<DashboardTrendPoint> Trend { get; set; } = new();
+    public List<DashboardBreakdownItem> Breakdown { get; set; } = new();
+    public List<DashboardInsight> Insights { get; set; } = new();
+    public string Summary { get; set; } = string.Empty;
+    public DateTime RefreshedAt { get; set; } = DateTime.Now;
+}
+
+public class DashboardMetric
+{
+    public string Label { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string Delta { get; set; } = string.Empty;
+    public string Icon { get; set; } = "fa-chart-line";
+    public string Tone { get; set; } = "teal";
+}
+
+public class DashboardTrendPoint
+{
+    public string Label { get; set; } = string.Empty;
+    public int Value { get; set; }
+}
+
+public class DashboardBreakdownItem
+{
+    public string Label { get; set; } = string.Empty;
+    public int Value { get; set; }
+    public string Detail { get; set; } = string.Empty;
+}
+
+public class DashboardInsight
+{
+    public string Title { get; set; } = string.Empty;
+    public string Detail { get; set; } = string.Empty;
+    public string Status { get; set; } = "Stable";
 }
 
 // ── Facility Status Dashboard ─────────────────────────────────────
