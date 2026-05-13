@@ -18,19 +18,19 @@
         border-bottom: 1px solid #f1f5f9;
         display: flex; align-items: center; justify-content: space-between;
     }
-    .cs-card-header h6 { margin: 0; font-size: .95rem; font-weight: 700; color: #0A1828; }
+    .cs-card-header h6 { margin: 0; font-size: .95rem; font-weight: 700; color: #003B4D; }
     .cs-card-body { padding: 22px; }
-    .cs-meta { font-size: .78rem; color: #64748b; margin-bottom: 16px; }
-    .cs-meta strong { color: #0A1828; }
+    .cs-meta { font-size: .78rem; color: #66B2B2; margin-bottom: 16px; }
+    .cs-meta strong { color: #003B4D; }
     .cs-meta .badge-count {
         display: inline-block;
-        background: #dbeafe; color: #1e40af;
+        background: #C6E2E9; color: #006666;
         padding: 2px 10px; border-radius: 99px;
         font-size: .72rem; font-weight: 700;
         margin-left: 6px;
     }
     .upload-zone {
-        border: 2px dashed #e2e8f0;
+        border: 2px dashed #C6E2E9;
         border-radius: 12px;
         padding: 20px;
         text-align: center;
@@ -45,8 +45,8 @@
     .upload-zone input[type=file] {
         position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
     }
-    .upload-zone .uz-icon { font-size: 1.8rem; color: #94a3b8; margin-bottom: 8px; }
-    .upload-zone .uz-label { font-size: .82rem; color: #64748b; }
+    .upload-zone .uz-icon { font-size: 1.8rem; color: #66B2B2; margin-bottom: 8px; }
+    .upload-zone .uz-label { font-size: .82rem; color: #66B2B2; }
     .upload-zone .uz-fname { font-size: .78rem; color: #1d4ed8; font-weight: 600; margin-top: 6px; }
     .btn-import {
         background: #0f172a; color: #fff; border: none;
@@ -56,20 +56,20 @@
         width: 100%; margin-top: 14px;
     }
     .btn-import:hover { background: #1e293b; }
-    .btn-import:disabled { background: #94a3b8; cursor: not-allowed; }
+    .btn-import:disabled { background: #66B2B2; cursor: not-allowed; }
 
     /* Search panel */
     .search-panel { margin-top: 14px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
     .search-row { display: flex; gap: 8px; }
-    .search-input { flex: 1; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 7px 12px; font-size: .82rem; }
+    .search-input { flex: 1; border: 1.5px solid #C6E2E9; border-radius: 8px; padding: 7px 12px; font-size: .82rem; }
     .search-input:focus { border-color: #3b82f6; outline: none; }
     .search-results { margin-top: 10px; max-height: 220px; overflow-y: auto; font-size: .78rem; }
     .search-results table { width: 100%; border-collapse: collapse; }
-    .search-results th { background: #f8fafc; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
-    .search-results td { padding: 6px 10px; border-bottom: 1px solid #f8fafc; color: #334155; }
+    .search-results th { background: #F7F9F9; font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #66B2B2; padding: 6px 10px; border-bottom: 1px solid #C6E2E9; }
+    .search-results td { padding: 6px 10px; border-bottom: 1px solid #F7F9F9; color: #334155; }
     .search-results tr:last-child td { border-bottom: none; }
 
-    .alert-success-custom { background: #d1fae5; color: #065f46; border-radius: 10px; padding: 10px 16px; font-size: .83rem; margin-bottom: 16px; border: none; }
+    .alert-success-custom { background: #C6E2E9; color: #065f46; border-radius: 10px; padding: 10px 16px; font-size: .83rem; margin-bottom: 16px; border: none; }
     .alert-error-custom   { background: #fee2e2; color: #7f1d1d; border-radius: 10px; padding: 10px 16px; font-size: .83rem; margin-bottom: 16px; border: none; }
 </style>
 }
@@ -77,7 +77,7 @@
 <div class="cs-section">
     <div class="d-flex align-items-center mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#0A1828;">
+            <h4 class="mb-0 fw-bold" style="color:#003B4D;">
                 <i class="fas fa-table me-2 text-primary"></i>DHPO Coding Sets
             </h4>
             <p class="text-muted small mb-0">Import Excel files from <strong>eclaimlink.ae/CodingSets.aspx</strong> to resolve IDs to names across all reports.</p>
@@ -137,7 +137,7 @@
         <div class="col-md-4">
             <div class="cs-card">
                 <div class="cs-card-header">
-                    <h6><i class="fas fa-user-md me-2" style="color:#8b5cf6;"></i>Clinicians</h6>
+                    <h6><i class="fas fa-user-md me-2" style="color:#66B2B2;"></i>Clinicians</h6>
                 </div>
                 <div class="cs-card-body">
                     <div class="cs-meta">
@@ -175,7 +175,7 @@
         <div class="col-md-4">
             <div class="cs-card">
                 <div class="cs-card-header">
-                    <h6><i class="fas fa-shield-alt me-2" style="color:#10b981;"></i>Payers &amp; TPAs</h6>
+                    <h6><i class="fas fa-shield-alt me-2" style="color:#008B8B;"></i>Payers &amp; TPAs</h6>
                 </div>
                 <div class="cs-card-body">
                     <div class="cs-meta">

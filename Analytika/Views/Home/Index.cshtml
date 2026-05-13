@@ -20,7 +20,7 @@
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             min-height: 100vh;
             display: flex;
-            background: #f8fafc;
+            background: #F7F9F9;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -76,7 +76,7 @@
         }
         .brand-sub {
             font-size: 0.62rem;
-            color: #10b981;
+            color: #008B8B;
             font-weight: 600;
             letter-spacing: 1.6px;
             text-transform: uppercase;
@@ -93,7 +93,7 @@
             margin-bottom: 14px;
             letter-spacing: -0.5px;
         }
-        .left-tagline h2 span { color: #10b981; }
+        .left-tagline h2 span { color: #008B8B; }
         .left-tagline p {
             font-size: 0.875rem;
             color: rgba(255,255,255,0.45);
@@ -117,7 +117,7 @@
             font-size: 0.72rem;
             color: rgba(255,255,255,0.6);
         }
-        .feature-pill i { color: #10b981; font-size: 0.65rem; }
+        .feature-pill i { color: #008B8B; font-size: 0.65rem; }
         .left-footer {
             font-size: 0.72rem;
             color: rgba(255,255,255,0.22);
@@ -140,58 +140,58 @@
         .login-right h1 {
             font-size: 1.55rem;
             font-weight: 700;
-            color: #0A1828;
+            color: #003B4D;
             margin-bottom: 6px;
             letter-spacing: -0.4px;
         }
         .login-right .subtitle {
             font-size: 0.85rem;
-            color: #94a3b8;
+            color: #66B2B2;
             margin-bottom: 32px;
         }
 
         .form-label {
             font-size: 0.73rem;
             font-weight: 600;
-            color: #475569;
+            color: #006666;
             margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .form-control {
             font-family: 'Inter', system-ui, sans-serif;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid #C6E2E9;
             border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
-            color: #0A1828;
-            background: #f8fafc;
+            color: #003B4D;
+            background: #F7F9F9;
             transition: border-color 0.18s, box-shadow 0.18s;
         }
         .form-control:focus {
-            border-color: #10b981;
+            border-color: #008B8B;
             box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
             background: #fff;
             outline: none;
         }
-        .form-control::placeholder { color: #cbd5e1; }
+        .form-control::placeholder { color: #C6E2E9; }
         .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            background: #F7F9F9;
+            border: 1.5px solid #C6E2E9;
             border-left: none;
-            color: #94a3b8;
+            color: #66B2B2;
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: #10b981; }
+        .input-group:focus-within .input-group-text { border-color: #008B8B; }
         .input-icon {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            background: #F7F9F9;
+            border: 1.5px solid #C6E2E9;
             border-right: none;
-            color: #94a3b8;
+            color: #66B2B2;
             border-radius: 9px 0 0 9px;
             padding: 10px 12px;
             font-size: 0.8rem;
@@ -199,7 +199,7 @@
             align-items: center;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: #10b981; }
+        .input-group:focus-within .input-icon { border-color: #008B8B; }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
@@ -224,15 +224,15 @@
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #10b981;
+            color: #008B8B;
             text-decoration: none;
             font-weight: 500;
         }
         .forgot-link:hover { text-decoration: underline; }
 
         .form-check-input:checked {
-            background-color: #10b981;
-            border-color: #10b981;
+            background-color: #008B8B;
+            border-color: #008B8B;
         }
         .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
 
@@ -251,7 +251,7 @@
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.72rem;
-            color: #cbd5e1;
+            color: #C6E2E9;
             white-space: nowrap;
         }
 
@@ -338,7 +338,7 @@
 
                 <div class="mb-4 d-flex align-items-center gap-2">
                     <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
-                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#94a3b8;text-transform:none;letter-spacing:0;">Keep me signed in</label>
+                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#66B2B2;text-transform:none;letter-spacing:0;">Keep me signed in</label>
                 </div>
 
                 <button type="submit" class="btn-signin">

@@ -20,15 +20,17 @@ public class PortalController : Controller
     private readonly IRhaPortalService _rha;
     private readonly PortalSyncService _sync;
     private readonly ReconciliationService _reconciliation;
+    private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, IMemoryCache cache)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache)
     {
         _db = db;
         _dha = dha;
         _rha = rha;
         _sync = sync;
         _reconciliation = reconciliation;
+        _xmlParsing = xmlParsing;
         _cache = cache;
     }
 
@@ -664,10 +666,224 @@ public class PortalController : Controller
     // ── XML Parsing Dashboard (renamed from Reconciliation) ───────────
 
     [HttpGet]
-    public async Task<IActionResult> XmlParsing(List<int>? facilityId)
+    public async Task<IActionResult> XmlParsing(List<int>? facilityId, string? search, string? kind)
     {
-        var vm = await _reconciliation.GetXmlParsingStatsAsync(facilityId);
+        await _xmlParsing.EnsureSchemaAsync();
+        var vm = await _reconciliation.GetXmlParsingStatsAsync(facilityId, search, kind);
         return View(vm);
+    }
+
+    [HttpGet]
+    public async Task XmlParsingPrepareStream([FromQuery] List<int>? facilityId, bool rebuild = false)
+    {
+        var ct = HttpContext.RequestAborted;
+        Response.ContentType = "text/event-stream; charset=utf-8";
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["X-Accel-Buffering"] = "no";
+
+        async Task Send(object obj)
+        {
+            if (ct.IsCancellationRequested) return;
+            try
+            {
+                await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct);
+                await Response.Body.FlushAsync(ct);
+            }
+            catch { }
+        }
+
+        var selected = facilityId?.Where(id => id > 0).Distinct().ToList() ?? new();
+        await Send(new { status = "start", message = rebuild ? "Rebuilding parsed XML cache" : "Preparing parsed XML cache" });
+
+        if (selected.Count == 0)
+        {
+            var result = await _xmlParsing.ParseDownloadedXmlAsync(null, rebuild, p => Send(new
+            {
+                status = p.Status,
+                message = p.Message,
+                done = p.Done,
+                total = p.Total,
+                result = p.Result
+            }), ct);
+            await Send(new { status = "done", message = "XML parsing cache ready", result });
+            return;
+        }
+
+        var combined = new XmlParsingRunResult();
+        for (var i = 0; i < selected.Count; i++)
+        {
+            var currentFacilityId = selected[i];
+            await Send(new { status = "facility", message = $"Preparing facility {i + 1:N0} of {selected.Count:N0}", facilityId = currentFacilityId });
+
+            var result = await _xmlParsing.ParseDownloadedXmlAsync(currentFacilityId, rebuild, p => Send(new
+            {
+                status = p.Status,
+                message = p.Message,
+                done = p.Done,
+                total = p.Total,
+                facilityId = currentFacilityId,
+                facilityIndex = i + 1,
+                facilityTotal = selected.Count,
+                result = p.Result
+            }), ct);
+
+            combined.FilesScanned += result.FilesScanned;
+            combined.FilesParsed += result.FilesParsed;
+            combined.FilesSkipped += result.FilesSkipped;
+            combined.RecordsSaved += result.RecordsSaved;
+            combined.SubmissionRows += result.SubmissionRows;
+            combined.RemittanceRows += result.RemittanceRows;
+            combined.Errors += result.Errors;
+            combined.MatchedClaimRefs += result.MatchedClaimRefs;
+            combined.UnmatchedSubmissions += result.UnmatchedSubmissions;
+            combined.UnmatchedRemittances += result.UnmatchedRemittances;
+        }
+
+        await Send(new { status = "done", message = "XML parsing cache ready", result = combined });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> XmlParsingMatch([FromForm] List<int>? facilityId)
+    {
+        await _xmlParsing.EnsureSchemaAsync();
+        var selected = facilityId?.Where(id => id > 0).Distinct().ToList() ?? new();
+        if (selected.Count == 0)
+        {
+            var result = await _xmlParsing.MatchParsedRecordsAsync();
+            TempData["Success"] = $"Matched {result.MatchedClaimRefs:N0} claim reference(s).";
+        }
+        else
+        {
+            var matched = 0;
+            foreach (var id in selected)
+                matched += (await _xmlParsing.MatchParsedRecordsAsync(id)).MatchedClaimRefs;
+            TempData["Success"] = $"Matched {matched:N0} claim reference(s) across selected facilities.";
+        }
+
+        return RedirectToAction(nameof(XmlParsing), new { facilityId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ParseXmlRecord(int id)
+    {
+        var result = await _xmlParsing.ReparseTransactionAsync(id);
+        TempData[result.Errors > 0 ? "Error" : "Success"] =
+            result.Errors > 0
+                ? "XML record could not be parsed."
+                : $"Parsed {result.RecordsSaved:N0} claim-level row(s) from the selected XML.";
+        return RedirectToAction(nameof(XmlParsing));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteXmlRecord(int id)
+    {
+        await _xmlParsing.EnsureSchemaAsync();
+        await _db.XmlParsedRecords.Where(r => r.PortalTransactionId == id).ExecuteDeleteAsync();
+        await _db.RemittanceClaims.Where(r => r.RemittanceTransactionId == id).ExecuteDeleteAsync();
+
+        var tx = await _db.PortalTransactions.FindAsync(id);
+        if (tx != null)
+        {
+            _db.PortalTransactions.Remove(tx);
+            await _db.SaveChangesAsync();
+            TempData["Success"] = "Downloaded XML record deleted.";
+        }
+        else
+        {
+            TempData["Error"] = "Downloaded XML record was not found.";
+        }
+
+        return RedirectToAction(nameof(XmlParsing));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddXmlRecord(XmlRecordEditInput input)
+    {
+        if (input.FacilityId <= 0)
+        {
+            TempData["Error"] = "Select a facility before adding an XML record.";
+            return RedirectToAction(nameof(XmlParsing));
+        }
+
+        var transactionId = string.IsNullOrWhiteSpace(input.TransactionId)
+            ? $"MANUAL-{DateTime.UtcNow:yyyyMMddHHmmssfff}"
+            : input.TransactionId.Trim();
+
+        if (await _db.PortalTransactions.AnyAsync(t => t.Portal == "DHA" && t.FacilityId == input.FacilityId && t.TransactionId == transactionId))
+            transactionId = $"{transactionId}-{DateTime.UtcNow:HHmmssfff}";
+
+        var xml = string.IsNullOrWhiteSpace(input.FileContentXml) ? null : input.FileContentXml.Trim();
+        var tx = new PortalTransaction
+        {
+            Portal = "DHA",
+            FacilityId = input.FacilityId,
+            TransactionId = transactionId,
+            Type = string.IsNullOrWhiteSpace(input.Type) ? "Claim" : input.Type.Trim(),
+            Status = string.IsNullOrWhiteSpace(input.Status) ? "Manual" : input.Status.Trim(),
+            Direction = input.Direction,
+            FileId = input.FileId,
+            FileName = input.FileName,
+            TransactionDate = input.TransactionDate,
+            Payer = input.Payer,
+            Amount = input.Amount,
+            Operation = "ManualXmlParsing",
+            SyncPeriod = DateTime.UtcNow.ToString("yyyy-MM"),
+            FileDownloaded = xml != null,
+            FileContentXml = xml,
+            FileSizeBytes = xml == null ? null : Encoding.UTF8.GetByteCount(xml),
+            FileDownloadedAt = xml == null ? null : DateTime.UtcNow,
+            SyncedAt = DateTime.UtcNow
+        };
+
+        _db.PortalTransactions.Add(tx);
+        await _db.SaveChangesAsync();
+
+        if (xml != null)
+            await _xmlParsing.ReparseTransactionAsync(tx.Id);
+
+        TempData["Success"] = "XML record added and saved.";
+        return RedirectToAction(nameof(XmlParsing));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditXmlRecord(XmlRecordEditInput input)
+    {
+        var tx = await _db.PortalTransactions.FirstOrDefaultAsync(t => t.Id == input.Id);
+        if (tx == null)
+        {
+            TempData["Error"] = "XML record was not found.";
+            return RedirectToAction(nameof(XmlParsing));
+        }
+
+        tx.FacilityId = input.FacilityId > 0 ? input.FacilityId : tx.FacilityId;
+        tx.TransactionId = string.IsNullOrWhiteSpace(input.TransactionId) ? tx.TransactionId : input.TransactionId.Trim();
+        tx.Type = string.IsNullOrWhiteSpace(input.Type) ? tx.Type : input.Type.Trim();
+        tx.Status = string.IsNullOrWhiteSpace(input.Status) ? tx.Status : input.Status.Trim();
+        tx.Direction = input.Direction;
+        tx.FileId = input.FileId;
+        tx.FileName = input.FileName;
+        tx.TransactionDate = input.TransactionDate;
+        tx.Payer = input.Payer;
+        tx.Amount = input.Amount;
+
+        if (!string.IsNullOrWhiteSpace(input.FileContentXml))
+        {
+            tx.FileContentXml = input.FileContentXml.Trim();
+            tx.FileDownloaded = true;
+            tx.FileSizeBytes = Encoding.UTF8.GetByteCount(tx.FileContentXml);
+            tx.FileDownloadedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        await _xmlParsing.ReparseTransactionAsync(tx.Id);
+
+        TempData["Success"] = "XML record updated and parsed.";
+        return RedirectToAction(nameof(XmlParsing));
     }
 
     // Keep old URL working
@@ -1287,7 +1503,7 @@ public class PortalController : Controller
         var txStats = await _db.PortalTransactions
             .AsNoTracking()
             .GroupBy(_ => 1)
-            .Select(g => new { Total = g.Count(), Files = g.Count(t => t.FileContentXml != null) })
+            .Select(g => new { Total = g.Count(), Files = g.Count(t => t.FileDownloaded) })
             .FirstOrDefaultAsync();
 
         var credStats = await _db.PortalCredentials
@@ -1421,4 +1637,20 @@ public class PortalController : Controller
         }
         return chunks;
     }
+}
+
+public class XmlRecordEditInput
+{
+    public int Id { get; set; }
+    public int FacilityId { get; set; }
+    public string? TransactionId { get; set; }
+    public string? Type { get; set; }
+    public string? Direction { get; set; }
+    public string? Status { get; set; }
+    public string? FileId { get; set; }
+    public string? FileName { get; set; }
+    public string? TransactionDate { get; set; }
+    public string? Payer { get; set; }
+    public string? Amount { get; set; }
+    public string? FileContentXml { get; set; }
 }

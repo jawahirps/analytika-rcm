@@ -66,7 +66,7 @@
                     Downloading Pending Files
                 </h6>
                 <div class="d-flex align-items-center gap-2">
-                    <span id="dlPendingTally" class="badge" style="background:#ccf7f7;color:#0A1828;font-size:.75rem;"></span>
+                    <span id="dlPendingTally" class="badge" style="background:#C6E2E9;color:#003B4D;font-size:.75rem;"></span>
                     <button id="dlPauseBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseDownloadPending()">
                         <i class="fas fa-pause me-1"></i>Pause
                     </button>
@@ -79,21 +79,21 @@
                 <span id="dlPendingPct" style="font-size:.72rem;font-weight:600;color:var(--amber-dark);min-width:32px;text-align:right;">0%</span>
             </div>
             <div id="dlPendingCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
-            <div id="dlPendingLog" style="max-height:260px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#f8f9fa;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="dlPendingLog" style="max-height:260px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#F7F9F9;border-radius:6px;padding:8px;line-height:1.9;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
     </div>
 
     <!-- Background Download Service Status -->
-    <div class="card border-0 shadow-sm mb-4" style="border-left:3px solid #0D7272!important;">
+    <div class="card border-0 shadow-sm mb-4" style="border-left:3px solid #008B8B!important;">
         <div class="card-body py-2 px-3">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <span class="fw-semibold" style="color:var(--navy);font-size:.82rem;">
-                        <i class="fas fa-robot me-1" style="color:#0D7272;"></i>Background Download Service
+                        <i class="fas fa-robot me-1" style="color:#008B8B;"></i>Background Download Service
                     </span>
-                    <span id="bgSvcStatus" class="badge" style="font-size:.72rem;background:rgba(13,114,114,0.12);color:#0D7272;">
+                    <span id="bgSvcStatus" class="badge" style="font-size:.72rem;background:rgba(0,139,139,0.12);color:#008B8B;">
                         <i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Checking…
                     </span>
                     <span id="bgSvcInfo" class="text-muted" style="font-size:.75rem;"></span>
@@ -108,7 +108,7 @@
                     <form id="bgTriggerForm" onsubmit="triggerBgDownload(event)">
                         @Html.AntiForgeryToken()
                         <button type="submit" id="bgTriggerBtn" class="btn btn-sm"
-                                style="border:1px solid #0D7272;color:#0D7272;font-size:.78rem;padding:3px 10px;">
+                                style="border:1px solid #008B8B;color:#008B8B;font-size:.78rem;padding:3px 10px;">
                             <i class="fas fa-play me-1"></i>Run Now
                         </button>
                     </form>
@@ -365,7 +365,7 @@ function pauseDownloadPending() {
     }
     const logDiv = document.getElementById('dlPendingLog');
     const line   = document.createElement('div');
-    line.style.color = '#C87A10'; line.style.fontWeight = '600';
+    line.style.color = '#66B2B2'; line.style.fontWeight = '600';
     line.textContent = '⏸ Paused — use the Resume button above to continue.';
     logDiv.appendChild(line);
     showDlResumeBanner(loadDlCkpt());
@@ -423,11 +423,11 @@ function startDownloadPending(resumeFromId, seedDone, seedFailed) {
         const d = JSON.parse(e.data);
 
         if (d.status === 'start') {
-            addLog(`▶ ${d.message}`, '#C87A10');
+            addLog(`▶ ${d.message}`, '#66B2B2');
             tally.textContent = `0 / ${d.total}`;
 
         } else if (d.status === 'resumed') {
-            addLog(`⏩ Resuming — ${d.message}`, '#C87A10');
+            addLog(`⏩ Resuming — ${d.message}`, '#66B2B2');
 
         } else if (d.status === 'progress') {
             dlDone = d.done; dlFailed = d.failed;
@@ -452,7 +452,7 @@ function startDownloadPending(resumeFromId, seedDone, seedFailed) {
             tally.textContent = `${d.done} / ${d.total}`;
             addLog('', '');
             addLog(`✅ ${d.message}`, '#3aac8a');
-            if (d.failed > 0) addLog(`  ⚠ ${d.failed} file(s) could not be downloaded`, '#856404');
+            if (d.failed > 0) addLog(`  ⚠ ${d.failed} file(s) could not be downloaded`, '#006666');
             clearDlCkpt();
             source.close(); done();
             // Reload page after 2 s so counts update
@@ -466,7 +466,7 @@ function startDownloadPending(resumeFromId, seedDone, seedFailed) {
         const cp = loadDlCkpt() || ckpt;
         cp.reason = 'disconnected';
         saveDlCkpt(cp);
-        addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#856404');
+        addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#006666');
         pauseBtn.style.display = 'none';
         showDlResumeBanner(loadDlCkpt());
         done();
@@ -507,7 +507,7 @@ async function pollBgStatus() {
             trigBtn.disabled = true;
         } else {
             statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Idle';
-            statusEl.style.background = 'rgba(13,114,114,0.12)'; statusEl.style.color = '#0D7272';
+            statusEl.style.background = 'rgba(0,139,139,0.12)'; statusEl.style.color = '#008B8B';
             wrapEl.style.display = 'none';
             trigBtn.disabled = false;
             if (d.lastRunAt) {

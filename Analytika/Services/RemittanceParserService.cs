@@ -45,25 +45,28 @@ public class RemittanceParserService
                 var claims = ParseXml(tx);
                 if (claims.Count == 0) { skipped++; continue; }
 
-                // Store one RemittanceClaim per XML (aggregated claim-level data)
-                // Each XML maps 1-to-1 with RemittanceTransactionId
+                // RemittanceClaims still supports one row per remittance transaction for the
+                // resubmission workspace. Claim Summary uses XmlParsedRecords for claim-level RA.
+                var first = claims[0];
                 var rc = new RemittanceClaim
                 {
                     RemittanceTransactionId = tx.Id,
                     FacilityId = tx.FacilityId,
-                    ClaimId = claims[0].ClaimId,
-                    PayerClaimId = claims[0].PayerClaimId,
-                    PayerCode = claims[0].PayerCode,
-                    ClinicianLicense = claims[0].ClinicianLicense,
+                    ClaimId = first.ClaimId,
+                    PayerClaimId = first.PayerClaimId,
+                    PayerCode = first.PayerCode,
+                    ClinicianLicense = first.ClinicianLicense,
                     OriginalAmount = claims.Sum(c => c.OriginalAmount),
                     PaidAmount = claims.Sum(c => c.PaidAmount),
                     DenialCodesJson = JsonSerializer.Serialize(
                         claims.SelectMany(c => c.DenialCodes).Distinct().OrderBy(x => x).ToList()),
                     Comments = string.Join(" | ", claims
-                        .Select(c => c.Comments).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct()),
+                        .Select(c => c.Comments)
+                        .Where(c => !string.IsNullOrWhiteSpace(c))
+                        .Distinct()),
                     ActivityCount = claims.Sum(c => c.ActivityCount),
-                    SettlementDate = claims[0].SettlementDate,
-                    PaymentReference = claims[0].PaymentReference,
+                    SettlementDate = first.SettlementDate,
+                    PaymentReference = first.PaymentReference,
                     ParsedAt = DateTime.UtcNow
                 };
 
@@ -104,7 +107,7 @@ public class RemittanceParserService
 
         var results = new List<ClaimData>();
 
-        var claimEls = xml.Descendants(ns + "Claim").Concat(xml.Descendants("Claim"));
+        var claimEls = xml.Descendants().Where(e => e.Name.LocalName == "Claim");
 
         foreach (var claimEl in claimEls)
         {
@@ -118,8 +121,7 @@ public class RemittanceParserService
             var comments = V("Comments");
 
             // Activities (line items)
-            var actEls = claimEl.Descendants(ns + "Activity")
-                .Concat(claimEl.Descendants("Activity")).ToList();
+            var actEls = claimEl.Descendants().Where(e => e.Name.LocalName == "Activity").ToList();
 
             decimal net = 0, paid = 0;
             var denials = new List<string>();

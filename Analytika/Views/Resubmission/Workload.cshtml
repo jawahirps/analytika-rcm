@@ -12,11 +12,11 @@
 
 @section Styles {
 <style>
-.wl-card  { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; margin-bottom:1rem; }
-.wl-label { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
-.wl-val   { font-size:1.1rem; font-weight:700; color:#0A1828; }
-.bar-bg   { height:8px; background:#f3f4f6; border-radius:4px; margin-top:6px; }
-.bar-fill { height:8px; border-radius:4px; background:#C87A10; transition:width .4s; }
+.wl-card  { border-radius:10px; border:1px solid #C6E2E9; background:#fff; padding:1.25rem; margin-bottom:1rem; }
+.wl-label { font-size:.72rem; color:#66B2B2; text-transform:uppercase; letter-spacing:.04em; }
+.wl-val   { font-size:1.1rem; font-weight:700; color:#003B4D; }
+.bar-bg   { height:8px; background:#C6E2E9; border-radius:4px; margin-top:6px; }
+.bar-fill { height:8px; border-radius:4px; background:#66B2B2; transition:width .4s; }
 .coder-row:hover { background:#fafafa; }
 .count-input { width:70px; text-align:center; }
 .overdue-badge { font-size:.68rem; color:#991b1b; background:#fee2e2; padding:.2em .5em; border-radius:4px; font-weight:600; }
@@ -27,7 +27,7 @@
 
     <!-- Breadcrumb -->
     <nav style="font-size:.78rem;" class="mb-3">
-        <a href="/Resubmission" class="text-decoration-none" style="color:#C87A10;">
+        <a href="/Resubmission" class="text-decoration-none" style="color:#66B2B2;">
             <i class="fas fa-tasks me-1"></i>Resubmission
         </a>
         <span class="mx-2 text-muted">/</span>
@@ -40,7 +40,7 @@
             <div class="wl-card text-center">
                 <div class="wl-label">Unassigned</div>
                 <div class="wl-val text-danger">@unassigned.ToString("N0")</div>
-                <div style="font-size:.72rem; color:#6b7280;">AED @unassignedDenied.ToString("N0") denied</div>
+                <div style="font-size:.72rem; color:#66B2B2;">AED @unassignedDenied.ToString("N0") denied</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -69,7 +69,7 @@
         <div class="col-lg-7">
             <div class="wl-card">
                 <h6 class="fw-semibold mb-3">
-                    <i class="fas fa-chart-bar me-2" style="color:#C87A10;"></i>Per-Coder Workload
+                    <i class="fas fa-chart-bar me-2" style="color:#66B2B2;"></i>Per-Coder Workload
                     <span class="text-muted fw-normal" style="font-size:.75rem;">(today / this week / active)</span>
                 </h6>
 
@@ -100,7 +100,7 @@
                                     </td>
                                     <td class="text-center fw-semibold">@r.TodayCount</td>
                                     <td class="text-center">@r.WeekCount</td>
-                                    <td class="text-center fw-semibold" style="color:#1e40af;">@r.TotalActive</td>
+                                    <td class="text-center fw-semibold" style="color:#006666;">@r.TotalActive</td>
                                     <td class="text-center text-success">@r.Resubmitted</td>
                                     <td class="text-center text-muted">@r.Closed</td>
                                     <td>
@@ -121,7 +121,7 @@
         <div class="col-lg-5">
             <div class="wl-card">
                 <h6 class="fw-semibold mb-3">
-                    <i class="fas fa-random me-2" style="color:#C87A10;"></i>Distribute Unassigned
+                    <i class="fas fa-random me-2" style="color:#66B2B2;"></i>Distribute Unassigned
                     <span class="badge bg-danger ms-1">@unassigned</span>
                 </h6>
 
@@ -150,7 +150,7 @@
                         <input type="date" id="distDueDate" class="form-control form-control-sm" />
                     </div>
                     <div class="col-6 d-flex align-items-end">
-                        <button class="btn btn-sm w-100" style="background:#6b7280;color:#fff;border:none;"
+                        <button class="btn btn-sm w-100" style="background:#66B2B2;color:#fff;border:none;"
                                 onclick="setEqual()">
                             <i class="fas fa-balance-scale me-1"></i>Split Equally
                         </button>
@@ -174,7 +174,7 @@
                                         <input type="hidden" class="uid-input" value="@r.UserId" />
                                         <div style="font-size:.8rem;" class="fw-semibold">@r.Name</div>
                                     </td>
-                                    <td class="text-center" style="color:#6b7280;">@r.TotalActive</td>
+                                    <td class="text-center" style="color:#66B2B2;">@r.TotalActive</td>
                                     <td class="text-center">
                                         <input type="number" class="form-control form-control-sm count-input assign-count"
                                                min="0" max="@unassigned" value="0" />
@@ -194,7 +194,7 @@
                 <div id="distAlert" class="alert alert-warning py-2" style="font-size:.8rem; display:none;"></div>
 
                 <button class="btn btn-sm w-100 fw-semibold"
-                        style="background:#0A1828;color:#fff;border:none;"
+                        style="background:#003B4D;color:#fff;border:none;"
                         onclick="distribute()">
                     <i class="fas fa-paper-plane me-1"></i>Distribute Claims
                 </button>
@@ -216,7 +216,7 @@ function updateTotal() {
     const sum = [...document.querySelectorAll('.assign-count')].reduce((a, i) => a + (parseInt(i.value) || 0), 0);
     const el = document.getElementById('totalToAssign');
     el.textContent = sum;
-    el.style.color = sum > unassigned ? '#dc2626' : '#0A1828';
+    el.style.color = sum > unassigned ? '#dc2626' : '#003B4D';
 }
 
 // Split equally among all coders

@@ -11,11 +11,19 @@ namespace Analytika.Services;
 
 public class ReportService : IReportService
 {
+    private const string GhafInk = "#003B4D";
+    private const string GhafPrimary = "#003B4D";
+    private const string GhafTeal = "#008B8B";
+    private const string GhafPale = "#C6E2E9";
+    private const string GhafCream = "#F7F9F9";
+    private const string GhafBorder = "#C6E2E9";
+
     private readonly AppDbContext _context;
     private readonly ILogger<ReportService> _logger;
     private readonly IWebHostEnvironment _env;
     private readonly IEmailService _emailService;
     private readonly RemittanceParserService _remittanceParser;
+    private readonly XmlParsingService _xmlParsingService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
 
@@ -25,6 +33,7 @@ public class ReportService : IReportService
         IWebHostEnvironment env,
         IEmailService emailService,
         RemittanceParserService remittanceParser,
+        XmlParsingService xmlParsingService,
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration)
     {
@@ -33,6 +42,7 @@ public class ReportService : IReportService
         _env = env;
         _emailService = emailService;
         _remittanceParser = remittanceParser;
+        _xmlParsingService = xmlParsingService;
         _scopeFactory = scopeFactory;
         _configuration = configuration;
     }
@@ -180,67 +190,81 @@ public class ReportService : IReportService
             void UpdateStage(string stage, int pct, int done = 0, int total = 0, string? message = null)
                 => ReportGenerationState.Update(stage, pct, done, total, message);
 
-            UpdateStage("Parsing inbound remittances", 5, 0, 0, "Parsing downloaded remittance XML before matching claims.");
-            var (parsed, skipped, errors) = await _remittanceParser.ParsePendingAsync(report.BranchId);
-            UpdateStage("Parsing inbound remittances", 15, parsed, parsed + skipped + errors, $"Parsed {parsed} remittance file(s), skipped {skipped}, errors {errors}.");
+            UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
+            UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
+            XmlParsingRunResult parseResult;
+            if (report.BranchId.HasValue)
+            {
+                parseResult = await _xmlParsingService.ParseDownloadedXmlAsync(report.BranchId, rebuild: false, onProgress: p =>
+                {
+                    var pct = p.Total > 0 ? 5 + (int)Math.Round((p.Done / (double)p.Total) * 15) : 15;
+                    UpdateStage("Preparing parsed XML", Math.Min(20, pct), p.Done, p.Total, p.Message);
+                    return Task.CompletedTask;
+                });
+            }
+            else
+            {
+                await _xmlParsingService.EnsureSchemaAsync();
+                var matchResult = await _xmlParsingService.MatchParsedRecordsAsync();
+                parseResult = new XmlParsingRunResult { MatchedClaimRefs = matchResult.MatchedClaimRefs };
+                UpdateStage("Preparing parsed XML", 20, 0, 0, "Using prepared all-facility XML cache. Prepare or rebuild from Portal > XML Parsing when new files are downloaded.");
+            }
+            UpdateStage("Preparing parsed XML", 20, parseResult.RecordsSaved, parseResult.FilesScanned,
+                $"XML cache ready: {parseResult.RecordsSaved:N0} new claim row(s), {parseResult.MatchedClaimRefs:N0} matched claim ref(s).");
 
+            UpdateStage("Loading payer lookup", 18, 0, 0, "Query: DhpoCodingSets where Category = Payer.");
             var payerLookup = await LoadPayerLookupAsync();
 
-            // ── Parse outbound claim submissions ───────────────────────
-            UpdateStage("Parsing outbound claims", 25, 0, 0, "Loading claim submission XML before matching.");
-            var claimQuery = _context.PortalTransactions
+            // ── Load parsed outbound claim submissions ─────────────────
+            UpdateStage("Querying parsed submissions", 25, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission and ReadyForReport = true.");
+            var parsedClaimQuery = _context.XmlParsedRecords
                 .AsNoTracking()
-                .Where(t => t.Portal == "DHA"
-                         && t.FileContentXml != null && t.FileContentXml.Length > 10
-                         && t.Type == "Claim");
+                .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
 
             if (report.BranchId.HasValue)
-                claimQuery = claimQuery.Where(t => t.FacilityId == report.BranchId);
+                parsedClaimQuery = parsedClaimQuery.Where(r => r.FacilityId == report.BranchId.Value);
 
-            var claimTxs = await claimQuery
-                .Select(t => new { t.FileId, t.FileName, t.FacilityId, t.FileContentXml, t.TransactionDate })
-                .Take(20000)
+            var parsedSubmissions = await parsedClaimQuery
+                .OrderBy(r => r.ParsedAt)
                 .ToListAsync();
-            UpdateStage("Parsing outbound claims", 35, claimTxs.Count, claimTxs.Count, $"Loaded {claimTxs.Count:N0} claim submission file(s).");
+            UpdateStage("Loading parsed submissions", 35, parsedSubmissions.Count, parsedSubmissions.Count, $"Loaded {parsedSubmissions.Count:N0} parsed submission claim row(s).");
 
-            // ── Load parsed remittance claims and build a claim-id lookup ──
-            var remittanceClaimsQuery = _context.RemittanceClaims
+            // ── Load parsed remittance rows and build a claim-id lookup ──
+            UpdateStage("Querying parsed remittances", 42, 0, 0, "Query: XmlParsedRecords where RecordKind = Remittance and ReadyForReport = true.");
+            var parsedRemittanceQuery = _context.XmlParsedRecords
                 .AsNoTracking()
-                .Include(rc => rc.RemittanceTransaction)
-                .Where(rc => rc.RemittanceTransaction != null
-                          && rc.RemittanceTransaction.Portal == "DHA"
-                          && rc.RemittanceTransaction.FileContentXml != null
-                          && rc.RemittanceTransaction.FileContentXml.Length > 10);
+                .Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
 
             if (report.BranchId.HasValue)
-                remittanceClaimsQuery = remittanceClaimsQuery.Where(rc => rc.FacilityId == report.BranchId);
+                parsedRemittanceQuery = parsedRemittanceQuery.Where(r => r.FacilityId == report.BranchId.Value);
 
-            var remittanceClaims = await remittanceClaimsQuery
-                .Select(rc => new RemittanceClaimRow
+            var remittanceClaims = await parsedRemittanceQuery
+                .Select(r => new RemittanceClaimRow
                 {
-                    ClaimId = rc.ClaimId,
-                    PaidAmount = rc.PaidAmount,
-                    OriginalAmount = rc.OriginalAmount,
-                    SettlementDate = rc.SettlementDate,
-                    PaymentReference = rc.PaymentReference,
-                    DenialCodesJson = rc.DenialCodesJson,
-                    Comments = rc.Comments,
-                    FileName = rc.RemittanceTransaction!.FileName,
-                    TransactionDate = rc.RemittanceTransaction.TransactionDate
+                    ClaimId = r.ClaimId,
+                    PaidAmount = r.PaidAmount,
+                    OriginalAmount = r.NetAmount,
+                    SettlementDate = r.SettlementDate,
+                    PaymentReference = r.PaymentReference,
+                    DenialCodesJson = r.DenialCodesJson,
+                    Comments = r.Comments,
+                    FileName = r.FileName,
+                    TransactionDate = r.TransactionDate
                 })
                 .ToListAsync();
+            UpdateStage("Loading parsed remittances", 48, remittanceClaims.Count, remittanceClaims.Count, $"Loaded {remittanceClaims.Count:N0} parsed remittance claim row(s).");
 
             var raLookup = AggregateRemittances(remittanceClaims);
             UpdateStage("Matching inbound and outbound", 55, raLookup.Count, remittanceClaims.Count, $"Matched {raLookup.Count:N0} remittance claim(s) by Claim ID.");
 
             // ── Facility name lookup ───────────────────────────────────
+            UpdateStage("Loading facility lookup", 58, 0, 0, "Query: Facilities lookup for report row labels.");
             var facilityNames = await _context.Facilities.AsNoTracking()
                 .ToDictionaryAsync(f => f.Id, f => f.Name);
 
             // ── Build rows only after both sides are parsed and matched ──
             var rows = new List<ClaimRow>();
             var outboundCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var outboundFiles = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var outboundResubTypes = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var inboundCounts = remittanceClaims
                 .Where(rc => !string.IsNullOrWhiteSpace(rc.ClaimId))
@@ -260,81 +284,117 @@ public class ReportService : IReportService
                 set.Add(value.Trim());
             }
 
-            for (int i = 0; i < claimTxs.Count; i++)
-            {
-                var tx = claimTxs[i];
-                var facilityName = facilityNames.TryGetValue(tx.FacilityId, out var fn) ? fn : $"Facility {tx.FacilityId}";
-                foreach (var row in ParseClaimXml(tx.FileContentXml!, tx.FileId, tx.FileName, tx.TransactionDate, facilityName, payerLookup))
+            var allSubmissionRows = parsedSubmissions
+                .Select(parsed =>
                 {
-                    // Date filter based on SearchCriteria
-                    var filterDate = report.SearchCriteria switch
-                    {
-                        "SubmissionDate" => ParseDhpoDate(row.SubmissionDate),
-                        "EncounterEndDate" => ParseDhpoDate(row.TreatmentDateEnd),
-                        _ => ParseDhpoDate(row.TreatmentDate)
-                    };
-                    if (filterDate.HasValue &&
-                        (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
+                    var facilityName = facilityNames.TryGetValue(parsed.FacilityId, out var fn) ? fn : $"Facility {parsed.FacilityId}";
+                    return MapParsedSubmission(parsed, facilityName, payerLookup);
+                })
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .ToList();
+
+            foreach (var row in allSubmissionRows)
+            {
+                outboundCounts[row.ClaimId] = outboundCounts.TryGetValue(row.ClaimId, out var count) ? count + 1 : 1;
+                AddToLookup(outboundResubTypes, row.ClaimId, row.ResubmissionType);
+            }
+
+            var resubmissionRows = allSubmissionRows.Where(IsResubmissionRow).ToList();
+            var initialSubmissionRows = allSubmissionRows.Where(r => !IsResubmissionRow(r)).ToList();
+            var resubmissionByClaim = AggregateResubmissions(resubmissionRows);
+            UpdateStage("Separating submissions", 58, initialSubmissionRows.Count, allSubmissionRows.Count,
+                $"Using {initialSubmissionRows.Count:N0} initial submission row(s) as claim line items; {resubmissionRows.Count:N0} resubmission row(s) kept for calculations.");
+
+            for (int i = 0; i < initialSubmissionRows.Count; i++)
+            {
+                var row = initialSubmissionRows[i];
+
+                // Date filter based on SearchCriteria
+                var filterDate = report.SearchCriteria switch
+                {
+                    "SubmissionDate" => ParseDhpoDate(row.SubmissionDate),
+                    "EncounterEndDate" => ParseDhpoDate(row.TreatmentDateEnd),
+                    _ => ParseDhpoDate(row.TreatmentDate)
+                };
+                if (filterDate.HasValue &&
+                    (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
+                    continue;
+
+                if (report.PayerId.HasValue)
+                {
+                    var payerCode = report.Payer?.Name ?? "";
+                    if (!string.IsNullOrEmpty(payerCode)
+                        && !row.PayerName.Contains(payerCode, StringComparison.OrdinalIgnoreCase)
+                        && !row.PayerId.Contains(payerCode, StringComparison.OrdinalIgnoreCase))
                         continue;
-
-                    if (report.PayerId.HasValue)
-                    {
-                        var payerCode = report.Payer?.Name ?? "";
-                        if (!string.IsNullOrEmpty(payerCode)
-                            && !row.PayerName.Contains(payerCode, StringComparison.OrdinalIgnoreCase)
-                            && !row.PayerId.Contains(payerCode, StringComparison.OrdinalIgnoreCase))
-                            continue;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(row.ClaimId))
-                    {
-                        outboundCounts[row.ClaimId] = outboundCounts.TryGetValue(row.ClaimId, out var count) ? count + 1 : 1;
-                        AddToLookup(outboundFiles, row.ClaimId, row.SubmissionFile);
-                        AddToLookup(outboundResubTypes, row.ClaimId, row.ResubmissionType);
-                    }
-
-                    raLookup.TryGetValue(row.ClaimId, out var ra);
-                    row.Ra = ra;
-
-                    var outboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundCounts.TryGetValue(row.ClaimId, out var obCount) ? obCount : 1;
-                    var inboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && inboundCounts.TryGetValue(row.ClaimId, out var ibCount) ? ibCount : 0;
-                    var resubTypes = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundResubTypes.TryGetValue(row.ClaimId, out var types) ? types : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                    row.OutboundCount = outboundCount;
-                    row.InboundCount = inboundCount;
-                    row.RecordCount = outboundCount + inboundCount;
-                    row.SubmissionLevel = DetermineSubmissionLevel(outboundCount, inboundCount, resubTypes);
-
-                    if (!string.IsNullOrWhiteSpace(row.ClaimId) && outboundFiles.TryGetValue(row.ClaimId, out var files))
-                        row.SubmissionFile = string.Join(" | ", files.Where(v => !string.IsNullOrWhiteSpace(v)));
-                    if (ra != null)
-                    {
-                        row.RaFile = ra.RaFile;
-                        row.RaDate = ra.RaDate;
-                    }
-                    rows.Add(row);
                 }
 
-                if (i == 0 || (i + 1) % 100 == 0 || i + 1 == claimTxs.Count)
+                raLookup.TryGetValue(row.ClaimId, out var ra);
+                row.Ra = ra;
+
+                var outboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundCounts.TryGetValue(row.ClaimId, out var obCount) ? obCount : 1;
+                var inboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && inboundCounts.TryGetValue(row.ClaimId, out var ibCount) ? ibCount : 0;
+                var resubTypes = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundResubTypes.TryGetValue(row.ClaimId, out var types) ? types : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                resubmissionByClaim.TryGetValue(row.ClaimId, out var resubmission);
+
+                row.OutboundCount = outboundCount;
+                row.InboundCount = inboundCount;
+                row.RecordCount = outboundCount + inboundCount;
+                row.SubmissionLevel = DetermineSubmissionLevel(outboundCount, inboundCount, resubTypes);
+                row.NetAmtResubmission = resubmission?.NetAmount ?? 0m;
+                row.ResubmissionFile = resubmission?.Files ?? "";
+
+                if (!string.IsNullOrWhiteSpace(row.ResubmissionFile))
+                    row.SubmissionFile = $"{row.SubmissionFile} | Resub: {row.ResubmissionFile}";
+                if (ra != null)
                 {
-                    var pct = 50 + (int)Math.Round(((i + 1) / (double)Math.Max(1, claimTxs.Count)) * 35);
-                    UpdateStage("Matching inbound and outbound", Math.Min(85, pct), i + 1, claimTxs.Count, $"Matched {i + 1:N0} of {claimTxs.Count:N0} claim file(s).");
+                    row.RaFile = ra.RaFile;
+                    row.RaDate = ra.RaDate;
+                }
+                rows.Add(row);
+
+                if (i == 0 || (i + 1) % 500 == 0 || i + 1 == initialSubmissionRows.Count)
+                {
+                    var pct = 50 + (int)Math.Round(((i + 1) / (double)Math.Max(1, initialSubmissionRows.Count)) * 35);
+                    UpdateStage("Matching inbound and outbound", Math.Min(85, pct), i + 1, initialSubmissionRows.Count, $"Matched {i + 1:N0} of {initialSubmissionRows.Count:N0} initial claim row(s).");
                 }
             }
 
             var exportRows = rows
                 .GroupBy(r => r.ClaimId, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.OrderByDescending(r =>
+                .Select(g => g.OrderBy(r =>
                 {
                     var dt = ParseDhpoDate(r.SubmissionDate) ?? ParseDhpoDate(r.TreatmentDate);
-                    return dt ?? DateTime.MinValue;
+                    return dt ?? DateTime.MaxValue;
                 }).First())
                 .ToList();
 
+            var matchedSubmissionIds = exportRows
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .Select(r => r.ClaimId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var unmatchedRemittances = remittanceClaims
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .Where(r => !matchedSubmissionIds.Contains(r.ClaimId))
+                .Where(r => IsRemittanceWithinReportRange(r, report.DateFrom, report.DateTo))
+                .Select(r => new UnmatchedRemittanceRow
+                {
+                    TransactionRef = r.ClaimId.Trim(),
+                    RemittanceFileName = string.IsNullOrWhiteSpace(r.FileName) ? "-" : r.FileName.Trim()
+                })
+                .GroupBy(r => $"{r.TransactionRef}\u001F{r.RemittanceFileName}", StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(r => r.TransactionRef, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.RemittanceFileName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             // ── Build Excel ────────────────────────────────────────────
-            UpdateStage("Generating workbook", 90, exportRows.Count, exportRows.Count, $"Writing {exportRows.Count:N0} matched row(s) to Excel.");
+            UpdateStage("Generating workbook", 90, exportRows.Count, exportRows.Count, $"Grouping complete; writing {exportRows.Count:N0} matched row(s) to Excel and {unmatchedRemittances.Count:N0} unmatched remittance note(s).");
             using var wb = new XLWorkbook();
+            wb.Style.Font.FontName = "Inter";
             var ws = wb.Worksheets.Add("Claim Summary");
+            const int tableHeaderRow = 8;
 
             var headers = new[]
             {
@@ -350,30 +410,39 @@ public class ReportService : IReportService
                 "ID Payer", "Submission File", "RA File", "RA Date", "TAT", "Diagnosis"
             };
 
+            ApplyGhafReportHeader(ws, headers.Length, report, exportRows.Count, unmatchedRemittances.Count);
+
             // Header row styling
             for (int c = 0; c < headers.Length; c++)
             {
-                var cell = ws.Cell(1, c + 1);
+                var cell = ws.Cell(tableHeaderRow, c + 1);
                 cell.Value = headers[c];
                 cell.Style.Font.Bold = true;
                 cell.Style.Font.FontColor = XLColor.White;
-                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1A2F6E");
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPrimary);
                 cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
+            var tableHeaderRange = ws.Range(tableHeaderRow, 1, tableHeaderRow, headers.Length);
+            tableHeaderRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+            tableHeaderRange.Style.Border.BottomBorderColor = XLColor.FromHtml(GhafTeal);
 
             // Data rows
             for (int i = 0; i < exportRows.Count; i++)
             {
                 var r = exportRows[i];
                 var ra = r.Ra;
-                var rn = i + 2;
+                var rn = tableHeaderRow + 1 + i;
 
                 var netInitial = r.NetAmtInitial;
+                var netResubmission = r.NetAmtResubmission;
                 var approvedAmt = ra?.ApprovedAmt ?? 0m;
                 var receivedAmt = ra?.ReceivedAmt ?? 0m;
-                var unsettled = ra == null ? netInitial : Math.Max(0m, netInitial - approvedAmt);
+                var balanceAmount = netResubmission > 0m ? netResubmission : netInitial;
+                var unsettled = ra == null ? balanceAmount : Math.Max(0m, balanceAmount - approvedAmt);
                 var rejInitial = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
-                var payStatus = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < netInitial - 0.01m ? "Partial" : "Paid");
+                var rejResubmission = netResubmission > 0m && ra != null ? Math.Max(0m, netResubmission - approvedAmt) : 0m;
+                var payStatus = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < balanceAmount - 0.01m ? "Partial" : "Paid");
 
                 // TAT in days
                 var tatDays = "";
@@ -403,10 +472,10 @@ public class ReportService : IReportService
                 ws.Cell(rn, 17).Value = r.SubmissionLevel;
                 ws.Cell(rn, 18).Value = netInitial;
                 ws.Cell(rn, 19).Value = receivedAmt;
-                ws.Cell(rn, 20).Value = 0m;           // Resubmission net — not yet available
+                ws.Cell(rn, 20).Value = netResubmission;
                 ws.Cell(rn, 21).Value = approvedAmt;
                 ws.Cell(rn, 22).Value = rejInitial;
-                ws.Cell(rn, 23).Value = 0m;           // Rejected resubmission
+                ws.Cell(rn, 23).Value = rejResubmission;
                 ws.Cell(rn, 24).Value = unsettled;
                 ws.Cell(rn, 25).Value = payStatus;
                 ws.Cell(rn, 26).Value = ra?.DenialCode ?? "";
@@ -422,19 +491,53 @@ public class ReportService : IReportService
 
                 // Zebra stripe
                 if (i % 2 == 1)
-                    ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8F9FA");
+                    ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
 
                 // Amount columns format
                 foreach (var col in new[] { 18, 19, 20, 21, 22, 23, 24 })
                     ws.Cell(rn, col).Style.NumberFormat.Format = "#,##0.00";
+
+                ws.Row(rn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                ws.Row(rn).Style.Border.BottomBorderColor = XLColor.FromHtml("#D9EFEA");
             }
 
-            ws.Row(1).Height = 20;
-            ws.SheetView.FreezeRows(1);
-            ws.Columns().AdjustToContents();
+            if (unmatchedRemittances.Count > 0)
+            {
+                var noteRow = tableHeaderRow + exportRows.Count + 3;
+                ws.Cell(noteRow, 1).Value = "Ledger Note";
+                ws.Cell(noteRow, 1).Style.Font.Bold = true;
+                ws.Cell(noteRow, 1).Style.Font.FontColor = XLColor.White;
+                ws.Range(noteRow, 1, noteRow, 3).Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#991B1B");
+
+                ws.Cell(noteRow + 1, 1).Value = "Unmatched Remittance records found";
+                ws.Range(noteRow + 1, 1, noteRow + 1, 3).Merge();
+                ws.Cell(noteRow + 1, 1).Style.Font.Bold = true;
+                ws.Cell(noteRow + 1, 1).Style.Font.FontColor = XLColor.FromHtml("#991B1B");
+                ws.Cell(noteRow + 1, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+
+                ws.Cell(noteRow + 2, 1).Value = "Transaction Ref";
+                ws.Cell(noteRow + 2, 2).Value = "Remittance file name";
+                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Font.Bold = true;
+                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPale);
+
+                for (int i = 0; i < unmatchedRemittances.Count; i++)
+                {
+                    var note = unmatchedRemittances[i];
+                    var rn = noteRow + 3 + i;
+                    ws.Cell(rn, 1).Value = note.TransactionRef;
+                    ws.Cell(rn, 2).Value = note.RemittanceFileName;
+                }
+            }
 
             // Auto-filter
-            ws.RangeUsed()?.SetAutoFilter();
+            var mainTableLastRow = tableHeaderRow + Math.Max(0, exportRows.Count);
+            ws.Range(tableHeaderRow, 1, mainTableLastRow, headers.Length).SetAutoFilter();
+
+            ws.Row(tableHeaderRow).Height = 24;
+            ws.SheetView.FreezeRows(tableHeaderRow);
+            ws.SheetView.FreezeColumns(2);
+            ws.Columns(1, headers.Length).AdjustToContents(1, Math.Min(mainTableLastRow, tableHeaderRow + 500));
+            ApplyGhafReportLayout(ws, headers.Length, mainTableLastRow);
 
             wb.SaveAs(filePath);
             UpdateStage("Saving report", 95, exportRows.Count, exportRows.Count, "Workbook saved. Finalizing report record.");
@@ -469,7 +572,212 @@ public class ReportService : IReportService
         await _context.SaveChangesAsync();
     }
 
+    private void ApplyGhafReportHeader(IXLWorksheet ws, int lastColumn, ReportRequest report, int rowCount, int unmatchedRemittanceCount)
+    {
+        var title = GetReportTitle(report.ReportType);
+        var generatedLocal = DateTime.Now;
+        var period = $"{report.DateFrom:dd MMM yyyy} - {report.DateTo:dd MMM yyyy}";
+        var facility = report.Branch?.Name ?? "All Facilities";
+
+        ws.Range(1, 1, 6, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafCream);
+        ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+        ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorderColor = XLColor.FromHtml(GhafBorder);
+
+        ws.Range(1, 1, 6, 1).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafTeal);
+        ws.Range(1, 2, 6, 6).Merge();
+        ws.Range(1, 7, 1, lastColumn).Merge();
+        ws.Range(2, 7, 2, lastColumn).Merge();
+        ws.Range(3, 7, 3, lastColumn).Merge();
+
+        var logoPath = ResolveReportLogoPath();
+        if (!string.IsNullOrWhiteSpace(logoPath))
+        {
+            try
+            {
+                var picture = ws.AddPicture(logoPath)
+                    .MoveTo(ws.Cell(1, 2));
+                picture.Width = 92;
+                picture.Height = 120;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not add Ghaf report logo to workbook.");
+                WriteTextFallbackLogo(ws);
+            }
+        }
+        else
+        {
+            WriteTextFallbackLogo(ws);
+        }
+
+        ws.Cell(1, 7).Value = "GHAF BUSINESS SERVICES";
+        ws.Cell(1, 7).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(1, 7).Style.Font.Bold = true;
+        ws.Cell(1, 7).Style.Font.FontSize = 10;
+        ws.Cell(1, 7).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
+
+        ws.Cell(2, 7).Value = title;
+        ws.Cell(2, 7).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
+        ws.Cell(2, 7).Style.Font.Bold = true;
+        ws.Cell(2, 7).Style.Font.FontSize = 22;
+
+        ws.Cell(3, 7).Value = "Healthcare revenue cycle intelligence";
+        ws.Cell(3, 7).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+        ws.Cell(3, 7).Style.Font.FontSize = 11;
+
+        AddReportMeta(ws, 5, 7, "Facility", facility);
+        AddReportMeta(ws, 5, 11, "Date Range", period);
+        AddReportMeta(ws, 5, 16, "Rows", rowCount.ToString("N0", CultureInfo.InvariantCulture));
+        AddReportMeta(ws, 5, 20, "Generated", generatedLocal.ToString("dd MMM yyyy HH:mm"));
+        AddReportMeta(ws, 5, 26, "Report ID", report.ReportId);
+
+        if (unmatchedRemittanceCount > 0)
+            AddReportMeta(ws, 5, 33, "Ledger Notes", unmatchedRemittanceCount.ToString("N0", CultureInfo.InvariantCulture));
+
+        ws.Row(1).Height = 20;
+        ws.Row(2).Height = 28;
+        ws.Row(3).Height = 20;
+        ws.Row(4).Height = 8;
+        ws.Row(5).Height = 28;
+        ws.Row(6).Height = 8;
+    }
+
+    private void AddReportMeta(IXLWorksheet ws, int row, int column, string label, string value)
+    {
+        ws.Cell(row, column).Value = label;
+        ws.Cell(row, column).Style.Font.FontSize = 8;
+        ws.Cell(row, column).Style.Font.Bold = true;
+        ws.Cell(row, column).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(row, column).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
+        ws.Cell(row, column + 1).Value = value;
+        ws.Range(row, column + 1, row, column + 2).Merge();
+        ws.Range(row, column + 1, row, column + 2).Style.Font.FontSize = 9;
+        ws.Range(row, column + 1, row, column + 2).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
+        ws.Range(row, column + 1, row, column + 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+    }
+
+    private void ApplyGhafReportLayout(IXLWorksheet ws, int lastColumn, int lastTableRow)
+    {
+        ws.Range(1, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Font.FontName = "Inter";
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorderColor = XLColor.FromHtml("#D9EFEA");
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorderColor = XLColor.FromHtml(GhafBorder);
+
+        ws.Columns(1, lastColumn).Style.Alignment.WrapText = false;
+        ws.Columns(31, 35).Style.Alignment.WrapText = true;
+        ws.Column(2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+        ws.Column(2).Style.Font.Bold = true;
+        ws.Column(16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        ws.Column(25).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.FitToPages(1, 0);
+        ws.PageSetup.Margins.Top = 0.35;
+        ws.PageSetup.Margins.Bottom = 0.35;
+        ws.PageSetup.Margins.Left = 0.25;
+        ws.PageSetup.Margins.Right = 0.25;
+        ws.SheetView.ZoomScale = 90;
+
+        for (var c = 1; c <= lastColumn; c++)
+        {
+            var width = ws.Column(c).Width;
+            if (width > 34)
+                ws.Column(c).Width = 34;
+            if (width < 9)
+                ws.Column(c).Width = 9;
+        }
+
+        ws.Column(2).Width = 26;
+        ws.Column(6).Width = 28;
+        ws.Column(27).Width = 30;
+        ws.Column(31).Width = 36;
+        ws.Column(32).Width = 36;
+        ws.Column(35).Width = 32;
+    }
+
+    private string? ResolveReportLogoPath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.png"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-soft-78C2C2.png"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-report-logo-teal.png"),
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-exact-teal.png",
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-lockup-exact-teal.png",
+            "/Users/jawaa/Library/CloudStorage/OneDrive-GhafBusinessServices/Ghaf Docs/Ghaf Logo !/ghaf logo/Working file/resized/ghaf-logo-max-2048.jpg",
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo.png"
+        };
+
+        return candidates.FirstOrDefault(System.IO.File.Exists);
+    }
+
+    private static void WriteTextFallbackLogo(IXLWorksheet ws)
+    {
+        ws.Cell(2, 2).Value = "GHAF";
+        ws.Cell(2, 2).Style.Font.Bold = true;
+        ws.Cell(2, 2).Style.Font.FontSize = 20;
+        ws.Cell(2, 2).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(3, 2).Value = "BUSINESS SERVICES";
+        ws.Cell(3, 2).Style.Font.FontSize = 8;
+        ws.Cell(3, 2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+    }
+
+    private static string GetReportTitle(string reportType) => reportType switch
+    {
+        "ClaimSummary" => "Claim Summary Report",
+        "ClaimActivity" => "Claim Activity Report",
+        "RemittanceActivity" => "Remittance Activity Report",
+        "ClaimReceiver" => "Claim Receiver Report",
+        "ClaimClinician" => "Claim Clinician Report",
+        "FinanceTAT" => "Finance TAT Report",
+        "DenialReport" => "Denial Query Report",
+        "ClaimLifeCycle" => "Claim Life Cycle Report",
+        _ => "Ghaf Business Intelligence Report"
+    };
+
     // ── XML parsers ────────────────────────────────────────────────────
+
+    private static ClaimRow MapParsedSubmission(
+        XmlParsedRecord record,
+        string facilityName,
+        IReadOnlyDictionary<string, string> payerLookup)
+    {
+        var receiverId = record.ReceiverId ?? "";
+        var payerId = record.PayerId ?? "";
+
+        return new ClaimRow
+        {
+            Facility = facilityName,
+            ClaimId = record.ClaimId,
+            ReceiverId = receiverId,
+            ReceiverName = string.IsNullOrWhiteSpace(record.ReceiverName)
+                ? ResolveLookupName(receiverId, payerLookup)
+                : record.ReceiverName,
+            PayerId = payerId,
+            PayerName = string.IsNullOrWhiteSpace(record.PayerName)
+                ? ResolveLookupName(payerId, payerLookup)
+                : record.PayerName,
+            PatientId = record.PatientId ?? "",
+            MemberId = record.MemberId ?? "",
+            TreatmentDate = record.TreatmentDate ?? "",
+            TreatmentDateEnd = record.TreatmentDateEnd ?? "",
+            DateOfAdmission = record.DateOfAdmission ?? "",
+            SubmissionDate = record.SubmissionDate ?? record.TransactionDate ?? "",
+            EncounterType = record.EncounterType ?? "",
+            Clinician = record.Clinician ?? "",
+            ServiceYear = record.ServiceYear ?? "",
+            ServiceMonth = record.ServiceMonth ?? "",
+            SubmissionLevel = "Initial",
+            NetAmtInitial = record.NetAmount,
+            IdPayer = record.IdPayer ?? "",
+            SubmissionFile = record.FileName ?? record.FileId ?? "",
+            ResubmissionType = record.ResubmissionType ?? "",
+            PrincipalDiagnosis = record.PrincipalDiagnosis ?? ""
+        };
+    }
 
     private static IEnumerable<ClaimRow> ParseClaimXml(
         string xml, string? fileId, string? fileName, string? txDate, string facilityName,
@@ -479,9 +787,15 @@ public class ReportService : IReportService
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
+        if (!string.Equals(doc.Root?.Name.LocalName, "Claim.Submission", StringComparison.OrdinalIgnoreCase))
+            yield break;
+
         var header = doc.Root?.Element("Header");
         var receiverId = header?.Element("ReceiverID")?.Value ?? "";
         var submDate = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
+
+        if (receiverId.StartsWith("DHA-F-", StringComparison.OrdinalIgnoreCase))
+            yield break;
 
         foreach (var claim in doc.Descendants("Claim"))
         {
@@ -551,25 +865,56 @@ public class ReportService : IReportService
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
-        var header = doc.Root?.Element("Header");
-        var raDate = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
-        var payRef = header?.Element("PaymentReference")?.Value
-                   ?? doc.Root?.Element("PaymentReference")?.Value ?? "";
+        if (!string.Equals(doc.Root?.Name.LocalName, "Remittance.Advice", StringComparison.OrdinalIgnoreCase))
+            yield break;
 
-        foreach (var claim in doc.Descendants("Claim"))
+        static string? ChildValue(XElement element, string localName) =>
+            element.Elements().FirstOrDefault(e => e.Name.LocalName == localName)?.Value?.Trim();
+
+        var header = doc.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Header");
+        var raDate = header == null ? txDate ?? "" : ChildValue(header, "TransactionDate") ?? txDate ?? "";
+        var headerPayRef = header == null ? "" : ChildValue(header, "PaymentReference") ?? "";
+
+        foreach (var claim in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
-            var claimId = claim.Element("ID")?.Value ?? claim.Element("ClaimID")?.Value ?? "";
+            var claimId = ChildValue(claim, "ID") ?? ChildValue(claim, "ClaimID") ?? "";
             if (string.IsNullOrWhiteSpace(claimId)) continue;
 
-            decimal.TryParse(claim.Element("Net")?.Value ?? claim.Element("PaidAmount")?.Value,
-                NumberStyles.Any, CultureInfo.InvariantCulture, out var approved);
-            decimal.TryParse(claim.Element("Gross")?.Value,
-                NumberStyles.Any, CultureInfo.InvariantCulture, out var received);
+            decimal received = 0m;
+            decimal approved = 0m;
+            var denialCodes = new List<string>();
+            var denialDescriptions = new List<string>();
 
-            var denialCode = claim.Descendants("Denial").FirstOrDefault()?.Element("Code")?.Value
-                          ?? claim.Element("DenialCode")?.Value ?? "";
-            var denialDesc = claim.Descendants("Denial").FirstOrDefault()?.Element("Description")?.Value
-                          ?? claim.Element("DenialDescription")?.Value ?? "";
+            foreach (var activity in claim.Descendants().Where(e => e.Name.LocalName == "Activity"))
+            {
+                if (decimal.TryParse(ChildValue(activity, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var net))
+                    received += net;
+
+                if (decimal.TryParse(ChildValue(activity, "PaymentAmount"), NumberStyles.Any, CultureInfo.InvariantCulture, out var payment))
+                    approved += payment;
+
+                var denialCode = ChildValue(activity, "DenialCode");
+                if (!string.IsNullOrWhiteSpace(denialCode) && !denialCodes.Contains(denialCode, StringComparer.OrdinalIgnoreCase))
+                    denialCodes.Add(denialCode);
+            }
+
+            foreach (var denial in claim.Descendants().Where(e => e.Name.LocalName == "Denial"))
+            {
+                var denialCode = ChildValue(denial, "Code");
+                if (!string.IsNullOrWhiteSpace(denialCode) && !denialCodes.Contains(denialCode, StringComparer.OrdinalIgnoreCase))
+                    denialCodes.Add(denialCode);
+
+                var denialDesc = ChildValue(denial, "Description");
+                if (!string.IsNullOrWhiteSpace(denialDesc))
+                    denialDescriptions.Add(denialDesc);
+            }
+
+            var claimComments = ChildValue(claim, "Comments");
+            if (!string.IsNullOrWhiteSpace(claimComments))
+                denialDescriptions.Add(claimComments);
+
+            var settlementDate = ChildValue(claim, "DateSettlement") ?? raDate;
+            var payRef = ChildValue(claim, "PaymentReference") ?? headerPayRef;
 
             yield return new RaEntry
             {
@@ -578,10 +923,10 @@ public class ReportService : IReportService
                 ReceivedAmt = received,
                 RaFile = fileName ?? "",
                 RaDate = raDate,
-                SettlementDate = raDate,
+                SettlementDate = settlementDate,
                 PaymentRef = payRef,
-                DenialCode = denialCode,
-                DenialDescription = denialDesc,
+                DenialCode = string.Join(" | ", denialCodes),
+                DenialDescription = string.Join(" | ", denialDescriptions.Distinct(StringComparer.OrdinalIgnoreCase)),
                 Status = approved <= 0 ? "Rejected" : "Paid"
             };
         }
@@ -649,6 +994,36 @@ public class ReportService : IReportService
         return lookup.TryGetValue(code.Trim(), out var name) ? name : code.Trim();
     }
 
+    private static bool IsResubmissionRow(ClaimRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.ResubmissionType))
+            return true;
+
+        return row.SubmissionFile.StartsWith("RES-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, ResubmissionAggregate> AggregateResubmissions(IEnumerable<ClaimRow> rows)
+    {
+        return rows
+            .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+            .GroupBy(r => r.ClaimId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => new ResubmissionAggregate
+                {
+                    ClaimId = g.Key,
+                    Count = g.Count(),
+                    NetAmount = g.Sum(r => r.NetAmtInitial),
+                    Files = string.Join(" | ", g.Select(r => r.SubmissionFile)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Types = string.Join(" | ", g.Select(r => r.ResubmissionType)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase))
+                },
+                StringComparer.OrdinalIgnoreCase);
+    }
+
     private static string DetermineSubmissionLevel(int outboundCount, int inboundCount, IEnumerable<string> resubmissionTypes)
     {
         var type = resubmissionTypes
@@ -673,6 +1048,13 @@ public class ReportService : IReportService
         }
 
         return "Resubmitted";
+    }
+
+    private static bool IsRemittanceWithinReportRange(RemittanceClaimRow row, DateTime from, DateTime to)
+    {
+        var remittanceDate = ParseDhpoDate(row.SettlementDate) ?? ParseDhpoDate(row.TransactionDate);
+        return !remittanceDate.HasValue
+            || (remittanceDate.Value.Date >= from.Date && remittanceDate.Value.Date <= to.Date);
     }
 
     private static Dictionary<string, RaEntry> AggregateRemittances(IEnumerable<RemittanceClaimRow> remittanceClaims)
@@ -762,13 +1144,24 @@ public class ReportService : IReportService
         public int InboundCount { get; set; }
         public int RecordCount { get; set; }
         public decimal NetAmtInitial { get; set; }
+        public decimal NetAmtResubmission { get; set; }
         public string IdPayer { get; set; } = "";
         public string SubmissionFile { get; set; } = "";
+        public string ResubmissionFile { get; set; } = "";
         public string RaFile { get; set; } = "";
         public string RaDate { get; set; } = "";
         public string ResubmissionType { get; set; } = "";
         public string PrincipalDiagnosis { get; set; } = "";
         public RaEntry? Ra { get; set; }
+    }
+
+    private class ResubmissionAggregate
+    {
+        public string ClaimId { get; set; } = "";
+        public int Count { get; set; }
+        public decimal NetAmount { get; set; }
+        public string Files { get; set; } = "";
+        public string Types { get; set; } = "";
     }
 
     private class RemittanceClaimRow
@@ -782,6 +1175,12 @@ public class ReportService : IReportService
         public string? Comments { get; set; }
         public string? FileName { get; set; }
         public string? TransactionDate { get; set; }
+    }
+
+    private class UnmatchedRemittanceRow
+    {
+        public string TransactionRef { get; set; } = "";
+        public string RemittanceFileName { get; set; } = "";
     }
 
     private class RaEntry

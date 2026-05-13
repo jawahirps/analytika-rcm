@@ -22,6 +22,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<ReportSchedule> ReportSchedules { get; set; }
     public DbSet<RemittanceClaim> RemittanceClaims { get; set; }
+    public DbSet<XmlParsedRecord> XmlParsedRecords { get; set; }
     public DbSet<ResubmissionTask> ResubmissionTasks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -87,12 +88,23 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.ClaimId);
             entity.HasIndex(e => e.FacilityId);
-            entity.HasIndex(e => e.RemittanceTransactionId).IsUnique(); // one parse per remittance TX
+            entity.HasIndex(e => e.RemittanceTransactionId);
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.RemittanceTransaction).WithMany().HasForeignKey(e => e.RemittanceTransactionId).OnDelete(DeleteBehavior.Cascade);
             entity.Ignore(e => e.DeniedAmount);
             entity.Ignore(e => e.IsFullyDenied);
             entity.Ignore(e => e.IsPartiallyPaid);
+        });
+
+        builder.Entity<XmlParsedRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.PortalTransactionId);
+            entity.HasIndex(e => new { e.FacilityId, e.RecordKind });
+            entity.HasIndex(e => e.ClaimId);
+            entity.HasIndex(e => e.ReadyForReport);
+            entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.PortalTransaction).WithMany().HasForeignKey(e => e.PortalTransactionId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ResubmissionTask>(entity =>

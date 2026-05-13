@@ -17,25 +17,25 @@
     string BadgeColor(string cat) => cat switch {
         "Medical" => "#dc2626",
         "Technical" => "#1d4ed8",
-        _ => "#6b7280"
+        _ => "#66B2B2"
     };
 }
 
 @section Styles {
 <style>
-:root { --gold:#C87A10; --navy:#0A1828; }
-.dd-card { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; height:100%; }
+:root { --gold:#66B2B2; --navy:#003B4D; }
+.dd-card { border-radius:10px; border:1px solid #C6E2E9; background:#fff; padding:1.25rem; height:100%; }
 .kpi-val { font-size:1.6rem; font-weight:800; color:var(--navy); line-height:1; }
-.kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#6b7280; margin-top:.25rem; }
-.denial-bar { height:10px; border-radius:5px; background:#f3f4f6; position:relative; overflow:hidden; }
+.kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#66B2B2; margin-top:.25rem; }
+.denial-bar { height:10px; border-radius:5px; background:#C6E2E9; position:relative; overflow:hidden; }
 .denial-fill { height:100%; border-radius:5px; transition:width .5s ease; }
-.table-dd th { font-size:.72rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; padding:.5rem .75rem; }
-.table-dd td { font-size:.82rem; padding:.6rem .75rem; vertical-align:middle; border-bottom:1px solid #f3f4f6; }
-.table-dd tbody tr:hover { background:#fffbf5; }
+.table-dd th { font-size:.72rem; font-weight:600; color:#66B2B2; text-transform:uppercase; letter-spacing:.04em; padding:.5rem .75rem; }
+.table-dd td { font-size:.82rem; padding:.6rem .75rem; vertical-align:middle; border-bottom:1px solid #C6E2E9; }
+.table-dd tbody tr:hover { background:#F7F9F9; }
 .code-chip { font-size:.65rem; padding:.18em .5em; border-radius:3px; font-weight:600; display:inline-block; margin:.1em; }
 .chip-med  { background:#fee2e2; color:#991b1b; }
-.chip-tec  { background:#dbeafe; color:#1e40af; }
-.chip-oth  { background:#f3f4f6; color:#4b5563; }
+.chip-tec  { background:#C6E2E9; color:#006666; }
+.chip-oth  { background:#C6E2E9; color:#4b5563; }
 .pct-badge { font-size:.85rem; font-weight:700; padding:.2em .55em; border-radius:5px; }
 .rank-dot  { width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
              font-size:.72rem; font-weight:700; color:#fff; }
@@ -135,7 +135,7 @@
                         {
                             string cat     = (string)code.Category;
                             string chipCls = cat == "Medical" ? "chip-med" : cat == "Technical" ? "chip-tec" : "chip-oth";
-                            string dotClr  = cat == "Medical" ? "#dc2626" : cat == "Technical" ? "#1d4ed8" : "#6b7280";
+                            string dotClr  = cat == "Medical" ? "#dc2626" : cat == "Technical" ? "#1d4ed8" : "#66B2B2";
                             <tr>
                                 <td><span class="rank-dot" style="background:@dotClr; width:22px; height:22px; font-size:.65rem;">@rank</span></td>
                                 <td><span class="fw-semibold" style="font-size:.82rem;">@code.Code</span></td>
@@ -156,7 +156,7 @@
                 <div style="position:relative; height:210px;">
                     <canvas id="outcomeChart"></canvas>
                 </div>
-                <div class="mt-2 text-center" style="font-size:.72rem; color:#6b7280;">
+                <div class="mt-2 text-center" style="font-size:.72rem; color:#66B2B2;">
                     @Model.Sum(f => f.FullyDenied) fully denied &bull;
                     @Model.Sum(f => f.PartiallyPaid) partial &bull;
                     @Model.Sum(f => f.FullyCovered) covered
@@ -210,8 +210,8 @@
                     @{ int i = 1; }
                     @foreach (var f in Model)
                     {
-                        string pctClr = f.DenialPct >= 50 ? "#dc2626" : f.DenialPct >= 30 ? "#d97706" : f.DenialPct >= 15 ? "#ca8a04" : "#16a34a";
-                        string pctBg  = f.DenialPct >= 50 ? "#fee2e2" : f.DenialPct >= 30 ? "#fef3c7" : f.DenialPct >= 15 ? "#fef9c3" : "#dcfce7";
+                        string pctClr = f.DenialPct >= 50 ? "#dc2626" : f.DenialPct >= 30 ? "#006666" : f.DenialPct >= 15 ? "#ca8a04" : "#16a34a";
+                        string pctBg  = f.DenialPct >= 50 ? "#fee2e2" : f.DenialPct >= 30 ? "#C6E2E9" : f.DenialPct >= 15 ? "#fef9c3" : "#dcfce7";
                         <tr>
                             <td class="text-muted">@i</td>
                             <td class="fw-semibold" style="max-width:160px;">
@@ -225,7 +225,7 @@
                                 <span class="pct-badge" style="background:@pctBg; color:@pctClr;">@f.DenialPct.ToString("N1")%</span>
                             </td>
                             <td class="text-center text-danger fw-semibold">@f.FullyDenied</td>
-                            <td class="text-center" style="color:#d97706;">@f.PartiallyPaid</td>
+                            <td class="text-center" style="color:#006666;">@f.PartiallyPaid</td>
                             <td>
                                 @foreach (var c in f.TopCodes)
                                 {
@@ -253,7 +253,7 @@
                             </span>
                         </td>
                         <td class="text-center" style="color:#dc2626;">@Model.Sum(f => f.FullyDenied)</td>
-                        <td class="text-center" style="color:#d97706;">@Model.Sum(f => f.PartiallyPaid)</td>
+                        <td class="text-center" style="color:#006666;">@Model.Sum(f => f.PartiallyPaid)</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -277,7 +277,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 Chart.defaults.font.family = "'Inter','Segoe UI',sans-serif";
-Chart.defaults.color = '#6b7280';
+Chart.defaults.color = '#66B2B2';
 
 const labels  = [@Html.Raw(chartLabels)];
 const denPct  = [@Html.Raw(chartDenialPct)];
@@ -293,7 +293,7 @@ new Chart(document.getElementById('denialPctChart'), {
             label: 'Denial %',
             data: denPct,
             backgroundColor: denPct.map(v => v >= 50 ? '#fca5a5' : v >= 30 ? '#fcd34d' : v >= 15 ? '#fde68a' : '#86efac'),
-            borderColor:     denPct.map(v => v >= 50 ? '#dc2626' : v >= 30 ? '#d97706' : v >= 15 ? '#ca8a04' : '#16a34a'),
+            borderColor:     denPct.map(v => v >= 50 ? '#dc2626' : v >= 30 ? '#006666' : v >= 15 ? '#ca8a04' : '#16a34a'),
             borderWidth: 1.5, borderRadius: 4,
         }]
     },
@@ -302,7 +302,7 @@ new Chart(document.getElementById('denialPctChart'), {
         plugins: { legend: { display: false },
             tooltip: { callbacks: { label: ctx => ` ${ctx.raw}% denial rate` }}},
         scales: {
-            x: { ticks: { callback: v => v + '%' }, max: Math.min(110, Math.max(...denPct) + 10), grid: { color: '#f3f4f6' } },
+            x: { ticks: { callback: v => v + '%' }, max: Math.min(110, Math.max(...denPct) + 10), grid: { color: '#C6E2E9' } },
             y: { grid: { display: false } }
         }
     }
@@ -325,7 +325,7 @@ new Chart(document.getElementById('billedDeniedChart'), {
         scales: {
             x: { grid: { display: false } },
             y: { ticks: { callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'K' : v },
-                 grid: { color: '#f3f4f6' } }
+                 grid: { color: '#C6E2E9' } }
         }
     }
 });
@@ -340,7 +340,7 @@ new Chart(document.getElementById('outcomeChart'), {
         labels: ['Fully Denied', 'Partially Paid', 'Fully Covered'],
         datasets: [{ data: [fd, pp, fc],
             backgroundColor: ['#fca5a5','#fde68a','#86efac'],
-            borderColor: ['#dc2626','#d97706','#16a34a'],
+            borderColor: ['#dc2626','#006666','#16a34a'],
             borderWidth: 1.5 }]
     },
     options: {

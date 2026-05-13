@@ -64,6 +64,7 @@ builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
 builder.Services.AddScoped<PortalSyncService>();
 builder.Services.AddScoped<ReconciliationService>();
 builder.Services.AddScoped<RemittanceParserService>();
+builder.Services.AddScoped<XmlParsingService>();
 if (builder.Configuration.GetValue("BackgroundJobs:PendingDownloads:HostedServiceEnabled", false))
     builder.Services.AddHostedService<PendingDownloadService>();
 builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
@@ -214,7 +215,7 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""RemittanceClaims"" (
             ""Id""                       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""RemittanceTransactionId""  INTEGER NOT NULL UNIQUE REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
+            ""RemittanceTransactionId""  INTEGER NOT NULL REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
             ""FacilityId""               INTEGER NOT NULL REFERENCES ""Facilities""(""Id"") ON DELETE CASCADE,
             ""ClaimId""                  TEXT NOT NULL,
             ""PayerClaimId""             TEXT NULL,
@@ -228,6 +229,46 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
             ""SettlementDate""           TEXT NULL,
             ""PaymentReference""         TEXT NULL,
             ""ParsedAt""                 TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS ""XmlParsedRecords"" (
+            ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            ""PortalTransactionId"" INTEGER NOT NULL REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
+            ""FacilityId""          INTEGER NOT NULL REFERENCES ""Facilities""(""Id"") ON DELETE CASCADE,
+            ""RecordKind""          TEXT NOT NULL,
+            ""ClaimId""             TEXT NOT NULL,
+            ""FileName""            TEXT NULL,
+            ""FileId""              TEXT NULL,
+            ""TransactionDate""      TEXT NULL,
+            ""SenderId""            TEXT NULL,
+            ""ReceiverId""          TEXT NULL,
+            ""ReceiverName""        TEXT NULL,
+            ""PayerId""             TEXT NULL,
+            ""PayerName""           TEXT NULL,
+            ""PatientId""           TEXT NULL,
+            ""MemberId""            TEXT NULL,
+            ""TreatmentDate""       TEXT NULL,
+            ""TreatmentDateEnd""    TEXT NULL,
+            ""DateOfAdmission""     TEXT NULL,
+            ""SubmissionDate""      TEXT NULL,
+            ""EncounterType""       TEXT NULL,
+            ""Clinician""           TEXT NULL,
+            ""ServiceYear""         TEXT NULL,
+            ""ServiceMonth""        TEXT NULL,
+            ""NetAmount""           REAL NOT NULL DEFAULT 0,
+            ""PaidAmount""          REAL NOT NULL DEFAULT 0,
+            ""ActivityCount""       INTEGER NOT NULL DEFAULT 0,
+            ""PaymentReference""    TEXT NULL,
+            ""SettlementDate""      TEXT NULL,
+            ""DenialCodesJson""     TEXT NULL,
+            ""Comments""            TEXT NULL,
+            ""IdPayer""             TEXT NULL,
+            ""ResubmissionType""    TEXT NULL,
+            ""PrincipalDiagnosis""  TEXT NULL,
+            ""IsMatched""           INTEGER NOT NULL DEFAULT 0,
+            ""ReadyForReport""      INTEGER NOT NULL DEFAULT 1,
+            ""Notes""               TEXT NULL,
+            ""ParsedAt""            TEXT NOT NULL,
+            ""MatchedAt""           TEXT NULL
         );
         CREATE TABLE IF NOT EXISTS ""ResubmissionTasks"" (
             ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -253,6 +294,10 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
         db.Database.ExecuteSqlRaw(@"
             CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_FacilityId"" ON ""RemittanceClaims""(""FacilityId"");
             CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_ClaimId""    ON ""RemittanceClaims""(""ClaimId"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_PortalTransactionId"" ON ""XmlParsedRecords""(""PortalTransactionId"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Facility_Kind"" ON ""XmlParsedRecords""(""FacilityId"", ""RecordKind"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ClaimId"" ON ""XmlParsedRecords""(""ClaimId"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport"" ON ""XmlParsedRecords""(""ReadyForReport"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
         ");

@@ -6,30 +6,156 @@
 
 @section Styles {
 <style>
-    .page-wrapper { padding: 20px 24px; background: #f5f6fa; min-height: calc(100vh - 120px); }
+    .page-wrapper {
+        padding: 22px 24px 70px;
+        background: transparent;
+        min-height: calc(100vh - 120px);
+    }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #0D7272; text-decoration: none; }
-    .filter-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
-    .filter-card .card-header { background: linear-gradient(135deg, #0A1828, #164055); color: white; border-radius: 12px 12px 0 0; padding: 12px 20px; font-weight: 600; }
-    .date-range-btn { border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; margin-right: 6px; border: 1px solid #dee2e6; background: white; cursor: pointer; transition: all 0.2s; }
-    .date-range-btn.active { background: #0D7272; color: white; border-color: #0D7272; }
-    .table-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .table-card .card-header { background: white; border-radius: 12px 12px 0 0; padding: 14px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #0A1828; }
-    .table thead th { background: #f8f9fa; font-weight: 600; font-size: 0.82rem; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
+    .breadcrumb-item a { color: #008B8B; text-decoration: none; }
+    .breadcrumb { --bs-breadcrumb-divider-color: rgba(0,59,77,.36); }
+    .filter-card,
+    .table-card {
+        border: 1px solid rgba(255,255,255,.64);
+        border-radius: 22px;
+        box-shadow: 0 18px 46px rgba(0,59,77,.09), inset 0 1px 0 rgba(255,255,255,.7);
+        background: rgba(255,255,255,.64);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .filter-card .card-header {
+        background: linear-gradient(135deg, rgba(0,59,77,.92), rgba(0,139,139,.82));
+        color: white;
+        border-radius: 22px 22px 0 0;
+        padding: 14px 20px;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(255,255,255,.22);
+    }
+    .date-range-btn {
+        border-radius: 999px;
+        padding: 6px 15px;
+        font-size: 0.82rem;
+        margin-right: 6px;
+        border: 1px solid rgba(255,255,255,.64);
+        background: rgba(255,255,255,.58);
+        color: #006666;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+    }
+    .date-range-btn:hover { background: rgba(255,255,255,.82); color: #003B4D; }
+    .date-range-btn.active {
+        background: linear-gradient(135deg, #003B4D, #008B8B);
+        color: white;
+        border-color: rgba(255,255,255,.28);
+        box-shadow: 0 10px 22px rgba(0,139,139,.18), inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .table-card .card-header {
+        background: rgba(255,255,255,.58);
+        border-radius: 22px 22px 0 0;
+        padding: 14px 20px;
+        border-bottom: 1px solid rgba(0,102,102,.12);
+        font-weight: 600;
+        color: #003B4D;
+    }
+    .table thead th { background: rgba(198,226,233,.68); font-weight: 600; font-size: 0.82rem; color: #006666; border-bottom: 1px solid rgba(0,102,102,.14); white-space: nowrap; }
     .table tbody td { font-size: 0.83rem; vertical-align: middle; }
-    .report-id-link { color: #28a745; font-weight: 600; text-decoration: none; }
+    .report-id-link { color: #008B8B; font-weight: 600; text-decoration: none; }
     .report-id-link:hover { text-decoration: underline; }
     .status-completed { color: #28a745; font-weight: 600; }
     .status-pending { color: #ffc107; font-weight: 600; }
-    .status-processing { color: #17a2b8; font-weight: 600; }
+    .status-processing { color: #008B8B; font-weight: 600; }
     .status-failed { color: #dc3545; font-weight: 600; }
-    .btn-download { background: #0D7272; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: #0B5C5C; }
+    .btn-download { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; }
+    .btn-delete-report { background: rgba(254,226,226,.78); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-delete-report:hover { background: #fecaca; color: #7f1d1d; }
+    .btn-clear-reports { background: rgba(255,255,255,.68); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
+    .btn-clear-reports:hover { background: #fee2e2; color: #7f1d1d; }
     .pagination-info { font-size: 0.82rem; color: #6c757d; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: linear-gradient(135deg, #0D7272, #164055); color: white; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 600; }
-    .btn-reset-report { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 8px; }
+    .btn-submit-report { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; border: 1px solid rgba(255,255,255,.26); padding: 8px 24px; border-radius: 999px; font-weight: 600; box-shadow: 0 12px 24px rgba(0,139,139,.18); }
+    .btn-reset-report { background: rgba(255,255,255,.58); color: #006666; border: 1px solid rgba(255,255,255,.64); padding: 8px 20px; border-radius: 999px; }
+
+    @@media (max-width: 768px) {
+        .page-wrapper {
+            padding: 14px 12px 90px;
+        }
+        .breadcrumb-bar {
+            margin-bottom: 12px;
+        }
+        .filter-card,
+        .table-card {
+            border-radius: 18px;
+            margin-bottom: 16px;
+        }
+        .filter-card .card-header,
+        .table-card .card-header {
+            padding: 12px 14px;
+            font-size: .9rem;
+        }
+        .card-body.p-4 {
+            padding: 14px !important;
+        }
+        .date-range-btn {
+            margin-right: 0;
+            padding: 7px 12px;
+            font-size: 0.78rem;
+        }
+        .custom-date-section.row {
+            gap: 12px;
+        }
+        .custom-date-section .col-md-3,
+        .row.mb-3 > .col-md-3,
+        .row.mb-3 > .col-md-9 {
+            width: 100%;
+            max-width: 100%;
+        }
+        .d-flex.gap-2 {
+            flex-wrap: wrap;
+        }
+        .d-flex.gap-2 > .btn,
+        .d-flex.gap-2 > form {
+            width: 100%;
+        }
+        .btn-submit-report,
+        .btn-reset-report,
+        .btn-download,
+        .btn-delete-report,
+        .btn-clear-reports {
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-submit-report,
+        .btn-reset-report {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .table-card .card-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+        }
+        .table-card .card-header > div {
+            width: 100%;
+            justify-content: space-between;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table {
+            min-width: 980px;
+        }
+        .pagination {
+            flex-wrap: wrap;
+        }
+        .pagination-info {
+            margin-bottom: 8px;
+        }
+    }
 </style>
 }
 
@@ -188,7 +314,7 @@
                     </div>
                     <div class="col-md-9">
                         <label class="form-label fw-semibold">
-                            <i class="fas fa-envelope me-1" style="color:#0D7272;"></i>Email Report To
+                            <i class="fas fa-envelope me-1" style="color:#008B8B;"></i>Email Report To
                             <small class="text-muted fw-normal ms-1">(optional — separate multiple addresses with commas)</small>
                         </label>
                         <input type="text" name="EmailTo" class="form-control"
@@ -213,7 +339,20 @@
     <div class="card table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="fas fa-table me-2 text-primary"></i>Scheduled Reports</span>
-            <span class="badge bg-primary">@Model.TotalReports items</span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-primary">@Model.TotalReports items</span>
+                @if (Model.TotalReports > 0)
+                {
+                    <form asp-controller="ReportScheduler" asp-action="ClearReports" method="post" class="m-0"
+                          onsubmit="return confirm('Clear all report requests for this report type? Completed files will also be removed.');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportType" value="@Model.ReportType" />
+                        <button type="submit" class="btn-clear-reports" title="Clear all scheduled report rows">
+                            <i class="fas fa-trash-alt me-1"></i>Clear
+                        </button>
+                    </form>
+                }
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -248,19 +387,30 @@
                                     <td>@report.DateFrom.ToString("dd/MM/yyyy") - @report.DateTo.ToString("dd/MM/yyyy")</td>
                                     <td>@(report.GeneratedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
                                     <td>
-                                        @if (report.Status == "Completed" && !string.IsNullOrEmpty(report.FilePath))
-                                        {
-                                            <a asp-controller="ReportScheduler" asp-action="Download" asp-route-id="@report.Id"
-                                               class="btn btn-download" title="Download">
-                                                <i class="fas fa-arrow-down"></i>
-                                            </a>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-download" disabled title="Not available">
-                                                <i class="fas fa-arrow-down"></i>
-                                            </button>
-                                        }
+                                        <div class="d-flex align-items-center gap-1">
+                                            @if (report.Status == "Completed" && !string.IsNullOrEmpty(report.FilePath))
+                                            {
+                                                <a asp-controller="ReportScheduler" asp-action="Download" asp-route-id="@report.Id"
+                                                   class="btn btn-download" title="Download">
+                                                    <i class="fas fa-arrow-down"></i>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-download" disabled title="Not available">
+                                                    <i class="fas fa-arrow-down"></i>
+                                                </button>
+                                            }
+                                            <form asp-controller="ReportScheduler" asp-action="DeleteReport" method="post" class="m-0"
+                                                  onsubmit="return confirm('Delete report request @report.ReportId?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@report.Id" />
+                                                <input type="hidden" name="reportType" value="@Model.ReportType" />
+                                                <button type="submit" class="btn-delete-report" title="Delete report row">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             }

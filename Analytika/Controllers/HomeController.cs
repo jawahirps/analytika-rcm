@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Xml.Linq;
 
 namespace Analytika.Controllers;
@@ -111,20 +112,9 @@ public class HomeController : Controller
             })
             .ToListAsync();
 
-        var claimStats = await _db.PortalTransactions
-            .AsNoTracking()
-            .Where(t => t.FileContentXml != null && t.FileContentXml.Length > 10)
-            .Select(t => new { t.FacilityId, t.FileContentXml })
-            .ToListAsync();
-
         var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
         var txMap = txStats.ToDictionary(x => x.FacilityId);
-        var claimMap = claimStats
-            .Where(x => IsClaimSubmissionXml(x.FileContentXml))
-            .GroupBy(x => x.FacilityId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Sum(x => GetHeaderRecordCount(x.FileContentXml)));
+        var claimMap = await LoadClaimCountsByFacilityAsync();
 
         var rows = facilities.Select(f =>
         {
@@ -169,6 +159,64 @@ public class HomeController : Controller
                 : null
         };
         return View(vm);
+    }
+
+    private async Task<Dictionary<int, int>> LoadClaimCountsByFacilityAsync()
+    {
+        var result = new Dictionary<int, int>();
+        var connection = _db.Database.GetDbConnection();
+        var shouldClose = connection.State != ConnectionState.Open;
+
+        if (shouldClose)
+            await connection.OpenAsync();
+
+        try
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT FacilityId,
+                       COALESCE(SUM(
+                           CASE
+                               WHEN RecordStart > 0 AND RecordEnd > RecordStart
+                               THEN CAST(substr(
+                                   FileContentXml,
+                                   RecordStart + length('<RecordCount>'),
+                                   RecordEnd - (RecordStart + length('<RecordCount>'))
+                               ) AS INTEGER)
+                               ELSE 0
+                           END
+                       ), 0) AS ClaimCount
+                FROM (
+                    SELECT FacilityId,
+                           FileContentXml,
+                           instr(FileContentXml, '<RecordCount>') AS RecordStart,
+                           instr(FileContentXml, '</RecordCount>') AS RecordEnd
+                    FROM PortalTransactions
+                    WHERE FileContentXml IS NOT NULL
+                      AND length(FileContentXml) > 10
+                      AND FileContentXml NOT LIKE '%Remittance.Advice%'
+                      AND (
+                          FileContentXml LIKE '%Claim.Submission%'
+                          OR FileContentXml LIKE '%<ClaimSubmission%'
+                      )
+                ) ClaimXml
+                GROUP BY FacilityId;";
+
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                var facilityId = reader.GetInt32(0);
+                var claimCount = Convert.ToInt32(reader.GetValue(1));
+                result[facilityId] = claimCount;
+            }
+        }
+        finally
+        {
+            if (shouldClose)
+                await connection.CloseAsync();
+        }
+
+        return result;
     }
 
     [Authorize]

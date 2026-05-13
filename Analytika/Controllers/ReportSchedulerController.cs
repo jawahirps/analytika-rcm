@@ -131,7 +131,7 @@ public class ReportSchedulerController : Controller
         if (report == null || string.IsNullOrEmpty(report.FilePath))
             return NotFound();
 
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", report.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        var filePath = ResolveReportFilePath(report.FilePath);
         if (!System.IO.File.Exists(filePath))
             return NotFound("File not found on server.");
 
@@ -144,6 +144,98 @@ public class ReportSchedulerController : Controller
         };
 
         return PhysicalFile(filePath, contentType, fileName);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReport(int id, string reportType)
+    {
+        var report = await _context.ReportRequests.FirstOrDefaultAsync(r => r.Id == id);
+        if (report == null)
+        {
+            TempData["Error"] = "Report request was not found.";
+            return RedirectToAction(GetActionName(reportType));
+        }
+
+        var activeReport = ReportGenerationState.Get();
+        if (activeReport.IsRunning && activeReport.ReportRequestId == report.Id)
+        {
+            TempData["Error"] = $"Report {report.ReportId} is still running and cannot be deleted yet.";
+            return RedirectToAction(GetActionName(report.ReportType));
+        }
+
+        var filePath = ResolveReportFilePath(report.FilePath);
+        var reportId = report.ReportId;
+        var resolvedReportType = report.ReportType;
+
+        _context.ReportRequests.Remove(report);
+        await _context.SaveChangesAsync();
+        DeleteReportFile(filePath);
+
+        TempData["Success"] = $"Report {reportId} was deleted.";
+        return RedirectToAction(GetActionName(resolvedReportType));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ClearReports(string reportType)
+    {
+        if (string.IsNullOrWhiteSpace(reportType))
+            reportType = "ClaimSummary";
+
+        var activeReport = ReportGenerationState.Get();
+        var query = _context.ReportRequests.Where(r => r.ReportType == reportType);
+
+        if (activeReport.IsRunning)
+            query = query.Where(r => r.Id != activeReport.ReportRequestId);
+
+        var reports = await query.ToListAsync();
+        var filePaths = reports
+            .Select(r => ResolveReportFilePath(r.FilePath))
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+        _context.ReportRequests.RemoveRange(reports);
+        await _context.SaveChangesAsync();
+
+        foreach (var filePath in filePaths)
+            DeleteReportFile(filePath);
+
+        TempData["Success"] = reports.Count == 0
+            ? "No completed report requests were available to clear."
+            : $"Cleared {reports.Count} report request(s).";
+
+        return RedirectToAction(GetActionName(reportType));
+    }
+
+    private static string? ResolveReportFilePath(string? reportFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(reportFilePath))
+            return null;
+
+        var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+        var filePath = Path.GetFullPath(Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "wwwroot",
+            reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+
+        return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;
+    }
+
+    private static void DeleteReportFile(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        try
+        {
+            if (System.IO.File.Exists(filePath))
+                System.IO.File.Delete(filePath);
+        }
+        catch
+        {
+            // The history row is the source of truth; stale files can be cleaned up later.
+        }
     }
 
     private static string GetActionName(string reportType) => reportType switch
