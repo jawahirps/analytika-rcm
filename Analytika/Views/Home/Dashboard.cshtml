@@ -94,6 +94,7 @@
     .fac-stat  { text-align: center; flex: 1; }
     .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #0A1828; }
     .fac-stat .l  { font-size: .65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+    .fac-stat .meta-inline { font-size: .72rem; color: #64748b; font-weight: 500; margin-top: 2px; line-height: 1.2; }
 
     .status-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
     .status-label.connected    { color: #059669; }
@@ -156,6 +157,7 @@
             <div>
                 <div class="ss-num">@Model.TotalRecords.ToString("N0")</div>
                 <div class="ss-lbl">Total Records</div>
+                <div class="text-muted small mt-1">Claims @Model.TotalClaimCount.ToString("N0")</div>
             </div>
         </div>
         <div class="ss-card">
@@ -242,6 +244,7 @@
                     <div class="fac-stat">
                         <div class="n">@f.RecordCount.ToString("N0")</div>
                         <div class="l">Records</div>
+                        <div class="meta-inline">Claims @f.ClaimCount.ToString("N0")</div>
                     </div>
                     <div class="fac-stat">
                         <div class="n">@f.FileCount.ToString("N0")</div>

@@ -323,6 +323,8 @@
                                 <button type="button" class="btn btn-ghost btn-xs" onclick="setRange(6)">6 Mo</button>
                                 <button type="button" class="btn btn-ghost btn-xs" onclick="setRange(12)">1 Year</button>
                                 <button type="button" class="btn btn-ghost btn-xs" onclick="setRange(24)">2 Years</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setRange('thisYear')">This Year</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setRange('lastYear')">Last Year</button>
                             </div>
                         </div>
 
@@ -360,6 +362,10 @@
                             <input type="date" id="facSyncTo" class="form-control form-control-sm" />
                             <small class="text-muted" style="font-size:.68rem;">To (leave blank = today)</small>
                         </div>
+                    </div>
+                    <div class="mt-2 d-flex gap-1 flex-wrap">
+                        <button type="button" class="btn btn-ghost btn-xs" onclick="setFacilityRange('thisYear')">This Year</button>
+                        <button type="button" class="btn btn-ghost btn-xs" onclick="setFacilityRange('lastYear')">Last Year</button>
                     </div>
 
                     <div class="d-flex gap-2 mb-2">
@@ -665,12 +671,46 @@
         if (cp) showResumeBanner(cp);
     });
 
-    function setRange(months) {
+    function setRange(range) {
         const today = new Date();
-        const from = new Date(today);
-        from.setMonth(from.getMonth() - months);
+        let from, to;
+
+        if (range === 'thisYear') {
+            from = new Date(today.getFullYear(), 0, 1);
+            to = new Date(today.getFullYear(), 11, 31);
+        } else if (range === 'lastYear') {
+            from = new Date(today.getFullYear() - 1, 0, 1);
+            to = new Date(today.getFullYear() - 1, 11, 31);
+        } else {
+            const months = Number(range);
+            from = new Date(today);
+            from.setMonth(from.getMonth() - months);
+            to = today;
+        }
+
         document.querySelector('input[name="DateFrom"]').value = from.toISOString().split('T')[0];
-        document.querySelector('input[name="DateTo"]').value = today.toISOString().split('T')[0];
+        document.querySelector('input[name="DateTo"]').value = to.toISOString().split('T')[0];
+    }
+
+    function setFacilityRange(range) {
+        const today = new Date();
+        let from, to;
+
+        if (range === 'thisYear') {
+            from = new Date(today.getFullYear(), 0, 1);
+            to = new Date(today.getFullYear(), 11, 31);
+        } else if (range === 'lastYear') {
+            from = new Date(today.getFullYear() - 1, 0, 1);
+            to = new Date(today.getFullYear() - 1, 11, 31);
+        } else {
+            const months = Number(range);
+            from = new Date(today);
+            from.setMonth(from.getMonth() - months);
+            to = today;
+        }
+
+        document.getElementById('facSyncFrom').value = from.toISOString().split('T')[0];
+        document.getElementById('facSyncTo').value = to.toISOString().split('T')[0];
     }
 
     document.querySelector('form').addEventListener('submit', function() {

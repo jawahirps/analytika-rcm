@@ -1,5 +1,5 @@
 /* ================================================================
-   Ghaf Bi Analytix — Design System v3
+   Ghaf Business Intelligence — Design System v3
    Deep Navy · Teal · Amber — Hexagonal Palette
    ================================================================ */
 
@@ -9,7 +9,7 @@
    CSS Custom Properties
    ---------------------------------------------------------------- */
 :root {
-  /* Brand palette — GHAF Services */
+  /* Brand palette — Ghaf Business Intelligence */
   --navy:          #0A1828;
   --navy-mid:      #164055;
   --navy-soft:     #1A5870;

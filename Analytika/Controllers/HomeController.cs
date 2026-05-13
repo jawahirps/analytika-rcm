@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Xml.Linq;
 
 namespace Analytika.Controllers;
 
@@ -110,13 +111,26 @@ public class HomeController : Controller
             })
             .ToListAsync();
 
+        var claimStats = await _db.PortalTransactions
+            .AsNoTracking()
+            .Where(t => t.FileContentXml != null && t.FileContentXml.Length > 10)
+            .Select(t => new { t.FacilityId, t.FileContentXml })
+            .ToListAsync();
+
         var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
         var txMap = txStats.ToDictionary(x => x.FacilityId);
+        var claimMap = claimStats
+            .Where(x => IsClaimSubmissionXml(x.FileContentXml))
+            .GroupBy(x => x.FacilityId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(x => GetHeaderRecordCount(x.FileContentXml)));
 
         var rows = facilities.Select(f =>
         {
             credMap.TryGetValue(f.Id, out var cred);
             txMap.TryGetValue(f.Id, out var tx);
+            claimMap.TryGetValue(f.Id, out var claimCount);
 
             latestMeaningful.TryGetValue(f.Id, out var mLog);
             latestAny.TryGetValue(f.Id, out var anyLog);
@@ -134,6 +148,7 @@ public class HomeController : Controller
                 LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
                 LastSyncStatus = effectiveStatus,
                 RecordCount = tx?.Records ?? 0,
+                ClaimCount = claimCount,
                 FileCount = tx?.DownloadedFiles ?? 0,
                 DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
                 PendingFilesCount = tx?.PendingFiles ?? 0,
@@ -147,6 +162,7 @@ public class HomeController : Controller
         {
             Facilities = rows,
             TotalRecords = txStats.Sum(x => x.Records),
+            TotalClaimCount = claimMap.Values.Sum(),
             TotalFiles = txStats.Sum(x => x.DownloadedFiles),
             LastSyncTime = logProjection.Count > 0
                 ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
@@ -161,6 +177,36 @@ public class HomeController : Controller
     {
         var vm = BuildLocalDashboard(tab);
         return View(vm);
+    }
+
+    private static bool IsClaimSubmissionXml(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml)) return false;
+        if (xml.Contains("Remittance.Advice", StringComparison.OrdinalIgnoreCase)) return false;
+        return xml.Contains("Claim.Submission", StringComparison.OrdinalIgnoreCase)
+            || xml.Contains("<ClaimSubmission", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int GetHeaderRecordCount(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml)) return 0;
+
+        try
+        {
+            var doc = XDocument.Parse(xml);
+            var header = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Header");
+            if (header == null) return 0;
+
+            var countText = header.Elements()
+                .FirstOrDefault(e => e.Name.LocalName == "RecordCount")
+                ?.Value;
+
+            return int.TryParse(countText, out var count) ? count : 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static RCMDashboardViewModel BuildLocalDashboard(string tab)

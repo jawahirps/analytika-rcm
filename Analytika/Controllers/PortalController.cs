@@ -1274,12 +1274,14 @@ public class PortalController : Controller
     public async Task<IActionResult> StatusBar()
     {
         var syncState = ActiveSyncState.Get();
+        var reportState = ReportGenerationState.Get();
+        var pendingState = PendingDownloadState.Get();
         const string cacheKey = "statusbar_static";
 
         // Static counts change slowly — cache for 20 s.
         // Invalidated immediately when a sync completes (syncRunning just flipped to false).
         if (!syncState.IsRunning && _cache.TryGetValue(cacheKey, out object? cached))
-            return Json(BuildStatusBarJson(cached!, syncState, User.Identity?.Name));
+            return Json(BuildStatusBarJson(cached!, syncState, reportState, pendingState, User.Identity?.Name));
 
         // Fetch all static values in two queries (one for transactions, one for credentials)
         var txStats = await _db.PortalTransactions
@@ -1318,10 +1320,10 @@ public class PortalController : Controller
         };
 
         _cache.Set(cacheKey, (object)staticData, TimeSpan.FromSeconds(20));
-        return Json(BuildStatusBarJson(staticData, syncState, User.Identity?.Name));
+        return Json(BuildStatusBarJson(staticData, syncState, reportState, pendingState, User.Identity?.Name));
     }
 
-    private static object BuildStatusBarJson(object staticData, SyncSnapshot sync, string? user)
+    private static object BuildStatusBarJson(object staticData, SyncSnapshot sync, ReportGenerationSnapshot report, PendingDownloadSnapshot pending, string? user)
     {
         // Merge static DB snapshot with live sync state (not cached)
         dynamic d = staticData;
@@ -1347,7 +1349,29 @@ public class PortalController : Controller
             syncFacilityIndex = sync.FacilityIndex,
             syncTotalFacilities = sync.TotalFacilities,
             syncRecordsSaved = sync.RecordsSaved,
-            syncFilesDownloaded = sync.FilesDownloaded
+            syncFilesDownloaded = sync.FilesDownloaded,
+            reportRunning = report.IsRunning,
+            reportPct = report.Pct,
+            reportId = report.ReportId,
+            reportType = report.ReportType,
+            reportFacility = report.Facility,
+            reportDateRange = report.DateRange,
+            reportStage = report.Stage,
+            reportMessage = report.Message,
+            reportDone = report.Done,
+            reportTotal = report.Total,
+            reportStartedAt = report.StartedAt.ToString("dd MMM yyyy HH:mm"),
+            reportFinishedAt = report.FinishedAt?.ToString("dd MMM yyyy HH:mm"),
+            pendingRunning = pending.IsRunning,
+            pendingPct = pending.Total > 0 ? (int)((double)(pending.Done + pending.Failed) / pending.Total * 100) : 0,
+            pendingTotal = pending.Total,
+            pendingDone = pending.Done,
+            pendingFailed = pending.Failed,
+            pendingFacility = pending.CurrentFacility,
+            pendingStartedAt = pending.StartedAt.ToString("dd MMM yyyy HH:mm"),
+            pendingFinishedAt = pending.FinishedAt?.ToString("dd MMM yyyy HH:mm"),
+            pendingLastRunAt = pending.LastRunAt?.ToString("dd MMM yyyy HH:mm"),
+            pendingLastDone = pending.LastDone
         };
     }
 

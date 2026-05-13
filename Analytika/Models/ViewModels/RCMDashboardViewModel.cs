@@ -52,6 +52,7 @@ public class FacilityStatusViewModel
     public int DegradedCount => Facilities.Count(f => f.Status == FacilityConnectionStatus.Degraded);
     public int DisconnectedCount => Facilities.Count(f => f.Status == FacilityConnectionStatus.Disconnected);
     public int TotalRecords { get; set; }
+    public int TotalClaimCount { get; set; }
     public int TotalFiles { get; set; }
     public string? LastSyncTime { get; set; }
 }
@@ -65,6 +66,7 @@ public class FacilityStatusRow
     public string? LastSyncTime { get; set; }
     public string? LastSyncStatus { get; set; }   // Success / Error / null
     public int RecordCount { get; set; }
+    public int ClaimCount { get; set; }
     public int FileCount { get; set; }
     public int DownloadedFilesCount { get; set; }  // files where FileDownloaded = true
     public int PendingFilesCount { get; set; }  // files where FileDownloaded = false

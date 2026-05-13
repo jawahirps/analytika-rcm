@@ -49,8 +49,7 @@
             <i class="fas fa-filter me-2"></i>@Model.ReportTitle - Filters
         </div>
         <div class="card-body p-4">
-            <form asp-controller="ReportScheduler" asp-action="SubmitReport" method="post" id="reportForm">
-                @Html.AntiForgeryToken()
+            <form asp-controller="ReportScheduler" asp-action="CreateReport" method="get" id="reportForm">
                 <input type="hidden" name="ReportType" value="@Model.ReportType" />
 
                 <!-- Date Range -->
@@ -60,6 +59,8 @@
                         <button type="button" class="date-range-btn active" data-range="Today" onclick="setDateRange(this, 'Today')">Today</button>
                         <button type="button" class="date-range-btn" data-range="ThisMonth" onclick="setDateRange(this, 'ThisMonth')">This Month</button>
                         <button type="button" class="date-range-btn" data-range="LastMonth" onclick="setDateRange(this, 'LastMonth')">Last Month</button>
+                        <button type="button" class="date-range-btn" data-range="ThisYear" onclick="setDateRange(this, 'ThisYear')">This Year</button>
+                        <button type="button" class="date-range-btn" data-range="LastYear" onclick="setDateRange(this, 'LastYear')">Last Year</button>
                         <button type="button" class="date-range-btn" data-range="Custom" onclick="setDateRange(this, 'Custom')">Custom Date</button>
                         <input type="hidden" name="DateRange" id="dateRangeInput" value="Today" />
                     </div>
@@ -82,7 +83,14 @@
                         <select name="SearchCriteria" class="form-select">
                             <option value="">-- All --</option>
                             <option value="EncounterEndDate">Encounter End Date</option>
-                            <option value="EncounterStartDate">Encounter Start Date</option>
+                            @if (Model.SearchCriteria == "EncounterStartDate")
+                            {
+                                <option value="EncounterStartDate" selected>Encounter Start Date</option>
+                            }
+                            else
+                            {
+                                <option value="EncounterStartDate">Encounter Start Date</option>
+                            }
                             <option value="SubmissionDate">Submission Date</option>
                             <option value="PaymentDate">Payment Date</option>
                         </select>
@@ -324,6 +332,12 @@
             } else if (range === 'LastMonth') {
                 firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+            } else if (range === 'ThisYear') {
+                firstDay = new Date(today.getFullYear(), 0, 1);
+                lastDay = new Date(today.getFullYear(), 11, 31);
+            } else if (range === 'LastYear') {
+                firstDay = new Date(today.getFullYear() - 1, 0, 1);
+                lastDay = new Date(today.getFullYear() - 1, 11, 31);
             }
 
             document.getElementById('dateFrom').value = formatDate(firstDay);

@@ -9,7 +9,7 @@ public class ReportSchedulerViewModel
     public string DateRange { get; set; } = "ThisMonth";
     public DateTime? DateFrom { get; set; }
     public DateTime? DateTo { get; set; }
-    public string? SearchCriteria { get; set; }
+    public string? SearchCriteria { get; set; } = "EncounterStartDate";
     public List<int> SelectedFacilities { get; set; } = new();
     public List<int> SelectedReceivers { get; set; } = new();
     public List<int> SelectedPayers { get; set; } = new();

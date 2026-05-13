@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Ghaf Bi Analytix</title>
+    <title>@ViewData["Title"] - Ghaf Business Intelligence</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
@@ -31,7 +31,7 @@
                 <polygon points="35,7 31,9 33.5,13" fill="#C87A10"/>
             </svg>
             <div class="brand-name-wrap">
-                <span class="brand-text">Ghaf Bi Analytix</span>
+                <span class="brand-text">Ghaf Bi</span>
                 <span class="brand-sub">Business Intelligence</span>
             </div>
         </a>
@@ -256,6 +256,26 @@
         <span id="sb-progress-pct" style="color:#38bdf8;font-weight:600;min-width:28px;text-align:right;"></span>
     </span>
 
+    <!-- Live report progress chip (hidden when idle) -->
+    <span id="sb-report-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
+        <i class="fas fa-file-contract sb-icon" style="color:#8b5cf6;"></i>
+        <span id="sb-report-label" style="color:#e2e8f0;"></span>
+        <span class="sb-progress-track">
+            <span id="sb-report-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #8b5cf6 0%, #a78bfa 100%); box-shadow:0 0 6px rgba(139,92,246,.55);"></span>
+        </span>
+        <span id="sb-report-pct" style="color:#a78bfa;font-weight:600;min-width:28px;text-align:right;"></span>
+    </span>
+
+    <!-- Live pending-download progress chip (hidden when idle) -->
+    <span id="sb-pending-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
+        <i class="fas fa-download sb-icon" style="color:#10b981;"></i>
+        <span id="sb-pending-label" style="color:#e2e8f0;"></span>
+        <span class="sb-progress-track">
+            <span id="sb-pending-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #10b981 0%, #34d399 100%); box-shadow:0 0 6px rgba(16,185,129,.55);"></span>
+        </span>
+        <span id="sb-pending-pct" style="color:#34d399;font-weight:600;min-width:28px;text-align:right;"></span>
+    </span>
+
     <span class="sb-div"></span>
 
     <span class="sb-chip" title="Records in DB">
@@ -370,8 +390,45 @@ function clearNotifications() {
             setPollRate(2000);   // faster while running
         } else {
             pw.style.display = 'none';
-            setPollRate(15000);  // back to slow
         }
+
+        const rw   = $('sb-report-wrap');
+        const rfill = $('sb-report-fill');
+        const rlbl  = $('sb-report-label');
+        const rpct  = $('sb-report-pct');
+        if (d.reportRunning) {
+            const p = d.reportPct || 0;
+            const stage = d.reportStage || 'Generating report';
+            rlbl.textContent = d.reportId ? `${d.reportId} · ${stage}` : stage;
+            rfill.style.width = p + '%';
+            rpct.textContent = p + '%';
+            rw.title = `${d.reportId || 'Report'}${d.reportType ? ' — ' + d.reportType : ''}\n${d.reportMessage || stage}`;
+            rw.style.display = 'inline-flex';
+        } else {
+            rw.style.display = 'none';
+        }
+
+        const pw2  = $('sb-pending-wrap');
+        const pfill = $('sb-pending-fill');
+        const plbl  = $('sb-pending-label');
+        const ppct  = $('sb-pending-pct');
+        if (d.pendingRunning) {
+            const p = d.pendingPct || 0;
+            const total = d.pendingTotal || 0;
+            const done = d.pendingDone || 0;
+            const failed = d.pendingFailed || 0;
+            plbl.textContent = total > 0
+                ? `Pending downloads · ${done + failed}/${total}`
+                : 'Pending downloads';
+            pfill.style.width = p + '%';
+            ppct.textContent = p + '%';
+            pw2.title = `${done} downloaded · ${failed} failed${d.pendingFacility ? `\n${d.pendingFacility}` : ''}`;
+            pw2.style.display = 'inline-flex';
+        } else {
+            pw2.style.display = 'none';
+        }
+
+        setPollRate((d.syncRunning || d.reportRunning || d.pendingRunning) ? 2000 : 15000);
     }
 
     function setPollRate(ms) {

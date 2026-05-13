@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+var hangfireServerEnabled = builder.Configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false);
+var recurringJobsEnabled = builder.Configuration.GetValue("BackgroundJobs:RecurringJobsEnabled", false);
+var hangfireDashboardEnabled = builder.Configuration.GetValue("BackgroundJobs:HangfireDashboardEnabled", false);
 
 // Allow large DB uploads (up to 3 GB) via the migration endpoint
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 3L * 1024 * 1024 * 1024);
@@ -43,13 +46,16 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Home/Index";
 });
 
-builder.Services.AddHangfire(config => config
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseInMemoryStorage());
+if (hangfireServerEnabled || recurringJobsEnabled || hangfireDashboardEnabled)
+{
+    builder.Services.AddHangfire(config => config
+        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UseInMemoryStorage());
+}
 
-if (builder.Configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false))
+if (hangfireServerEnabled)
     builder.Services.AddHangfireServer();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IReportService, ReportService>();
@@ -58,7 +64,8 @@ builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
 builder.Services.AddScoped<PortalSyncService>();
 builder.Services.AddScoped<ReconciliationService>();
 builder.Services.AddScoped<RemittanceParserService>();
-builder.Services.AddHostedService<PendingDownloadService>();
+if (builder.Configuration.GetValue("BackgroundJobs:PendingDownloads:HostedServiceEnabled", false))
+    builder.Services.AddHostedService<PendingDownloadService>();
 builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
     new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
 builder.Services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>
@@ -78,7 +85,6 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://localhost:{port}");
 
 var app = builder.Build();
-Console.WriteLine("[Startup] Built app");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -110,9 +116,10 @@ app.Use(async (context, next) =>
 });
 app.UseAuthorization();
 
-app.UseHangfireDashboard("/hangfire");
+if (hangfireDashboardEnabled)
+    app.UseHangfireDashboard("/hangfire");
 
-if (app.Configuration.GetValue("BackgroundJobs:RecurringJobsEnabled", false))
+if (recurringJobsEnabled)
 {
     // Daily cron: sync last 90 days of DHA transactions for all active credentials (2 AM)
     RecurringJob.AddOrUpdate<PortalSyncService>(
@@ -135,19 +142,16 @@ else
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-Console.WriteLine("[Startup] Route mapped");
 
-using (var scope = app.Services.CreateScope())
+if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", false))
 {
-    Console.WriteLine("[Startup] DB init begin");
+    using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<AppDbContext>();
-    Console.WriteLine("[Startup] EnsureCreated begin");
     db.Database.EnsureCreated();
-    Console.WriteLine("[Startup] EnsureCreated done");
-    if (app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false))
+    var createIndexesOnStartup = app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false);
+    if (createIndexesOnStartup)
     {
-        Console.WriteLine("[Startup] Index maintenance begin");
         db.Database.ExecuteSqlRaw(@"
             -- Performance indexes. Run only during planned maintenance on large local DBs.
             CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FetchedAt""
@@ -161,15 +165,11 @@ using (var scope = app.Services.CreateScope())
             CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
                 ON ""PortalTransactions""(""SyncedAt"" DESC);
         ");
-        Console.WriteLine("[Startup] Index maintenance done");
     }
     // Add EmailTo column to ReportRequests if not present (SQLite safe migration)
-    Console.WriteLine("[Startup] ReportRequests column check begin");
     if (!ColumnExists(db, "ReportRequests", "EmailTo"))
         db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL");
-    Console.WriteLine("[Startup] ReportRequests column check done");
 
-    Console.WriteLine("[Startup] Static table setup begin");
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
             ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -210,9 +210,7 @@ using (var scope = app.Services.CreateScope())
             ""CreatedAt""       TEXT NOT NULL DEFAULT (datetime('now'))
         );
     ");
-    Console.WriteLine("[Startup] Static table setup done");
 
-    Console.WriteLine("[Startup] Remittance table setup begin");
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS ""RemittanceClaims"" (
             ""Id""                       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -231,9 +229,6 @@ using (var scope = app.Services.CreateScope())
             ""PaymentReference""         TEXT NULL,
             ""ParsedAt""                 TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_FacilityId"" ON ""RemittanceClaims""(""FacilityId"");
-        CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_ClaimId""    ON ""RemittanceClaims""(""ClaimId"");
-
         CREATE TABLE IF NOT EXISTS ""ResubmissionTasks"" (
             ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
             ""RemittanceClaimId""   INTEGER NOT NULL UNIQUE REFERENCES ""RemittanceClaims""(""Id"") ON DELETE CASCADE,
@@ -251,21 +246,26 @@ using (var scope = app.Services.CreateScope())
             ""CreatedAt""           TEXT NOT NULL DEFAULT (datetime('now')),
             ""UpdatedAt""           TEXT NOT NULL DEFAULT (datetime('now'))
         );
-        CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status""         ON ""ResubmissionTasks""(""Status"");
-        CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
     ");
+
+    if (createIndexesOnStartup)
+    {
+        db.Database.ExecuteSqlRaw(@"
+            CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_FacilityId"" ON ""RemittanceClaims""(""FacilityId"");
+            CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_ClaimId""    ON ""RemittanceClaims""(""ClaimId"");
+            CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");
+            CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
+        ");
+    }
 
     // Add ClaimCategory column if it doesn't exist yet
     if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
         db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
-    Console.WriteLine("[Startup] Remittance table setup done");
 
-    Console.WriteLine("[Startup] Seed begin");
-    await SeedData.InitializeAsync(services);
-    Console.WriteLine("[Startup] Seed done");
+    if (app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
+        await SeedData.InitializeAsync(services);
 }
 
-Console.WriteLine("[Startup] Run begin");
 app.Run();
 
 static bool ColumnExists(AppDbContext db, string tableName, string columnName)

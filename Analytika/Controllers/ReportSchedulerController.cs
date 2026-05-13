@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Analytika.Controllers;
 
 [Authorize]
+[Route("[controller]/[action]")]
 public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
@@ -27,6 +28,7 @@ public class ReportSchedulerController : Controller
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
+            SearchCriteria = "EncounterStartDate",
             Facilities = new SelectList(await _context.Facilities.Where(f => f.IsActive).ToListAsync(), "Id", "Name"),
             Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
             Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
@@ -62,9 +64,12 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> ClaimLifeCycleReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("ClaimLifeCycle", "Claim Life Cycle Report", page));
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SubmitReport(ReportSchedulerViewModel model)
+    [HttpGet("/ReportScheduler/SubmitReport")]
+    public IActionResult SubmitReport()
+        => RedirectToAction(nameof(ClaimSummaryReport));
+
+    [HttpGet("/ReportScheduler/CreateReport")]
+    public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
         var user = User.Identity?.Name ?? "system";
         var request = new ReportRequest
@@ -85,8 +90,8 @@ public class ReportSchedulerController : Controller
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
 
-        var reportId = await _reportService.QueueReportAsync(request);
-        TempData["Success"] = $"Report {reportId} has been queued successfully.";
+        var reportId = await _reportService.QueueReportAsync(request, model.DateRange);
+        TempData["Success"] = $"Report {reportId} is now generating in the background.";
 
         return RedirectToAction(GetActionName(model.ReportType));
     }
