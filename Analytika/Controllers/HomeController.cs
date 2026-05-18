@@ -115,7 +115,16 @@ public class HomeController : Controller
 
         var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
         var txMap = txStats.ToDictionary(x => x.FacilityId);
-        var claimMap = await LoadClaimCountsByFacilityAsync();
+        var claimMap = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.RecordKind == "Submission")
+            .GroupBy(r => r.FacilityId)
+            .Select(g => new
+            {
+                FacilityId = g.Key,
+                ClaimCount = g.Select(r => r.ClaimId).Distinct().Count()
+            })
+            .ToDictionaryAsync(x => x.FacilityId, x => x.ClaimCount);
 
         var rows = facilities.Select(f =>
         {
@@ -160,64 +169,6 @@ public class HomeController : Controller
                 : null
         };
         return View(vm);
-    }
-
-    private async Task<Dictionary<int, int>> LoadClaimCountsByFacilityAsync()
-    {
-        var result = new Dictionary<int, int>();
-        var connection = _db.Database.GetDbConnection();
-        var shouldClose = connection.State != ConnectionState.Open;
-
-        if (shouldClose)
-            await connection.OpenAsync();
-
-        try
-        {
-            using var command = connection.CreateCommand();
-            command.CommandText = @"
-                SELECT FacilityId,
-                       COALESCE(SUM(
-                           CASE
-                               WHEN RecordStart > 0 AND RecordEnd > RecordStart
-                               THEN CAST(substr(
-                                   FileContentXml,
-                                   RecordStart + length('<RecordCount>'),
-                                   RecordEnd - (RecordStart + length('<RecordCount>'))
-                               ) AS INTEGER)
-                               ELSE 0
-                           END
-                       ), 0) AS ClaimCount
-                FROM (
-                    SELECT FacilityId,
-                           FileContentXml,
-                           instr(FileContentXml, '<RecordCount>') AS RecordStart,
-                           instr(FileContentXml, '</RecordCount>') AS RecordEnd
-                    FROM PortalTransactions
-                    WHERE FileContentXml IS NOT NULL
-                      AND length(FileContentXml) > 10
-                      AND FileContentXml NOT LIKE '%Remittance.Advice%'
-                      AND (
-                          FileContentXml LIKE '%Claim.Submission%'
-                          OR FileContentXml LIKE '%<ClaimSubmission%'
-                      )
-                ) ClaimXml
-                GROUP BY FacilityId;";
-
-            using var reader = await command.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
-            {
-                var facilityId = reader.GetInt32(0);
-                var claimCount = Convert.ToInt32(reader.GetValue(1));
-                result[facilityId] = claimCount;
-            }
-        }
-        finally
-        {
-            if (shouldClose)
-                await connection.CloseAsync();
-        }
-
-        return result;
     }
 
     [Authorize(Roles = AppRoles.RcmAccess)]

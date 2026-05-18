@@ -12,6 +12,7 @@ var hangfireDashboardEnabled = builder.Configuration.GetValue("BackgroundJobs:Ha
 
 // Allow large DB uploads (up to 3 GB) via the migration endpoint
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 3L * 1024 * 1024 * 1024);
+builder.WebHost.ConfigureKestrel(o => o.AddServerHeader = false);
 
 // In Docker the DB lives in /app/data (mounted volume); locally stays beside the app
 var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
@@ -97,6 +98,44 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["X-Frame-Options"] = "DENY";
+        headers["Referrer-Policy"] = "same-origin";
+        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
+        headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
+        headers["Cross-Origin-Opener-Policy"] = "same-origin";
+        headers["Cross-Origin-Resource-Policy"] = "same-origin";
+
+        var isHtml = string.Equals(context.Response.ContentType?.Split(';', 2)[0], "text/html", StringComparison.OrdinalIgnoreCase);
+        if (isHtml)
+        {
+            headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+            headers["Pragma"] = "no-cache";
+            headers["Expires"] = "0";
+            headers["Content-Security-Policy"] =
+                "default-src 'self'; " +
+                "base-uri 'self'; " +
+                "frame-ancestors 'none'; " +
+                "form-action 'self'; " +
+                "object-src 'none'; " +
+                "img-src 'self' data: https:; " +
+                "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com; " +
+                "connect-src 'self' https:; " +
+                "frame-src 'none'";
+        }
+
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true)

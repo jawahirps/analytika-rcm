@@ -257,31 +257,6 @@
     </div>
 </nav>
 
-@{
-    var layoutRoles = new[]
-    {
-        AppRoles.Admin,
-        AppRoles.FacilityAdmin,
-        AppRoles.Analyst,
-        AppRoles.Billing,
-        AppRoles.Finance,
-        AppRoles.Auditor,
-        AppRoles.Viewer
-    }.Where(User.IsInRole).ToArray();
-
-    var layoutContext = new
-    {
-        userName = User.Identity?.Name ?? "User",
-        displayName = User.Identity?.Name?.Split('@')[0] ?? "User",
-        roles = layoutRoles,
-        canAccessRcm,
-        canAccessResubmission,
-        canAccessAdmin
-    };
-}
-
-<div id="reactShellMount" class="react-shell-slot" aria-live="polite"></div>
-
 <main>
     @if (TempData["Success"] != null)
     {
@@ -382,13 +357,7 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
-<script>
-    window.__ANALYTIKA_CONTEXT__ = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(layoutContext));
-</script>
-<script src="~/js/analytika-react-shell.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
 function clearNotifications() {
