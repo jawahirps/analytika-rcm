@@ -9,7 +9,7 @@
             <i class="fas fa-arrow-left"></i>
         </a>
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#003B4D;">Create User</h4>
+            <h4 class="mb-0 fw-bold" style="color:#011C40;">Create User</h4>
             <small class="text-muted">Add a new global or facility-level user</small>
         </div>
     </div>
@@ -21,7 +21,7 @@
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#003B4D;">Account Information</h6>
+                        <h6 class="fw-bold mb-3" style="color:#011C40;">Account Information</h6>
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Full Name</label>
                             <input asp-for="FullName" class="form-control" placeholder="Dr. Ahmed Al Mansoori" />
@@ -59,7 +59,7 @@
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm mb-4" style="border-radius:12px;" id="facilitySection">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#003B4D;">Facility Access</h6>
+                        <h6 class="fw-bold mb-3" style="color:#011C40;">Facility Access</h6>
                         <p class="text-muted small mb-2">Select facilities this user can access:</p>
                         @foreach (var f in Model.AvailableFacilities)
                         {
@@ -76,7 +76,7 @@
             <div class="col-12">
                 <div class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#003B4D;"><i class="fas fa-chart-bar me-2" style="color:#008B8B;"></i>Dashboard & Report Access</h6>
+                        <h6 class="fw-bold mb-3" style="color:#011C40;"><i class="fas fa-chart-bar me-2" style="color:#A7EBF2;"></i>Dashboard & Report Access</h6>
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <p class="fw-semibold small mb-2">Dashboard Tabs</p>
@@ -109,7 +109,7 @@
 
             <div class="col-12 d-flex gap-2 justify-content-end">
                 <a asp-action="Users" class="btn btn-outline-secondary px-4">Cancel</a>
-                <button type="submit" class="btn px-4" style="background:#003B4D;color:#fff;border-radius:8px;">
+                <button type="submit" class="btn px-4" style="background:#011C40;color:#fff;border-radius:8px;">
                     <i class="fas fa-user-plus me-1"></i> Create User
                 </button>
             </div>
@@ -125,16 +125,16 @@
     padding:4px 12px;
     border-radius:20px;
     font-size:.78rem;
-    border:1.5px solid #C6E2E9;
-    background:#F7F9F9;
+    border:1.5px solid #EAF4FB;
+    background:#EAF4FB;
     color:#495057;
     transition: all .15s;
     user-select:none;
 }
 .access-chip input:checked + span {
-    background:#003B4D;
+    background:#011C40;
     color:#fff;
-    border-color:#003B4D;
+    border-color:#011C40;
 }
 </style>
 }

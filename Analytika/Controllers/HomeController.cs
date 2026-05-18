@@ -1,5 +1,6 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
+using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -219,7 +220,7 @@ public class HomeController : Controller
         return result;
     }
 
-    [Authorize]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     [HttpGet]
     public IActionResult RCMDashboard(string tab = "Submissions")
     {
@@ -263,11 +264,31 @@ public class HomeController : Controller
         var activeTab = tabs.Contains(tab, StringComparer.OrdinalIgnoreCase)
             ? tabs.First(t => t.Equals(tab, StringComparison.OrdinalIgnoreCase))
             : "Submissions";
+        var stableFieldTitle = activeTab switch
+        {
+            "Submissions" => "Encounter Date",
+            "Resubmissions" => "Encounter Date",
+            "Remittance" => "Encounter Date",
+            "Operations" => "Encounter Date",
+            "Insurance" => "Encounter Date",
+            "Department" => "Encounter Date",
+            "Denials" => "Denial Code",
+            "Clinicians" => "Department",
+            _ => "Encounter Date"
+        };
+        var stableFieldDetail = activeTab switch
+        {
+            "Resubmissions" => "Resubmission exports are grouped by Encounter Date so all levels line up with submission data.",
+            "Submissions" => "Shared submission anchor used across dashboard views.",
+            "Denials" => "Denial dashboards are best read against denial code groupings.",
+            "Clinicians" => "Clinician reporting is grouped by Department to keep rollups consistent.",
+            _ => "Used to keep reporting aligned across dashboards."
+        };
 
         var profiles = new Dictionary<string, (string Summary, int Seed)>
         {
-            ["Submissions"] = ("Claim submission volumes are stable with stronger acceptance in the last two cycles.", 86),
-            ["Resubmissions"] = ("Resubmission queues are trending down as aging worklists clear.", 64),
+            ["Submissions"] = ($"Claim submission volumes are stable with {stableFieldTitle} as the shared timeline field across exports.", 86),
+            ["Resubmissions"] = ($"Resubmission queues are trending down as aging worklists clear, organized by {stableFieldTitle}.", 64),
             ["Remittance"] = ("Collections remain healthy with a focused reconciliation backlog.", 78),
             ["Denials"] = ("Denial pressure is concentrated in authorization and coding categories.", 52),
             ["Clinicians"] = ("Clinician productivity is balanced, with a few outliers needing follow-up.", 71),
@@ -283,6 +304,8 @@ public class HomeController : Controller
         {
             ActiveTab = activeTab,
             Tabs = tabs,
+            StableFieldTitle = stableFieldTitle,
+            StableFieldDetail = stableFieldDetail,
             Summary = profile.Summary,
             RefreshedAt = DateTime.Now,
             Metrics =

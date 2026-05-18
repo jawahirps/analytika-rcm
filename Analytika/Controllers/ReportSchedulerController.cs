@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Analytika.Controllers;
 
-[Authorize]
+[Authorize(Roles = AppRoles.ReportAccess)]
 [Route("[controller]/[action]")]
 public class ReportSchedulerController : Controller
 {
@@ -68,7 +69,8 @@ public class ReportSchedulerController : Controller
     public IActionResult SubmitReport()
         => RedirectToAction(nameof(ClaimSummaryReport));
 
-    [HttpGet("/ReportScheduler/CreateReport")]
+    [HttpPost("/ReportScheduler/CreateReport")]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
         var user = User.Identity?.Name ?? "system";

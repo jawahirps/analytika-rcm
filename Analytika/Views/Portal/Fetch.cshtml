@@ -5,7 +5,7 @@
 
 <div class="container-fluid py-4 px-4">
     <div class="mb-4">
-        <h4 class="mb-0 fw-bold" style="color:#003B4D;">Portal Data Fetch</h4>
+        <h4 class="mb-0 fw-bold" style="color:#011C40;">Portal Data Fetch</h4>
         <small class="text-muted">Retrieve transactions from RHA (Riayati) and DHA (eClaimLink) portals</small>
     </div>
 
@@ -14,7 +14,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm" style="border-radius:12px;">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:#003B4D;">Fetch Parameters</h6>
+                    <h6 class="fw-bold mb-3" style="color:#011C40;">Fetch Parameters</h6>
                     <form asp-action="Fetch" method="post">
                         @Html.AntiForgeryToken()
 
@@ -128,7 +128,7 @@
                             <div class="form-text" style="font-size:.7rem;">Filters by # of claims inside each file. Use -1 to disable. Max 500 files returned per call.</div>
                         </div>
 
-                        <button type="submit" class="btn w-100" style="background:#008B8B;color:#fff;border-radius:8px;font-weight:600;">
+                        <button type="submit" class="btn w-100" style="background:#A7EBF2;color:#fff;border-radius:8px;font-weight:600;">
                             <i class="fas fa-cloud-download-alt me-1"></i> Fetch Data
                         </button>
                     </form>
@@ -140,17 +140,17 @@
             {
                 <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#003B4D;">Recent Fetches</h6>
+                        <h6 class="fw-bold mb-3" style="color:#011C40;">Recent Fetches</h6>
                         @foreach (var log in Model.RecentLogs)
                         {
                             <div class="d-flex align-items-start gap-2 mb-3">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#C6E2E9" : "#ffe8e8");">
+                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#EAF4FB" : "#ffe8e8");">
                                     <i class="fas fa-@(log.Status == "Success" ? "check" : "times") fa-xs"
-                                       style="color:@(log.Status == "Success" ? "#003B4D" : "#dc3545");"></i>
+                                       style="color:@(log.Status == "Success" ? "#011C40" : "#dc3545");"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
-                                    <div class="fw-semibold" style="color:#003B4D;">@log.Portal — @log.Operation</div>
+                                    <div class="fw-semibold" style="color:#011C40;">@log.Portal — @log.Operation</div>
                                     <div class="text-muted">@(log.Facility?.Name) · @log.RecordsFetched records</div>
                                     <div class="text-muted">@log.FetchedAt.ToString("dd MMM HH:mm")</div>
                                 </div>
@@ -176,8 +176,8 @@
                 <div class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="fw-bold" style="color:#003B4D;">Fetch Results</span>
-                            <span class="badge ms-2" style="background:#C6E2E9;color:#003B4D;">@Model.TotalFetched records</span>
+                            <span class="fw-bold" style="color:#011C40;">Fetch Results</span>
+                            <span class="badge ms-2" style="background:#EAF4FB;color:#011C40;">@Model.TotalFetched records</span>
                         </div>
                         <div class="d-flex gap-2">
                             @if (Model.Operation == "SearchTransactions" && Model.Portal == "DHA")
@@ -194,7 +194,7 @@
                                     <input type="hidden" name="MinRecord"         value="@Model.MinRecord" />
                                     <input type="hidden" name="MaxRecord"         value="@Model.MaxRecord" />
                                 </form>
-                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm" style="background:#008B8B;color:#fff;border-radius:6px;font-size:.78rem;">
+                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm" style="background:#A7EBF2;color:#fff;border-radius:6px;font-size:.78rem;">
                                     <i class="fas fa-database me-1"></i> Bulk Save
                                 </button>
                             }
@@ -206,7 +206,7 @@
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height:500px;overflow-y:auto;">
                             <table class="table table-hover mb-0" style="font-size:.82rem;" id="resultsTable">
-                                <thead style="background:#F7F9F9;position:sticky;top:0;">
+                                <thead style="background:#EAF4FB;position:sticky;top:0;">
                                     <tr>
                                         <th class="ps-4 py-2 fw-semibold text-muted border-0">Transaction ID</th>
                                         <th class="py-2 fw-semibold text-muted border-0">Type</th>
@@ -221,9 +221,9 @@
                                     @foreach (var r in Model.Results)
                                     {
                                         <tr>
-                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#003B4D;">@r.FileId</td>
+                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#011C40;">@r.FileId</td>
                                             <td class="py-2 align-middle">
-                                                <span class="badge rounded-pill" style="background:#C6E2E9;color:#006666;font-size:.7rem;">@r.Type</span>
+                                                <span class="badge rounded-pill" style="background:#EAF4FB;color:#54ACBF;font-size:.7rem;">@r.Type</span>
                                             </td>
                                             <td class="py-2 align-middle">
                                                 <span class="badge rounded-pill @(r.Status.Contains("Complete") || r.Status == "1" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")" style="font-size:.7rem;">
@@ -263,30 +263,30 @@
                 <div class="card-body p-4">
                     <!-- header row -->
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#C6E2E9;">
-                            <i class="fas fa-spinner fa-spin" style="color:#006666;font-size:.85rem;"></i>
+                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#EAF4FB;">
+                            <i class="fas fa-spinner fa-spin" style="color:#54ACBF;font-size:.85rem;"></i>
                         </div>
                         <div>
-                            <div class="fw-bold" id="saveStatusTitle" style="color:#003B4D;">Searching portal…</div>
+                            <div class="fw-bold" id="saveStatusTitle" style="color:#011C40;">Searching portal…</div>
                             <div class="text-muted small" id="saveStatusSubtitle">Fetching transaction list</div>
                         </div>
                     </div>
                     <!-- progress bar -->
                     <div class="progress mb-3" style="height:6px;border-radius:4px;">
-                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:#008B8B;transition:width .3s;"></div>
+                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:#A7EBF2;transition:width .3s;"></div>
                     </div>
                     <!-- counters -->
                     <div class="row g-2 text-center">
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#003B4D;" id="statFound">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#011C40;" id="statFound">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Found</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#008B8B;" id="statSaved">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#A7EBF2;" id="statSaved">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Saved</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#006666;" id="statFiles">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#54ACBF;" id="statFiles">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Downloaded</div>
                         </div>
                         <div class="col">
@@ -306,14 +306,14 @@
 
             @if (!string.IsNullOrEmpty(Model.DownloadedFileName))
             {
-                <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;border-left:4px solid #008B8B;">
+                <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;border-left:4px solid #A7EBF2;">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3 mb-3">
                             <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#e8fff7;flex-shrink:0;">
-                                <i class="fas fa-file-download" style="color:#008B8B;font-size:1.1rem;"></i>
+                                <i class="fas fa-file-download" style="color:#A7EBF2;font-size:1.1rem;"></i>
                             </div>
                             <div>
-                                <div class="fw-bold" style="color:#003B4D;">@Model.DownloadedFileName</div>
+                                <div class="fw-bold" style="color:#011C40;">@Model.DownloadedFileName</div>
                                 <div class="text-muted small">Transaction file downloaded and marked on portal</div>
                             </div>
                         </div>
@@ -321,7 +321,7 @@
                         {
                             <a href="data:application/octet-stream;base64,@Model.DownloadedFileBase64"
                                download="@Model.DownloadedFileName"
-                               class="btn btn-sm" style="background:#008B8B;color:#fff;border-radius:8px;">
+                               class="btn btn-sm" style="background:#A7EBF2;color:#fff;border-radius:8px;">
                                 <i class="fas fa-download me-1"></i> Save File
                             </a>
                         }
@@ -333,7 +333,7 @@
             {
                 <div class="card border-0 shadow-sm d-flex align-items-center justify-content-center" style="border-radius:12px;min-height:300px;">
                     <div class="text-center text-muted py-5">
-                        <i class="fas fa-cloud-download-alt fa-3x mb-3" style="color:#C6E2E9;"></i>
+                        <i class="fas fa-cloud-download-alt fa-3x mb-3" style="color:#EAF4FB;"></i>
                         <p class="mb-0">Select a portal and operation, then click <strong>Fetch Data</strong></p>
                         <small>Fetched transactions will appear here</small>
                     </div>
@@ -348,11 +348,11 @@
 .portal-toggle { cursor:pointer; }
 .portal-toggle span {
     display:block; padding:10px 12px; border-radius:8px; text-align:center;
-    border:1.5px solid #C6E2E9; background:#F7F9F9; font-size:.82rem;
+    border:1.5px solid #EAF4FB; background:#EAF4FB; font-size:.82rem;
     font-weight:600; color:#495057; transition:all .15s; user-select:none;
 }
 .portal-toggle input:checked + span {
-    background:#003B4D; color:#fff; border-color:#003B4D;
+    background:#011C40; color:#fff; border-color:#011C40;
 }
 </style>
 }
@@ -454,7 +454,7 @@ async function bulkSave() {
                     updateSaveUI(json);
                     if (json.status === 'done') {
                         btn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
-                        btn.style.background = '#003B4D';
+                        btn.style.background = '#011C40';
                     }
                 } catch {}
             }
@@ -481,8 +481,8 @@ function updateSaveUI(d) {
 
     const icon = document.getElementById('saveStatusIcon');
     if (d.status === 'done') {
-        icon.style.background = '#C6E2E9';
-        icon.innerHTML = '<i class="fas fa-check" style="color:#003B4D;font-size:.85rem;"></i>';
+        icon.style.background = '#EAF4FB';
+        icon.innerHTML = '<i class="fas fa-check" style="color:#011C40;font-size:.85rem;"></i>';
     } else if (d.status === 'error') {
         icon.style.background = '#ffe8e8';
         icon.innerHTML = '<i class="fas fa-times" style="color:#dc3545;font-size:.85rem;"></i>';

@@ -12,64 +12,64 @@
         min-height: calc(100vh - 120px);
     }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #008B8B; text-decoration: none; }
-    .breadcrumb { --bs-breadcrumb-divider-color: rgba(0,59,77,.36); }
+    .breadcrumb-item a { color: #54ACBF; text-decoration: none; font-weight: 600; }
+    .breadcrumb { --bs-breadcrumb-divider-color: rgba(8,20,35,.46); }
     .filter-card,
     .table-card {
-        border: 1px solid rgba(255,255,255,.64);
+        border: 1px solid rgba(8,20,35,.14);
         border-radius: 22px;
-        box-shadow: 0 18px 46px rgba(0,59,77,.09), inset 0 1px 0 rgba(255,255,255,.7);
-        background: rgba(255,255,255,.64);
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        box-shadow: 0 20px 54px rgba(8,20,35,.12), inset 0 1px 0 rgba(255,255,255,.78);
+        background: rgba(255,255,255,.78);
+        backdrop-filter: blur(24px) saturate(175%);
+        -webkit-backdrop-filter: blur(24px) saturate(175%);
         margin-bottom: 20px;
         overflow: hidden;
     }
     .filter-card .card-header {
-        background: linear-gradient(135deg, rgba(0,59,77,.92), rgba(0,139,139,.82));
+        background: linear-gradient(135deg, rgba(8,20,35,.96), rgba(0,102,102,.9));
         color: white;
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
         font-weight: 600;
-        border-bottom: 1px solid rgba(255,255,255,.22);
+        border-bottom: 1px solid rgba(255,255,255,.28);
     }
     .date-range-btn {
         border-radius: 999px;
         padding: 6px 15px;
         font-size: 0.82rem;
         margin-right: 6px;
-        border: 1px solid rgba(255,255,255,.64);
-        background: rgba(255,255,255,.58);
-        color: #006666;
+        border: 1px solid rgba(8,20,35,.14);
+        background: rgba(255,255,255,.82);
+        color: #011C40;
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
     }
-    .date-range-btn:hover { background: rgba(255,255,255,.82); color: #003B4D; }
+    .date-range-btn:hover { background: rgba(255,255,255,.94); color: #011C40; }
     .date-range-btn.active {
-        background: linear-gradient(135deg, #003B4D, #008B8B);
+        background: linear-gradient(135deg, #011C40, #A7EBF2);
         color: white;
         border-color: rgba(255,255,255,.28);
         box-shadow: 0 10px 22px rgba(0,139,139,.18), inset 0 1px 0 rgba(255,255,255,.25);
     }
     .table-card .card-header {
-        background: rgba(255,255,255,.58);
+        background: rgba(255,255,255,.86);
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
-        border-bottom: 1px solid rgba(0,102,102,.12);
+        border-bottom: 1px solid rgba(8,20,35,.14);
         font-weight: 600;
-        color: #003B4D;
+        color: #011C40;
     }
-    .table thead th { background: rgba(198,226,233,.68); font-weight: 600; font-size: 0.82rem; color: #006666; border-bottom: 1px solid rgba(0,102,102,.14); white-space: nowrap; }
+    .table thead th { background: rgba(216,232,243,.9); font-weight: 700; font-size: 0.82rem; color: #011C40; border-bottom: 1px solid rgba(8,20,35,.16); white-space: nowrap; }
     .table tbody td { font-size: 0.83rem; vertical-align: middle; }
-    .report-id-link { color: #008B8B; font-weight: 600; text-decoration: none; }
+    .report-id-link { color: #54ACBF; font-weight: 700; text-decoration: none; }
     .report-id-link:hover { text-decoration: underline; }
-    .status-completed { color: #28a745; font-weight: 600; }
-    .status-pending { color: #ffc107; font-weight: 600; }
-    .status-processing { color: #008B8B; font-weight: 600; }
-    .status-failed { color: #dc3545; font-weight: 600; }
-    .btn-download { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; }
+    .status-completed { color: #1f7a5f; font-weight: 700; }
+    .status-pending { color: #b97700; font-weight: 700; }
+    .status-processing { color: #54ACBF; font-weight: 700; }
+    .status-failed { color: #b91c1c; font-weight: 700; }
+    .btn-download { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; }
     .btn-delete-report { background: rgba(254,226,226,.78); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
     .btn-delete-report:hover { background: #fecaca; color: #7f1d1d; }
     .btn-clear-reports { background: rgba(255,255,255,.68); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
@@ -77,8 +77,8 @@
     .pagination-info { font-size: 0.82rem; color: #6c757d; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: linear-gradient(135deg, #003B4D, #008B8B); color: white; border: 1px solid rgba(255,255,255,.26); padding: 8px 24px; border-radius: 999px; font-weight: 600; box-shadow: 0 12px 24px rgba(0,139,139,.18); }
-    .btn-reset-report { background: rgba(255,255,255,.58); color: #006666; border: 1px solid rgba(255,255,255,.64); padding: 8px 20px; border-radius: 999px; }
+    .btn-submit-report { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; border: 1px solid rgba(255,255,255,.28); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 12px 24px rgba(0,139,139,.20); }
+    .btn-reset-report { background: rgba(255,255,255,.82); color: #011C40; border: 1px solid rgba(8,20,35,.14); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
 
     @@media (max-width: 768px) {
         .page-wrapper {
@@ -175,7 +175,8 @@
             <i class="fas fa-filter me-2"></i>@Model.ReportTitle - Filters
         </div>
         <div class="card-body p-4">
-            <form asp-controller="ReportScheduler" asp-action="CreateReport" method="get" id="reportForm">
+            <form asp-controller="ReportScheduler" asp-action="CreateReport" method="post" id="reportForm">
+                @Html.AntiForgeryToken()
                 <input type="hidden" name="ReportType" value="@Model.ReportType" />
 
                 <!-- Date Range -->
@@ -314,7 +315,7 @@
                     </div>
                     <div class="col-md-9">
                         <label class="form-label fw-semibold">
-                            <i class="fas fa-envelope me-1" style="color:#008B8B;"></i>Email Report To
+                            <i class="fas fa-envelope me-1" style="color:#A7EBF2;"></i>Email Report To
                             <small class="text-muted fw-normal ms-1">(optional — separate multiple addresses with commas)</small>
                         </label>
                         <input type="text" name="EmailTo" class="form-control"

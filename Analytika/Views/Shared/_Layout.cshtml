@@ -1,9 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Ghaf Business Intelligence</title>
+    <script>
+        (function () {
+            try {
+                var lang = localStorage.getItem('analytika-lang') || 'en';
+                var theme = localStorage.getItem('analytika-theme') || 'light';
+                document.documentElement.lang = lang;
+                document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                document.documentElement.dataset.lang = lang;
+                document.documentElement.dataset.theme = theme;
+            } catch (_) {}
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
@@ -18,17 +30,23 @@
 
 <nav class="navbar navbar-expand-lg analytika-navbar">
     <div class="container-fluid px-3">
+        @{
+            var canAccessRcm = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst) || User.IsInRole(AppRoles.Billing) || User.IsInRole(AppRoles.Finance) || User.IsInRole(AppRoles.Auditor);
+            var canAccessResubmission = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst);
+            var canAccessAdmin = User.IsInRole(AppRoles.Admin);
+            var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
+        }
 
         <!-- Brand -->
-        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="RCMDashboard">
+        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#006884" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#006884"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#006884"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#006884"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#006884"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#78C2C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#78C2C2"/>
+                <circle cx="22" cy="22" r="20" stroke="#A7EBF2" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#A7EBF2"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#A7EBF2"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#A7EBF2"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#35577D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#35577D"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
@@ -49,10 +67,15 @@
                         <i class="fas fa-signal me-1" style="font-size:.75rem;"></i>Dashboard
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
-                       asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
-                </li>
+                @if (canAccessRcm)
+                {
+                    <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
+                           asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
+                    </li>
+                }
+                @if (canAccessResubmission)
+                {
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resubmission" ? "active" : "")"
                        href="#" role="button" data-bs-toggle="dropdown">
@@ -67,6 +90,9 @@
                             <i class="fas fa-chart-pie me-2 text-muted" style="width:14px;"></i>Denial Dashboard</a></li>
                     </ul>
                 </li>
+                }
+                @if (canAccessRcm)
+                {
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Advanced Reports</a>
                     <ul class="dropdown-menu">
@@ -103,7 +129,8 @@
                         </a></li>
                     </ul>
                 </li>
-                @if (User.IsInRole("Admin"))
+                }
+                @if (canAccessAdmin)
                 {
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
@@ -138,12 +165,21 @@
                     </li>
                 }
                 <li class="nav-item">
-                    <a class="nav-link" href="#Support">Support</a>
+                    <a class="nav-link" href="#Support" data-i18n="support">Support</a>
                 </li>
             </ul>
 
             <!-- Right side -->
             <ul class="navbar-nav ms-auto align-items-center mb-0">
+                <li class="nav-item d-flex align-items-center gap-2 me-2 lang-theme-tools">
+                    <div class="btn-group btn-group-sm lang-toggle-group" role="group" aria-label="Language toggle">
+                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" data-lang="en" id="langToggleEn">EN</button>
+                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn" data-lang="ar" id="langToggleAr">AR</button>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn">
+                        <i class="fas fa-moon me-1"></i><span id="themeToggleLabel">Dark</span>
+                    </button>
+                </li>
                 <!-- Bell -->
                 <li class="nav-item dropdown">
                     <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
@@ -151,14 +187,14 @@
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="min-width:320px;border-radius:12px;overflow:hidden;">
-                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#003B4D;">
-                            <span class="fw-semibold text-white" style="font-size:.85rem;">Notifications</span>
-                            <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()">Mark all read</button>
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#011C40;">
+                            <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
+                            <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
                         </div>
                         <div id="notificationList">
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#C6E2E9;">
-                                    <i class="fas fa-file-download" style="color:#66B2B2;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
+                                    <i class="fas fa-file-download" style="color:#35577D;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">New transactions available</div>
@@ -167,8 +203,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
-                                <div class="notif-icon flex-shrink-0" style="background:#C6E2E9;">
-                                    <i class="fas fa-file-code" style="color:#006666;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
+                                    <i class="fas fa-file-code" style="color:#54ACBF;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">XML Parsing summary</div>
@@ -177,8 +213,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#C6E2E9;">
-                                    <i class="fas fa-sync" style="color:#003B4D;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
+                                    <i class="fas fa-sync" style="color:#011C40;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">Daily sync complete</div>
@@ -187,8 +223,8 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="text-center py-2" style="background:#F7F9F9;border-top:1px solid #eee;">
-                            <a href="/Portal/Sync" style="font-size:.75rem;color:#66B2B2;text-decoration:none;">View all activity</a>
+                        <div class="text-center py-2" style="background:#EAF4FB;border-top:1px solid #eee;">
+                            <a href="/Portal/Sync" style="font-size:.75rem;color:#35577D;text-decoration:none;" data-i18n="view_all_activity">View all activity</a>
                         </div>
                     </div>
                 </li>
@@ -204,13 +240,13 @@
                         </span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i>Profile</a></li>
+                        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i><span data-i18n="profile">Profile</span></a></li>
                         <li><hr class="dropdown-divider my-1"></li>
                         <li>
                             <form asp-controller="Home" asp-action="LogOut" method="post">
                                 @Html.AntiForgeryToken()
                                 <button type="submit" class="dropdown-item text-danger">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Sign Out
+                                    <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
                                 </button>
                             </form>
                         </li>
@@ -220,6 +256,31 @@
         </div>
     </div>
 </nav>
+
+@{
+    var layoutRoles = new[]
+    {
+        AppRoles.Admin,
+        AppRoles.FacilityAdmin,
+        AppRoles.Analyst,
+        AppRoles.Billing,
+        AppRoles.Finance,
+        AppRoles.Auditor,
+        AppRoles.Viewer
+    }.Where(User.IsInRole).ToArray();
+
+    var layoutContext = new
+    {
+        userName = User.Identity?.Name ?? "User",
+        displayName = User.Identity?.Name?.Split('@')[0] ?? "User",
+        roles = layoutRoles,
+        canAccessRcm,
+        canAccessResubmission,
+        canAccessAdmin
+    };
+}
+
+<div id="reactShellMount" class="react-shell-slot" aria-live="polite"></div>
 
 <main>
     @if (TempData["Success"] != null)
@@ -248,33 +309,33 @@
 
     <!-- Live sync progress chip (hidden when idle) -->
     <span id="sb-progress-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-bolt sb-icon" style="color:#78C2C2;"></i>
-        <span id="sb-progress-label" style="color:#C6E2E9;"></span>
+        <i class="fas fa-bolt sb-icon" style="color:#26658C;"></i>
+        <span id="sb-progress-label" style="color:#EAF4FB;"></span>
         <span class="sb-progress-track">
             <span id="sb-progress-fill" class="sb-progress-fill"></span>
         </span>
-        <span id="sb-progress-pct" style="color:#78C2C2;font-weight:600;min-width:28px;text-align:right;"></span>
+        <span id="sb-progress-pct" style="color:#26658C;font-weight:600;min-width:28px;text-align:right;"></span>
     </span>
 
     <!-- Live report progress chip (hidden when idle) -->
     <span id="sb-report-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-file-contract sb-icon" style="color:#66B2B2;"></i>
-        <span id="sb-report-label" style="color:#C6E2E9;"></span>
+        <i class="fas fa-file-contract sb-icon" style="color:#35577D;"></i>
+        <span id="sb-report-label" style="color:#EAF4FB;"></span>
         <span id="sb-report-detail" class="sb-progress-detail"></span>
         <span class="sb-progress-track">
-            <span id="sb-report-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #008B8B 0%, #78C2C2 100%); box-shadow:0 0 6px rgba(0,139,139,.55);"></span>
+            <span id="sb-report-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #A7EBF2 0%, #26658C 100%); box-shadow:0 0 6px rgba(0,139,139,.55);"></span>
         </span>
-        <span id="sb-report-pct" style="color:#78C2C2;font-weight:600;min-width:28px;text-align:right;"></span>
+        <span id="sb-report-pct" style="color:#26658C;font-weight:600;min-width:28px;text-align:right;"></span>
     </span>
 
     <!-- Live pending-download progress chip (hidden when idle) -->
     <span id="sb-pending-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-download sb-icon" style="color:#78C2C2;"></i>
-        <span id="sb-pending-label" style="color:#C6E2E9;"></span>
+        <i class="fas fa-download sb-icon" style="color:#26658C;"></i>
+        <span id="sb-pending-label" style="color:#EAF4FB;"></span>
         <span class="sb-progress-track">
-            <span id="sb-pending-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #006666 0%, #66B2B2 100%); box-shadow:0 0 6px rgba(102,178,178,.55);"></span>
+            <span id="sb-pending-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #54ACBF 0%, #35577D 100%); box-shadow:0 0 6px rgba(102,178,178,.55);"></span>
         </span>
-        <span id="sb-pending-pct" style="color:#66B2B2;font-weight:600;min-width:28px;text-align:right;"></span>
+        <span id="sb-pending-pct" style="color:#35577D;font-weight:600;min-width:28px;text-align:right;"></span>
     </span>
 
     <span class="sb-div"></span>
@@ -321,12 +382,18 @@
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
+<script>
+    window.__ANALYTIKA_CONTEXT__ = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(layoutContext));
+</script>
+<script src="~/js/analytika-react-shell.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#003B4D;"></i>All caught up!</div>';
+        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#011C40;"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
@@ -450,6 +517,98 @@ function clearNotifications() {
 
     poll();                          // immediate on load
     setPollRate(15000);              // start at 15 s; tightens to 2 s during sync
+})();
+
+(function initThemeLanguageControls() {
+    const root = document.documentElement;
+    const langButtons = {
+        en: document.getElementById('langToggleEn'),
+        ar: document.getElementById('langToggleAr')
+    };
+    const themeButton = document.getElementById('themeToggleBtn');
+
+    const dict = {
+        en: {
+            support: 'Support',
+            notifications: 'Notifications',
+            mark_all_read: 'Mark all read',
+            view_all_activity: 'View all activity',
+            profile: 'Profile',
+            sign_out: 'Sign Out',
+            theme: 'Dark',
+            all_caught_up: 'All caught up!'
+        },
+        ar: {
+            support: 'الدعم',
+            notifications: 'الإشعارات',
+            mark_all_read: 'تعليم الكل كمقروء',
+            view_all_activity: 'عرض كل النشاط',
+            profile: 'الملف الشخصي',
+            sign_out: 'تسجيل الخروج',
+            theme: 'داكن',
+            all_caught_up: 'تمت المزامنة!'
+        }
+    };
+
+    function applyLanguage(lang) {
+        root.lang = lang;
+        root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        root.dataset.lang = lang;
+        try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
+
+        document.querySelectorAll('[data-i18n]').forEach(function (node) {
+            var key = node.getAttribute('data-i18n');
+            if (dict[lang] && dict[lang][key]) {
+                node.textContent = dict[lang][key];
+            }
+        });
+
+        Object.keys(langButtons).forEach(function (key) {
+            var btn = langButtons[key];
+            if (!btn) return;
+            btn.classList.toggle('active', key === lang);
+            btn.setAttribute('aria-pressed', key === lang ? 'true' : 'false');
+        });
+    }
+
+    function applyTheme(theme) {
+        root.dataset.theme = theme;
+        try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
+        if (themeButton) {
+            var icon = themeButton.querySelector('i');
+            var label = document.getElementById('themeToggleLabel');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+            }
+            if (label) {
+                var lang = root.dataset.lang || 'en';
+                var labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
+                label.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
+            }
+            themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+        }
+    }
+
+    const currentLang = root.dataset.lang || (function () { try { return localStorage.getItem('analytika-lang'); } catch (_) { return null; } })() || 'en';
+    const currentTheme = root.dataset.theme || (function () { try { return localStorage.getItem('analytika-theme'); } catch (_) { return null; } })() || 'light';
+
+    applyLanguage(currentLang);
+    applyTheme(currentTheme);
+
+    Object.keys(langButtons).forEach(function (key) {
+        var btn = langButtons[key];
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            applyLanguage(key);
+        });
+    });
+
+    if (themeButton) {
+        themeButton.addEventListener('click', function () {
+            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+        });
+    }
 })();
 </script>
 </body>

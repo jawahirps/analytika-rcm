@@ -11,12 +11,12 @@ namespace Analytika.Services;
 
 public class ReportService : IReportService
 {
-    private const string GhafInk = "#003B4D";
-    private const string GhafPrimary = "#003B4D";
-    private const string GhafTeal = "#008B8B";
-    private const string GhafPale = "#C6E2E9";
-    private const string GhafCream = "#F7F9F9";
-    private const string GhafBorder = "#C6E2E9";
+    private const string GhafInk = "#011C40";
+    private const string GhafPrimary = "#A7EBF2";
+    private const string GhafTeal = "#54ACBF";
+    private const string GhafPale = "#26658C";
+    private const string GhafCream = "#EAF4FB";
+    private const string GhafBorder = "#35577D";
 
     private readonly AppDbContext _context;
     private readonly ILogger<ReportService> _logger;
@@ -393,7 +393,7 @@ public class ReportService : IReportService
             UpdateStage("Generating workbook", 90, exportRows.Count, exportRows.Count, $"Grouping complete; writing {exportRows.Count:N0} matched row(s) to Excel and {unmatchedRemittances.Count:N0} unmatched remittance note(s).");
             using var wb = new XLWorkbook();
             wb.Style.Font.FontName = "Inter";
-            var ws = wb.Worksheets.Add("Claim Summary");
+            var ws = wb.Worksheets.Add(GetWorksheetName(report.ReportType));
             const int tableHeaderRow = 8;
 
             var headers = new[]
@@ -702,6 +702,8 @@ public class ReportService : IReportService
     {
         var candidates = new[]
         {
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884-2x.jpg"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.jpg"),
             Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.png"),
             Path.Combine(_env.WebRootPath, "images", "ghaf-logo-soft-78C2C2.png"),
             Path.Combine(_env.WebRootPath, "images", "ghaf-report-logo-teal.png"),
@@ -737,6 +739,24 @@ public class ReportService : IReportService
         "ClaimLifeCycle" => "Claim Life Cycle Report",
         _ => "Ghaf Business Intelligence Report"
     };
+
+    private static string GetWorksheetName(string reportType)
+    {
+        var title = reportType switch
+        {
+            "ClaimSummary" => "Claim Summary",
+            "ClaimActivity" => "Claim Activity",
+            "RemittanceActivity" => "Remittance Activity",
+            "ClaimReceiver" => "Claim Receiver",
+            "ClaimClinician" => "Claim Clinician",
+            "FinanceTAT" => "Finance TAT",
+            "DenialReport" => "Denial Query",
+            "ClaimLifeCycle" => "Claim Life Cycle",
+            _ => "Ghaf Report"
+        };
+
+        return title.Length <= 31 ? title : title[..31];
+    }
 
     // ── XML parsers ────────────────────────────────────────────────────
 

@@ -93,7 +93,7 @@
     </div>
 
     <!-- Single-Facility Sync Panel (hidden until started) -->
-    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #008B8B!important;">
+    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -101,7 +101,7 @@
                     <span id="syncOneTitle">Facility Sync</span>
                 </h6>
                 <div class="d-flex align-items-center gap-2">
-                    <span id="syncOneGrandTotal" class="badge" style="background:#C6E2E9;color:#003B4D;font-size:.75rem;"></span>
+                    <span id="syncOneGrandTotal" class="badge" style="background:#EAF4FB;color:#011C40;font-size:.75rem;"></span>
                     <button id="pauseOneBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseSyncOne()">
                         <i class="fas fa-pause me-1"></i>Pause
                     </button>
@@ -109,9 +109,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncOneProgress" class="progress-bar" style="background:#008B8B;width:0%;transition:width .3s;"></div>
+                    <div id="syncOneProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#008B8B;min-width:32px;text-align:right;">0%</span>
+                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#A7EBF2;min-width:32px;text-align:right;">0%</span>
             </div>
             <div id="syncOneCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
                 <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;">
@@ -120,19 +120,19 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncOneCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#008B8B;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncOneCtrFiles">0</strong>
                 </span>
             </div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
-            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#F7F9F9;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
     </div>
 
     <!-- Sync All Progress Panel (hidden until started) -->
-    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #008B8B!important;">
+    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -140,7 +140,7 @@
                     Month-wise Sync — Jan 2024 → Today
                 </h6>
                 <div class="d-flex align-items-center gap-2">
-                    <span id="syncAllGrandTotal" class="badge" style="background:#C6E2E9;color:#003B4D;font-size:.75rem;"></span>
+                    <span id="syncAllGrandTotal" class="badge" style="background:#EAF4FB;color:#011C40;font-size:.75rem;"></span>
                     <button id="pauseAllBtn" class="btn btn-xs fw-semibold" style="display:none;background:var(--amber);color:#fff;border:none;" onclick="pauseSyncAll()">
                         <i class="fas fa-pause me-1"></i>Pause
                     </button>
@@ -149,9 +149,9 @@
             <!-- Overall progress -->
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncAllProgress" class="progress-bar" style="background:#008B8B;width:0%;transition:width .3s;"></div>
+                    <div id="syncAllProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#003B4D;min-width:32px;text-align:right;">0%</span>
+                <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#011C40;min-width:32px;text-align:right;">0%</span>
             </div>
             <!-- Live tally counters -->
             <div id="syncAllCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
@@ -161,14 +161,14 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncAllCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#008B8B;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncAllCtrFiles">0</strong>
                 </span>
             </div>
             <!-- Current facility + month -->
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <!-- Scrollable log -->
-            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#F7F9F9;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
@@ -571,7 +571,7 @@
                                                             data-fid="@f.Value" data-type="2"
                                                             title="Submission / Claims XML"
                                                             onclick="dlToggle(this)"
-                                                            style="font-size:.66rem;border:1px solid #008B8B;background:rgba(0,139,139,0.12);color:#008B8B;border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                            style="font-size:.66rem;border:1px solid #A7EBF2;background:rgba(0,139,139,0.12);color:#A7EBF2;border-radius:4px;padding:2px 6px;white-space:nowrap;">
                                                         <i class="fas fa-file-medical me-1"></i>Claim
                                                     </button>
                                                     <button class="btn btn-xs dl-toggle"
@@ -750,10 +750,10 @@
                         <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;font-size:.75rem;">
                             <i class="fas fa-plus-circle me-1"></i>New: <strong>${data.newRecords ?? 0}</strong>
                         </span>
-                        <span class="px-2 py-1 rounded" style="background:rgba(102,178,178,0.15);color:#006666;font-size:.75rem;">
+                        <span class="px-2 py-1 rounded" style="background:rgba(102,178,178,0.15);color:#54ACBF;font-size:.75rem;">
                             <i class="fas fa-history me-1"></i>Already in DB: <strong>${data.dups ?? 0}</strong>
                         </span>
-                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#008B8B;font-size:.75rem;">
+                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;font-size:.75rem;">
                             <i class="fas fa-file-download me-1"></i>Files: <strong>${data.filesDownloaded ?? 0}</strong>
                         </span>
                     </div>`;
@@ -780,7 +780,7 @@
         document.getElementById('pauseAllBtn').style.display = 'none';
         const logDiv = document.getElementById('syncAllLog');
         const line = document.createElement('div');
-        line.style.color = '#66B2B2'; line.style.fontWeight = '600';
+        line.style.color = '#35577D'; line.style.fontWeight = '600';
         line.textContent = '⏸ Sync paused — use the Resume button above to continue.';
         logDiv.appendChild(line);
         document.getElementById('syncAllSpinner').classList.remove('fa-spin');
@@ -859,13 +859,13 @@
             const d = JSON.parse(e.data);
 
             if (d.status === 'start') {
-                addLog(`▶ ${d.message}`, '#008B8B');
+                addLog(`▶ ${d.message}`, '#A7EBF2');
 
             } else if (d.status === 'resumed') {
-                addLog(`⏩ Resuming — ${d.message || ''}`, '#66B2B2');
+                addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
 
             } else if (d.status === 'facility_start') {
-                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#003B4D');
+                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#011C40');
                 curLbl.textContent = `Facility ${d.facilityIndex}: ${d.facilityName}`;
                 ckpt.facilityIdx = d.facilityIndex || 0;
                 ckpt.lastFacilityName = d.facilityName || '';
@@ -874,7 +874,7 @@
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
-                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#66B2B2', true);
+                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 setProgress(d.pct || 0);
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
                 ckpt.monthIdx = (d.monthIdx ?? 0) + 1;   // next month to resume from
@@ -895,7 +895,7 @@
                 saveCkpt(ckpt);
 
             } else if (d.status === 'warning') {
-                addLog(`⚠ ${d.message}`, '#006666');
+                addLog(`⚠ ${d.message}`, '#54ACBF');
 
             } else if (d.status === 'error') {
                 syncCompleted = true;
@@ -924,7 +924,7 @@
             existCp.reason = 'disconnected';
             existCp.totalSaved = ctrNew; existCp.totalDups = ctrDup; existCp.totalFiles = ctrFiles;
             saveCkpt(existCp);
-            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#006666');
+            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#54ACBF');
             document.getElementById('pauseAllBtn').style.display = 'none';
             showResumeBanner(loadCkpt());
             done();
@@ -951,7 +951,7 @@
         document.getElementById('pauseOneBtn').style.display = 'none';
         const logDiv = document.getElementById('syncOneLog');
         const line = document.createElement('div');
-        line.style.color = '#66B2B2'; line.style.fontWeight = '600';
+        line.style.color = '#35577D'; line.style.fontWeight = '600';
         line.textContent = '⏸ Sync paused — use the Resume button above to continue.';
         logDiv.appendChild(line);
         document.getElementById('syncOneSpinner').classList.remove('fa-spin');
@@ -1033,20 +1033,20 @@
 
             if (d.status === 'start') {
                 title.textContent = d.message;
-                addLog(`▶ ${d.message}`, '#008B8B');
+                addLog(`▶ ${d.message}`, '#A7EBF2');
 
             } else if (d.status === 'resumed') {
-                addLog(`⏩ Resuming — ${d.message || ''}`, '#66B2B2');
+                addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
 
             } else if (d.status === 'facility_start') {
-                addLog(`◆ ${d.facilityName}`, '#003B4D');
+                addLog(`◆ ${d.facilityName}`, '#011C40');
                 curLbl.textContent = d.facilityName;
                 oneCkpt.lastFacilityName = d.facilityName || '';
                 saveCkpt(oneCkpt);
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
-                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#66B2B2', true);
+                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
@@ -1091,7 +1091,7 @@
             existCp.reason = 'disconnected';
             existCp.totalSaved = oneCtrNew; existCp.totalDups = oneCtrDup; existCp.totalFiles = oneCtrFiles;
             saveCkpt(existCp);
-            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#006666');
+            addLog('⚠ Connection dropped — checkpoint saved. Use Resume to continue.', '#54ACBF');
             document.getElementById('pauseOneBtn').style.display = 'none';
             showResumeBanner(loadCkpt());
             done();

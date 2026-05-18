@@ -16,24 +16,25 @@
         margin-bottom: 28px;
     }
     .ss-card {
-        background: #fff;
+        background: rgba(255,255,255,.86);
         border-radius: 16px;
         padding: 20px 18px 16px;
-        box-shadow: 0 1px 5px rgba(0,0,0,.06);
+        box-shadow: 0 14px 34px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
         display: flex; align-items: center; gap: 14px;
+        border: 1px solid rgba(8,20,35,.10);
     }
     .ss-icon {
         width: 46px; height: 46px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.1rem; flex-shrink: 0;
     }
-    .ss-icon.green  { background: #C6E2E9; color: #059669; }
-    .ss-icon.amber  { background: #C6E2E9; color: #006666; }
-    .ss-icon.red    { background: #fee2e2; color: #dc2626; }
-    .ss-icon.blue   { background: #C6E2E9; color: #008B8B; }
-    .ss-icon.purple { background: #ede9fe; color: #7c3aed; }
-    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #003B4D; line-height: 1; }
-    .ss-lbl  { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #66B2B2; margin-top: 2px; }
+    .ss-icon.green  { background: #EAF4FB; color: #54ACBF; }
+    .ss-icon.amber  { background: rgba(216,232,243,.9); color: #011C40; }
+    .ss-icon.red    { background: #fee2e2; color: #b91c1c; }
+    .ss-icon.blue   { background: rgba(216,232,243,.92); color: #A7EBF2; }
+    .ss-icon.purple { background: rgba(216,232,243,.84); color: #011C40; }
+    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #011C40; line-height: 1; }
+    .ss-lbl  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #4B6B73; margin-top: 2px; }
 
     /* Facility grid */
     .facility-grid {
@@ -42,64 +43,65 @@
         gap: 16px;
     }
     .fac-status-card {
-        background: #fff;
+        background: rgba(255,255,255,.86);
         border-radius: 16px;
         padding: 20px;
-        box-shadow: 0 1px 5px rgba(0,0,0,.06);
-        border-left: 4px solid #C6E2E9;
+        box-shadow: 0 14px 34px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
+        border: 1px solid rgba(8,20,35,.10);
+        border-left: 4px solid #EAF4FB;
         position: relative;
         transition: box-shadow .15s, transform .15s;
         cursor: pointer;
     }
     .fac-status-card:hover {
-        box-shadow: 0 4px 16px rgba(0,0,0,.1);
+        box-shadow: 0 18px 42px rgba(8,20,35,.12);
         transform: translateY(-2px);
     }
     .fac-status-card a { text-decoration: none; color: inherit; display: block; }
     .fac-status-card a:hover { text-decoration: none; }
-    .fac-status-card.connected    { border-left-color: #008B8B; }
+    .fac-status-card.connected    { border-left-color: #A7EBF2; }
     .fac-status-card.degraded     { border-left-color: #f59e0b; }
     .fac-status-card.disconnected { border-left-color: #ef4444; }
 
     .fac-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
-    .fac-name   { font-size: .92rem; font-weight: 700; color: #003B4D; line-height: 1.3; max-width: 190px; }
-    .fac-portal { font-size: .68rem; font-weight: 600; letter-spacing: .4px; color: #7c3aed; background: #ede9fe; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+    .fac-name   { font-size: .92rem; font-weight: 700; color: #011C40; line-height: 1.3; max-width: 190px; }
+    .fac-portal { font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: #011C40; background: rgba(216,232,243,.92); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
 
     .status-dot {
         width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
     }
-    .status-dot.connected    { background: #008B8B; box-shadow: 0 0 0 3px #C6E2E9; }
-    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #C6E2E9; }
+    .status-dot.connected    { background: #A7EBF2; box-shadow: 0 0 0 3px #EAF4FB; }
+    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #EAF4FB; }
     .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
 
     .fac-meta { display: flex; flex-direction: column; gap: 6px; }
-    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #66B2B2; }
-    .fac-meta-row i { width: 14px; text-align: center; color: #66B2B2; font-size: .7rem; }
-    .fac-meta-row .val { color: #334155; font-weight: 500; }
+    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #4B6B73; }
+    .fac-meta-row i { width: 14px; text-align: center; color: #54ACBF; font-size: .7rem; }
+    .fac-meta-row .val { color: #011C40; font-weight: 600; }
 
     .fac-status-bar { margin-top: 12px; margin-bottom: 12px; }
-    .fac-status-label { font-size: .68rem; color: #66B2B2; font-weight: 600; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .fac-status-label { font-size: .68rem; color: #4B6B73; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; }
     .fac-progress-container {
-        width: 100%; height: 8px; background: #C6E2E9; border-radius: 4px; overflow: hidden;
+        width: 100%; height: 8px; background: rgba(216,232,243,.92); border-radius: 4px; overflow: hidden;
     }
     .fac-progress-bar {
-        height: 100%; background: linear-gradient(90deg, #008B8B 0%, #78C2C2 100%); border-radius: 4px;
+        height: 100%; background: linear-gradient(90deg, #A7EBF2 0%, #26658C 100%); border-radius: 4px;
         transition: width .3s ease;
     }
-    .fac-status-counts { font-size: .65rem; color: #66B2B2; font-weight: 500; }
+    .fac-status-counts { font-size: .65rem; color: #4B6B73; font-weight: 600; }
     .fac-status-counts .downloaded { color: #059669; font-weight: 600; }
     .fac-status-counts .pending { color: #ca8a04; font-weight: 600; }
 
-    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(8,20,35,.10); }
     .fac-stat  { text-align: center; flex: 1; }
-    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #003B4D; }
-    .fac-stat .l  { font-size: .65rem; color: #66B2B2; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
-    .fac-stat .meta-inline { font-size: .72rem; color: #66B2B2; font-weight: 500; margin-top: 2px; line-height: 1.2; }
+    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #011C40; }
+    .fac-stat .l  { font-size: .65rem; color: #4B6B73; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+    .fac-stat .meta-inline { font-size: .72rem; color: #4B6B73; font-weight: 600; margin-top: 2px; line-height: 1.2; }
 
     .status-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-    .status-label.connected    { color: #059669; }
-    .status-label.degraded     { color: #006666; }
-    .status-label.disconnected { color: #dc2626; }
+    .status-label.connected    { color: #047857; }
+    .status-label.degraded     { color: #54ACBF; }
+    .status-label.disconnected { color: #b91c1c; }
 
     @@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
     .dot-pulse { animation: pulse 2s infinite; }
@@ -137,16 +139,16 @@
     <!-- Page header -->
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#003B4D;">
-                <i class="fas fa-signal me-2 text-success"></i>Facility Status
+            <h4 class="mb-0 fw-bold" style="color:#011C40;">
+                <i class="fas fa-signal me-2" style="color:#A7EBF2;"></i>Facility Status
             </h4>
-            <p class="text-muted small mb-0">Live connectivity &amp; sync status across all registered facilities.</p>
+            <p class="small mb-0" style="color:#4B6B73;">Live connectivity &amp; sync status across all registered facilities.</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="/Portal/Sync" class="btn btn-sm btn-outline-secondary">
+            <a href="/Portal/Sync" class="btn btn-sm btn-outline-secondary" style="color:#011C40;border-color:rgba(8,20,35,.18);background:rgba(255,255,255,.82);">
                 <i class="fas fa-sync-alt me-1"></i>Sync Portal
             </a>
-            <a href="/Admin/Credentials" class="btn btn-sm btn-outline-secondary">
+            <a href="/Admin/Credentials" class="btn btn-sm btn-outline-secondary" style="color:#011C40;border-color:rgba(8,20,35,.18);background:rgba(255,255,255,.82);">
                 <i class="fas fa-key me-1"></i>Credentials
             </a>
         </div>

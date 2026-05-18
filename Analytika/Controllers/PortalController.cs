@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -12,7 +13,7 @@ using System.Text.Json;
 
 namespace Analytika.Controllers;
 
-[Authorize]
+[Authorize(Roles = AppRoles.RcmAccess)]
 public class PortalController : Controller
 {
     private readonly AppDbContext _db;

@@ -16,7 +16,7 @@
                     <i class="fas fa-shield-alt me-1"></i>Ensure Standard Roles
                 </button>
             </form>
-            <a asp-action="Users" class="btn btn-sm" style="background:#003B4D;color:#fff;border-radius:8px;">
+            <a asp-action="Users" class="btn btn-sm" style="background:#011C40;color:#fff;border-radius:8px;">
                 <i class="fas fa-users me-1"></i>Users
             </a>
         </div>
@@ -44,7 +44,7 @@
                         @Html.AntiForgeryToken()
                         <label class="form-label small fw-semibold">Role Name</label>
                         <input name="newRoleName" class="form-control mb-3" maxlength="64" placeholder="e.g. ClaimsManager" />
-                        <button type="submit" class="btn w-100" style="background:#008B8B;color:#fff;border-radius:8px;">
+                        <button type="submit" class="btn w-100" style="background:#A7EBF2;color:#fff;border-radius:8px;">
                             <i class="fas fa-plus me-1"></i>Create Role
                         </button>
                     </form>
@@ -57,7 +57,7 @@
                     <div class="d-flex flex-wrap gap-2">
                         @foreach (var role in Model.StandardRoles)
                         {
-                            <span class="badge" style="background:#C6E2E9;color:#334155;border-radius:999px;padding:.45rem .65rem;">@role</span>
+                            <span class="badge" style="background:#EAF4FB;color:#334155;border-radius:999px;padding:.45rem .65rem;">@role</span>
                         }
                     </div>
                     <p class="text-muted small mb-0 mt-3">
@@ -98,15 +98,15 @@
                                     <td>
                                         @if (role.IsProtected)
                                         {
-                                            <span class="badge" style="background:rgba(102,178,178,.14);color:#006666;">Protected</span>
+                                            <span class="badge" style="background:rgba(102,178,178,.14);color:#54ACBF;">Protected</span>
                                         }
                                         else if (role.IsStandard)
                                         {
-                                            <span class="badge" style="background:rgba(0,139,139,.12);color:#008B8B;">Standard</span>
+                                            <span class="badge" style="background:rgba(0,139,139,.12);color:#A7EBF2;">Standard</span>
                                         }
                                         else
                                         {
-                                            <span class="badge" style="background:#C6E2E9;color:#334155;">Custom</span>
+                                            <span class="badge" style="background:#EAF4FB;color:#334155;">Custom</span>
                                         }
                                     </td>
                                     <td class="text-center">

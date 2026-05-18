@@ -4,6 +4,8 @@ public class RCMDashboardViewModel
 {
     public string ActiveTab { get; set; } = "Submissions";
     public List<string> Tabs { get; set; } = new() { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
+    public string StableFieldTitle { get; set; } = "Encounter Date";
+    public string StableFieldDetail { get; set; } = "Shared submission anchor used across dashboard views.";
     public List<DashboardMetric> Metrics { get; set; } = new();
     public List<DashboardTrendPoint> Trend { get; set; } = new();
     public List<DashboardBreakdownItem> Breakdown { get; set; } = new();

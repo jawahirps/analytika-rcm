@@ -1,5 +1,6 @@
 using Analytika.Models;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ using System.Text.Json;
 
 namespace Analytika.Controllers;
 
-[Authorize]
+[Authorize(Roles = AppRoles.ResubmissionAccess)]
 public class ResubmissionController : Controller
 {
     private readonly AppDbContext _db;

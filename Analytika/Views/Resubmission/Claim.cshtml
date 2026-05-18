@@ -12,20 +12,20 @@
 
 @section Styles {
 <style>
-.detail-card { border-radius:10px; border:1px solid #C6E2E9; background:#fff; padding:1.25rem; margin-bottom:1rem; }
-.detail-label { font-size:.72rem; color:#66B2B2; text-transform:uppercase; letter-spacing:.04em; }
+.detail-card { border-radius:10px; border:1px solid #EAF4FB; background:#fff; padding:1.25rem; margin-bottom:1rem; }
+.detail-label { font-size:.72rem; color:#35577D; text-transform:uppercase; letter-spacing:.04em; }
 .detail-value { font-size:.92rem; font-weight:600; color:#111827; margin-top:2px; }
 .badge-status { font-size:.75rem; padding:.3em .75em; border-radius:99px; font-weight:600; }
-.bs-Unassigned  { background:#C6E2E9; color:#374151; }
-.bs-Assigned    { background:#C6E2E9; color:#006666; }
-.bs-InReview    { background:#C6E2E9; color:#92400e; }
-.bs-Resubmitted { background:#C6E2E9; color:#065f46; }
+.bs-Unassigned  { background:#EAF4FB; color:#374151; }
+.bs-Assigned    { background:#EAF4FB; color:#54ACBF; }
+.bs-InReview    { background:#EAF4FB; color:#92400e; }
+.bs-Resubmitted { background:#EAF4FB; color:#065f46; }
 .bs-Appealed    { background:#ede9fe; color:#5b21b6; }
 .bs-Closed      { background:#f0fdf4; color:#166534; }
 .bs-Rejected    { background:#fee2e2; color:#991b1b; }
 .denial-badge   { font-size:.72rem; padding:.25em .6em; background:#fee2e2; color:#991b1b; border-radius:4px; font-weight:600; }
-.timeline-dot   { width:10px; height:10px; border-radius:50%; background:#003B4D; flex-shrink:0; margin-top:4px; }
-.timeline-line  { width:2px; background:#C6E2E9; margin:0 auto; flex-grow:1; }
+.timeline-dot   { width:10px; height:10px; border-radius:50%; background:#011C40; flex-shrink:0; margin-top:4px; }
+.timeline-line  { width:2px; background:#EAF4FB; margin:0 auto; flex-grow:1; }
 </style>
 }
 
@@ -33,7 +33,7 @@
 
     <!-- ── Breadcrumb ─────────────────────────────────────────────────────── -->
     <nav style="font-size:.78rem;" class="mb-3">
-        <a href="/Resubmission" class="text-decoration-none" style="color:#66B2B2;">
+        <a href="/Resubmission" class="text-decoration-none" style="color:#35577D;">
             <i class="fas fa-tasks me-1"></i>Resubmission
         </a>
         <span class="mx-2 text-muted">/</span>
@@ -49,7 +49,7 @@
             <div class="detail-card">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
-                        <h5 class="fw-bold mb-1" style="color:#003B4D;">@Model.ClaimId</h5>
+                        <h5 class="fw-bold mb-1" style="color:#011C40;">@Model.ClaimId</h5>
                         @if (!string.IsNullOrEmpty(Model.PayerClaimId))
                         {
                             <div class="text-muted" style="font-size:.78rem;">
@@ -112,7 +112,7 @@
                 {
                     <div class="mt-3">
                         <div class="detail-label mb-1">Payer Comments</div>
-                        <div class="p-2 rounded" style="background:#C6E2E9; font-size:.8rem; color:#92400e;">
+                        <div class="p-2 rounded" style="background:#EAF4FB; font-size:.8rem; color:#92400e;">
                             <i class="fas fa-exclamation-triangle me-1"></i>@Model.Comments
                         </div>
                     </div>
@@ -121,7 +121,7 @@
 
             <!-- Source remittance file -->
             <div class="detail-card">
-                <h6 class="fw-semibold mb-2"><i class="fas fa-file-code me-2" style="color:#66B2B2;"></i>Source File</h6>
+                <h6 class="fw-semibold mb-2"><i class="fas fa-file-code me-2" style="color:#35577D;"></i>Source File</h6>
                 <div class="row g-2">
                     <div class="col-md-8">
                         <div class="detail-label">File Name</div>
@@ -143,7 +143,7 @@
             {
                 <div class="detail-card">
                     <h6 class="fw-semibold mb-3">
-                        <i class="fas fa-pencil-alt me-2" style="color:#66B2B2;"></i>
+                        <i class="fas fa-pencil-alt me-2" style="color:#35577D;"></i>
                         @(isAdmin ? "Task Details" : "My Work")
                     </h6>
 
@@ -167,14 +167,14 @@
                         <textarea id="workNotes" class="form-control form-control-sm" rows="3"
                                   placeholder="Add notes, findings, or escalation reasons…">@(task?.Notes ?? "")</textarea>
                     </div>
-                    <button class="btn btn-sm btn-primary" style="background:#003B4D;border-color:#003B4D;"
+                    <button class="btn btn-sm btn-primary" style="background:#011C40;border-color:#011C40;"
                             onclick="saveStatus()">
                         <i class="fas fa-save me-1"></i>Save
                     </button>
 
                     @if (task != null)
                     {
-                        <div class="mt-3 pt-3 border-top d-flex gap-4 flex-wrap" style="font-size:.75rem; color:#66B2B2;">
+                        <div class="mt-3 pt-3 border-top d-flex gap-4 flex-wrap" style="font-size:.75rem; color:#35577D;">
                             @if (task.StartedAt.HasValue)
                             {
                                 <span><i class="fas fa-play me-1"></i>Started: @task.StartedAt.Value.ToString("dd MMM HH:mm")</span>
@@ -196,7 +196,7 @@
         <!-- ── Right: Assignment Panel ────────────────────────────────────── -->
         <div class="col-lg-4">
             <div class="detail-card">
-                <h6 class="fw-semibold mb-3"><i class="fas fa-user-tag me-2" style="color:#66B2B2;"></i>Assignment</h6>
+                <h6 class="fw-semibold mb-3"><i class="fas fa-user-tag me-2" style="color:#35577D;"></i>Assignment</h6>
 
                 @if (task != null)
                 {
@@ -265,7 +265,7 @@
                                   placeholder="Instructions for coder…"></textarea>
                     </div>
                     <button class="btn btn-sm w-100 fw-semibold"
-                            style="background:#003B4D;border-color:#003B4D;color:#fff;"
+                            style="background:#011C40;border-color:#011C40;color:#fff;"
                             onclick="saveAssign()">
                         <i class="fas fa-user-plus me-1"></i>@(task != null ? "Update Assignment" : "Assign")
                     </button>
@@ -275,7 +275,7 @@
             <!-- Parsed at info -->
             <div class="detail-card">
                 <h6 class="fw-semibold mb-2" style="font-size:.8rem;"><i class="fas fa-info-circle me-1 text-muted"></i>Record Info</h6>
-                <div class="row g-1" style="font-size:.75rem; color:#66B2B2;">
+                <div class="row g-1" style="font-size:.75rem; color:#35577D;">
                     <div class="col-5">Payment Ref</div>
                     <div class="col-7 fw-semibold text-dark">@(Model.PaymentReference ?? "—")</div>
                     <div class="col-5">Parsed At</div>

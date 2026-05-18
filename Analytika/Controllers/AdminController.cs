@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ using ClosedXML.Excel;
 
 namespace Analytika.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = AppRoles.AdminAccess)]
 public class AdminController : Controller
 {
     private readonly AppDbContext _db;

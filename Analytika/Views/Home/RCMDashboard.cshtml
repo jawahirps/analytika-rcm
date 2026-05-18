@@ -6,7 +6,7 @@
     var tabMeta = new Dictionary<string, (string Icon, string Desc)>
     {
         ["Submissions"]   = ("fa-paper-plane",    "Claim submission volumes, acceptance rates, and timelines"),
-        ["Resubmissions"] = ("fa-redo-alt",        "Resubmitted claims tracking and resolution outcomes"),
+        ["Resubmissions"] = ("fa-redo-alt",        "Resubmitted claims tracking and resolution outcomes anchored to Encounter Date"),
         ["Remittance"]    = ("fa-money-bill-wave", "Payment reconciliation and remittance analysis"),
         ["Denials"]       = ("fa-ban",             "Denial patterns, root causes, and denial trends"),
         ["Clinicians"]    = ("fa-user-md",         "Clinician productivity and claim performance"),
@@ -21,51 +21,147 @@
 
 @section Styles {
 <style>
-:root { --navy:#003B4D; --teal:#008B8B; --gold:#66B2B2; --line:#C6E2E9; --muted:#66B2B2; }
-.bi-shell { min-height:calc(100vh - 56px); background:#F7F9F9; }
-.bi-tabs { display:flex; gap:0; overflow-x:auto; padding:0 1rem; background:#fff; border-bottom:1px solid var(--line); scrollbar-width:none; }
+:root { --navy:#011C40; --teal:#A7EBF2; --gold:#35577D; --line:#EAF4FB; --muted:#35577D; }
+.bi-shell {
+    min-height: calc(100vh - 56px);
+    background:
+        radial-gradient(circle at top left, rgba(167,235,242,.10), transparent 28%),
+        linear-gradient(140deg, #EAF4FB 0%, rgba(246,248,252,.92) 38%, rgba(255,255,255,.98) 100%);
+}
+.bi-tabs {
+    display:flex;
+    gap:0;
+    overflow-x:auto;
+    padding:0 1rem;
+    background:rgba(255,255,255,.72);
+    border-bottom:1px solid rgba(8,20,35,.10);
+    scrollbar-width:none;
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
 .bi-tabs::-webkit-scrollbar { display:none; }
-.bi-tab { display:flex; align-items:center; gap:.45rem; padding:.75rem 1rem; border:0; border-bottom:3px solid transparent; background:transparent; color:#66B2B2; font-size:.8rem; font-weight:600; white-space:nowrap; text-decoration:none; }
+.bi-tab {
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+    padding:.78rem 1rem;
+    border:0;
+    border-bottom:3px solid transparent;
+    background:transparent;
+    color:#35577D;
+    font-size:.8rem;
+    font-weight:600;
+    white-space:nowrap;
+    text-decoration:none;
+    border-radius: 14px 14px 0 0;
+    transition: background .18s ease, color .18s ease, transform .18s ease;
+}
 .bi-tab:hover, .bi-tab.active { color:var(--navy); }
-.bi-tab.active { border-bottom-color:var(--gold); }
+.bi-tab:hover { background: rgba(255,255,255,.54); transform: translateY(-1px); }
+.bi-tab.active {
+    border-bottom-color:var(--gold);
+    background: rgba(255,255,255,.7);
+}
 .bi-tab.active i { color:var(--gold); }
 .bi-content { max-width:1440px; margin:0 auto; padding:1rem; }
-.bi-header { display:flex; justify-content:space-between; gap:1rem; align-items:flex-start; padding:.9rem 0 1rem; }
+.bi-header {
+    display:flex;
+    justify-content:space-between;
+    gap:1rem;
+    align-items:flex-start;
+    padding:1rem 1.1rem;
+    margin-bottom:1rem;
+    border:1px solid rgba(8,20,35,.10);
+    border-radius: 18px;
+    background: rgba(255,255,255,.72);
+    box-shadow: 0 18px 42px rgba(1,28,64,.08);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+.bi-header-left { display:flex; flex-direction:column; gap:.45rem; }
 .bi-title { color:var(--navy); font-size:1.15rem; font-weight:800; margin:0; }
-.bi-desc { color:var(--muted); font-size:.82rem; margin:.2rem 0 0; }
-.bi-refresh { color:#006666; font-size:.75rem; white-space:nowrap; padding-top:.2rem; }
+.bi-desc { color:#54ACBF; font-size:.82rem; margin:.2rem 0 0; }
+.bi-field {
+    display:inline-flex;
+    align-items:center;
+    gap:.45rem;
+    align-self:flex-start;
+    padding:.35rem .6rem;
+    border-radius:999px;
+    background: rgba(216,232,243,.72);
+    border:1px solid rgba(8,20,35,.08);
+    color:var(--navy);
+    font-size:.73rem;
+    font-weight:800;
+}
+.bi-field i { color:#54ACBF; }
+.bi-field small { color:#35577D; font-weight:700; }
+.bi-refresh {
+    color:#54ACBF;
+    font-size:.75rem;
+    white-space:nowrap;
+    padding:.35rem .55rem;
+    border-radius: 999px;
+    background: rgba(216,232,243,.7);
+    border: 1px solid rgba(8,20,35,.08);
+}
 .metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
-.metric-card, .panel { background:#fff; border:1px solid var(--line); border-radius:8px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
-.metric-card { padding:.9rem; display:flex; gap:.75rem; align-items:center; min-height:96px; }
+.metric-card, .panel {
+    background: rgba(255,255,255,.78);
+    border:1px solid rgba(8,20,35,.10);
+    border-radius:16px;
+    box-shadow:0 14px 34px rgba(1,28,64,.07);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+.metric-card {
+    padding:.95rem;
+    display:flex;
+    gap:.75rem;
+    align-items:center;
+    min-height:96px;
+    position: relative;
+    overflow:hidden;
+}
+.metric-card::before {
+    content:'';
+    position:absolute;
+    inset:auto -15% -35% auto;
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(167,235,242,.16), transparent 68%);
+    pointer-events:none;
+}
 .metric-icon { width:40px; height:40px; border-radius:8px; display:grid; place-items:center; flex:0 0 auto; }
-.tone-teal { background:rgba(0,139,139,.12); color:var(--teal); }
-.tone-gold { background:rgba(102,178,178,.13); color:var(--gold); }
-.tone-green { background:rgba(22,163,74,.12); color:#006666; }
-.tone-blue { background:rgba(37,99,235,.12); color:#008B8B; }
+.tone-teal { background:rgba(167,235,242,.12); color:var(--teal); }
+.tone-gold { background:rgba(53,87,125,.12); color:var(--gold); }
+.tone-green { background:rgba(84,172,191,.12); color:#54ACBF; }
+.tone-blue { background:rgba(38,101,140,.12); color:#A7EBF2; }
 .metric-label { color:var(--muted); font-size:.74rem; font-weight:700; text-transform:uppercase; }
 .metric-value { color:var(--navy); font-size:1.25rem; font-weight:800; line-height:1.2; }
-.metric-delta { color:#006666; font-size:.72rem; font-weight:700; }
+.metric-delta { color:#54ACBF; font-size:.72rem; font-weight:700; }
 .dash-grid { display:grid; grid-template-columns:2fr 1fr; gap:.75rem; margin-top:.75rem; }
 .panel { padding:1rem; }
 .panel-title { color:var(--navy); font-size:.9rem; font-weight:800; margin:0 0 .75rem; }
-.summary { color:#006666; font-size:.86rem; line-height:1.55; margin-bottom:1rem; }
+.summary { color:#54ACBF; font-size:.86rem; line-height:1.55; margin-bottom:1rem; }
 .trend { display:grid; grid-template-columns:repeat(6,1fr); gap:.65rem; align-items:end; min-height:260px; padding-top:.5rem; }
 .trend-col { display:flex; flex-direction:column; align-items:center; gap:.45rem; min-width:0; }
-.trend-bar { width:100%; max-width:62px; min-height:28px; border-radius:7px 7px 3px 3px; background:linear-gradient(180deg,var(--teal),#0A4F58); }
+.trend-bar { width:100%; max-width:62px; min-height:28px; border-radius:7px 7px 3px 3px; background:linear-gradient(180deg,var(--teal),#54ACBF); }
 .trend-value { color:var(--navy); font-size:.74rem; font-weight:800; }
 .trend-label { color:var(--muted); font-size:.72rem; }
-.breakdown-row { display:grid; grid-template-columns:96px 1fr 46px; gap:.6rem; align-items:center; padding:.55rem 0; border-top:1px solid #C6E2E9; }
+.breakdown-row { display:grid; grid-template-columns:96px 1fr 46px; gap:.6rem; align-items:center; padding:.55rem 0; border-top:1px solid #EAF4FB; }
 .breakdown-row:first-of-type { border-top:0; }
 .breakdown-label { color:var(--navy); font-size:.8rem; font-weight:700; }
 .breakdown-detail { color:var(--muted); font-size:.72rem; }
-.breakdown-track { height:9px; border-radius:999px; background:#C6E2E9; overflow:hidden; }
-.breakdown-fill { height:100%; border-radius:999px; background:var(--gold); }
+.breakdown-track { height:9px; border-radius:999px; background:#EAF4FB; overflow:hidden; }
+.breakdown-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, var(--teal), var(--gold)); }
 .breakdown-value { color:var(--navy); font-size:.75rem; font-weight:800; text-align:right; }
-.insight { border-top:1px solid #C6E2E9; padding:.75rem 0 0; margin-top:.75rem; }
+.insight { border-top:1px solid #EAF4FB; padding:.75rem 0 0; margin-top:.75rem; }
 .insight:first-of-type { border-top:0; padding-top:0; margin-top:0; }
 .insight-head { display:flex; justify-content:space-between; gap:.5rem; align-items:center; }
 .insight-title { color:var(--navy); font-size:.8rem; font-weight:800; }
-.insight-badge { font-size:.68rem; font-weight:800; border-radius:999px; padding:.18rem .5rem; background:rgba(0,139,139,.11); color:var(--teal); }
+.insight-badge { font-size:.68rem; font-weight:800; border-radius:999px; padding:.18rem .5rem; background:rgba(167,235,242,.12); color:var(--teal); }
 .insight-detail { color:var(--muted); font-size:.76rem; margin:.25rem 0 0; line-height:1.45; }
 @@media (max-width: 992px) {
     .metric-grid, .dash-grid { grid-template-columns:1fr 1fr; }
@@ -95,9 +191,14 @@
 
     <main class="bi-content">
         <div class="bi-header">
-            <div>
+            <div class="bi-header-left">
                 <h1 class="bi-title">@Model.ActiveTab</h1>
                 <p class="bi-desc">@tabMeta.GetValueOrDefault(Model.ActiveTab, ("", "Local dashboard")).Item2</p>
+                <div class="bi-field">
+                    <i class="fas fa-calendar-day"></i>
+                    Stable field: @Model.StableFieldTitle
+                    <small>@Model.StableFieldDetail</small>
+                </div>
             </div>
             <div class="bi-refresh">Updated @Model.RefreshedAt.ToString("dd MMM yyyy HH:mm")</div>
         </div>

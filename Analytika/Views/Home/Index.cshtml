@@ -4,11 +4,23 @@
     ViewData["Title"] = "Login";
 }
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ghaf Business Intelligence — Login</title>
+    <script>
+        (function () {
+            try {
+                var lang = localStorage.getItem('analytika-lang') || 'en';
+                var theme = localStorage.getItem('analytika-theme') || 'light';
+                document.documentElement.lang = lang;
+                document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                document.documentElement.dataset.lang = lang;
+                document.documentElement.dataset.theme = theme;
+            } catch (_) {}
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
@@ -20,8 +32,12 @@
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             min-height: 100vh;
             display: flex;
-            background: #F7F9F9;
+            background: #EAF4FB;
             -webkit-font-smoothing: antialiased;
+        }
+        html[data-theme="dark"] body {
+            background: linear-gradient(140deg, #011C40 0%, rgba(1,28,64,0.88) 42%, rgba(38,101,140,0.20) 72%, #023859 100%);
+            color: #EAF4FB;
         }
 
         /* ── Left panel ── */
@@ -61,12 +77,17 @@
         }
         .brand-logo {
             display: flex;
-            align-items: center;
-            gap: 12px;
+            align-items: flex-start;
+            gap: 0;
             position: relative;
             z-index: 1;
         }
-        .brand-icon { width: 42px; height: 42px; }
+        .brand-logo-img {
+            width: 176px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
         .brand-name {
             font-size: 1.1rem;
             font-weight: 700;
@@ -76,7 +97,7 @@
         }
         .brand-sub {
             font-size: 0.62rem;
-            color: #008B8B;
+            color: #A7EBF2;
             font-weight: 600;
             letter-spacing: 1.6px;
             text-transform: uppercase;
@@ -93,7 +114,7 @@
             margin-bottom: 14px;
             letter-spacing: -0.5px;
         }
-        .left-tagline h2 span { color: #008B8B; }
+        .left-tagline h2 span { color: #A7EBF2; }
         .left-tagline p {
             font-size: 0.875rem;
             color: rgba(255,255,255,0.45);
@@ -117,7 +138,72 @@
             font-size: 0.72rem;
             color: rgba(255,255,255,0.6);
         }
-        .feature-pill i { color: #008B8B; font-size: 0.65rem; }
+        .feature-pill i { color: #A7EBF2; font-size: 0.65rem; }
+        .login-globe-shell {
+            display: flex;
+            justify-content: center;
+            margin-top: 22px;
+        }
+        .login-globe-card {
+            position: relative;
+            width: min(100%, 320px);
+            aspect-ratio: 1;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: radial-gradient(circle at 35% 30%, rgba(167,235,242,0.16), rgba(15,23,42,0.90) 52%, rgba(1,28,64,0.98) 100%);
+            box-shadow: 0 26px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        .login-globe-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 22px;
+            touch-action: none;
+            cursor: grab;
+        }
+        .login-globe-canvas:active { cursor: grabbing; }
+        .login-globe-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .login-globe-marker {
+            position: absolute;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 6px 8px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(1,28,64,0.88);
+            color: #EAF4FB;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.22);
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.2s ease, background 0.2s ease;
+            min-width: 68px;
+            text-align: center;
+        }
+        .login-globe-marker:hover {
+            transform: translate(-50%, -50%) scale(1.04);
+            background: rgba(167,235,242,0.16);
+        }
+        .login-globe-marker.is-expanded {
+            background: rgba(167,235,242,0.16);
+        }
+        .login-globe-marker-name {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .login-globe-marker-meta {
+            font-size: 0.56rem;
+            opacity: 0.85;
+        }
         .left-footer {
             font-size: 0.72rem;
             color: rgba(255,255,255,0.22);
@@ -135,63 +221,116 @@
             padding: 60px 64px;
             position: relative;
         }
+        html[data-theme="dark"] .login-right {
+            background: rgba(1,28,64,0.86);
+            color: #EAF4FB;
+        }
         .login-right-inner { max-width: 380px; }
+        .login-top-tools {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 2;
+        }
+        html[dir="rtl"] .login-top-tools {
+            right: auto;
+            left: 18px;
+            flex-direction: row-reverse;
+        }
+        .login-top-tools .btn {
+            border-radius: 999px;
+            font-size: .72rem;
+        }
+        .lang-toggle-btn.active {
+            background: #011C40;
+            color: #fff;
+            border-color: #011C40;
+        }
+        html[data-theme="dark"] .lang-toggle-btn,
+        html[data-theme="dark"] .theme-toggle-btn {
+            border-color: rgba(167,235,242,0.16);
+            background: rgba(1,28,64,0.72);
+            color: #EAF4FB;
+        }
+        html[data-theme="dark"] .lang-toggle-btn.active {
+            background: rgba(167,235,242,0.16);
+            border-color: rgba(167,235,242,0.32);
+            color: #A7EBF2;
+        }
 
         .login-right h1 {
             font-size: 1.55rem;
             font-weight: 700;
-            color: #003B4D;
+            color: #011C40;
             margin-bottom: 6px;
             letter-spacing: -0.4px;
         }
+        html[data-theme="dark"] .login-right h1,
+        html[data-theme="dark"] .login-right .subtitle,
+        html[data-theme="dark"] .form-label,
+        html[data-theme="dark"] .forgot-link,
+        html[data-theme="dark"] .right-footer {
+            color: #EAF4FB;
+        }
         .login-right .subtitle {
             font-size: 0.85rem;
-            color: #66B2B2;
+            color: #35577D;
             margin-bottom: 32px;
         }
 
         .form-label {
             font-size: 0.73rem;
             font-weight: 600;
-            color: #006666;
+            color: #54ACBF;
             margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .form-control {
             font-family: 'Inter', system-ui, sans-serif;
-            border: 1.5px solid #C6E2E9;
+            border: 1.5px solid #EAF4FB;
             border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
-            color: #003B4D;
-            background: #F7F9F9;
+            color: #011C40;
+            background: #EAF4FB;
             transition: border-color 0.18s, box-shadow 0.18s;
         }
+        html[data-theme="dark"] .form-control,
+        html[data-theme="dark"] .input-icon,
+        html[data-theme="dark"] .input-group-text {
+            background: rgba(1,28,64,0.82);
+            color: #EAF4FB;
+            border-color: rgba(167,235,242,0.14);
+        }
+        html[data-theme="dark"] .form-control::placeholder { color: rgba(234,244,251,0.5); }
         .form-control:focus {
-            border-color: #008B8B;
+            border-color: #A7EBF2;
             box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
             background: #fff;
             outline: none;
         }
-        .form-control::placeholder { color: #C6E2E9; }
+        .form-control::placeholder { color: #EAF4FB; }
         .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
-            background: #F7F9F9;
-            border: 1.5px solid #C6E2E9;
+            background: #EAF4FB;
+            border: 1.5px solid #EAF4FB;
             border-left: none;
-            color: #66B2B2;
+            color: #35577D;
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: #008B8B; }
+        .input-group:focus-within .input-group-text { border-color: #A7EBF2; }
         .input-icon {
-            background: #F7F9F9;
-            border: 1.5px solid #C6E2E9;
+            background: #EAF4FB;
+            border: 1.5px solid #EAF4FB;
             border-right: none;
-            color: #66B2B2;
+            color: #35577D;
             border-radius: 9px 0 0 9px;
             padding: 10px 12px;
             font-size: 0.8rem;
@@ -199,7 +338,7 @@
             align-items: center;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: #008B8B; }
+        .input-group:focus-within .input-icon { border-color: #A7EBF2; }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
@@ -215,6 +354,10 @@
             transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
             cursor: pointer;
         }
+        html[data-theme="dark"] .btn-signin {
+            background: linear-gradient(135deg, #011C40 0%, #26658C 100%);
+            box-shadow: 0 12px 26px rgba(0,0,0,0.22);
+        }
         .btn-signin:hover {
             background: #1e293b;
             transform: translateY(-1px);
@@ -224,15 +367,15 @@
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #008B8B;
+            color: #A7EBF2;
             text-decoration: none;
             font-weight: 500;
         }
         .forgot-link:hover { text-decoration: underline; }
 
         .form-check-input:checked {
-            background-color: #008B8B;
-            border-color: #008B8B;
+            background-color: #A7EBF2;
+            border-color: #A7EBF2;
         }
         .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
 
@@ -251,9 +394,17 @@
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.72rem;
-            color: #C6E2E9;
+            color: #EAF4FB;
             white-space: nowrap;
         }
+        html[dir="rtl"] .login-right-inner,
+        html[dir="rtl"] .left-tagline {
+            text-align: right;
+        }
+        html[dir="rtl"] .left-tagline .feature-pills {
+            justify-content: flex-end;
+        }
+        html[dir="rtl"] .login-right-inner { max-width: 420px; }
 
         @@media (max-width: 900px) {
             .login-left { width: 44%; padding: 40px 36px; }
@@ -271,19 +422,13 @@
         <div class="accent-ring"></div>
 
         <div class="brand-logo">
-            <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#4ade80" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#4ade80" opacity="0.8"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#4ade80" opacity="0.85"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#4ade80" opacity="0.9"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#4ade80"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#ffffff"/>
-            </svg>
-            <div>
-                <div class="brand-name">Ghaf Bi</div>
-                <div class="brand-sub">Business Intelligence</div>
-            </div>
+            <img
+                class="brand-logo-img"
+                src="@Url.Content("~/images/ghaf-logo-primary-006884.jpg")"
+                srcset="@Url.Content("~/images/ghaf-logo-primary-006884.jpg") 1x, @Url.Content("~/images/ghaf-logo-primary-006884-2x.jpg") 2x"
+                width="176"
+                height="224"
+                alt="Ghaf Business Intelligence" />
         </div>
 
         <div class="left-tagline">
@@ -295,6 +440,13 @@
                 <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
                 <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
             </div>
+
+            <div class="login-globe-shell">
+                <div class="login-globe-card" aria-label="Interactive globe">
+                    <canvas id="loginGlobeCanvas" class="login-globe-canvas" aria-hidden="true"></canvas>
+                    <div id="loginGlobeOverlay" class="login-globe-overlay" aria-hidden="true"></div>
+                </div>
+            </div>
         </div>
 
         <div class="left-footer">&copy; 2026 Ghaf Bi Solutions. All rights reserved.</div>
@@ -302,9 +454,18 @@
 
     <!-- Right Login Form -->
     <div class="login-right">
+        <div class="login-top-tools">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Language toggle">
+                <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" id="loginLangEn">EN</button>
+                <button type="button" class="btn btn-outline-secondary lang-toggle-btn" id="loginLangAr">AR</button>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="loginThemeToggle">
+                <i class="fas fa-moon me-1"></i><span id="loginThemeLabel">Dark</span>
+            </button>
+        </div>
         <div class="login-right-inner">
-            <h1>Welcome back</h1>
-            <p class="subtitle">Sign in to your Ghaf Business Intelligence account</p>
+            <h1 data-i18n="welcome_back">Welcome back</h1>
+            <p class="subtitle" data-i18n="sign_in_subtitle">Sign in to your Ghaf Business Intelligence account</p>
 
             <form asp-controller="Home" asp-action="Index" method="post">
                 @Html.AntiForgeryToken()
@@ -312,12 +473,12 @@
                 @if (!ViewData.ModelState.IsValid)
                 {
                     <div class="alert alert-danger mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i>Invalid email or password.
+                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="invalid_login">Invalid email or password.</span>
                     </div>
                 }
 
                 <div class="mb-3">
-                    <label asp-for="Email" class="form-label">Email address</label>
+                    <label asp-for="Email" class="form-label" data-i18n="email_address">Email address</label>
                     <div class="input-group">
                         <span class="input-icon"><i class="fas fa-envelope"></i></span>
                         <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
@@ -326,8 +487,8 @@
 
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label asp-for="Password" class="form-label mb-0">Password</label>
-                        <a href="#" class="forgot-link">Forgot password?</a>
+                        <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
+                        <a href="#" class="forgot-link" data-i18n="forgot_password">Forgot password?</a>
                     </div>
                     <div class="input-group">
                         <span class="input-icon"><i class="fas fa-lock"></i></span>
@@ -338,16 +499,16 @@
 
                 <div class="mb-4 d-flex align-items-center gap-2">
                     <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
-                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#66B2B2;text-transform:none;letter-spacing:0;">Keep me signed in</label>
+                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#35577D;text-transform:none;letter-spacing:0;" data-i18n="remember_me">Keep me signed in</label>
                 </div>
 
                 <button type="submit" class="btn-signin">
-                    Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
+                    <span data-i18n="sign_in">Sign In</span> &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
                 </button>
             </form>
         </div>
 
-        <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
+        <div class="right-footer" data-i18n="copyright">© Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
     </div>
 
     <script>
@@ -358,6 +519,269 @@
             icon.classList.toggle('fa-eye');
             icon.classList.toggle('fa-eye-slash');
         }
+
+        (function initLoginLanguageTheme() {
+            const root = document.documentElement;
+            const langEn = document.getElementById('loginLangEn');
+            const langAr = document.getElementById('loginLangAr');
+            const themeBtn = document.getElementById('loginThemeToggle');
+            const themeLabel = document.getElementById('loginThemeLabel');
+            const dict = {
+                en: {
+                    welcome_back: 'Welcome back',
+                    sign_in_subtitle: 'Sign in to your Ghaf Business Intelligence account',
+                    invalid_login: 'Invalid email or password.',
+                    email_address: 'Email address',
+                    password: 'Password',
+                    forgot_password: 'Forgot password?',
+                    remember_me: 'Keep me signed in',
+                    sign_in: 'Sign In',
+                    copyright: '© Copyright. All Rights Reserved. Ghaf Bi Solutions'
+                },
+                ar: {
+                    welcome_back: 'مرحبًا بعودتك',
+                    sign_in_subtitle: 'سجّل الدخول إلى حساب غاف بزنس إنتليجنس',
+                    invalid_login: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+                    email_address: 'البريد الإلكتروني',
+                    password: 'كلمة المرور',
+                    forgot_password: 'هل نسيت كلمة المرور؟',
+                    remember_me: 'تذكرني',
+                    sign_in: 'تسجيل الدخول',
+                    copyright: '© جميع الحقوق محفوظة. غاف بي سوليوشنز'
+                }
+            };
+
+            function applyLanguage(lang) {
+                root.lang = lang;
+                root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+                root.dataset.lang = lang;
+                try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
+                document.querySelectorAll('[data-i18n]').forEach(node => {
+                    const key = node.getAttribute('data-i18n');
+                    if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
+                });
+                if (themeLabel) {
+                    const currentTheme = root.dataset.theme || 'light';
+                    const labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
+                    themeLabel.textContent = (labels[lang] || labels.en)[currentTheme === 'dark' ? 'light' : 'dark'];
+                }
+                if (langEn && langAr) {
+                    langEn.classList.toggle('active', lang === 'en');
+                    langAr.classList.toggle('active', lang === 'ar');
+                }
+            }
+
+            function applyTheme(theme) {
+                root.dataset.theme = theme;
+                try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
+                if (themeBtn && themeLabel) {
+                    const lang = root.dataset.lang || 'en';
+                    const labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
+                    themeBtn.querySelector('i').className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+                    themeLabel.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
+                }
+            }
+
+            const currentLang = root.dataset.lang || (function(){ try { return localStorage.getItem('analytika-lang'); } catch (_) { return null; } })() || 'en';
+            const currentTheme = root.dataset.theme || (function(){ try { return localStorage.getItem('analytika-theme'); } catch (_) { return null; } })() || 'light';
+
+            applyLanguage(currentLang);
+            applyTheme(currentTheme);
+
+            if (langEn) langEn.addEventListener('click', () => applyLanguage('en'));
+            if (langAr) langAr.addEventListener('click', () => applyLanguage('ar'));
+            if (themeBtn) themeBtn.addEventListener('click', () => applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+        })();
+
+        (() => {
+            const canvas = document.getElementById('loginGlobeCanvas');
+            const overlay = document.getElementById('loginGlobeOverlay');
+            if (!canvas || !overlay) return;
+
+            const markers = [
+                { id: 'hq', location: [37.78, -122.44], name: 'HQ', users: 1420 },
+                { id: 'eu', location: [52.52, 13.41], name: 'EU', users: 892 },
+                { id: 'asia', location: [35.68, 139.65], name: 'Asia', users: 2103 },
+                { id: 'latam', location: [-23.55, -46.63], name: 'LATAM', users: 567 },
+                { id: 'mena', location: [25.2, 55.27], name: 'MENA', users: 734 },
+                { id: 'oceania', location: [-33.87, 151.21], name: 'APAC', users: 445 }
+            ];
+
+            const ctx = canvas.getContext('2d');
+            const dprMax = Math.min(window.devicePixelRatio || 1, 2);
+            const state = {
+                phi: -0.8,
+                theta: 0.34,
+                drag: null,
+                dragging: false,
+                expanded: null,
+                nodes: []
+            };
+
+            function resize() {
+                const size = Math.max(240, Math.min(320, canvas.parentElement?.clientWidth || 280));
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                canvas.width = Math.round(size * dpr);
+                canvas.height = Math.round(size * dpr);
+                canvas.style.width = size + 'px';
+                canvas.style.height = size + 'px';
+                overlay.style.width = size + 'px';
+                overlay.style.height = size + 'px';
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            function createNode(marker) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'login-globe-marker';
+                btn.setAttribute('aria-label', marker.name);
+                btn.innerHTML = `
+                    <span class="login-globe-marker-name">${marker.name}</span>
+                    <span class="login-globe-marker-meta">${marker.users.toLocaleString()} users</span>
+                `;
+                btn.addEventListener('click', () => {
+                    state.expanded = state.expanded === marker.id ? null : marker.id;
+                    syncExpanded();
+                });
+                overlay.appendChild(btn);
+                return { marker, btn };
+            }
+
+            function syncExpanded() {
+                state.nodes.forEach(({ marker, btn }) => {
+                    const expanded = state.expanded === marker.id;
+                    btn.classList.toggle('is-expanded', expanded);
+                    btn.querySelector('.login-globe-marker-meta').style.display = expanded ? 'block' : 'none';
+                });
+            }
+
+            function project(marker, cx, cy, radius) {
+                const lon = (marker.location[1] * Math.PI) / 180;
+                const lat = (marker.location[0] * Math.PI) / 180;
+                const rot = lon + state.phi;
+                const tilt = lat * state.theta;
+                const x = cx + Math.cos(rot) * radius * 0.72;
+                const y = cy + Math.sin(tilt) * radius * 0.7;
+                const visibility = Math.max(0, Math.min(1, 0.5 + 0.5 * Math.cos(rot) * Math.cos(tilt)));
+                return { x, y, visibility };
+            }
+
+            function draw(tick) {
+                const w = canvas.width / dprMax;
+                const h = canvas.height / dprMax;
+                const size = Math.min(w, h);
+                const cx = w / 2;
+                const cy = h / 2;
+                const radius = size * 0.38;
+
+                ctx.clearRect(0, 0, w, h);
+
+                const glow = ctx.createRadialGradient(cx - radius * 0.2, cy - radius * 0.25, radius * 0.2, cx, cy, radius * 1.5);
+                glow.addColorStop(0, 'rgba(167,235,242,0.34)');
+                glow.addColorStop(0.45, 'rgba(38,101,140,0.22)');
+                glow.addColorStop(1, 'rgba(1,28,64,0.06)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius * 1.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                const sphere = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius * 1.2);
+                sphere.addColorStop(0, 'rgba(1,28,64,0.96)');
+                sphere.addColorStop(0.72, 'rgba(84,172,191,0.98)');
+                sphere.addColorStop(1, 'rgba(1,28,64,1)');
+                ctx.fillStyle = sphere;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.clip();
+
+                const lineColor = 'rgba(167,235,242,0.52)';
+                const lineColorMuted = 'rgba(246,248,252,0.22)';
+                for (let i = -3; i <= 3; i++) {
+                    const y = cy + (i / 3) * radius * 0.78 * state.theta;
+                    ctx.strokeStyle = i === 0 ? lineColor : lineColorMuted;
+                    ctx.lineWidth = i === 0 ? 1.8 : 1;
+                    ctx.beginPath();
+                    ctx.ellipse(cx, y, radius * 0.92, radius * (0.12 + Math.abs(i) * 0.035), 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                for (let i = -4; i <= 4; i++) {
+                    const x = cx + (i / 4) * radius * 0.84;
+                    ctx.strokeStyle = i === 0 ? lineColor : lineColorMuted;
+                    ctx.lineWidth = i === 0 ? 1.8 : 1;
+                    ctx.beginPath();
+                    ctx.ellipse(x, cy, radius * 0.12, radius * 0.82, state.phi * 0.55, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                markers.forEach((marker, idx) => {
+                    const proj = project(marker, cx, cy, radius);
+                    const pulse = 0.5 + 0.5 * Math.sin((tick / 900) + idx);
+                    const dot = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, radius * 0.06);
+                    dot.addColorStop(0, `rgba(246,248,252,${0.95 * pulse})`);
+                    dot.addColorStop(0.5, 'rgba(167,235,242,0.72)');
+                    dot.addColorStop(1, 'rgba(53,87,125,0.05)');
+                    ctx.fillStyle = dot;
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, radius * (0.028 + pulse * 0.01), 0, Math.PI * 2);
+                    ctx.fill();
+                });
+
+                ctx.restore();
+                ctx.strokeStyle = 'rgba(246,248,252,0.28)';
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2);
+                ctx.stroke();
+
+                state.nodes.forEach(({ marker, btn }) => {
+                    const proj = project(marker, cx, cy, radius);
+                    btn.style.left = proj.x + 'px';
+                    btn.style.top = proj.y + 'px';
+                    btn.style.opacity = proj.visibility.toFixed(2);
+                    btn.style.display = proj.visibility < 0.08 ? 'none' : 'inline-flex';
+                    if (state.expanded !== marker.id) {
+                        btn.classList.remove('is-expanded');
+                        btn.querySelector('.login-globe-marker-meta').style.display = 'none';
+                    }
+                });
+
+                if (!state.dragging) {
+                    state.phi += 0.003;
+                }
+                requestAnimationFrame(draw);
+            }
+
+            canvas.addEventListener('pointerdown', (ev) => {
+                state.drag = { x: ev.clientX, y: ev.clientY };
+                state.dragging = true;
+                canvas.setPointerCapture(ev.pointerId);
+            });
+            canvas.addEventListener('pointermove', (ev) => {
+                if (!state.drag) return;
+                state.phi += (ev.clientX - state.drag.x) / 300;
+                state.theta += (ev.clientY - state.drag.y) / 1200;
+                state.drag = { x: ev.clientX, y: ev.clientY };
+            });
+            window.addEventListener('pointerup', () => {
+                state.drag = null;
+                state.dragging = false;
+            });
+            window.addEventListener('pointercancel', () => {
+                state.drag = null;
+                state.dragging = false;
+            });
+            window.addEventListener('resize', resize);
+
+            state.nodes = markers.map(createNode);
+            syncExpanded();
+            resize();
+            draw(performance.now());
+        })();
     </script>
 </body>
 </html>

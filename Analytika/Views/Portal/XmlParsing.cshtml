@@ -8,43 +8,43 @@
 <style>
     .xp-page { max-width: 1500px; margin: 0 auto; padding: 22px 20px 56px; }
     .xp-topbar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
-    .xp-title { display:flex; align-items:center; gap:10px; color:#003B4D; }
+    .xp-title { display:flex; align-items:center; gap:10px; color:#011C40; }
     .xp-title h4 { margin:0; font-size:1.15rem; font-weight:800; letter-spacing:0; }
     .xp-filters { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .xp-shell { background:#fff; border:1px solid #C6E2E9; border-radius:8px; box-shadow:0 1px 4px rgba(0,59,77,.05); }
+    .xp-shell { background:#fff; border:1px solid #EAF4FB; border-radius:8px; box-shadow:0 1px 4px rgba(8,20,35,.05); }
     .xp-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid #edf2f7; }
     .xp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .xp-stats { display:grid; grid-template-columns:repeat(9, minmax(110px,1fr)); gap:8px; margin:14px 0; }
-    .xp-stat { background:#fff; border:1px solid #C6E2E9; border-radius:8px; padding:12px; min-height:82px; }
-    .xp-stat .num { color:#003B4D; font-size:1.35rem; font-weight:800; line-height:1.1; }
-    .xp-stat .lbl { color:#66B2B2; font-size:.67rem; font-weight:700; text-transform:uppercase; margin-top:6px; }
-    .xp-stat.sub { border-top:3px solid #008B8B; }
+    .xp-stat { background:#fff; border:1px solid #EAF4FB; border-radius:8px; padding:12px; min-height:82px; }
+    .xp-stat .num { color:#011C40; font-size:1.35rem; font-weight:800; line-height:1.1; }
+    .xp-stat .lbl { color:#35577D; font-size:.67rem; font-weight:700; text-transform:uppercase; margin-top:6px; }
+    .xp-stat.sub { border-top:3px solid #A7EBF2; }
     .xp-stat.rem { border-top:3px solid #805ad5; }
     .xp-stat.ok { border-top:3px solid #16a34a; }
     .xp-stat.warn { border-top:3px solid #f59e0b; }
-    .xp-progress { display:none; margin:12px 0 14px; background:#fff; border:1px solid #C6E2E9; border-radius:8px; padding:12px 14px; }
+    .xp-progress { display:none; margin:12px 0 14px; background:#fff; border:1px solid #EAF4FB; border-radius:8px; padding:12px 14px; }
     .xp-progress-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; color:#334155; font-size:.83rem; font-weight:700; }
-    .xp-progress-track { height:9px; border-radius:99px; background:#C6E2E9; overflow:hidden; }
-    .xp-progress-fill { height:100%; width:0; border-radius:99px; background:#008B8B; transition:width .25s ease; }
-    .xp-log { margin-top:8px; color:#66B2B2; font-size:.78rem; min-height:18px; }
+    .xp-progress-track { height:9px; border-radius:99px; background:#EAF4FB; overflow:hidden; }
+    .xp-progress-fill { height:100%; width:0; border-radius:99px; background:#A7EBF2; transition:width .25s ease; }
+    .xp-log { margin-top:8px; color:#35577D; font-size:.78rem; min-height:18px; }
     table.xp-table { width:100%; border-collapse:collapse; }
-    .xp-table thead th { background:#F7F9F9; color:#66B2B2; font-size:.68rem; font-weight:800; text-transform:uppercase; padding:10px 12px; border-bottom:1px solid #C6E2E9; white-space:nowrap; }
+    .xp-table thead th { background:#EAF4FB; color:#35577D; font-size:.68rem; font-weight:800; text-transform:uppercase; padding:10px 12px; border-bottom:1px solid #EAF4FB; white-space:nowrap; }
     .xp-table td { padding:10px 12px; border-bottom:1px solid #f1f5f9; color:#334155; font-size:.82rem; vertical-align:middle; }
     .xp-table tbody tr:hover { background:#fbfdff; }
-    .xp-table .facility { color:#003B4D; font-weight:700; }
+    .xp-table .facility { color:#011C40; font-weight:700; }
     .xp-table .file { max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .xp-table .amount { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .xp-badge { display:inline-flex; align-items:center; justify-content:center; gap:4px; border-radius:999px; padding:3px 8px; font-size:.7rem; font-weight:800; white-space:nowrap; }
     .xp-badge.ready { background:#dcfce7; color:#166534; }
-    .xp-badge.pending { background:#C6E2E9; color:#92400e; }
-    .xp-badge.match { background:#C6E2E9; color:#1d4ed8; }
+    .xp-badge.pending { background:#EAF4FB; color:#92400e; }
+    .xp-badge.match { background:#EAF4FB; color:#1d4ed8; }
     .xp-badge.sub { background:#ccfbf1; color:#115e59; }
     .xp-badge.rem { background:#ede9fe; color:#6d28d9; }
     .xp-btn-icon { width:32px; height:32px; display:inline-flex; align-items:center; justify-content:center; padding:0; }
-    .xp-empty { text-align:center; color:#66B2B2; padding:34px 12px; }
+    .xp-empty { text-align:center; color:#35577D; padding:34px 12px; }
     .xp-modal-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     .xp-modal-grid .full { grid-column:1 / -1; }
-    .xp-modal-grid label { font-size:.72rem; font-weight:800; color:#006666; text-transform:uppercase; }
+    .xp-modal-grid label { font-size:.72rem; font-weight:800; color:#54ACBF; text-transform:uppercase; }
     .xp-textarea { min-height:190px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.78rem; }
     @@media (max-width: 1200px) { .xp-stats { grid-template-columns:repeat(4,1fr); } }
     @@media (max-width: 760px) {
@@ -157,7 +157,7 @@
 
     <div class="xp-shell mb-3">
         <div class="xp-toolbar">
-            <strong style="color:#003B4D;font-size:.9rem;"><i class="fas fa-hospital me-2 text-muted"></i>Facility Readiness</strong>
+            <strong style="color:#011C40;font-size:.9rem;"><i class="fas fa-hospital me-2 text-muted"></i>Facility Readiness</strong>
             <span class="text-muted small">@Model.FacilityRows.Count.ToString("N0") facilities</span>
         </div>
         <div class="table-responsive">
@@ -203,7 +203,7 @@
 
     <div class="xp-shell mb-3">
         <div class="xp-toolbar">
-            <strong style="color:#003B4D;font-size:.9rem;">
+            <strong style="color:#011C40;font-size:.9rem;">
                 <i class="fas fa-list-check me-2 text-muted"></i>
                 @(Model.Kind == "Remittance" ? "Parsed RA Records" : Model.Kind == "Submission" ? "Parsed Submission Records" : "Parsed XML Records")
             </strong>
@@ -299,7 +299,7 @@
 
     <div class="xp-shell">
         <div class="xp-toolbar">
-            <strong style="color:#003B4D;font-size:.9rem;"><i class="fas fa-database me-2 text-muted"></i>Downloaded Records</strong>
+            <strong style="color:#011C40;font-size:.9rem;"><i class="fas fa-database me-2 text-muted"></i>Downloaded Records</strong>
             <span class="text-muted small">Showing @Model.Records.Count.ToString("N0") newest records</span>
         </div>
         <div class="table-responsive">
