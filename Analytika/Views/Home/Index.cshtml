@@ -42,10 +42,10 @@
 
         /* ── Left panel ── */
         .login-left {
-            width: 40%;
+            width: 42%;
             background:
-                radial-gradient(circle at 18% 14%, rgba(167,235,242,0.10), transparent 28%),
-                linear-gradient(160deg, rgba(1,28,64,0.94) 0%, rgba(1,28,64,0.88) 46%, rgba(38,101,140,0.70) 100%);
+                radial-gradient(circle at 16% 12%, rgba(167,235,242,0.12), transparent 24%),
+                linear-gradient(155deg, rgba(1,28,64,0.96) 0%, rgba(1,28,64,0.90) 42%, rgba(38,101,140,0.74) 100%);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -55,86 +55,86 @@
             backdrop-filter: blur(18px) saturate(150%);
             -webkit-backdrop-filter: blur(18px) saturate(150%);
         }
-        /* Subtle geometric accents */
-        .login-left::before {
-            content: '';
-            position: absolute;
-            width: 380px; height: 380px;
-            border-radius: 50%;
-            border: 1px solid rgba(167,235,242,0.10);
-            filter: blur(1px);
-            bottom: -140px; right: -120px;
-        }
+        .login-left::before,
         .login-left::after {
             content: '';
             position: absolute;
-            width: 220px; height: 220px;
             border-radius: 50%;
+            pointer-events: none;
+        }
+        .login-left::before {
+            width: 360px;
+            height: 360px;
+            border: 1px solid rgba(167,235,242,0.10);
+            filter: blur(1px);
+            bottom: -150px;
+            right: -110px;
+        }
+        .login-left::after {
+            width: 220px;
+            height: 220px;
             border: 1px solid rgba(167,235,242,0.06);
             filter: blur(1px);
-            top: 40px; right: 40px;
+            top: 40px;
+            right: 32px;
         }
-        .accent-ring {
-            position: absolute;
-            width: 160px; height: 160px;
-            border-radius: 50%;
-            border: 1px solid rgba(167,235,242,0.05);
-            filter: blur(1px);
-            bottom: 120px; left: -50px;
-        }
-        .brand-logo {
-            display: flex;
-            align-items: flex-start;
-            gap: 0;
+        .login-brand {
             position: relative;
             z-index: 1;
-            opacity: 0.86;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .brand-logo-img {
-            width: 164px;
-            max-width: 100%;
-            height: auto;
-            display: block;
-            filter: drop-shadow(0 8px 20px rgba(0,0,0,0.12));
+        .login-brand-mark {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: #EAF4FB;
         }
-        .brand-name {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #ffffff;
-            letter-spacing: -0.2px;
-            line-height: 1.2;
+        .login-brand-mark::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #A7EBF2 0%, #54ACBF 100%);
+            box-shadow: 0 0 0 6px rgba(167,235,242,0.10);
         }
-        .brand-sub {
-            font-size: 0.62rem;
-            color: #A7EBF2;
+        .login-brand-sub {
+            color: rgba(234,244,251,0.74);
+            font-size: .72rem;
             font-weight: 600;
-            letter-spacing: 1.6px;
+            letter-spacing: .18em;
             text-transform: uppercase;
         }
         .left-tagline {
             position: relative;
             z-index: 1;
+            max-width: 420px;
         }
         .left-tagline h2 {
-            font-size: 1.9rem;
-            font-weight: 700;
+            font-size: 1.95rem;
+            font-weight: 750;
             color: #ffffff;
-            line-height: 1.25;
+            line-height: 1.18;
             margin-bottom: 14px;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.6px;
         }
         .left-tagline h2 span { color: #A7EBF2; }
         .left-tagline p {
-            font-size: 0.875rem;
-            color: rgba(255,255,255,0.45);
-            line-height: 1.65;
+            font-size: 0.92rem;
+            color: rgba(255,255,255,0.60);
+            line-height: 1.7;
+            max-width: 36ch;
         }
-        /* Feature pills */
         .feature-pills {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            margin-top: 22px;
+            margin-top: 20px;
         }
         .feature-pill {
             display: inline-flex;
@@ -142,83 +142,41 @@
             gap: 6px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 100px;
+            border-radius: 999px;
             padding: 5px 12px;
             font-size: 0.72rem;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.72);
         }
         .feature-pill i { color: #A7EBF2; font-size: 0.65rem; }
-        .login-globe-shell {
-            display: flex;
-            justify-content: center;
-            margin-top: 18px;
+        .login-tiles {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+            max-width: 420px;
         }
-        .login-globe-card {
-            position: relative;
-            width: min(100%, 320px);
-            aspect-ratio: 1;
-            border-radius: 22px;
-            border: 1px solid rgba(167,235,242,0.08);
-            background:
-                radial-gradient(circle at 35% 30%, rgba(167,235,242,0.12), rgba(1,28,64,0.68) 54%, rgba(1,28,64,0.90) 100%);
-            box-shadow: 0 18px 44px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.06);
-            overflow: hidden;
-        }
-        .login-globe-canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-            border-radius: 22px;
-            touch-action: none;
-            cursor: grab;
-            opacity: 0.92;
-            filter: saturate(0.92) brightness(0.98);
-        }
-        .login-globe-canvas:active { cursor: grabbing; }
-        .login-globe-overlay {
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-        }
-        .login-globe-marker {
-            position: absolute;
-            pointer-events: auto;
-            transform: translate(-50%, -50%);
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-            padding: 6px 8px;
-            border-radius: 10px;
+        .login-tile {
+            border-radius: 16px;
             border: 1px solid rgba(167,235,242,0.12);
-            background: rgba(1,28,64,0.78);
+            background: rgba(1,28,64,0.28);
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+        .login-tile strong {
+            display: block;
+            font-size: .9rem;
             color: #EAF4FB;
-            box-shadow: 0 10px 18px rgba(0,0,0,0.16);
-            opacity: 0;
-            transition: opacity 0.3s ease, transform 0.2s ease, background 0.2s ease;
-            min-width: 68px;
-            text-align: center;
+            margin-bottom: 4px;
         }
-        .login-globe-marker:hover {
-            transform: translate(-50%, -50%) scale(1.04);
-            background: rgba(167,235,242,0.12);
-        }
-        .login-globe-marker.is-expanded {
-            background: rgba(167,235,242,0.14);
-        }
-        .login-globe-marker-name {
-            font-size: 0.6rem;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-        .login-globe-marker-meta {
-            font-size: 0.56rem;
-            opacity: 0.85;
+        .login-tile span {
+            display: block;
+            font-size: .76rem;
+            line-height: 1.45;
+            color: rgba(234,244,251,0.72);
         }
         .left-footer {
             font-size: 0.72rem;
-            color: rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.28);
             position: relative;
             z-index: 1;
         }
@@ -237,7 +195,15 @@
             background: rgba(1,28,64,0.86);
             color: #EAF4FB;
         }
-        .login-right-inner { max-width: 380px; }
+        .login-right-inner {
+            max-width: 420px;
+            width: 100%;
+            padding: 28px;
+            border-radius: 28px;
+            background: rgba(255,255,255,0.94);
+            border: 1px solid rgba(8,20,35,0.10);
+            box-shadow: 0 24px 64px rgba(1,28,64,0.10);
+        }
         .login-top-tools {
             position: absolute;
             top: 18px;
@@ -255,6 +221,42 @@
         .login-top-tools .btn {
             border-radius: 999px;
             font-size: .72rem;
+        }
+        .codex-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .5rem;
+            border: 1px solid rgba(8,20,35,0.14);
+            border-radius: 14px;
+            font-weight: 700;
+            line-height: 1;
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease, filter .18s ease;
+        }
+        .codex-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(1,28,64,0.10); }
+        .codex-btn:active { transform: translateY(0); filter: brightness(.98); }
+        .codex-btn-primary {
+            color: #ffffff;
+            background: linear-gradient(180deg, #54ACBF 0%, #023859 100%);
+            border-color: rgba(1,28,64,0.16);
+            box-shadow: 0 12px 24px rgba(38,101,140,0.18);
+        }
+        .codex-btn-primary:hover { background: linear-gradient(180deg, #67b7ca 0%, #023859 100%); }
+        .codex-btn-secondary {
+            color: #011C40;
+            background: rgba(234,244,251,0.88);
+        }
+        .codex-btn-ghost {
+            color: #023859;
+            background: rgba(255,255,255,0.74);
+        }
+        .codex-btn-chip {
+            min-width: 42px;
+            height: 32px;
+            border-radius: 999px;
+            padding: 0 .7rem;
+            background: rgba(255,255,255,0.82);
+            color: #023859;
         }
         .lang-toggle-btn.active {
             background: #011C40;
@@ -274,7 +276,7 @@
         }
 
         .login-right h1 {
-            font-size: 1.55rem;
+            font-size: 1.58rem;
             font-weight: 700;
             color: #011C40;
             margin-bottom: 6px;
@@ -288,27 +290,27 @@
             color: #EAF4FB;
         }
         .login-right .subtitle {
-            font-size: 0.85rem;
-            color: #35577D;
+            font-size: 0.88rem;
+            color: #023859;
             margin-bottom: 32px;
         }
 
         .form-label {
             font-size: 0.73rem;
-            font-weight: 600;
-            color: #54ACBF;
+            font-weight: 700;
+            color: #023859;
             margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .form-control {
             font-family: 'Inter', system-ui, sans-serif;
-            border: 1.5px solid #EAF4FB;
+            border: 1.5px solid rgba(1,28,64,0.10);
             border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
             color: #011C40;
-            background: #EAF4FB;
+            background: rgba(234,244,251,0.86);
             transition: border-color 0.18s, box-shadow 0.18s;
         }
         html[data-theme="dark"] .form-control,
@@ -320,29 +322,29 @@
         }
         html[data-theme="dark"] .form-control::placeholder { color: rgba(234,244,251,0.5); }
         .form-control:focus {
-            border-color: #A7EBF2;
-            box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+            border-color: #54ACBF;
+            box-shadow: 0 0 0 3px rgba(84,172,191,0.14);
             background: #fff;
             outline: none;
         }
-        .form-control::placeholder { color: #EAF4FB; }
+        .form-control::placeholder { color: rgba(2,56,89,0.36); }
         .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
-            background: #EAF4FB;
-            border: 1.5px solid #EAF4FB;
+            background: rgba(234,244,251,0.86);
+            border: 1.5px solid rgba(1,28,64,0.10);
             border-left: none;
-            color: #35577D;
+            color: #023859;
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: #A7EBF2; }
+        .input-group:focus-within .input-group-text { border-color: #54ACBF; }
         .input-icon {
-            background: #EAF4FB;
-            border: 1.5px solid #EAF4FB;
+            background: rgba(234,244,251,0.86);
+            border: 1.5px solid rgba(1,28,64,0.10);
             border-right: none;
-            color: #35577D;
+            color: #023859;
             border-radius: 9px 0 0 9px;
             padding: 10px 12px;
             font-size: 0.8rem;
@@ -350,20 +352,20 @@
             align-items: center;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: #A7EBF2; }
+        .input-group:focus-within .input-icon { border-color: #54ACBF; }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
-            background: #0f172a;
+            background: linear-gradient(180deg, #54ACBF 0%, #023859 100%);
             color: #fff;
-            border: none;
-            border-radius: 9px;
+            border: 1px solid rgba(1,28,64,0.16);
+            border-radius: 14px;
             padding: 11px 24px;
-            font-size: 0.875rem;
-            font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: 700;
             width: 100%;
             letter-spacing: 0.1px;
-            transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+            transition: background 0.18s, transform 0.15s, box-shadow 0.18s, filter 0.18s;
             cursor: pointer;
         }
         html[data-theme="dark"] .btn-signin {
@@ -371,25 +373,25 @@
             box-shadow: 0 12px 26px rgba(0,0,0,0.22);
         }
         .btn-signin:hover {
-            background: #1e293b;
+            filter: brightness(1.04);
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(15,23,42,0.2);
+            box-shadow: 0 12px 26px rgba(1,28,64,0.18);
         }
         .btn-signin:active { transform: translateY(0); }
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #A7EBF2;
+            color: #023859;
             text-decoration: none;
             font-weight: 500;
         }
         .forgot-link:hover { text-decoration: underline; }
 
         .form-check-input:checked {
-            background-color: #A7EBF2;
-            border-color: #A7EBF2;
+            background-color: #54ACBF;
+            border-color: #54ACBF;
         }
-        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(84,172,191,0.15); }
 
         .alert-danger {
             font-size: 0.82rem;
@@ -406,7 +408,7 @@
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.72rem;
-            color: #EAF4FB;
+            color: #023859;
             white-space: nowrap;
         }
         html[dir="rtl"] .login-right-inner,
@@ -431,32 +433,37 @@
 <body>
     <!-- Left Brand Panel -->
     <div class="login-left">
-        <div class="accent-ring"></div>
-
-        <div class="brand-logo">
-            <img
-                class="brand-logo-img"
-                src="@Url.Content("~/images/ghaf-logo-primary-006884.jpg")"
-                srcset="@Url.Content("~/images/ghaf-logo-primary-006884.jpg") 1x, @Url.Content("~/images/ghaf-logo-primary-006884-2x.jpg") 2x"
-                width="176"
-                height="224"
-                alt="Ghaf Business Intelligence" />
+        <div class="login-brand">
+            <div class="login-brand-mark">Ghaf BI</div>
+            <div class="login-brand-sub">Business Intelligence</div>
         </div>
 
         <div class="left-tagline">
-            <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
-            <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
+            <h2>Smarter decisions,<br/><span>without visual clutter.</span></h2>
+            <p>A focused healthcare analytics workspace for submissions, resubmissions, remittance, and operational review.</p>
             <div class="feature-pills">
                 <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Facility Scope</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Faster Reports</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Arabic & English</span>
             </div>
 
-            <div class="login-globe-shell">
-                <div class="login-globe-card" aria-label="Interactive globe">
-                    <canvas id="loginGlobeCanvas" class="login-globe-canvas" aria-hidden="true"></canvas>
-                    <div id="loginGlobeOverlay" class="login-globe-overlay" aria-hidden="true"></div>
+            <div class="login-tiles">
+                <div class="login-tile">
+                    <strong>Submission view</strong>
+                    <span>Review the shared encounter-based timeline across report sets.</span>
+                </div>
+                <div class="login-tile">
+                    <strong>Resubmission view</strong>
+                    <span>Track follow-up work with cleaner, date-anchored rollups.</span>
+                </div>
+                <div class="login-tile">
+                    <strong>Operational view</strong>
+                    <span>Keep the interface readable on smaller screens and dense dashboards.</span>
+                </div>
+                <div class="login-tile">
+                    <strong>Secure access</strong>
+                    <span>Role-based login with a simpler, more legible entry point.</span>
                 </div>
             </div>
         </div>
@@ -468,10 +475,10 @@
     <div class="login-right">
         <div class="login-top-tools">
             <div class="btn-group btn-group-sm" role="group" aria-label="Language toggle">
-                <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" id="loginLangEn">EN</button>
-                <button type="button" class="btn btn-outline-secondary lang-toggle-btn" id="loginLangAr">AR</button>
+                <button type="button" class="btn codex-btn codex-btn-chip lang-toggle-btn active" id="loginLangEn">EN</button>
+                <button type="button" class="btn codex-btn codex-btn-chip lang-toggle-btn" id="loginLangAr">AR</button>
             </div>
-            <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="loginThemeToggle">
+            <button type="button" class="btn codex-btn codex-btn-ghost btn-sm theme-toggle-btn" id="loginThemeToggle">
                 <i class="fas fa-moon me-1"></i><span id="loginThemeLabel">Dark</span>
             </button>
         </div>
@@ -514,8 +521,8 @@
                     <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#35577D;text-transform:none;letter-spacing:0;" data-i18n="remember_me">Keep me signed in</label>
                 </div>
 
-                <button type="submit" class="btn-signin">
-                    <span data-i18n="sign_in">Sign In</span> &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
+                <button type="submit" class="btn-signin codex-btn codex-btn-primary">
+                    <span data-i18n="sign_in">Sign In</span> <i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.9;"></i>
                 </button>
             </form>
         </div>
@@ -603,196 +610,6 @@
             if (langEn) langEn.addEventListener('click', () => applyLanguage('en'));
             if (langAr) langAr.addEventListener('click', () => applyLanguage('ar'));
             if (themeBtn) themeBtn.addEventListener('click', () => applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
-        })();
-
-        (() => {
-            const canvas = document.getElementById('loginGlobeCanvas');
-            const overlay = document.getElementById('loginGlobeOverlay');
-            if (!canvas || !overlay) return;
-
-            const markers = [
-                { id: 'hq', location: [37.78, -122.44], name: 'HQ', users: 1420 },
-                { id: 'eu', location: [52.52, 13.41], name: 'EU', users: 892 },
-                { id: 'asia', location: [35.68, 139.65], name: 'Asia', users: 2103 },
-                { id: 'latam', location: [-23.55, -46.63], name: 'LATAM', users: 567 },
-                { id: 'mena', location: [25.2, 55.27], name: 'MENA', users: 734 },
-                { id: 'oceania', location: [-33.87, 151.21], name: 'APAC', users: 445 }
-            ];
-
-            const ctx = canvas.getContext('2d');
-            const dprMax = Math.min(window.devicePixelRatio || 1, 2);
-            const state = {
-                phi: -0.8,
-                theta: 0.34,
-                drag: null,
-                dragging: false,
-                expanded: null,
-                nodes: []
-            };
-
-            function resize() {
-                const size = Math.max(240, Math.min(320, canvas.parentElement?.clientWidth || 280));
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                canvas.width = Math.round(size * dpr);
-                canvas.height = Math.round(size * dpr);
-                canvas.style.width = size + 'px';
-                canvas.style.height = size + 'px';
-                overlay.style.width = size + 'px';
-                overlay.style.height = size + 'px';
-                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-            }
-
-            function createNode(marker) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'login-globe-marker';
-                btn.setAttribute('aria-label', marker.name);
-                btn.innerHTML = `
-                    <span class="login-globe-marker-name">${marker.name}</span>
-                    <span class="login-globe-marker-meta">${marker.users.toLocaleString()} users</span>
-                `;
-                btn.addEventListener('click', () => {
-                    state.expanded = state.expanded === marker.id ? null : marker.id;
-                    syncExpanded();
-                });
-                overlay.appendChild(btn);
-                return { marker, btn };
-            }
-
-            function syncExpanded() {
-                state.nodes.forEach(({ marker, btn }) => {
-                    const expanded = state.expanded === marker.id;
-                    btn.classList.toggle('is-expanded', expanded);
-                    btn.querySelector('.login-globe-marker-meta').style.display = expanded ? 'block' : 'none';
-                });
-            }
-
-            function project(marker, cx, cy, radius) {
-                const lon = (marker.location[1] * Math.PI) / 180;
-                const lat = (marker.location[0] * Math.PI) / 180;
-                const rot = lon + state.phi;
-                const tilt = lat * state.theta;
-                const x = cx + Math.cos(rot) * radius * 0.72;
-                const y = cy + Math.sin(tilt) * radius * 0.7;
-                const visibility = Math.max(0, Math.min(1, 0.5 + 0.5 * Math.cos(rot) * Math.cos(tilt)));
-                return { x, y, visibility };
-            }
-
-            function draw(tick) {
-                const w = canvas.width / dprMax;
-                const h = canvas.height / dprMax;
-                const size = Math.min(w, h);
-                const cx = w / 2;
-                const cy = h / 2;
-                const radius = size * 0.38;
-
-                ctx.clearRect(0, 0, w, h);
-
-                const glow = ctx.createRadialGradient(cx - radius * 0.2, cy - radius * 0.25, radius * 0.2, cx, cy, radius * 1.5);
-                glow.addColorStop(0, 'rgba(167,235,242,0.22)');
-                glow.addColorStop(0.45, 'rgba(38,101,140,0.16)');
-                glow.addColorStop(1, 'rgba(1,28,64,0.04)');
-                ctx.fillStyle = glow;
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius * 1.6, 0, Math.PI * 2);
-                ctx.fill();
-
-                const sphere = ctx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius * 1.2);
-                sphere.addColorStop(0, 'rgba(1,28,64,0.94)');
-                sphere.addColorStop(0.72, 'rgba(84,172,191,0.90)');
-                sphere.addColorStop(1, 'rgba(1,28,64,0.98)');
-                ctx.fillStyle = sphere;
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-                ctx.clip();
-
-                const lineColor = 'rgba(167,235,242,0.36)';
-                const lineColorMuted = 'rgba(246,248,252,0.14)';
-                for (let i = -3; i <= 3; i++) {
-                    const y = cy + (i / 3) * radius * 0.78 * state.theta;
-                    ctx.strokeStyle = i === 0 ? lineColor : lineColorMuted;
-                    ctx.lineWidth = i === 0 ? 1.8 : 1;
-                    ctx.beginPath();
-                    ctx.ellipse(cx, y, radius * 0.92, radius * (0.12 + Math.abs(i) * 0.035), 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                for (let i = -4; i <= 4; i++) {
-                    const x = cx + (i / 4) * radius * 0.84;
-                    ctx.strokeStyle = i === 0 ? lineColor : lineColorMuted;
-                    ctx.lineWidth = i === 0 ? 1.8 : 1;
-                    ctx.beginPath();
-                    ctx.ellipse(x, cy, radius * 0.12, radius * 0.82, state.phi * 0.55, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-
-                markers.forEach((marker, idx) => {
-                    const proj = project(marker, cx, cy, radius);
-                    const pulse = 0.5 + 0.5 * Math.sin((tick / 900) + idx);
-                    const dot = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, radius * 0.06);
-                    dot.addColorStop(0, `rgba(246,248,252,${0.82 * pulse})`);
-                    dot.addColorStop(0.5, 'rgba(167,235,242,0.52)');
-                    dot.addColorStop(1, 'rgba(53,87,125,0.05)');
-                    ctx.fillStyle = dot;
-                    ctx.beginPath();
-                    ctx.arc(proj.x, proj.y, radius * (0.028 + pulse * 0.01), 0, Math.PI * 2);
-                    ctx.fill();
-                });
-
-                ctx.restore();
-                ctx.strokeStyle = 'rgba(246,248,252,0.18)';
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.arc(cx, cy, radius + 1, 0, Math.PI * 2);
-                ctx.stroke();
-
-                state.nodes.forEach(({ marker, btn }) => {
-                    const proj = project(marker, cx, cy, radius);
-                    btn.style.left = proj.x + 'px';
-                    btn.style.top = proj.y + 'px';
-                    btn.style.opacity = proj.visibility.toFixed(2);
-                    btn.style.display = proj.visibility < 0.08 ? 'none' : 'inline-flex';
-                    if (state.expanded !== marker.id) {
-                        btn.classList.remove('is-expanded');
-                        btn.querySelector('.login-globe-marker-meta').style.display = 'none';
-                    }
-                });
-
-                if (!state.dragging) {
-                    state.phi += 0.003;
-                }
-                requestAnimationFrame(draw);
-            }
-
-            canvas.addEventListener('pointerdown', (ev) => {
-                state.drag = { x: ev.clientX, y: ev.clientY };
-                state.dragging = true;
-                canvas.setPointerCapture(ev.pointerId);
-            });
-            canvas.addEventListener('pointermove', (ev) => {
-                if (!state.drag) return;
-                state.phi += (ev.clientX - state.drag.x) / 300;
-                state.theta += (ev.clientY - state.drag.y) / 1200;
-                state.drag = { x: ev.clientX, y: ev.clientY };
-            });
-            window.addEventListener('pointerup', () => {
-                state.drag = null;
-                state.dragging = false;
-            });
-            window.addEventListener('pointercancel', () => {
-                state.drag = null;
-                state.dragging = false;
-            });
-            window.addEventListener('resize', resize);
-
-            state.nodes = markers.map(createNode);
-            syncExpanded();
-            resize();
-            draw(performance.now());
         })();
     </script>
 </body>

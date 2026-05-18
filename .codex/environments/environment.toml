@@ -8,4 +8,7 @@ script = ""
 [[actions]]
 name = "Run"
 icon = "run"
-command = "run"
+command = '''
+cd /Users/jawaa/Analytika/Analytika/
+dotnet run --project Analytika.csproj
+'''
