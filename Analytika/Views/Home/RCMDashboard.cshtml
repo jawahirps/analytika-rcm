@@ -71,11 +71,17 @@
     grid-template-columns: 238px minmax(0, 1fr);
     gap: .9rem;
 }
+.bi-tabs-shell {
+    position: sticky;
+    top: 74px;
+    align-self: start;
+    width: 238px;
+}
 .bi-tabs {
     display:flex;
     flex-direction:column;
     gap:.45rem;
-    padding:.85rem;
+    padding:3rem .85rem .85rem;
     background:rgba(255,255,255,.90);
     border:1px solid rgba(8,20,35,.10);
     border-radius:18px;
@@ -83,8 +89,32 @@
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     align-self:start;
-    position: sticky;
-    top: 74px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .28s ease, opacity .28s ease, filter .28s ease, box-shadow .28s ease;
+    will-change: transform;
+}
+.bi-tabs-toggle {
+    position:absolute;
+    top:.8rem;
+    right:.8rem;
+    z-index:2;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:2.1rem;
+    height:2.1rem;
+    border:1px solid rgba(8,20,35,.12);
+    border-radius:999px;
+    background:rgba(255,255,255,.92);
+    color:#023859;
+    box-shadow: 0 8px 18px rgba(1,28,64,.08);
+    transition: transform .2s ease, background .2s ease, color .2s ease;
+}
+.bi-tabs-toggle:hover {
+    background:#fff;
+    color:#011C40;
+    transform: translateY(-1px);
 }
 .bi-tab {
     display:flex;
@@ -110,6 +140,19 @@
     box-shadow: 0 8px 20px rgba(1,28,64,.08);
 }
 .bi-tab.active i { color:var(--gold); }
+.bi-tabs-shell.is-collapsed .bi-tabs {
+    transform: translateX(calc(-100% + 60px));
+    opacity: .96;
+    filter: saturate(.96);
+}
+.bi-tabs-shell.is-collapsed .bi-tabs-toggle i {
+    transform: rotate(180deg);
+}
+.bi-tabs-shell.is-collapsed .bi-tab span {
+    opacity: 0;
+    max-width: 0;
+    overflow: hidden;
+}
 .bi-content {
     min-width: 0;
 }
@@ -270,9 +313,17 @@
 }
 @@media (max-width: 640px) {
     .bi-layout { grid-template-columns: 1fr; }
-    .bi-tabs {
+    .bi-tabs-shell {
         position: static;
-        grid-row: 2;
+        width: 100%;
+        top: auto;
+    }
+    .bi-tabs {
+        padding-top: .85rem;
+        transform:none !important;
+    }
+    .bi-tabs-toggle {
+        display:none;
     }
     .bi-header { flex-direction:column; }
     .bi-field { width:100%; }
@@ -285,18 +336,23 @@
 
 <div class="bi-shell">
     <div class="bi-layout">
-        <nav class="bi-tabs" role="tablist" aria-label="Dashboard sections">
-            @foreach (var tab in Model.Tabs)
-            {
-                var meta = tabMeta.GetValueOrDefault(tab, ("fa-chart-bar", ""));
-                <a class="bi-tab @(tab == Model.ActiveTab ? "active" : "")"
-                   asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab" role="tab"
-                   aria-selected="@(tab == Model.ActiveTab ? "true" : "false")">
-                    <i class="fas @meta.Item1"></i>
-                    <span>@tab</span>
-                </a>
-            }
-        </nav>
+        <div class="bi-tabs-shell" data-bi-tabs-shell>
+            <button type="button" class="bi-tabs-toggle" data-bi-tabs-toggle aria-expanded="true" aria-label="Collapse dashboard sections">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <nav class="bi-tabs" id="biTabsNav" role="tablist" aria-label="Dashboard sections">
+                @foreach (var tab in Model.Tabs)
+                {
+                    var meta = tabMeta.GetValueOrDefault(tab, ("fa-chart-bar", ""));
+                    <a class="bi-tab @(tab == Model.ActiveTab ? "active" : "")"
+                       asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab" role="tab"
+                       aria-selected="@(tab == Model.ActiveTab ? "true" : "false")">
+                        <i class="fas @meta.Item1"></i>
+                        <span>@tab</span>
+                    </a>
+                }
+            </nav>
+        </div>
 
     <main class="bi-content">
         <div class="bi-header">
@@ -421,5 +477,53 @@
         card.addEventListener('pointerleave', reset);
         card.addEventListener('pointercancel', reset);
     });
+
+    const shell = document.querySelector('[data-bi-tabs-shell]');
+    const toggle = document.querySelector('[data-bi-tabs-toggle]');
+    const tabLinks = Array.from(document.querySelectorAll('.bi-tab'));
+    if (!shell || !toggle || !tabLinks.length) return;
+
+    const collapseAtKey = 'biTabsCollapseAt';
+    const collapsedKey = 'biTabsCollapsed';
+    let collapseTimer = null;
+
+    const setCollapsed = (collapsed) => {
+        shell.classList.toggle('is-collapsed', collapsed);
+        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        toggle.setAttribute('aria-label', collapsed ? 'Expand dashboard sections' : 'Collapse dashboard sections');
+        window.sessionStorage.setItem(collapsedKey, collapsed ? '1' : '0');
+        if (!collapsed) {
+            window.sessionStorage.removeItem(collapseAtKey);
+            if (collapseTimer) {
+                window.clearTimeout(collapseTimer);
+                collapseTimer = null;
+            }
+        }
+    };
+
+    const scheduleCollapse = (delayMs) => {
+        if (collapseTimer) window.clearTimeout(collapseTimer);
+        collapseTimer = window.setTimeout(() => setCollapsed(true), Math.max(0, delayMs));
+    };
+
+    const storedCollapsed = window.sessionStorage.getItem(collapsedKey) === '1';
+    const collapseAt = Number(window.sessionStorage.getItem(collapseAtKey) || 0);
+    if (storedCollapsed) {
+        setCollapsed(true);
+    } else if (collapseAt > Date.now()) {
+        scheduleCollapse(collapseAt - Date.now());
+    }
+
+    toggle.addEventListener('click', () => {
+        setCollapsed(!shell.classList.contains('is-collapsed'));
+    });
+
+    tabLinks.forEach((tab) => {
+        tab.addEventListener('click', () => {
+            window.sessionStorage.setItem(collapsedKey, '0');
+            window.sessionStorage.setItem(collapseAtKey, String(Date.now() + 5000));
+        });
+    });
+})();
 </script>
 }
