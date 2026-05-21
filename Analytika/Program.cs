@@ -84,7 +84,7 @@ builder.Services.AddSession(options =>
 // Respect PORT env variable (set by preview/hosting environment)
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
-    builder.WebHost.UseUrls($"http://localhost:{port}");
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 

@@ -6,11 +6,20 @@ services:
     volumes:
       - analytika-data:/app/data
       - analytika-downloads:/app/wwwroot/portal-downloads
+      - analytika-reports:/app/wwwroot/reports
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - DB_DIR=/app/data
+      - StartupMaintenance__RunDatabaseSetupOnStartup=false
+      - StartupMaintenance__CreateIndexesOnStartup=false
+      - StartupMaintenance__SeedDataOnStartup=false
+      - BackgroundJobs__HangfireServerEnabled=false
+      - BackgroundJobs__HangfireDashboardEnabled=false
+      - BackgroundJobs__RecurringJobsEnabled=false
+      - BackgroundJobs__PendingDownloads__HostedServiceEnabled=false
     restart: unless-stopped
 
 volumes:
   analytika-data:
   analytika-downloads:
+  analytika-reports:

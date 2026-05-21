@@ -95,10 +95,10 @@ public class DhaPortalService : IDhaPortalService
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "GetNewTransactionsResult").FirstOrDefault()?.Value;
-        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "GetNewTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
         // SPEC: output element is "xmlTransactions" (plural)
-        var xml = doc.Descendants(ns + "xmlTransactions").FirstOrDefault()?.Value;
+        var xml = FirstDescendantValue(doc, ns, "xmlTransactions");
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
@@ -119,9 +119,9 @@ public class DhaPortalService : IDhaPortalService
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "GetNewPriorAuthorizationTransactionsResult").FirstOrDefault()?.Value;
-        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml = doc.Descendants(ns + "xmlTransaction").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "GetNewPriorAuthorizationTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
+        var xml = FirstDescendantValue(doc, ns, "xmlTransaction");
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
@@ -171,10 +171,10 @@ public class DhaPortalService : IDhaPortalService
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "SearchTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
         // SPEC: output element is "foundTransactions"
-        var xml = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
@@ -209,9 +209,9 @@ public class DhaPortalService : IDhaPortalService
         if (doc == null) return (0, new(), "Connection failed (Archive)");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "SearchTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
+        var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
@@ -306,13 +306,13 @@ public class DhaPortalService : IDhaPortalService
         {
             var doc = XDocument.Parse(xmlStr);
 
-            foreach (var file in doc.Descendants("File"))
+            foreach (var file in doc.Descendants().Where(e => e.Name.LocalName == "File"))
             {
                 string? Attr(params string[] names)
                 {
                     foreach (var n in names)
                     {
-                        var v = file.Attribute(n)?.Value;
+                        var v = file.Attributes().FirstOrDefault(a => a.Name.LocalName == n)?.Value;
                         if (!string.IsNullOrWhiteSpace(v)) return v;
                     }
                     return null;
@@ -338,6 +338,22 @@ public class DhaPortalService : IDhaPortalService
         catch { /* return whatever was parsed */ }
 
         return rows;
+    }
+
+    private static string? FirstDescendantValue(XDocument doc, XNamespace ns, params string[] localNames)
+    {
+        foreach (var localName in localNames)
+        {
+            var value = doc.Descendants(ns + localName).FirstOrDefault()?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+
+            value = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == localName)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
     }
 
     // Infer transaction type from the file name

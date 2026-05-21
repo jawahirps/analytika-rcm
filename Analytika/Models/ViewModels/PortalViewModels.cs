@@ -35,6 +35,8 @@ public class PortalFetchViewModel
 public class PortalFetchResultRow
 {
     public string FileId { get; set; } = string.Empty;   // FileID from <File FileID='...'/>
+    public int FacilityId { get; set; }
+    public string? FacilityName { get; set; }
     public string Type { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? FileName { get; set; }

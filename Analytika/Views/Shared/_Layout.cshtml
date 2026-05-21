@@ -40,13 +40,13 @@
         <!-- Brand -->
         <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#A7EBF2" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#A7EBF2"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#A7EBF2"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#A7EBF2"/>
+                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
                 <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#35577D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#35577D"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
@@ -275,84 +275,6 @@
     @RenderBody()
 </main>
 
-<!-- ── Live Status Bar — floating pill ──────────────────────────── -->
-<div id="statusBar">
-    <span id="sb-sync" class="sb-chip sb-idle" title="Last sync">
-        <i class="fas fa-circle-check sb-icon"></i>
-        <span id="sb-sync-text">Idle</span>
-    </span>
-
-    <!-- Live sync progress chip (hidden when idle) -->
-    <span id="sb-progress-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-bolt sb-icon" style="color:#26658C;"></i>
-        <span id="sb-progress-label" style="color:#EAF4FB;"></span>
-        <span class="sb-progress-track">
-            <span id="sb-progress-fill" class="sb-progress-fill"></span>
-        </span>
-        <span id="sb-progress-pct" style="color:#26658C;font-weight:600;min-width:28px;text-align:right;"></span>
-    </span>
-
-    <!-- Live report progress chip (hidden when idle) -->
-    <span id="sb-report-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-file-contract sb-icon" style="color:#35577D;"></i>
-        <span id="sb-report-label" style="color:#EAF4FB;"></span>
-        <span id="sb-report-detail" class="sb-progress-detail"></span>
-        <span class="sb-progress-track">
-            <span id="sb-report-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #A7EBF2 0%, #26658C 100%); box-shadow:0 0 6px rgba(0,139,139,.55);"></span>
-        </span>
-        <span id="sb-report-pct" style="color:#26658C;font-weight:600;min-width:28px;text-align:right;"></span>
-    </span>
-
-    <!-- Live pending-download progress chip (hidden when idle) -->
-    <span id="sb-pending-wrap" class="sb-chip sb-progress-chip" title="" style="display:none;">
-        <i class="fas fa-download sb-icon" style="color:#26658C;"></i>
-        <span id="sb-pending-label" style="color:#EAF4FB;"></span>
-        <span class="sb-progress-track">
-            <span id="sb-pending-fill" class="sb-progress-fill" style="background:linear-gradient(90deg, #54ACBF 0%, #35577D 100%); box-shadow:0 0 6px rgba(102,178,178,.55);"></span>
-        </span>
-        <span id="sb-pending-pct" style="color:#35577D;font-weight:600;min-width:28px;text-align:right;"></span>
-    </span>
-
-    <span class="sb-div"></span>
-
-    <span class="sb-chip" title="Records in DB">
-        <i class="fas fa-database sb-icon"></i>
-        <span id="sb-tx">—</span>
-    </span>
-
-    <span class="sb-chip" title="XML files downloaded">
-        <i class="fas fa-file-code sb-icon"></i>
-        <span id="sb-files">—</span>
-    </span>
-
-    <span class="sb-chip" title="Active facilities">
-        <i class="fas fa-hospital sb-icon"></i>
-        <span id="sb-fac">—</span>
-    </span>
-
-    <span class="sb-chip" title="DHA / RHA credentials">
-        <i class="fas fa-key sb-icon"></i>
-        DHA <span id="sb-dha">—</span> &middot; RHA <span id="sb-rha">—</span>
-    </span>
-
-    <span class="sb-div"></span>
-
-    <span class="sb-chip" title="Last sync time">
-        <i class="fas fa-history sb-icon"></i>
-        <span id="sb-lastsync">—</span>
-    </span>
-
-    <span class="sb-chip" title="Logged in as">
-        <i class="fas fa-user sb-icon"></i>
-        <span id="sb-user">—</span>
-    </span>
-
-    <span class="sb-chip sb-clock" title="Current time">
-        <i class="fas fa-clock sb-icon"></i>
-        <span id="sb-time">—</span>
-    </span>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -366,127 +288,6 @@ function clearNotifications() {
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
-
-// ── Live Status Bar ────────────────────────────────────────────
-(function initStatusBar() {
-    const $ = id => document.getElementById(id);
-
-    // Local clock — ticks every second independently of API
-    function tickClock() {
-        const now = new Date();
-        const pad = n => String(n).padStart(2,'0');
-        const t = $('sb-time');
-        if (t) t.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    }
-    setInterval(tickClock, 1000);
-    tickClock();
-
-    function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
-
-    let pollInterval = null;
-
-    function applyStatus(d) {
-        $('sb-tx').textContent    = fmt(d.txCount);
-        $('sb-files').textContent = fmt(d.fileCount);
-        $('sb-fac').textContent   = fmt(d.facCount);
-        $('sb-dha').textContent   = fmt(d.dhaCreds);
-        $('sb-rha').textContent   = fmt(d.rhaCreds);
-        $('sb-user').textContent  = d.user || '—';
-        $('sb-lastsync').textContent = d.lastSyncTime ? d.lastSyncTime : 'Never';
-
-        const syncEl = $('sb-sync');
-        const syncTx = $('sb-sync-text');
-        if (d.syncRunning) {
-            syncEl.className   = 'sb-chip sb-ok';
-            syncTx.textContent = 'Syncing…';
-        } else if (d.lastSyncStatus === 'Success') {
-            syncEl.className   = 'sb-chip sb-ok';
-            syncTx.textContent = (d.lastSyncPortal || '') + ' · ' + (d.lastSyncOp || 'Sync') + ' ✓';
-        } else if (d.lastSyncStatus) {
-            syncEl.className   = 'sb-chip sb-warn';
-            syncTx.textContent = d.lastSyncStatus;
-        } else {
-            syncEl.className   = 'sb-chip sb-idle';
-            syncTx.textContent = 'Idle';
-        }
-
-        // ── Live progress chip ───────────────────────────────────────
-        const pw   = $('sb-progress-wrap');
-        const fill = $('sb-progress-fill');
-        const lbl  = $('sb-progress-label');
-        const pct  = $('sb-progress-pct');
-        if (d.syncRunning) {
-            const p = d.syncPct || 0;
-            lbl.textContent  = d.syncFacility
-                ? `${d.syncFacilityIndex}/${d.syncTotalFacilities} · ${d.syncMonth}`
-                : 'Starting…';
-            fill.style.width = p + '%';
-            pct.textContent  = p + '%';
-            pw.title         = `${d.syncFacility || ''} — ${d.syncMonth || ''}\n${fmt(d.syncRecordsSaved)} saved · ${fmt(d.syncFilesDownloaded)} files`;
-            pw.style.display = 'inline-flex';
-            setPollRate(2000);   // faster while running
-        } else {
-            pw.style.display = 'none';
-        }
-
-        const rw   = $('sb-report-wrap');
-        const rfill = $('sb-report-fill');
-        const rlbl  = $('sb-report-label');
-        const rdetail = $('sb-report-detail');
-        const rpct  = $('sb-report-pct');
-        if (d.reportRunning) {
-            const p = d.reportPct || 0;
-            const stage = d.reportStage || 'Generating report';
-            rlbl.textContent = d.reportId ? `${d.reportId} · ${stage}` : stage;
-            rdetail.textContent = d.reportMessage || '';
-            rfill.style.width = p + '%';
-            rpct.textContent = p + '%';
-            rw.title = `${d.reportId || 'Report'}${d.reportType ? ' — ' + d.reportType : ''}\n${d.reportMessage || stage}`;
-            rw.style.display = 'inline-flex';
-        } else {
-            rw.style.display = 'none';
-        }
-
-        const pw2  = $('sb-pending-wrap');
-        const pfill = $('sb-pending-fill');
-        const plbl  = $('sb-pending-label');
-        const ppct  = $('sb-pending-pct');
-        if (d.pendingRunning) {
-            const p = d.pendingPct || 0;
-            const total = d.pendingTotal || 0;
-            const done = d.pendingDone || 0;
-            const failed = d.pendingFailed || 0;
-            plbl.textContent = total > 0
-                ? `Pending downloads · ${done + failed}/${total}`
-                : 'Pending downloads';
-            pfill.style.width = p + '%';
-            ppct.textContent = p + '%';
-            pw2.title = `${done} downloaded · ${failed} failed${d.pendingFacility ? `\n${d.pendingFacility}` : ''}`;
-            pw2.style.display = 'inline-flex';
-        } else {
-            pw2.style.display = 'none';
-        }
-
-        setPollRate((d.syncRunning || d.reportRunning || d.pendingRunning) ? 2000 : 15000);
-    }
-
-    function setPollRate(ms) {
-        if (pollInterval && pollInterval._ms === ms) return;
-        if (pollInterval) clearInterval(pollInterval._id);
-        const id = setInterval(poll, ms);
-        pollInterval = { _id: id, _ms: ms };
-    }
-
-    async function poll() {
-        try {
-            const r = await fetch('/Portal/StatusBar', { credentials: 'same-origin' });
-            if (r.ok) applyStatus(await r.json());
-        } catch (_) {}
-    }
-
-    poll();                          // immediate on load
-    setPollRate(15000);              // start at 15 s; tightens to 2 s during sync
-})();
 
 (function initThemeLanguageControls() {
     const root = document.documentElement;

@@ -60,147 +60,258 @@ public class PortalController : Controller
         freshVm.MaxRecord = vm.MaxRecord;
         freshVm.FileId = vm.FileId;
 
-        if (vm.FacilityId == null)
+        var selectedFacilityIds = vm.FacilityIds.Distinct().ToList();
+        if (selectedFacilityIds.Count == 0)
         {
             freshVm.IsError = true;
             freshVm.StatusMessage = "Please select a facility.";
             return View(freshVm);
         }
 
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == vm.FacilityId && c.IsActive);
+        var facilityNames = await _db.Facilities
+            .Where(f => selectedFacilityIds.Contains(f.Id))
+            .Select(f => new { f.Id, f.Name })
+            .ToDictionaryAsync(f => f.Id, f => f.Name);
 
-        if (cred == null)
+        var fetchedBy = User.Identity?.Name ?? "system";
+        var logs = new List<PortalFetchLog>();
+        var allRows = new List<PortalFetchResultRow>();
+        var statusMessages = new List<string>();
+        var hadError = false;
+        var totalFetched = 0;
+
+        string GetFacilityName(int facilityId)
+            => facilityNames.TryGetValue(facilityId, out var name) ? name : $"Facility {facilityId}";
+
+        async Task<(int count, List<PortalFetchResultRow> rows, string? error)> FetchDhaForFacilityAsync(int facilityId, string facilityName)
         {
-            freshVm.IsError = true;
-            freshVm.StatusMessage = $"No active {vm.Portal} credentials found for this facility. Please configure credentials in Admin → Credentials.";
-            return View(freshVm);
+            var cred = await _db.PortalCredentials
+                .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == facilityId && c.IsActive);
+            if (cred == null)
+                return (0, new List<PortalFetchResultRow>(), $"No active DHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
+
+            var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+
+            if (vm.Operation == "DownloadTransactionFile")
+            {
+                if (selectedFacilityIds.Count > 1)
+                    return (0, new List<PortalFetchResultRow>(), "DownloadTransactionFile supports only one facility at a time.");
+
+                if (string.IsNullOrWhiteSpace(vm.FileId))
+                    return (0, new List<PortalFetchResultRow>(), "File ID is required for DownloadTransactionFile.");
+
+                var log = new PortalFetchLog
+                {
+                    Portal = vm.Portal,
+                    FacilityId = facilityId,
+                    Operation = vm.Operation,
+                    FetchedBy = fetchedBy
+                };
+
+                var (dlResult, dlFileName, dlBytes, dlError) = await _dha.DownloadTransactionFileAsync(cred.Username, pwd, vm.FileId);
+                if (dlError != null)
+                {
+                    log.Status = "Failed";
+                    log.ResponseSummary = dlError;
+                    logs.Add(log);
+                    return (0, new List<PortalFetchResultRow>(), $"Download failed: {dlError}");
+                }
+
+                if (dlBytes != null && dlBytes.Length > 0)
+                {
+                    var dir = Path.Combine("wwwroot", "portal-downloads");
+                    Directory.CreateDirectory(dir);
+                    var safeName = string.IsNullOrWhiteSpace(dlFileName) ? $"tx_{vm.FileId}.xml" : dlFileName;
+                    var filePath = Path.Combine(dir, safeName);
+                    await System.IO.File.WriteAllBytesAsync(filePath, dlBytes);
+                    freshVm.DownloadedFileName = safeName;
+                    freshVm.DownloadedFileBase64 = Convert.ToBase64String(dlBytes);
+                    log.Status = "Success";
+                    log.RecordsFetched = 1;
+                    log.ResponseSummary = $"File '{safeName}' downloaded ({dlBytes.Length:N0} bytes).";
+                    logs.Add(log);
+                    return (1, new List<PortalFetchResultRow>(), log.ResponseSummary);
+                }
+
+                log.Status = "Success";
+                log.ResponseSummary = $"DownloadTransactionFile returned result={dlResult} but no file content. The file may not exist or has already been downloaded.";
+                logs.Add(log);
+                return (0, new List<PortalFetchResultRow>(), log.ResponseSummary);
+            }
+
+            (int count, List<PortalFetchResultRow> rows, string? error) fetchResult;
+
+            if (vm.Operation == "GetNewTransactions")
+                fetchResult = await _dha.GetNewTransactionsAsync(cred.Username, pwd);
+            else if (vm.Operation == "GetNewPriorAuthorizations")
+                fetchResult = await _dha.GetNewPriorAuthorizationsAsync(cred.Username, pwd);
+            else
+            {
+                DateTime.TryParse(vm.DateFrom, out var parsedFrom);
+                DateTime.TryParse(vm.DateTo, out var parsedTo);
+                var fetchChunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
+                var allChunkRows = new List<PortalFetchResultRow>();
+                string? chunkErr = null;
+                var chunkCount = 0;
+
+                foreach (var (cs, ce) in fetchChunks)
+                {
+                    var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
+                    var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
+                    var (cnt, chunkRows, err) = await _dha.SearchTransactionsAsync(cred.Username, pwd, vm.Direction, dhpoFrom, dhpoTo, vm.TransactionStatus, vm.TransactionId > 0 ? vm.TransactionId : 2, freshVm.MinRecord, freshVm.MaxRecord);
+                    foreach (var row in chunkRows)
+                    {
+                        row.FacilityId = facilityId;
+                        row.FacilityName = facilityName;
+                    }
+                    allChunkRows.AddRange(chunkRows);
+                    chunkCount += cnt;
+                    chunkErr ??= err;
+                }
+
+                fetchResult = (chunkCount, allChunkRows, chunkErr);
+            }
+
+            foreach (var row in fetchResult.rows)
+            {
+                row.FacilityId = facilityId;
+                row.FacilityName = facilityName;
+            }
+
+            var deduped = fetchResult.rows
+                .GroupBy(r => (r.FacilityId, r.FileId))
+                .Select(g => g.First())
+                .ToList();
+
+            var countForStatus = fetchResult.count > 0 ? fetchResult.count : deduped.Count;
+            var message = fetchResult.error ?? $"Fetched {countForStatus} records from {facilityName} successfully.";
+            logs.Add(new PortalFetchLog
+            {
+                Portal = vm.Portal,
+                FacilityId = facilityId,
+                Operation = vm.Operation,
+                FetchedBy = fetchedBy,
+                RecordsFetched = countForStatus,
+                Status = fetchResult.error == null ? "Success" : "Failed",
+                ResponseSummary = message
+            });
+
+            return (countForStatus, deduped, fetchResult.error);
         }
 
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
-        var fetchedBy = User.Identity?.Name ?? "system";
-        var log = new PortalFetchLog
+        async Task<(int count, List<PortalFetchResultRow> rows, string? error)> FetchRhaForFacilityAsync(int facilityId, string facilityName)
         {
-            Portal = vm.Portal,
-            FacilityId = vm.FacilityId.Value,
-            Operation = vm.Operation,
-            FetchedBy = fetchedBy
-        };
+            var cred = await _db.PortalCredentials
+                .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == facilityId && c.IsActive);
+            if (cred == null)
+                return (0, new List<PortalFetchResultRow>(), $"No active RHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
+
+            var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
+            if (authErr != null)
+                return (0, new List<PortalFetchResultRow>(), $"RHA Auth failed: {authErr}");
+
+            (List<PortalFetchResultRow> rows, string? error) rhaResult;
+            if (vm.Operation == "GetRemittances")
+                rhaResult = await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+            else if (vm.Operation == "GetPriorAuthorizations")
+                rhaResult = await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+            else
+                rhaResult = await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+
+            foreach (var row in rhaResult.rows)
+            {
+                row.FacilityId = facilityId;
+                row.FacilityName = facilityName;
+            }
+
+            var deduped = rhaResult.rows
+                .GroupBy(r => (r.FacilityId, r.FileId))
+                .Select(g => g.First())
+                .ToList();
+
+            var message = rhaResult.error ?? $"Fetched {deduped.Count} records from {facilityName} successfully.";
+            logs.Add(new PortalFetchLog
+            {
+                Portal = vm.Portal,
+                FacilityId = facilityId,
+                Operation = vm.Operation,
+                FetchedBy = fetchedBy,
+                RecordsFetched = deduped.Count,
+                Status = rhaResult.error == null ? "Success" : "Failed",
+                ResponseSummary = message
+            });
+
+            return (deduped.Count, deduped, rhaResult.error);
+        }
 
         try
         {
-            if (vm.Portal == "DHA")
+            if (vm.Operation == "DownloadTransactionFile")
             {
-                if (vm.Operation == "DownloadTransactionFile")
-                {
-                    if (string.IsNullOrWhiteSpace(vm.FileId))
-                    {
-                        freshVm.IsError = true;
-                        freshVm.StatusMessage = "File ID is required for DownloadTransactionFile.";
-                        log.Status = "Failed"; log.ResponseSummary = freshVm.StatusMessage;
-                    }
-                    else
-                    {
-                        var (dlResult, dlFileName, dlBytes, dlError) = await _dha.DownloadTransactionFileAsync(cred.Username, pwd, vm.FileId);
-                        if (dlError != null)
-                        {
-                            freshVm.IsError = true;
-                            freshVm.StatusMessage = $"Download failed: {dlError}";
-                            log.Status = "Failed"; log.ResponseSummary = dlError;
-                        }
-                        else if (dlBytes != null && dlBytes.Length > 0)
-                        {
-                            // Save file and mark downloaded
-                            var dir = Path.Combine("wwwroot", "portal-downloads");
-                            Directory.CreateDirectory(dir);
-                            var safeName = string.IsNullOrWhiteSpace(dlFileName) ? $"tx_{vm.FileId}.xml" : dlFileName;
-                            var filePath = Path.Combine(dir, safeName);
-                            await System.IO.File.WriteAllBytesAsync(filePath, dlBytes);
-                            freshVm.DownloadedFileName = safeName;
-                            freshVm.DownloadedFileBase64 = Convert.ToBase64String(dlBytes);
-                            freshVm.StatusMessage = $"File '{safeName}' downloaded ({dlBytes.Length:N0} bytes).";
-                            log.Status = "Success"; log.RecordsFetched = 1; log.ResponseSummary = freshVm.StatusMessage;
-                        }
-                        else
-                        {
-                            freshVm.StatusMessage = $"DownloadTransactionFile returned result={dlResult} but no file content. The file may not exist or has already been downloaded.";
-                            log.Status = "Success"; log.ResponseSummary = freshVm.StatusMessage;
-                        }
-                    }
-                }
-                else
-                {
-                    (int count, List<PortalFetchResultRow> rows, string? error) fetchResult;
-
-                    if (vm.Operation == "GetNewTransactions")
-                        fetchResult = await _dha.GetNewTransactionsAsync(cred.Username, pwd);
-                    else if (vm.Operation == "GetNewPriorAuthorizations")
-                        fetchResult = await _dha.GetNewPriorAuthorizationsAsync(cred.Username, pwd);
-                    else // SearchTransactions — convert dates to DHPO format dd/MM/yyyy HH:mm:ss
-                    {
-                        // Auto-split into 90-day chunks (portal rejects > 100 days, error -5)
-                        DateTime.TryParse(vm.DateFrom, out var parsedFrom);
-                        DateTime.TryParse(vm.DateTo, out var parsedTo);
-                        var fetchChunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
-                        var allChunkRows = new List<PortalFetchResultRow>();
-                        string? chunkErr = null; int chunkCount = 0;
-                        foreach (var (cs, ce) in fetchChunks)
-                        {
-                            var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
-                            var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
-                            var (cnt, chunkRows, err) = await _dha.SearchTransactionsAsync(cred.Username, pwd, vm.Direction, dhpoFrom, dhpoTo, vm.TransactionStatus, vm.TransactionId > 0 ? vm.TransactionId : 2, freshVm.MinRecord, freshVm.MaxRecord);
-                            allChunkRows.AddRange(chunkRows);
-                            chunkCount += cnt; chunkErr ??= err;
-                        }
-                        fetchResult = (chunkCount, allChunkRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList(), chunkErr);
-                    }
-
-                    freshVm.Results = fetchResult.rows;
-                    freshVm.TotalFetched = fetchResult.count > 0 ? fetchResult.count : fetchResult.rows.Count;
-                    freshVm.IsError = fetchResult.error != null;
-                    freshVm.StatusMessage = fetchResult.error ?? $"Fetched {freshVm.TotalFetched} records successfully.";
-                    log.RecordsFetched = freshVm.TotalFetched;
-                    log.Status = fetchResult.error == null ? "Success" : "Failed";
-                    log.ResponseSummary = freshVm.StatusMessage;
-                }
-            }
-            else // RHA
-            {
-                var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
-                if (authErr != null)
+                if (selectedFacilityIds.Count != 1)
                 {
                     freshVm.IsError = true;
-                    freshVm.StatusMessage = $"RHA Auth failed: {authErr}";
-                    log.Status = "Failed"; log.ResponseSummary = freshVm.StatusMessage;
+                    freshVm.StatusMessage = "DownloadTransactionFile supports only one facility at a time.";
                 }
                 else
                 {
-                    (List<PortalFetchResultRow> rows, string? error) rhaResult;
-                    if (vm.Operation == "GetRemittances")
-                        rhaResult = await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
-                    else if (vm.Operation == "GetPriorAuthorizations")
-                        rhaResult = await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
-                    else
-                        rhaResult = await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
-
-                    freshVm.Results = rhaResult.rows;
-                    freshVm.TotalFetched = rhaResult.rows.Count;
-                    freshVm.IsError = rhaResult.error != null;
-                    freshVm.StatusMessage = rhaResult.error ?? $"Fetched {freshVm.TotalFetched} records successfully.";
-                    log.RecordsFetched = freshVm.TotalFetched;
-                    log.Status = rhaResult.error == null ? "Success" : "Failed";
-                    log.ResponseSummary = freshVm.StatusMessage;
+                    var facilityId = selectedFacilityIds[0];
+                    var facilityName = GetFacilityName(facilityId);
+                    var (count, rows, error) = await FetchDhaForFacilityAsync(facilityId, facilityName);
+                    freshVm.Results = rows;
+                    freshVm.TotalFetched = count;
+                    freshVm.IsError = error != null;
+                    freshVm.StatusMessage = error ?? (freshVm.DownloadedFileName != null
+                        ? $"File '{freshVm.DownloadedFileName}' downloaded."
+                        : "Download complete.");
+                }
+            }
+            else if (vm.Portal == "DHA")
+            {
+                foreach (var facilityId in selectedFacilityIds)
+                {
+                    var facilityName = GetFacilityName(facilityId);
+                    var (count, rows, error) = await FetchDhaForFacilityAsync(facilityId, facilityName);
+                    allRows.AddRange(rows);
+                    totalFetched += count;
+                    if (error != null)
+                    {
+                        hadError = true;
+                        statusMessages.Add($"{facilityName}: {error}");
+                    }
+                }
+            }
+            else
+            {
+                foreach (var facilityId in selectedFacilityIds)
+                {
+                    var facilityName = GetFacilityName(facilityId);
+                    var (count, rows, error) = await FetchRhaForFacilityAsync(facilityId, facilityName);
+                    allRows.AddRange(rows);
+                    totalFetched += count;
+                    if (error != null)
+                    {
+                        hadError = true;
+                        statusMessages.Add($"{facilityName}: {error}");
+                    }
                 }
             }
         }
         catch (Exception ex)
         {
-            freshVm.IsError = true;
-            freshVm.StatusMessage = $"Error: {ex.Message}";
-            log.Status = "Failed"; log.ResponseSummary = ex.Message;
+            hadError = true;
+            statusMessages.Add($"Error: {ex.Message}");
         }
 
-        _db.PortalFetchLogs.Add(log);
+        freshVm.Results = allRows;
+        freshVm.TotalFetched = totalFetched;
+        freshVm.IsError = hadError;
+        freshVm.StatusMessage = statusMessages.Count > 0
+            ? string.Join(" ", statusMessages)
+            : $"Fetched {totalFetched} records successfully.";
+
+        _db.PortalFetchLogs.AddRange(logs);
         await _db.SaveChangesAsync();
 
         freshVm.RecentLogs = await _db.PortalFetchLogs
@@ -934,6 +1045,7 @@ public class PortalController : Controller
         var txStatuses = new[] { 1, 2 };
         var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
         var allRows = new List<PortalFetchResultRow>();
+        string? fetchErr = null;
 
         foreach (var (cs, ce) in chunks)
         {
@@ -943,10 +1055,11 @@ public class PortalController : Controller
             foreach (var txStatus in txStatuses)
                 foreach (var txType in txTypes)
                 {
-                    var (_, rSent, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                    var (_, rRecv, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rSent, eSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
                     allRows.AddRange(rSent);
                     allRows.AddRange(rRecv);
+                    fetchErr ??= eSent ?? eRecv;
                 }
         }
 
@@ -957,6 +1070,11 @@ public class PortalController : Controller
 
         if (!rows.Any())
         {
+            if (fetchErr != null)
+            {
+                await Send(new { status = "error", message = fetchErr });
+                return;
+            }
             await Send(new { status = "done", total = 0, found = 0, saved = 0, downloaded = 0, duplicates = 0, pending = 0 });
             return;
         }
@@ -1056,14 +1174,31 @@ public class PortalController : Controller
                     var chunks = PortalSyncService.GetDateChunks(pFrom == default ? DateTime.Today.AddMonths(-1) : pFrom,
                         pTo == default ? DateTime.Today : pTo, 90);
                     var allRows = new List<PortalFetchResultRow>();
+                    var txTypes = new[] { 2, 8, 16, 32 };
+                    var txStatuses = new[] { 1, 2 };
+                    string? fetchErr = null;
                     foreach (var (cs, ce) in chunks)
                     {
                         var df = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
                         var dt = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
-                        var (_, r, _) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, df, dt, 1, 2);
-                        allRows.AddRange(r);
+                        foreach (var txStatus in txStatuses)
+                        foreach (var txType in txTypes)
+                        {
+                            var (_, sent, errSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, df, dt, txStatus, txType);
+                            var (_, recv, errRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, df, dt, txStatus, txType);
+                            allRows.AddRange(sent);
+                            allRows.AddRange(recv);
+                            fetchErr ??= errSent ?? errRecv;
+                        }
                     }
-                    result = (allRows.Count, allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList(), null);
+                    var rows = allRows
+                        .Where(r => !string.IsNullOrWhiteSpace(r.FileId))
+                        .GroupBy(r => r.FileId)
+                        .Select(g => g.First())
+                        .ToList();
+                    if (fetchErr != null && rows.Count == 0)
+                        return Json(new { ok = false, message = fetchErr });
+                    result = (rows.Count, rows, null);
                 }
                 if (result.error != null) return Json(new { ok = false, message = result.error });
                 return Json(new

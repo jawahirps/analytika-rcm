@@ -19,3 +19,31 @@ value = "http://+:8080"
 [[deploy.environmentVariables]]
 name = "DB_DIR"
 value = "/app/data"
+
+[[deploy.environmentVariables]]
+name = "StartupMaintenance__RunDatabaseSetupOnStartup"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "StartupMaintenance__CreateIndexesOnStartup"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "StartupMaintenance__SeedDataOnStartup"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "BackgroundJobs__HangfireServerEnabled"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "BackgroundJobs__HangfireDashboardEnabled"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "BackgroundJobs__RecurringJobsEnabled"
+value = "false"
+
+[[deploy.environmentVariables]]
+name = "BackgroundJobs__PendingDownloads__HostedServiceEnabled"
+value = "false"

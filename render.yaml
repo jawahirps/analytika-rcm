@@ -12,6 +12,20 @@ services:
         value: Production
       - key: DB_DIR
         value: /app/data
+      - key: StartupMaintenance__RunDatabaseSetupOnStartup
+        value: false
+      - key: StartupMaintenance__CreateIndexesOnStartup
+        value: false
+      - key: StartupMaintenance__SeedDataOnStartup
+        value: false
+      - key: BackgroundJobs__HangfireServerEnabled
+        value: false
+      - key: BackgroundJobs__HangfireDashboardEnabled
+        value: false
+      - key: BackgroundJobs__RecurringJobsEnabled
+        value: false
+      - key: BackgroundJobs__PendingDownloads__HostedServiceEnabled
+        value: false
     disk:
       name: analytika-data
       mountPath: /app/data

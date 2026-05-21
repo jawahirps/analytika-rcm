@@ -6,6 +6,7 @@ Analytika/wwwroot/portal-downloads/
 Analytika/wwwroot/reports/
 .DS_Store
 *.user
+*.swp
 Analytika/analytika.db.gz
 Analytika/analytika.db-shm
 Analytika/analytika.db-wal
