@@ -11,15 +11,15 @@
 :root {
   /* Ghaf palette */
   --deep-navy:     #011C40;
-  --classic-teal:  #9BE8EF;
-  --forest-teal:   #3FA9B9;
+  --classic-teal:  #54ACBF;
+  --forest-teal:   #26658C;
   --seafoam-blue:  #285F84;
-  --sage-teal:     #284A63;
+  --sage-teal:     #35577D;
   --ice-blue:      #023859;
   --soft-white:    #EAF4FB;
-  --gold:          #D6A43D;
-  --coral:         #D96C5F;
-  --mint:          #52B788;
+  --gold:          #B88924;
+  --coral:         #B94A3F;
+  --mint:          #2F8F72;
 
   /* Compatibility aliases used across existing views */
   --navy:          var(--deep-navy);
@@ -29,8 +29,8 @@
   --emerald:       var(--classic-teal);
   --teal-vivid:    var(--classic-teal);
   --emerald-dark:  var(--forest-teal);
-  --emerald-light: rgba(167,235,242,0.12);
-  --emerald-pale:  rgba(167,235,242,0.07);
+  --emerald-light: rgba(84,172,191,0.12);
+  --emerald-pale:  rgba(84,172,191,0.07);
 
   /* Legacy accent aliases mapped to sage teal */
   --amber:         var(--sage-teal);
@@ -56,10 +56,10 @@
   --text-invert:   #ffffff;
 
   /* Semantic */
-  --success:       #A7EBF2;
-  --warning:       #35577D;
-  --danger:        #023859;
-  --info:          #26658C;
+  --success:       var(--mint);
+  --warning:       var(--gold);
+  --danger:        var(--coral);
+  --info:          var(--forest-teal);
 
   /* Layout */
   --radius-sm:     6px;
@@ -1854,6 +1854,264 @@ html[data-theme="dark"] .brand-name-wrap .brand-sub {
 
 .progress-bar {
   background: linear-gradient(90deg, var(--classic-teal), var(--sage-teal)) !important;
+}
+
+/* ----------------------------------------------------------------
+   Theme uniformity layer
+   ---------------------------------------------------------------- */
+:root {
+  --theme-primary: var(--deep-navy);
+  --theme-primary-hover: var(--ice-blue);
+  --theme-secondary: var(--sage-teal);
+  --theme-accent: var(--classic-teal);
+  --theme-accent-strong: var(--forest-teal);
+  --theme-accent-soft: rgba(84,172,191,0.12);
+  --theme-accent-wash: rgba(234,244,251,0.86);
+  --theme-surface: rgba(255,255,255,0.88);
+  --theme-surface-solid: #ffffff;
+  --theme-border: rgba(1,28,64,0.14);
+  --theme-grid: rgba(1,28,64,0.035);
+  --theme-focus: rgba(84,172,191,0.22);
+  --semantic-success: #2F8F72;
+  --semantic-success-bg: rgba(47,143,114,0.12);
+  --semantic-warning: #B88924;
+  --semantic-warning-bg: rgba(184,137,36,0.14);
+  --semantic-danger: #B94A3F;
+  --semantic-danger-bg: rgba(185,74,63,0.12);
+  --semantic-info: var(--forest-teal);
+  --semantic-info-bg: rgba(38,101,140,0.12);
+}
+
+html[data-theme="dark"] {
+  --theme-surface: rgba(1,28,64,0.76);
+  --theme-surface-solid: #061f3f;
+  --theme-border: rgba(84,172,191,0.18);
+  --theme-grid: rgba(234,244,251,0.035);
+  --theme-accent-wash: rgba(84,172,191,0.12);
+}
+
+.text-primary,
+.text-info,
+.text-body-emphasis {
+  color: var(--theme-primary) !important;
+}
+
+.text-success { color: var(--semantic-success) !important; }
+.text-warning { color: var(--semantic-warning) !important; }
+.text-danger { color: var(--semantic-danger) !important; }
+
+.bg-primary,
+.bg-info {
+  background-color: var(--theme-primary) !important;
+}
+
+.bg-success,
+.badge.bg-success,
+.bg-success-subtle {
+  background-color: var(--semantic-success-bg) !important;
+  color: var(--semantic-success) !important;
+}
+
+.bg-warning,
+.badge.bg-warning,
+.bg-warning-subtle {
+  background-color: var(--semantic-warning-bg) !important;
+  color: var(--semantic-warning) !important;
+}
+
+.bg-danger,
+.badge.bg-danger,
+.bg-danger-subtle {
+  background-color: var(--semantic-danger-bg) !important;
+  color: var(--semantic-danger) !important;
+}
+
+.bg-info-subtle {
+  background-color: var(--semantic-info-bg) !important;
+  color: var(--semantic-info) !important;
+}
+
+.btn-primary,
+.btn-outline-primary:hover,
+.page-item.active .page-link,
+[style*="background:#011C40"],
+[style*="background: #011C40"] {
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent-strong)) !important;
+  border-color: var(--theme-primary) !important;
+  color: #fff !important;
+}
+
+.btn-primary:hover,
+[style*="background:#011C40"]:hover,
+[style*="background: #011C40"]:hover {
+  background: linear-gradient(135deg, var(--theme-primary-hover), var(--theme-accent)) !important;
+  color: #fff !important;
+}
+
+.btn-outline-primary {
+  border-color: var(--theme-primary) !important;
+  color: var(--theme-primary) !important;
+}
+
+.btn-outline-success {
+  border-color: var(--semantic-success) !important;
+  color: var(--semantic-success) !important;
+}
+
+.btn-outline-success:hover {
+  background: var(--semantic-success) !important;
+  color: #fff !important;
+}
+
+.btn-outline-info {
+  border-color: var(--theme-accent-strong) !important;
+  color: var(--theme-accent-strong) !important;
+}
+
+.btn-outline-info:hover {
+  background: var(--theme-accent-strong) !important;
+  color: #fff !important;
+}
+
+.btn-warning,
+.btn-outline-warning:hover,
+[style*="background:var(--amber)"] {
+  background: var(--semantic-warning) !important;
+  border-color: var(--semantic-warning) !important;
+  color: #fff !important;
+}
+
+.btn-outline-warning {
+  border-color: var(--semantic-warning) !important;
+  color: var(--semantic-warning) !important;
+}
+
+.btn-danger,
+.btn-outline-danger:hover {
+  background: var(--semantic-danger) !important;
+  border-color: var(--semantic-danger) !important;
+  color: #fff !important;
+}
+
+.btn-outline-danger {
+  border-color: var(--semantic-danger) !important;
+  color: var(--semantic-danger) !important;
+}
+
+.alert-success {
+  background: var(--semantic-success-bg);
+  border-color: rgba(47,143,114,0.22);
+  color: var(--semantic-success);
+}
+
+.alert-danger {
+  background: var(--semantic-danger-bg);
+  border-color: rgba(185,74,63,0.22);
+  color: var(--semantic-danger);
+}
+
+.alert-warning {
+  background: var(--semantic-warning-bg);
+  border-color: rgba(184,137,36,0.22);
+  color: var(--semantic-warning);
+}
+
+.alert-info {
+  background: var(--semantic-info-bg);
+  border-color: rgba(38,101,140,0.22);
+  color: var(--semantic-info);
+}
+
+.badge-warning,
+.status-pill.warning {
+  background: var(--semantic-warning-bg);
+  color: var(--semantic-warning);
+}
+
+.badge-danger,
+.status-pill.failed {
+  background: var(--semantic-danger-bg);
+  color: var(--semantic-danger);
+}
+
+.badge-success,
+.status-pill.active,
+.status-pill.success {
+  background: var(--semantic-success-bg);
+  color: var(--semantic-success);
+}
+
+.badge-info,
+.status-pill.inactive {
+  background: var(--semantic-info-bg);
+  color: var(--semantic-info);
+}
+
+.table thead th,
+.data-table thead th,
+.search-results th,
+.card-body.p-0 .table thead {
+  background: var(--theme-accent-wash) !important;
+  color: var(--theme-primary) !important;
+  border-color: var(--theme-border) !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+.page-link:focus {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 0 .2rem var(--theme-focus) !important;
+}
+
+.notification-menu {
+  min-width: 320px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.notification-menu-header {
+  background: var(--theme-primary);
+}
+
+.notification-menu-footer {
+  background: var(--theme-accent-wash);
+  border-top: 1px solid var(--theme-border);
+}
+
+.notification-icon-primary,
+.notification-icon-accent,
+.notification-icon-muted {
+  background: var(--theme-accent-wash);
+}
+
+.notification-icon-primary i { color: var(--theme-primary) !important; }
+.notification-icon-accent i { color: var(--theme-accent-strong) !important; }
+.notification-icon-muted i { color: var(--theme-secondary) !important; }
+.notification-footer-link {
+  font-size: .75rem;
+  color: var(--theme-secondary);
+  text-decoration: none;
+}
+
+html[data-theme="dark"] .text-primary,
+html[data-theme="dark"] .text-info,
+html[data-theme="dark"] .text-body-emphasis {
+  color: #EAF4FB !important;
+}
+
+html[data-theme="dark"] .table thead th,
+html[data-theme="dark"] .data-table thead th,
+html[data-theme="dark"] .search-results th,
+html[data-theme="dark"] .card-body.p-0 .table thead {
+  background: rgba(84,172,191,0.14) !important;
+  color: #EAF4FB !important;
+}
+
+html[data-theme="dark"] .notification-menu-footer,
+html[data-theme="dark"] .notification-icon-primary,
+html[data-theme="dark"] .notification-icon-accent,
+html[data-theme="dark"] .notification-icon-muted {
+  background: rgba(84,172,191,0.12);
 }
 
 /* ----------------------------------------------------------------
