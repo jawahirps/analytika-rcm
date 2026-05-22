@@ -73,9 +73,26 @@ public class HomeController : Controller
 
     [Authorize(Roles = AppRoles.RcmAccess)]
     [HttpGet]
-    public IActionResult RCMDashboard(string tab = "Submissions")
+    public async Task<IActionResult> RCMDashboard(
+        string tab = "Submissions",
+        int? facilityId = null,
+        string? receiver = null,
+        string? payer = null,
+        string? encounterType = null,
+        DateOnly? dateFrom = null,
+        DateOnly? dateTo = null)
     {
-        return View(_dashboard.BuildRcmDashboard(tab));
+        var filters = new RcmDashboardFilters
+        {
+            FacilityId = facilityId,
+            Receiver = receiver,
+            Payer = payer,
+            EncounterType = encounterType,
+            DateFrom = dateFrom,
+            DateTo = dateTo
+        };
+
+        return View(await _dashboard.BuildRcmDashboardAsync(tab, filters));
     }
 
     [HttpPost]

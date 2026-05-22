@@ -17,16 +17,31 @@
 
     var maxTrend = Math.Max(1, Model.Trend.Max(x => x.Value));
     var maxBreakdown = Math.Max(1, Model.Breakdown.Max(x => x.Value));
+    var reportDateFrom = Model.Filters.DateFrom ?? new DateOnly(2023, 1, 1);
+    var reportDateTo = Model.Filters.DateTo ?? DateOnly.FromDateTime(DateTime.Today);
+    var reportDateFromText = reportDateFrom.ToString("dd/MM/yyyy");
+    var reportDateToText = reportDateTo.ToString("dd/MM/yyyy");
 }
 
 @section Styles {
 <style>
-:root { --navy:#011C40; --teal:#A7EBF2; --gold:#35577D; --line:#EAF4FB; --muted:#35577D; }
+:root {
+    --teal:#09D8C7;
+    --blue:#17364F;
+    --navy:#0D1A2F;
+    --plum:#411E3A;
+    --red:#BD0927;
+    --burgundy:#500A1F;
+    --line:rgba(9,216,199,.16);
+    --muted:#17364F;
+    --surface:rgba(255,255,255,.92);
+}
 .bi-shell {
     min-height: calc(100vh - 56px);
     background:
-        radial-gradient(circle at top left, rgba(167,235,242,.10), transparent 28%),
-        linear-gradient(140deg, #EAF4FB 0%, rgba(246,248,252,.92) 38%, rgba(255,255,255,.98) 100%);
+        radial-gradient(circle at 0% 18%, rgba(9,216,199,.26), transparent 30%),
+        radial-gradient(circle at 100% 0%, rgba(189,9,39,.14), transparent 32%),
+        linear-gradient(140deg, rgba(13,26,47,.12) 0%, rgba(23,54,79,.08) 42%, rgba(255,255,255,.98) 100%);
 }
 .bi-intro {
     max-width: 980px;
@@ -40,26 +55,26 @@
     gap: .5rem;
     padding: .35rem .7rem;
     border-radius: 999px;
-    background: rgba(216,232,243,.72);
-    color: #023859;
+    background: rgba(9,216,199,.14);
+    color: var(--blue);
     font-size: .72rem;
     font-weight: 800;
     letter-spacing: .08em;
     text-transform: uppercase;
 }
-.bi-kicker i { color: #54ACBF; }
+.bi-kicker i { color: var(--teal); }
 .bi-intro h2 {
     margin: .9rem 0 .45rem;
     font-size: clamp(1.75rem, 2.8vw, 2.9rem);
     line-height: 1.08;
-    color: #011C40;
+    color: var(--navy);
     font-weight: 800;
     letter-spacing: -0.04em;
 }
 .bi-intro p {
     margin: 0 auto;
     max-width: 54rem;
-    color: #35577D;
+    color: var(--blue);
     font-size: .98rem;
     line-height: 1.7;
 }
@@ -70,22 +85,31 @@
     display: grid;
     grid-template-columns: 238px minmax(0, 1fr);
     gap: .9rem;
+    transition: grid-template-columns .28s ease, gap .28s ease;
+}
+.bi-layout.is-tabs-collapsed {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: .6rem;
 }
 .bi-tabs-shell {
     position: sticky;
     top: 74px;
     align-self: start;
     width: 238px;
+    transition: width .28s ease;
+}
+.bi-layout.is-tabs-collapsed .bi-tabs-shell {
+    width: 64px;
 }
 .bi-tabs {
     display:flex;
     flex-direction:column;
     gap:.45rem;
-    padding:3rem .85rem .85rem;
-    background:rgba(255,255,255,.90);
-    border:1px solid rgba(8,20,35,.10);
+    padding:.85rem;
+    background:var(--surface);
+    border:1px solid rgba(23,54,79,.12);
     border-radius:18px;
-    box-shadow: 0 18px 42px rgba(1,28,64,.08);
+    box-shadow: 0 18px 42px rgba(13,26,47,.10);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     align-self:start;
@@ -93,6 +117,90 @@
     overflow: hidden;
     transition: transform .28s ease, opacity .28s ease, filter .28s ease, box-shadow .28s ease;
     will-change: transform;
+}
+.bi-filter-card {
+    display:flex;
+    flex-direction:column;
+    gap:.55rem;
+    padding:3rem .85rem .85rem;
+    margin-bottom:.6rem;
+    border:1px solid rgba(23,54,79,.12);
+    border-radius:18px;
+    background:var(--surface);
+    box-shadow: 0 18px 42px rgba(13,26,47,.10);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    overflow:hidden;
+}
+.bi-filter-title {
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+    color:var(--navy);
+    font-size:.76rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+}
+.bi-filter-title i { color:var(--teal); }
+.bi-filter-field {
+    display:flex;
+    flex-direction:column;
+    gap:.25rem;
+}
+.bi-filter-field label {
+    color:var(--blue);
+    font-size:.68rem;
+    font-weight:800;
+}
+.bi-filter-field select {
+    width:100%;
+    min-height:34px;
+    border:1px solid rgba(23,54,79,.16);
+    border-radius:10px;
+    background:#fff;
+    color:var(--navy);
+    font-size:.75rem;
+    font-weight:700;
+    padding:.35rem .5rem;
+}
+.bi-filter-actions {
+    display:flex;
+    gap:.4rem;
+    align-items:center;
+    margin-top:.15rem;
+}
+.bi-filter-submit,
+.bi-filter-reset {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:.35rem;
+    min-height:34px;
+    border-radius:10px;
+    font-size:.72rem;
+    font-weight:800;
+    text-decoration:none;
+}
+.bi-filter-submit {
+    flex:1 1 auto;
+    border:1px solid rgba(13,26,47,.22);
+    background:var(--navy);
+    color:#fff;
+}
+.bi-filter-reset {
+    flex:0 0 34px;
+    border:1px solid rgba(23,54,79,.16);
+    background:rgba(255,255,255,.82);
+    color:var(--blue);
+}
+.bi-filter-active {
+    display:inline-flex;
+    align-items:center;
+    gap:.35rem;
+    color:var(--blue);
+    font-size:.68rem;
+    font-weight:800;
 }
 .bi-tabs-toggle {
     position:absolute;
@@ -104,16 +212,16 @@
     justify-content:center;
     width:2.1rem;
     height:2.1rem;
-    border:1px solid rgba(8,20,35,.12);
+    border:1px solid rgba(23,54,79,.16);
     border-radius:999px;
     background:rgba(255,255,255,.92);
-    color:#023859;
-    box-shadow: 0 8px 18px rgba(1,28,64,.08);
+    color:var(--blue);
+    box-shadow: 0 8px 18px rgba(13,26,47,.10);
     transition: transform .2s ease, background .2s ease, color .2s ease;
 }
 .bi-tabs-toggle:hover {
     background:#fff;
-    color:#011C40;
+    color:var(--navy);
     transform: translateY(-1px);
 }
 .bi-tab {
@@ -125,7 +233,7 @@
     border:1px solid transparent;
     border-left:3px solid transparent;
     background:rgba(255,255,255,.54);
-    color:#023859;
+    color:var(--blue);
     font-size:.82rem;
     font-weight:600;
     text-decoration:none;
@@ -135,23 +243,41 @@
 .bi-tab:hover, .bi-tab.active { color:var(--navy); }
 .bi-tab:hover { background: rgba(255,255,255,.72); transform: translateX(2px); }
 .bi-tab.active {
-    border-left-color:var(--gold);
+    border-left-color:var(--teal);
     background: rgba(255,255,255,.96);
-    box-shadow: 0 8px 20px rgba(1,28,64,.08);
+    box-shadow: 0 8px 20px rgba(13,26,47,.10);
 }
-.bi-tab.active i { color:var(--gold); }
+.bi-tab.active i { color:var(--teal); }
 .bi-tabs-shell.is-collapsed .bi-tabs {
-    transform: translateX(calc(-100% + 60px));
+    padding-left:.55rem;
+    padding-right:.55rem;
     opacity: .96;
     filter: saturate(.96);
+}
+.bi-tabs-shell.is-collapsed .bi-filter-card {
+    height:0;
+    margin:0;
+    padding:0;
+    border:0;
+    opacity:0;
+    pointer-events:none;
 }
 .bi-tabs-shell.is-collapsed .bi-tabs-toggle i {
     transform: rotate(180deg);
 }
 .bi-tabs-shell.is-collapsed .bi-tab span {
-    opacity: 0;
-    max-width: 0;
+    position:absolute;
+    width:1px;
+    height:1px;
+    clip:rect(0 0 0 0);
     overflow: hidden;
+}
+.bi-tabs-shell.is-collapsed .bi-tab {
+    justify-content:center;
+    padding:.82rem .55rem;
+}
+.bi-tabs-shell.is-collapsed .bi-tab i {
+    margin:0;
 }
 .bi-content {
     min-width: 0;
@@ -159,20 +285,95 @@
 .bi-header {
     display:flex;
     justify-content:space-between;
-    gap:1rem;
-    align-items:flex-start;
-    padding:1rem 1.1rem;
+    gap:1.25rem;
+    align-items:center;
+    padding:1.25rem 1.4rem;
     margin-bottom:1rem;
-    border:1px solid rgba(8,20,35,.10);
-    border-radius: 18px;
-    background: rgba(255,255,255,.88);
-    box-shadow: 0 18px 42px rgba(1,28,64,.10);
+    border:1px solid rgba(23,54,79,.12);
+    border-radius: 10px;
+    background: rgba(255,255,255,.94);
+    box-shadow: 0 8px 22px rgba(13,26,47,.10);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
-.bi-header-left { display:flex; flex-direction:column; gap:.45rem; }
-.bi-title { color:var(--navy); font-size:1.15rem; font-weight:800; margin:0; }
-.bi-desc { color:#023859; font-size:.88rem; margin:.2rem 0 0; font-weight:600; }
+.bi-header-left { display:flex; flex-direction:column; gap:.2rem; min-width:0; }
+.bi-title { color:var(--navy); font-size:1.65rem; font-weight:900; margin:0; letter-spacing:-.025em; line-height:1.05; }
+.bi-desc { color:var(--blue); font-size:1rem; margin:0; font-weight:600; }
+.bi-header-tools {
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:.7rem;
+    flex:0 0 auto;
+}
+.bi-date-form {
+    display:flex;
+    align-items:center;
+    gap:.55rem;
+}
+.bi-calendar-icon,
+.bi-header-icon {
+    width:40px;
+    height:40px;
+    display:grid;
+    place-items:center;
+    border:0;
+    background:transparent;
+    color:var(--blue);
+    font-size:1.4rem;
+    text-decoration:none;
+}
+.bi-date-range {
+    display:flex;
+    align-items:center;
+    gap:.45rem;
+    padding:.5rem;
+    border-radius:8px;
+    background:#fff;
+    border:1px solid rgba(23,54,79,.12);
+    box-shadow:0 2px 10px rgba(13,26,47,.08);
+}
+.bi-date-input {
+    width:132px;
+    min-height:38px;
+    border:1px solid rgba(23,54,79,.12);
+    border-radius:0;
+    background:#fff;
+    color:var(--blue);
+    font-size:.88rem;
+    font-weight:600;
+    padding:.35rem .55rem;
+}
+.bi-date-submit {
+    width:36px;
+    height:36px;
+    display:grid;
+    place-items:center;
+    border:0;
+    border-radius:8px;
+    background:var(--teal);
+    color:var(--navy);
+}
+.bi-chat-icon {
+    position:relative;
+    color:var(--teal);
+}
+.bi-chat-icon::after {
+    content:"?";
+    position:absolute;
+    top:2px;
+    right:0;
+    width:18px;
+    height:18px;
+    display:grid;
+    place-items:center;
+    border-radius:999px;
+    background:var(--red);
+    color:#fff;
+    font-size:.8rem;
+    font-weight:900;
+}
+.bi-back-icon { color:var(--navy); font-size:1.55rem; }
 .bi-field {
     display:inline-flex;
     align-items:center;
@@ -180,8 +381,8 @@
     align-self:flex-start;
     padding:.4rem .65rem;
     border-radius:999px;
-    background: rgba(216,232,243,.86);
-    border:1px solid rgba(8,20,35,.10);
+    background: rgba(9,216,199,.13);
+    border:1px solid rgba(23,54,79,.12);
     color:var(--navy);
     font-size:.76rem;
     font-weight:800;
@@ -189,24 +390,26 @@
     max-width: 100%;
     white-space: normal;
 }
-.bi-field i { color:#54ACBF; }
-.bi-field small { color:#023859; font-weight:700; display:block; }
-.bi-refresh {
-    color:#023859;
-    font-size:.78rem;
-    font-weight:700;
-    white-space:nowrap;
-    padding:.35rem .55rem;
-    border-radius: 999px;
-    background: rgba(216,232,243,.88);
-    border: 1px solid rgba(8,20,35,.10);
-}
-.metric-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.75rem; }
-.metric-card, .panel {
-    background: rgba(255,255,255,.92);
-    border:1px solid rgba(8,20,35,.12);
+.bi-field i { color:var(--teal); }
+.bi-field small { color:var(--blue); font-weight:700; display:block; }
+.metric-grid {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:0;
+    margin-bottom:.75rem;
+    background: var(--surface);
+    border:1px solid rgba(23,54,79,.12);
     border-radius:16px;
-    box-shadow:0 14px 34px rgba(1,28,64,.10);
+    box-shadow:0 14px 34px rgba(13,26,47,.12);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    overflow:hidden;
+}
+.panel {
+    background: var(--surface);
+    border:1px solid rgba(23,54,79,.12);
+    border-radius:16px;
+    box-shadow:0 14px 34px rgba(13,26,47,.12);
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
 }
@@ -249,24 +452,33 @@
 }
 .glow-card::after {
     inset: 1px;
-    border: 1px solid rgba(84,172,191,.12);
+    border: 1px solid rgba(9,216,199,.14);
     box-shadow:
         inset 0 1px 0 rgba(255,255,255,.65),
         0 0 0 1px rgba(255,255,255,.2);
 }
 .glow-card.is-glowing {
-    box-shadow: 0 18px 42px rgba(1,28,64,.12);
-    border-color: rgba(84,172,191,.22);
+    box-shadow: 0 18px 42px rgba(13,26,47,.14);
+    border-color: rgba(9,216,199,.26);
 }
 .metric-card {
-    padding:.95rem;
+    padding:1.05rem 1.15rem;
     display:flex;
-    gap:.75rem;
+    gap:.9rem;
     align-items:center;
-    min-height:96px;
+    min-height:108px;
     position: relative;
     overflow:hidden;
+    background:transparent;
+    border-right:1px solid rgba(23,54,79,.10);
+    border-bottom:1px solid rgba(23,54,79,.10);
+    border-radius:0;
+    box-shadow:none;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
 }
+.metric-card:nth-child(2n) { border-right:0; }
+.metric-card:nth-last-child(-n + 2) { border-bottom:0; }
 .metric-card::before {
     content:'';
     position:absolute;
@@ -274,39 +486,39 @@
     width:120px;
     height:120px;
     border-radius:50%;
-    background: radial-gradient(circle, rgba(167,235,242,.16), transparent 68%);
+    background: radial-gradient(circle, rgba(9,216,199,.14), transparent 68%);
     pointer-events:none;
 }
-.metric-icon { width:40px; height:40px; border-radius:8px; display:grid; place-items:center; flex:0 0 auto; }
-.tone-teal { background:rgba(167,235,242,.12); color:var(--teal); }
-.tone-gold { background:rgba(53,87,125,.12); color:var(--gold); }
-.tone-green { background:rgba(84,172,191,.12); color:#54ACBF; }
-.tone-blue { background:rgba(38,101,140,.12); color:#A7EBF2; }
-.metric-label { color:#023859; font-size:.74rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
-.metric-value { color:var(--navy); font-size:1.25rem; font-weight:800; line-height:1.2; }
-.metric-delta { color:#023859; font-size:.72rem; font-weight:700; }
+.metric-icon { width:46px; height:46px; border-radius:10px; display:grid; place-items:center; flex:0 0 auto; }
+.tone-teal { background:rgba(9,216,199,.12); color:var(--teal); }
+.tone-gold { background:rgba(189,9,39,.10); color:var(--red); }
+.tone-green { background:rgba(65,30,58,.10); color:var(--plum); }
+.tone-blue { background:rgba(23,54,79,.12); color:var(--blue); }
+.metric-label { color:var(--blue); font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.03em; }
+.metric-value { color:var(--navy); font-size:1.45rem; font-weight:800; line-height:1.15; }
+.metric-delta { color:var(--red); font-size:.76rem; font-weight:800; }
 .dash-grid { display:grid; grid-template-columns:2fr 1fr; gap:.75rem; margin-top:.75rem; }
 .panel { padding:1rem; }
 .panel-title { color:var(--navy); font-size:.9rem; font-weight:800; margin:0 0 .75rem; }
-.summary { color:#023859; font-size:.92rem; line-height:1.65; margin-bottom:1rem; font-weight:500; }
+.summary { color:var(--blue); font-size:.92rem; line-height:1.65; margin-bottom:1rem; font-weight:500; }
 .trend { display:grid; grid-template-columns:repeat(6,1fr); gap:.65rem; align-items:end; min-height:260px; padding-top:.5rem; }
 .trend-col { display:flex; flex-direction:column; align-items:center; gap:.45rem; min-width:0; }
-.trend-bar { width:100%; max-width:62px; min-height:28px; border-radius:7px 7px 3px 3px; background:linear-gradient(180deg,var(--teal),#54ACBF); }
+.trend-bar { width:100%; max-width:62px; min-height:28px; border-radius:7px 7px 3px 3px; background:linear-gradient(180deg,var(--teal),var(--blue)); }
 .trend-value { color:var(--navy); font-size:.74rem; font-weight:800; }
-.trend-label { color:#023859; font-size:.74rem; font-weight:600; }
-.breakdown-row { display:grid; grid-template-columns:96px 1fr 46px; gap:.6rem; align-items:center; padding:.55rem 0; border-top:1px solid #EAF4FB; }
+.trend-label { color:var(--blue); font-size:.74rem; font-weight:600; }
+.breakdown-row { display:grid; grid-template-columns:96px 1fr 46px; gap:.6rem; align-items:center; padding:.55rem 0; border-top:1px solid var(--line); }
 .breakdown-row:first-of-type { border-top:0; }
 .breakdown-label { color:var(--navy); font-size:.82rem; font-weight:800; }
-.breakdown-detail { color:#023859; font-size:.74rem; font-weight:500; }
-.breakdown-track { height:9px; border-radius:999px; background:#EAF4FB; overflow:hidden; }
-.breakdown-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, var(--teal), var(--gold)); }
+.breakdown-detail { color:var(--blue); font-size:.74rem; font-weight:500; }
+.breakdown-track { height:9px; border-radius:999px; background:rgba(23,54,79,.10); overflow:hidden; }
+.breakdown-fill { height:100%; border-radius:999px; background:linear-gradient(90deg, var(--teal), var(--red)); }
 .breakdown-value { color:var(--navy); font-size:.75rem; font-weight:800; text-align:right; }
-.insight { border-top:1px solid #EAF4FB; padding:.75rem 0 0; margin-top:.75rem; }
+.insight { border-top:1px solid var(--line); padding:.75rem 0 0; margin-top:.75rem; }
 .insight:first-of-type { border-top:0; padding-top:0; margin-top:0; }
 .insight-head { display:flex; justify-content:space-between; gap:.5rem; align-items:center; }
 .insight-title { color:var(--navy); font-size:.8rem; font-weight:800; }
-.insight-badge { font-size:.68rem; font-weight:800; border-radius:999px; padding:.18rem .5rem; background:rgba(216,232,243,.88); color:#023859; }
-.insight-detail { color:#023859; font-size:.78rem; margin:.25rem 0 0; line-height:1.55; }
+.insight-badge { font-size:.68rem; font-weight:800; border-radius:999px; padding:.18rem .5rem; background:rgba(9,216,199,.12); color:var(--blue); }
+.insight-detail { color:var(--blue); font-size:.78rem; margin:.25rem 0 0; line-height:1.55; }
 @@media (max-width: 992px) {
     .metric-grid, .dash-grid { grid-template-columns:1fr 1fr; }
     .dash-grid .panel:first-child { grid-column:1 / -1; }
@@ -322,14 +534,102 @@
         padding-top: .85rem;
         transform:none !important;
     }
+    .bi-filter-card {
+        padding: .85rem;
+        border-radius:12px;
+    }
+    .bi-filter-card form {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:.55rem;
+    }
+    .bi-filter-title,
+    .bi-filter-actions {
+        grid-column:1 / -1;
+    }
     .bi-tabs-toggle {
         display:none;
     }
     .bi-header { flex-direction:column; }
+    .bi-header-tools,
+    .bi-date-form,
+    .bi-date-range {
+        width:100%;
+    }
+    .bi-header-tools {
+        align-items:stretch;
+        flex-wrap:wrap;
+        justify-content:flex-start;
+    }
+    .bi-date-form {
+        flex-wrap:wrap;
+    }
+    .bi-date-range {
+        flex:1 1 260px;
+    }
+    .bi-date-input {
+        flex:1 1 110px;
+        width:auto;
+        min-width:0;
+    }
     .bi-field { width:100%; }
-    .metric-grid, .dash-grid { grid-template-columns:1fr; }
+    .metric-grid { grid-template-columns:1fr; }
+    .metric-card {
+        border-right:0;
+        border-bottom:1px solid rgba(23,54,79,.10);
+    }
+    .metric-card:last-child { border-bottom:0; }
+    .dash-grid { grid-template-columns:1fr; }
     .trend { min-height:210px; gap:.4rem; }
     .bi-content { padding:.75rem; }
+    .bi-shell { padding:.65rem; }
+    .bi-header {
+        gap:.85rem;
+        padding:1rem;
+        border-radius:12px;
+    }
+    .bi-title {
+        font-size:1.35rem;
+        line-height:1.18;
+        letter-spacing:-0.025em;
+    }
+    .bi-desc {
+        font-size:.82rem;
+        line-height:1.5;
+    }
+    .bi-tabs {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:.45rem;
+    }
+    .bi-tab {
+        min-width:0;
+        justify-content:center;
+        text-align:center;
+        padding:.62rem .5rem;
+    }
+    .metric-grid,
+    .panel {
+        border-radius:12px;
+    }
+    .metric-card { padding:.9rem; min-height:92px; }
+    .metric-value { font-size:1.35rem; }
+    .trend-bar { min-width:22px; }
+}
+@@media (max-width: 480px) {
+    .bi-filter-card form {
+        grid-template-columns:1fr;
+    }
+    .bi-date-range {
+        display:grid;
+        grid-template-columns:1fr;
+    }
+    .bi-date-submit,
+    .bi-calendar-icon,
+    .bi-header-icon {
+        width:38px;
+        height:38px;
+    }
 }
 </style>
 }
@@ -340,12 +640,96 @@
             <button type="button" class="bi-tabs-toggle" data-bi-tabs-toggle aria-expanded="true" aria-label="Collapse dashboard sections">
                 <i class="fas fa-chevron-left"></i>
             </button>
+            <section class="bi-filter-card" aria-label="Dashboard filters">
+                <form method="get" asp-controller="Home" asp-action="RCMDashboard">
+                    <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                    <div class="bi-filter-title">
+                        <i class="fas fa-filter"></i>
+                        Filters
+                    </div>
+                    <div class="bi-filter-field">
+                        <label for="facilityId">Facility</label>
+                        <select id="facilityId" name="facilityId">
+                            <option value="">All facilities</option>
+                            @foreach (var option in Model.FacilityOptions)
+                            {
+                                <option value="@option.Value" selected="@(Model.Filters.FacilityId?.ToString() == option.Value ? "selected" : null)">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="bi-filter-field">
+                        <label for="receiver">Receiver</label>
+                        <select id="receiver" name="receiver">
+                            <option value="">All receivers</option>
+                            @if (!string.IsNullOrWhiteSpace(Model.Filters.Receiver) && !Model.ReceiverOptions.Any(o => o.Value == Model.Filters.Receiver))
+                            {
+                                <option value="@Model.Filters.Receiver" selected>@Model.Filters.Receiver</option>
+                            }
+                            @foreach (var option in Model.ReceiverOptions)
+                            {
+                                <option value="@option.Value" selected="@(Model.Filters.Receiver == option.Value ? "selected" : null)">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="bi-filter-field">
+                        <label for="payer">Payer</label>
+                        <select id="payer" name="payer">
+                            <option value="">All payers</option>
+                            @if (!string.IsNullOrWhiteSpace(Model.Filters.Payer) && !Model.PayerOptions.Any(o => o.Value == Model.Filters.Payer))
+                            {
+                                <option value="@Model.Filters.Payer" selected>@Model.Filters.Payer</option>
+                            }
+                            @foreach (var option in Model.PayerOptions)
+                            {
+                                <option value="@option.Value" selected="@(Model.Filters.Payer == option.Value ? "selected" : null)">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="bi-filter-field">
+                        <label for="encounterType">Encounter Type</label>
+                        <select id="encounterType" name="encounterType">
+                            <option value="">All encounter types</option>
+                            @if (!string.IsNullOrWhiteSpace(Model.Filters.EncounterType) && !Model.EncounterTypeOptions.Any(o => o.Value == Model.Filters.EncounterType))
+                            {
+                                <option value="@Model.Filters.EncounterType" selected>@Model.Filters.EncounterType</option>
+                            }
+                            @foreach (var option in Model.EncounterTypeOptions)
+                            {
+                                <option value="@option.Value" selected="@(Model.Filters.EncounterType == option.Value ? "selected" : null)">@option.Label</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="bi-filter-actions">
+                        <button type="submit" class="bi-filter-submit">
+                            <i class="fas fa-check"></i>
+                            Apply
+                        </button>
+                        <a class="bi-filter-reset" asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@Model.ActiveTab" title="Reset filters" aria-label="Reset filters">
+                            <i class="fas fa-rotate-left"></i>
+                        </a>
+                    </div>
+                    @if (Model.HasActiveFilters)
+                    {
+                        <div class="bi-filter-active">
+                            <i class="fas fa-circle-check"></i>
+                            Filtered view
+                        </div>
+                    }
+                </form>
+            </section>
             <nav class="bi-tabs" id="biTabsNav" role="tablist" aria-label="Dashboard sections">
                 @foreach (var tab in Model.Tabs)
                 {
                     var meta = tabMeta.GetValueOrDefault(tab, ("fa-chart-bar", ""));
                     <a class="bi-tab @(tab == Model.ActiveTab ? "active" : "")"
-                       asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab" role="tab"
+                       asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab"
+                       asp-route-facilityId="@Model.Filters.FacilityId"
+                       asp-route-receiver="@Model.Filters.Receiver"
+                       asp-route-payer="@Model.Filters.Payer"
+                       asp-route-encounterType="@Model.Filters.EncounterType"
+                       asp-route-dateFrom="@Model.Filters.DateFrom"
+                       asp-route-dateTo="@Model.Filters.DateTo"
+                       role="tab"
                        aria-selected="@(tab == Model.ActiveTab ? "true" : "false")">
                         <i class="fas @meta.Item1"></i>
                         <span>@tab</span>
@@ -357,21 +741,38 @@
     <main class="bi-content">
         <div class="bi-header">
             <div class="bi-header-left">
-                <h1 class="bi-title">@Model.ActiveTab</h1>
-                <p class="bi-desc">@tabMeta.GetValueOrDefault(Model.ActiveTab, ("", "Local dashboard")).Item2</p>
-                <div class="bi-field">
-                    <i class="fas fa-calendar-day"></i>
-                    Stable field: @Model.StableFieldTitle
-                    <small>@Model.StableFieldDetail</small>
-                </div>
+                <h1 class="bi-title">@Model.ActiveTab Dashboard</h1>
+                <p class="bi-desc">Reports from @reportDateFromText to @reportDateToText</p>
             </div>
-            <div class="bi-refresh">Updated @Model.RefreshedAt.ToString("dd MMM yyyy HH:mm")</div>
+            <div class="bi-header-tools">
+                <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="bi-date-form">
+                    <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                    <input type="hidden" name="facilityId" value="@Model.Filters.FacilityId" />
+                    <input type="hidden" name="receiver" value="@Model.Filters.Receiver" />
+                    <input type="hidden" name="payer" value="@Model.Filters.Payer" />
+                    <input type="hidden" name="encounterType" value="@Model.Filters.EncounterType" />
+                    <div class="bi-calendar-icon" aria-hidden="true"><i class="far fa-calendar-alt"></i></div>
+                    <div class="bi-date-range">
+                        <input class="bi-date-input" type="date" name="dateFrom" value="@reportDateFrom.ToString("yyyy-MM-dd")" aria-label="Report start date" />
+                        <input class="bi-date-input" type="date" name="dateTo" value="@reportDateTo.ToString("yyyy-MM-dd")" aria-label="Report end date" />
+                        <button type="submit" class="bi-date-submit" aria-label="Apply date filters">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </form>
+                <button type="button" class="bi-header-icon bi-chat-icon" aria-label="Dashboard help">
+                    <i class="fas fa-comments"></i>
+                </button>
+                <a class="bi-header-icon bi-back-icon" asp-controller="Home" asp-action="Dashboard" aria-label="Back to facility dashboard">
+                    <i class="fas fa-undo"></i>
+                </a>
+            </div>
         </div>
 
         <section class="metric-grid" aria-label="Dashboard metrics">
             @foreach (var metric in Model.Metrics)
             {
-            <article class="metric-card glow-card" data-glow-color="blue">
+            <article class="metric-card">
                 <div class="metric-icon tone-@metric.Tone"><i class="fas @metric.Icon"></i></div>
                 <div>
                     <div class="metric-label">@metric.Label</div>
@@ -481,7 +882,8 @@
     const shell = document.querySelector('[data-bi-tabs-shell]');
     const toggle = document.querySelector('[data-bi-tabs-toggle]');
     const tabLinks = Array.from(document.querySelectorAll('.bi-tab'));
-    if (!shell || !toggle || !tabLinks.length) return;
+    const layout = shell?.closest('.bi-layout');
+    if (!shell || !toggle || !layout || !tabLinks.length) return;
 
     const collapseAtKey = 'biTabsCollapseAt';
     const collapsedKey = 'biTabsCollapsed';
@@ -489,6 +891,7 @@
 
     const setCollapsed = (collapsed) => {
         shell.classList.toggle('is-collapsed', collapsed);
+        layout.classList.toggle('is-tabs-collapsed', collapsed);
         toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
         toggle.setAttribute('aria-label', collapsed ? 'Expand dashboard sections' : 'Collapse dashboard sections');
         window.sessionStorage.setItem(collapsedKey, collapsed ? '1' : '0');

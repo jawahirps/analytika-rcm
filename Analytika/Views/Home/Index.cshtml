@@ -100,7 +100,7 @@
         .hero-copy h1 {
             max-width: 12ch;
             color: #fff;
-            font-size: clamp(2.4rem, 4.2vw, 4rem);
+            font-size: clamp(2.25rem, 4vw, 3.75rem);
             line-height: 0.98;
             font-weight: 800;
             letter-spacing: -0.06em;
@@ -224,7 +224,7 @@
             width: 100%;
             margin: 0 auto;
             padding: 30px 28px 26px;
-            border-radius: 24px;
+            border-radius: 14px;
             background: rgba(255,255,255,0.94);
             border: 1px solid rgba(8,20,35,0.10);
             box-shadow: 0 24px 64px rgba(1,28,64,0.12);
@@ -358,7 +358,7 @@
         }
         .auth-meta-item {
             padding: 12px;
-            border-radius: 16px;
+            border-radius: 10px;
             background: rgba(167,235,242,0.12);
             border: 1px solid rgba(84,172,191,0.14);
         }
@@ -388,19 +388,80 @@
         html[dir="rtl"] .login-hero,
         html[dir="rtl"] .auth-card { text-align: right; }
         @@media (max-width: 1120px) {
-            .login-shell { grid-template-columns: 1fr; }
-            .login-hero { padding-bottom: 30px; }
-            .login-rail { padding-top: 72px; }
+            .login-shell { grid-template-columns: 1fr; min-height: 100vh; }
+            .login-hero { min-height: auto; padding: 32px 28px 26px; }
+            .login-hero::before { width: 360px; height: 360px; right: -210px; top: -160px; }
+            .login-hero::after { display: none; }
+            .hero-copy { max-width: 100%; }
+            .hero-copy h1 { max-width: 16ch; }
+            .hero-grid { max-width: 620px; }
+            .hero-list { max-width: 620px; }
+            .login-rail { min-height: auto; padding-top: 76px; padding-bottom: 34px; }
         }
         @@media (max-width: 780px) {
+            body { min-width: 0; overflow-x: hidden; }
+            .login-shell { display: block; }
+            .login-hero { padding: 22px 18px 18px; }
+            .hero-brand {
+                max-width: 100%;
+                white-space: normal;
+                line-height: 1.35;
+                letter-spacing: .08em;
+            }
+            .hero-copy { gap: 12px; margin-top: 16px; }
+            .hero-copy h1 {
+                max-width: 100%;
+                font-size: 2.05rem;
+                line-height: 1.05;
+                letter-spacing: -0.04em;
+            }
+            .hero-copy p { font-size: .9rem; line-height: 1.6; }
+            .hero-tags { gap: 6px; }
+            .hero-tag { padding: 7px 9px; font-size: .68rem; }
+            .hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
+            .hero-card { padding: 13px 12px; border-radius: 10px; }
+            .hero-card .label { font-size: .62rem; letter-spacing: .08em; }
+            .hero-card .value { font-size: 1.25rem; }
+            .hero-card .delta { font-size: .68rem; }
+            .hero-list { gap: 8px; margin-top: 16px; }
+            .hero-list-row {
+                grid-template-columns: minmax(82px, .75fr) minmax(90px, 1fr) 42px;
+                gap: 8px;
+            }
+            .hero-list-row .name,
+            .hero-list-row .pct { font-size: .68rem; }
+            .login-rail {
+                min-height: auto;
+                padding: 16px 14px 22px;
+                justify-content: flex-start;
+            }
+            .login-top-tools {
+                position: static;
+                justify-content: space-between;
+                width: 100%;
+                margin-bottom: 12px;
+            }
+            .login-top-tools .btn { min-height: 34px; }
+            .auth-card { max-width: none; padding: 22px 16px 18px; border-radius: 12px; }
+            .auth-card h1 {
+                margin-top: 14px;
+                font-size: 1.55rem;
+                letter-spacing: -0.035em;
+            }
+            .subtitle { margin-bottom: 18px; font-size: .86rem; }
+            .input-group { border-radius: 10px; }
+            .input-icon { min-width: 38px; }
+            .form-control { min-height: 42px; }
+            .auth-meta { grid-template-columns: 1fr; gap: 8px; }
+            .auth-meta-item { padding: 10px 11px; }
+            .right-footer { margin-top: 12px; padding: 0 4px; }
+        }
+        @@media (max-width: 420px) {
             .hero-grid { grid-template-columns: 1fr; }
             .hero-list-row { grid-template-columns: 1fr; }
             .hero-list-row .pct { text-align: left; }
-            .auth-meta { grid-template-columns: 1fr; }
-            .auth-card { padding: 24px 18px 20px; }
-            .login-top-tools { position: static; justify-content: flex-end; margin-bottom: 12px; }
-            .login-rail { padding: 18px; }
-            .login-hero { padding: 24px 18px 18px; }
+            .login-top-tools { align-items: stretch; }
+            .login-top-tools .theme-toggle-btn { flex: 1; justify-content: center; }
         }
     </style>
 </head>

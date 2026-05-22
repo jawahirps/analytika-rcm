@@ -483,7 +483,7 @@ public class AdminController : Controller
             var baseUrl = cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083";
             try
             {
-                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, baseUrl);
+                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, baseUrl, cred.LicenseCode);
                 sw.Stop();
                 if (token != null)
                     return Json(new { ok = true, message = $"RHA authenticated successfully — Bearer token received. ({sw.ElapsedMilliseconds} ms)", latencyMs = sw.ElapsedMilliseconds });
@@ -522,7 +522,7 @@ public class AdminController : Controller
             }
             else
             {
-                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
+                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
                 sw.Stop();
                 ok = token != null;
                 msg = ok ? $"Authenticated — token received. ({sw.ElapsedMilliseconds} ms)" : $"Failed — {error} ({sw.ElapsedMilliseconds} ms)";

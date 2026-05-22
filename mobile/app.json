@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Analytika",
+    "slug": "analytika-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "analytika",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#011C40"
+      }
+    }
+  }
+}
