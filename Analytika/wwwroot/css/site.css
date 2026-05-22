@@ -11,12 +11,15 @@
 :root {
   /* Ghaf palette */
   --deep-navy:     #011C40;
-  --classic-teal:  #A7EBF2;
-  --forest-teal:   #54ACBF;
-  --seafoam-blue:  #26658C;
-  --sage-teal:     #35577D;
+  --classic-teal:  #9BE8EF;
+  --forest-teal:   #3FA9B9;
+  --seafoam-blue:  #285F84;
+  --sage-teal:     #284A63;
   --ice-blue:      #023859;
   --soft-white:    #EAF4FB;
+  --gold:          #D6A43D;
+  --coral:         #D96C5F;
+  --mint:          #52B788;
 
   /* Compatibility aliases used across existing views */
   --navy:          var(--deep-navy);
@@ -35,8 +38,8 @@
   --amber-light:   rgba(53,87,125,0.15);
 
   /* Neutral surface */
-  --bg:            var(--soft-white);
-  --surface:       rgba(255,255,255,0.84);
+  --bg:            #F4F8FB;
+  --surface:       rgba(255,255,255,0.88);
   --surface-strong:rgba(255,255,255,0.95);
   --surface-alt:   rgba(1,28,64,0.08);
   --glass:         rgba(255,255,255,0.80);
@@ -60,13 +63,13 @@
 
   /* Layout */
   --radius-sm:     6px;
-  --radius:        10px;
-  --radius-lg:     14px;
-  --radius-xl:     20px;
+  --radius:        8px;
+  --radius-lg:     10px;
+  --radius-xl:     12px;
   --shadow-xs:     0 1px 2px rgba(1,28,64,0.04), 0 1px 0 rgba(255,255,255,0.5) inset;
-  --shadow-sm:     0 10px 26px rgba(1,28,64,0.10), 0 1px 0 rgba(255,255,255,0.72) inset;
-  --shadow-md:     0 18px 50px rgba(1,28,64,0.14), 0 1px 0 rgba(255,255,255,0.74) inset;
-  --shadow-lg:     0 28px 76px rgba(1,28,64,0.18), 0 1px 0 rgba(255,255,255,0.78) inset;
+  --shadow-sm:     0 8px 22px rgba(1,28,64,0.08), 0 1px 0 rgba(255,255,255,0.76) inset;
+  --shadow-md:     0 14px 36px rgba(1,28,64,0.11), 0 1px 0 rgba(255,255,255,0.78) inset;
+  --shadow-lg:     0 22px 58px rgba(1,28,64,0.15), 0 1px 0 rgba(255,255,255,0.80) inset;
   --blur:          blur(22px) saturate(175%);
 
   /* Transitions */
@@ -184,8 +187,10 @@ html[data-theme="dark"] .sb-chip {
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(167,235,242,0.20), transparent 18%),
-    linear-gradient(145deg, #fbfdff 0%, rgba(234,244,251,0.92) 38%, rgba(216,232,243,0.48) 68%, #f7fbff 100%);
+    linear-gradient(90deg, rgba(1,28,64,0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(1,28,64,0.035) 1px, transparent 1px),
+    linear-gradient(145deg, #fbfdff 0%, rgba(244,248,251,0.98) 38%, rgba(231,240,246,0.74) 70%, #f8fbfd 100%);
+  background-size: 42px 42px, 42px 42px, auto;
   background-attachment: fixed;
   color: var(--text);
   margin: 0;
@@ -251,15 +256,15 @@ small,
    Navbar
    ---------------------------------------------------------------- */
 .analytika-navbar {
-  background: rgba(247,249,249,0.66);
+  background: rgba(251,253,255,0.82);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  border-bottom: 1px solid rgba(255,255,255,0.68);
+  border-bottom: 1px solid rgba(1,28,64,0.08);
   padding: 0;
   position: sticky;
   top: 0;
   z-index: 1030;
-  box-shadow: 0 14px 34px rgba(8,20,35,0.08), inset 0 -1px 0 rgba(0,102,102,0.08);
+  box-shadow: 0 10px 30px rgba(8,20,35,0.07), inset 0 -1px 0 rgba(255,255,255,0.78);
 }
 
 .analytika-navbar .container-fluid {
@@ -333,8 +338,9 @@ html[dir="rtl"] .lang-theme-tools {
   padding: 7px 14px 7px 8px;
   border-right: 1px solid rgba(0,102,102,0.10);
   margin-right: 10px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.42);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.68);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.72);
   flex-shrink: 0;
 }
 
@@ -373,22 +379,23 @@ html[dir="rtl"] .lang-theme-tools {
   display: flex;
   align-items: center;
   border-bottom: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   transition: color var(--transition), border-color var(--transition), background var(--transition), transform var(--transition);
   white-space: nowrap;
 }
 
 .analytika-navbar .nav-link:hover {
   color: var(--ink) !important;
-  background: rgba(255,255,255,0.72);
-  border-bottom-color: var(--emerald);
+  background: rgba(255,255,255,0.78);
+  border-bottom-color: transparent;
 }
 
 .analytika-navbar .nav-link.active {
   color: var(--ink) !important;
-  border-bottom-color: var(--emerald);
-  background: rgba(255,255,255,0.84);
-  font-weight: 600;
+  border-bottom-color: transparent;
+  background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(234,244,251,0.74));
+  box-shadow: inset 0 0 0 1px rgba(1,28,64,0.08), 0 8px 18px rgba(1,28,64,0.06);
+  font-weight: 700;
 }
 
 .analytika-navbar .dropdown-toggle::after {
@@ -399,7 +406,7 @@ html[dir="rtl"] .lang-theme-tools {
 /* Dropdowns */
 .analytika-navbar .dropdown-menu {
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 10px;
   box-shadow: var(--shadow-lg);
   padding: 6px;
   background: rgba(255,255,255,0.78);
@@ -412,7 +419,7 @@ html[dir="rtl"] .lang-theme-tools {
 .analytika-navbar .dropdown-item {
   font-size: 0.825rem;
   color: var(--text-muted);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -492,8 +499,8 @@ html[dir="rtl"] .lang-theme-tools {
 .profile-avatar-circle {
   width: 30px;
   height: 30px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--ink) 0%, var(--teal-vivid) 100%);
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--ink) 0%, var(--forest-teal) 70%, var(--gold) 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -527,10 +534,11 @@ html[dir="rtl"] .lang-theme-tools {
   margin-bottom: 24px;
   padding: 18px 20px;
   border: 1px solid var(--glass-border);
-  border-radius: 22px;
+  border-radius: 12px;
   background:
-    radial-gradient(circle at top right, rgba(167,235,242,0.12), transparent 28%),
-    rgba(255,255,255,0.72);
+    linear-gradient(90deg, rgba(1,28,64,0.045) 1px, transparent 1px),
+    linear-gradient(145deg, rgba(255,255,255,0.92), rgba(244,248,251,0.80));
+  background-size: 32px 32px, auto;
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   box-shadow: var(--shadow-sm);
@@ -568,7 +576,7 @@ html[data-theme="dark"] .page-header h4 {
    ---------------------------------------------------------------- */
 .card {
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 12px;
   box-shadow: var(--shadow-sm);
   background: var(--glass);
   backdrop-filter: var(--blur);
@@ -588,7 +596,7 @@ html[data-theme="dark"] .page-header h4 {
 /* Stat cards */
 .stat-card {
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--glass);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -630,7 +638,7 @@ html[data-theme="dark"] .page-header h4 {
 /* Info/Portal cards */
 .info-card {
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--glass);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
@@ -788,7 +796,7 @@ html[data-theme="dark"] .page-header h4 {
   color: var(--text);
   background: rgba(255,255,255,0.88);
   border: 1px solid rgba(8,20,35,0.16);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 9px 13px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 2px rgba(8,20,35,0.04);
   transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);

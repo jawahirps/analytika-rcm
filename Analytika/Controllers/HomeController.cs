@@ -27,7 +27,8 @@ public class HomeController : Controller
         _logger = logger;
     }
 
-    [HttpGet]
+    [HttpGet("/")]
+    [HttpGet("/Home/Index")]
     public IActionResult Index()
     {
         if (User.Identity?.IsAuthenticated == true)
@@ -35,7 +36,7 @@ public class HomeController : Controller
         return View(new LoginViewModel());
     }
 
-    [HttpPost]
+    [HttpPost("/Home/Index")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(LoginViewModel model)
     {
@@ -49,7 +50,7 @@ public class HomeController : Controller
         }
 
         var result = await _signInManager.PasswordSignInAsync(
-            model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+            model.Email, model.Password, isPersistent: true, lockoutOnFailure: false);
 
         if (result.Succeeded)
         {

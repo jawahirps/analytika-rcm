@@ -44,6 +44,9 @@ public static class ModuleRegistration
             options.LoginPath = "/Home/Index";
             options.LogoutPath = "/Home/LogOut";
             options.AccessDeniedPath = "/Home/Index";
+            options.ExpireTimeSpan = TimeSpan.FromDays(30);
+            options.SlidingExpiration = true;
+            options.Cookie.MaxAge = TimeSpan.FromDays(30);
         });
 
         services.AddMemoryCache();
