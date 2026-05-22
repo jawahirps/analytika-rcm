@@ -21,6 +21,7 @@
     var reportDateTo = Model.Filters.DateTo ?? DateOnly.FromDateTime(DateTime.Today);
     var reportDateFromText = reportDateFrom.ToString("dd/MM/yyyy");
     var reportDateToText = reportDateTo.ToString("dd/MM/yyyy");
+    var activeTabIndex = Math.Max(0, Model.Tabs.FindIndex(t => t.Equals(Model.ActiveTab, StringComparison.OrdinalIgnoreCase))) + 1;
 }
 
 @section Styles {
@@ -631,6 +632,273 @@
         height:38px;
     }
 }
+
+/* Astryon-inspired editorial finance theme */
+.bi-shell {
+    --astryon-ink:#050505;
+    --astryon-muted:#606060;
+    --astryon-paper:#f2f2f2;
+    --astryon-card:#ffffff;
+    --astryon-line:rgba(5,5,5,.12);
+    --astryon-soft:rgba(5,5,5,.045);
+    --astryon-accent:#09D8C7;
+    --astryon-risk:#BD0927;
+    background:var(--astryon-paper) !important;
+    color:var(--astryon-ink);
+    font-family:"Mona Sans", "Inter", "Segoe UI", Arial, sans-serif;
+}
+.bi-layout {
+    max-width:1520px;
+    gap:1rem;
+}
+.bi-filter-card,
+.bi-tabs,
+.bi-header,
+.metric-grid,
+.panel {
+    background:var(--astryon-card);
+    border:1px solid var(--astryon-line);
+    border-radius:8px;
+    box-shadow:none;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+}
+.bi-filter-card {
+    padding:2.75rem .85rem .85rem;
+}
+.bi-filter-title,
+.panel-title,
+.metric-label,
+.breakdown-label,
+.insight-title {
+    color:var(--astryon-ink);
+    letter-spacing:0;
+}
+.bi-filter-title::before {
+    content:"✼";
+    color:var(--astryon-ink);
+}
+.bi-filter-title i {
+    display:none;
+}
+.bi-filter-field label,
+.bi-filter-active,
+.bi-desc,
+.summary,
+.trend-label,
+.breakdown-detail,
+.insight-detail {
+    color:var(--astryon-muted);
+}
+.bi-filter-field select,
+.bi-date-input {
+    border:1px solid var(--astryon-line);
+    border-radius:0;
+    color:var(--astryon-ink);
+    background:#fff;
+}
+.bi-filter-submit,
+.bi-date-submit {
+    border:1px solid var(--astryon-ink);
+    border-radius:999px;
+    background:var(--astryon-ink);
+    color:#fff;
+}
+.bi-filter-reset,
+.bi-tabs-toggle,
+.bi-header-icon,
+.bi-calendar-icon {
+    border-color:var(--astryon-line);
+    color:var(--astryon-ink);
+}
+.bi-tabs {
+    gap:.35rem;
+    padding:.65rem;
+}
+.bi-tab {
+    justify-content:space-between;
+    gap:.65rem;
+    border:1px solid transparent;
+    border-radius:999px;
+    background:transparent;
+    color:var(--astryon-ink);
+    font-size:.8rem;
+    font-weight:800;
+}
+.bi-tab i {
+    color:var(--astryon-muted);
+}
+.bi-tab span {
+    flex:1 1 auto;
+}
+.bi-tab small {
+    color:var(--astryon-muted);
+    font-size:.68rem;
+    font-weight:800;
+}
+.bi-tab:hover {
+    background:var(--astryon-soft);
+    transform:none;
+}
+.bi-tab.active {
+    background:var(--astryon-ink);
+    border-color:var(--astryon-ink);
+    color:#fff;
+    box-shadow:none;
+}
+.bi-tab.active i,
+.bi-tab.active small {
+    color:#fff;
+}
+.bi-header {
+    align-items:flex-end;
+    padding:1.45rem 1.55rem;
+    margin-bottom:.8rem;
+}
+.bi-header-left {
+    gap:.35rem;
+}
+.bi-header-eyebrow {
+    color:var(--astryon-muted);
+    font-size:.78rem;
+    font-weight:800;
+    letter-spacing:0;
+}
+.bi-header-eyebrow::before {
+    content:"✼ ";
+    color:var(--astryon-ink);
+}
+.bi-title {
+    color:var(--astryon-ink);
+    font-family:"Mona Sans Narrow", "Arial Narrow", "Inter", "Segoe UI", Arial, sans-serif;
+    font-size:clamp(2.25rem, 5vw, 5.2rem);
+    line-height:.9;
+    font-weight:900;
+    letter-spacing:-.05em;
+}
+.bi-desc {
+    font-size:1rem;
+    font-weight:700;
+}
+.bi-date-range {
+    border:1px solid var(--astryon-line);
+    border-radius:8px;
+    box-shadow:none;
+}
+.bi-chat-icon {
+    color:var(--astryon-accent);
+}
+.bi-chat-icon::after {
+    background:var(--astryon-risk);
+}
+.metric-grid {
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    margin-bottom:1rem;
+}
+.metric-card {
+    min-height:132px;
+    align-items:flex-start;
+    flex-direction:column;
+    gap:.85rem;
+    padding:1.2rem;
+    border-right:1px solid var(--astryon-line);
+    border-bottom:0;
+}
+.metric-card:nth-child(2n) {
+    border-right:1px solid var(--astryon-line);
+}
+.metric-card:last-child {
+    border-right:0;
+}
+.metric-card::before {
+    display:none;
+}
+.metric-icon {
+    width:42px;
+    height:42px;
+    border-radius:0;
+    background:transparent;
+    color:var(--astryon-ink);
+    font-size:1.35rem;
+}
+.tone-teal,
+.tone-gold,
+.tone-green,
+.tone-blue {
+    background:transparent;
+    color:var(--astryon-ink);
+}
+.metric-label {
+    color:var(--astryon-muted);
+    font-size:.76rem;
+    font-weight:800;
+    text-transform:none;
+}
+.metric-value {
+    color:var(--astryon-ink);
+    font-size:clamp(1.65rem, 2.7vw, 2.4rem);
+    font-weight:900;
+    letter-spacing:-.04em;
+}
+.metric-delta {
+    color:var(--astryon-risk);
+    font-weight:900;
+}
+.dash-grid {
+    gap:1rem;
+}
+.panel {
+    padding:1.15rem;
+}
+.trend-bar {
+    border-radius:999px 999px 0 0;
+    background:linear-gradient(180deg, var(--astryon-ink), var(--astryon-accent));
+}
+.breakdown-track {
+    background:var(--astryon-soft);
+}
+.breakdown-fill {
+    background:linear-gradient(90deg, var(--astryon-ink), var(--astryon-risk));
+}
+.insight,
+.breakdown-row {
+    border-color:var(--astryon-line);
+}
+.insight-badge {
+    background:var(--astryon-soft);
+    color:var(--astryon-ink);
+}
+@@media (max-width: 992px) {
+    .metric-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .metric-card:nth-child(2n) {
+        border-right:0;
+    }
+    .metric-card:nth-child(-n + 2) {
+        border-bottom:1px solid var(--astryon-line);
+    }
+}
+@@media (max-width: 640px) {
+    .bi-title {
+        font-size:2.2rem;
+    }
+    .bi-header {
+        align-items:flex-start;
+    }
+    .metric-grid {
+        grid-template-columns:1fr;
+    }
+    .metric-card,
+    .metric-card:nth-child(2n),
+    .metric-card:nth-child(-n + 2) {
+        border-right:0;
+        border-bottom:1px solid var(--astryon-line);
+    }
+    .metric-card:last-child {
+        border-bottom:0;
+    }
+}
 </style>
 }
 
@@ -721,6 +989,7 @@
                 @foreach (var tab in Model.Tabs)
                 {
                     var meta = tabMeta.GetValueOrDefault(tab, ("fa-chart-bar", ""));
+                    var tabIndex = Model.Tabs.IndexOf(tab) + 1;
                     <a class="bi-tab @(tab == Model.ActiveTab ? "active" : "")"
                        asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab"
                        asp-route-facilityId="@Model.Filters.FacilityId"
@@ -733,6 +1002,7 @@
                        aria-selected="@(tab == Model.ActiveTab ? "true" : "false")">
                         <i class="fas @meta.Item1"></i>
                         <span>@tab</span>
+                        <small>(@tabIndex.ToString("00"))</small>
                     </a>
                 }
             </nav>
@@ -741,6 +1011,7 @@
     <main class="bi-content">
         <div class="bi-header">
             <div class="bi-header-left">
+                <div class="bi-header-eyebrow">Finance Intelligence (@activeTabIndex.ToString("00"))</div>
                 <h1 class="bi-title">@Model.ActiveTab Dashboard</h1>
                 <p class="bi-desc">Reports from @reportDateFromText to @reportDateToText</p>
             </div>
