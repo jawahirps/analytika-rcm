@@ -18,7 +18,8 @@ public interface IDhaPortalService
 
     // SearchTransactions on archive endpoint (for data >24 months old)
     Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsArchiveAsync(
-        string login, string pwd, int direction, string? fromDate, string? toDate, int transactionStatus);
+        string login, string pwd, int direction, string? fromDate, string? toDate,
+        int transactionStatus, int transactionId = 2, int minRecord = -1, int maxRecord = -1);
 
     // DownloadTransactionFile — fileId is the FileID attribute from <File> element
     Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileAsync(string login, string pwd, string fileId);

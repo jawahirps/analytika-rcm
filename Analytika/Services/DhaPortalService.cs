@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 using Analytika.Models.ViewModels;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Analytika.Services;
 
@@ -20,13 +21,13 @@ namespace Analytika.Services;
 ///  - SearchTransactions minRecordCount/maxRecordCount: -1=no filter; filters by # of claims INSIDE the file
 ///  - SearchTransactions max 500 files returned; date range must not exceed 100 days
 ///  - GetNewTransactions output field: xmlTransactions (NOT xmlTransaction)
-///  - SetTransactionDownloaded WSDL element name: fieldId (per WSDL schema)
 ///  - DownloadTransactionFile: fileID parameter = FileID attribute from <File> element
 ///  - Return codes: 0=OK, 1=warnings, -1=login failed, -3=invalid param, -5=date range >100 days, -6=file not found, -10=no criteria
 /// </summary>
 public class DhaPortalService : IDhaPortalService
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _cache;
 
     // Primary (active) endpoint
     private const string PrimaryUrl = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
@@ -50,9 +51,10 @@ public class DhaPortalService : IDhaPortalService
     public const int TxTypePriorRequest = 16;
     public const int TxTypePriorAuth = 32;
 
-    public DhaPortalService(IHttpClientFactory httpClientFactory)
+    public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache)
     {
         _httpClientFactory = httpClientFactory;
+        _cache = cache;
     }
 
     // ── SOAP plumbing ──────────────────────────────────────────────
@@ -82,6 +84,34 @@ public class DhaPortalService : IDhaPortalService
         catch { return null; }
     }
 
+    private static string CooldownKey(string login) => $"dha-auth-cooldown:{login.Trim().ToLowerInvariant()}";
+
+    private bool TryGetCooldownError(string login, out string? error)
+    {
+        if (_cache.TryGetValue(CooldownKey(login), out DateTimeOffset retryAfter))
+        {
+            var remaining = retryAfter - DateTimeOffset.UtcNow;
+            if (remaining > TimeSpan.Zero)
+            {
+                var minutes = Math.Ceiling(remaining.TotalSeconds / 60.0);
+                error = $"DHPO authentication is rate-limited for this account. Please wait about {minutes:N0} minute(s) before retrying.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private void StartCooldown(string login, TimeSpan? duration = null)
+    {
+        var retryAfter = DateTimeOffset.UtcNow.Add(duration ?? TimeSpan.FromMinutes(1));
+        _cache.Set(CooldownKey(login), retryAfter, retryAfter);
+    }
+
+    private static bool IsAuthThrottle(int code, string? error)
+        => code == -999 || (error?.Contains("too many authentication attempts", StringComparison.OrdinalIgnoreCase) ?? false);
+
     // ── GetNewTransactions ─────────────────────────────────────────
     // Returns files NOT yet flagged as downloaded from the DHPO queue.
     // Response element: xmlTransactions (XML attribute-based <Files><File .../></Files>)
@@ -90,6 +120,9 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int count, List<PortalFetchResultRow> rows, string? error)> GetNewTransactionsAsync(
         string login, string pwd)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd>";
         var doc = await CallSoapAsync("GetNewTransactions", body);
         if (doc == null) return (0, new(), "Connection failed");
@@ -102,6 +135,11 @@ public class DhaPortalService : IDhaPortalService
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
+        if (IsAuthThrottle(count, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"GetNewTransactions error code {count}: {error}");
+        }
         if (count < 0)
             return (0, rows, $"GetNewTransactions error code {count}: {error}");
         if (count == 0) count = rows.Count;
@@ -114,6 +152,9 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int count, List<PortalFetchResultRow> rows, string? error)> GetNewPriorAuthorizationsAsync(
         string login, string pwd)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd>";
         var doc = await CallSoapAsync("GetNewPriorAuthorizationTransactions", body);
         if (doc == null) return (0, new(), "Connection failed");
@@ -125,6 +166,11 @@ public class DhaPortalService : IDhaPortalService
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var count);
+        if (IsAuthThrottle(count, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"GetNewPriorAuthorizationTransactions error code {count}: {error}");
+        }
         return (count == 0 ? rows.Count : count, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -149,6 +195,9 @@ public class DhaPortalService : IDhaPortalService
         int minRecord = -1,       // -1 → uses 1 (portal rejects -1)
         int maxRecord = -1)       // -1 → uses 500 (portal rejects -1)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         // NOTE: The DHA portal rejects minRecordCount/maxRecordCount = -1 despite the spec saying
         //       -1 means "no filter". Use 1/500 as safe stand-ins.
         var minRec = minRecord > 0 ? minRecord : 1;
@@ -178,6 +227,11 @@ public class DhaPortalService : IDhaPortalService
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"SearchTransactions error code {result}: {error}");
+        }
         return (result, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -190,20 +244,29 @@ public class DhaPortalService : IDhaPortalService
         int direction,
         string? fromDate,
         string? toDate,
-        int transactionStatus)
+        int transactionStatus,
+        int transactionId = TxTypeClaim,
+        int minRecord = -1,
+        int maxRecord = -1)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
+        var minRec = minRecord > 0 ? minRecord : 1;
+        var maxRec = maxRecord > 0 ? maxRecord : 500;
+
         var body = $@"<tns:login>{login}</tns:login>
 <tns:pwd>{pwd}</tns:pwd>
 <tns:direction>{direction}</tns:direction>
 <tns:callerLicense></tns:callerLicense>
 <tns:ePartner></tns:ePartner>
-<tns:transactionID>58</tns:transactionID>
+<tns:transactionID>{transactionId}</tns:transactionID>
 <tns:TransactionStatus>{transactionStatus}</tns:TransactionStatus>
 <tns:transactionFileName></tns:transactionFileName>
 <tns:transactionFromDate>{fromDate ?? ""}</tns:transactionFromDate>
 <tns:transactionToDate>{toDate ?? ""}</tns:transactionToDate>
-<tns:minRecordCount>1</tns:minRecordCount>
-<tns:maxRecordCount>500</tns:maxRecordCount>";
+<tns:minRecordCount>{minRec}</tns:minRecordCount>
+<tns:maxRecordCount>{maxRec}</tns:maxRecordCount>";
 
         var doc = await CallSoapAsync("SearchTransactions", body, useArchive: true);
         if (doc == null) return (0, new(), "Connection failed (Archive)");
@@ -215,6 +278,11 @@ public class DhaPortalService : IDhaPortalService
 
         var rows = ParseFilesXml(xml);
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"SearchTransactions error code {result}: {error}");
+        }
         return (result, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -225,7 +293,10 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileAsync(
         string login, string pwd, string fileId)
     {
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, null, null, cooldownError);
+
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body);
         if (doc == null) return (0, null, null, "Connection failed");
 
@@ -243,6 +314,11 @@ public class DhaPortalService : IDhaPortalService
         }
 
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, fileName, fileBytes, $"DownloadTransactionFile error code {result}: {error}");
+        }
         return (result, fileName, fileBytes, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -251,7 +327,10 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileArchiveAsync(
         string login, string pwd, string fileId)
     {
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, null, null, cooldownError);
+
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body, useArchive: true);
         if (doc == null) return (0, null, null, "Connection failed (Archive)");
 
@@ -269,18 +348,25 @@ public class DhaPortalService : IDhaPortalService
         }
 
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, fileName, fileBytes, $"DownloadTransactionFile error code {result}: {error}");
+        }
         return (result, fileName, fileBytes, string.IsNullOrEmpty(error) ? null : error);
     }
 
     // ── SetTransactionDownloaded ───────────────────────────────────
     // Mark a file as downloaded so GetNewTransactions won't return it again.
-    // WSDL element name: "fieldId" (lowercase d) — per WSDL schema
+    // WSDL element name: fileID — per DHPO specification
 
     public async Task<(int result, string? error)> SetTransactionDownloadedAsync(
         string login, string pwd, string fileId)
     {
-        // WSDL schema uses "fieldId" (not "fileId" or "fileID") as the element name
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fieldId>{fileId}</tns:fieldId>";
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, cooldownError);
+
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
         var doc = await CallSoapAsync("SetTransactionDownloaded", body);
         if (doc == null) return (0, "Connection failed");
 
@@ -288,6 +374,11 @@ public class DhaPortalService : IDhaPortalService
         var resultStr = doc.Descendants(ns + "SetTransactionDownloadedResult").FirstOrDefault()?.Value;
         var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, $"SetTransactionDownloaded error code {result}: {error}");
+        }
         return (result, string.IsNullOrEmpty(error) ? null : error);
     }
 
