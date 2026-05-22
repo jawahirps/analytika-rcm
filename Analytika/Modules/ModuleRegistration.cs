@@ -1,0 +1,114 @@
+using Analytika.Models;
+using Analytika.Services;
+using Hangfire;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Analytika.Modules;
+
+public static class ModuleRegistration
+{
+    public static IServiceCollection AddAnalytikaModules(
+        this IServiceCollection services,
+        string dbPath,
+        bool hangfireServerEnabled,
+        bool recurringJobsEnabled,
+        bool pendingDownloadHostedServiceEnabled)
+    {
+        services.AddCoreModule(dbPath);
+        services.AddDashboardModule();
+        services.AddPortalModule();
+        services.AddReportingModule();
+        services.AddJobsModule(hangfireServerEnabled, recurringJobsEnabled, pendingDownloadHostedServiceEnabled);
+        return services;
+    }
+
+    private static IServiceCollection AddCoreModule(this IServiceCollection services, string dbPath)
+    {
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlite($"Data Source={dbPath}"));
+
+        services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+        {
+            options.SignIn.RequireConfirmedAccount = false;
+            options.Password.RequireDigit = true;
+            options.Password.RequiredLength = 6;
+            options.Password.RequireNonAlphanumeric = false;
+        })
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/Home/Index";
+            options.LogoutPath = "/Home/LogOut";
+            options.AccessDeniedPath = "/Home/Index";
+        });
+
+        services.AddMemoryCache();
+        services.AddControllersWithViews();
+        services.AddSession(options =>
+        {
+            options.IdleTimeout = TimeSpan.FromHours(8);
+            options.Cookie.HttpOnly = true;
+            options.Cookie.IsEssential = true;
+        });
+
+        services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
+            new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
+        services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>
+            new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
+
+        return services;
+    }
+
+    private static IServiceCollection AddDashboardModule(this IServiceCollection services)
+    {
+        services.AddScoped<IDashboardService, DashboardService>();
+        return services;
+    }
+
+    private static IServiceCollection AddPortalModule(this IServiceCollection services)
+    {
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IDhaPortalService, DhaPortalService>();
+        services.AddScoped<IRhaPortalService, RhaPortalService>();
+        services.AddScoped<PortalSyncService>();
+        services.AddScoped<ReconciliationService>();
+        services.AddScoped<RemittanceParserService>();
+        services.AddScoped<XmlParsingService>();
+        return services;
+    }
+
+    private static IServiceCollection AddReportingModule(this IServiceCollection services)
+    {
+        // Reporting logic is already represented by the existing service graph.
+        return services;
+    }
+
+    private static IServiceCollection AddJobsModule(
+        this IServiceCollection services,
+        bool hangfireServerEnabled,
+        bool recurringJobsEnabled,
+        bool pendingDownloadHostedServiceEnabled)
+    {
+        if (hangfireServerEnabled || recurringJobsEnabled)
+        {
+            services.AddHangfire(config => config
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseInMemoryStorage());
+        }
+
+        if (hangfireServerEnabled)
+            services.AddHangfireServer();
+
+        if (pendingDownloadHostedServiceEnabled)
+            services.AddHostedService<PendingDownloadService>();
+
+        return services;
+    }
+}

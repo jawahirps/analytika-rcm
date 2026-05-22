@@ -1,4 +1,5 @@
 using Analytika.Models;
+using Analytika.Modules;
 using Analytika.Services;
 using Hangfire;
 using Microsoft.AspNetCore.Identity;
@@ -27,59 +28,11 @@ if (System.IO.File.Exists(pendingDb))
     if (System.IO.File.Exists(dbPath)) System.IO.File.Delete(dbPath);
     System.IO.File.Move(pendingDb, dbPath);
 }
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
-
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-{
-    options.SignIn.RequireConfirmedAccount = false;
-    options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-})
-.AddEntityFrameworkStores<AppDbContext>()
-.AddDefaultTokenProviders();
-
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.LoginPath = "/Home/Index";
-    options.LogoutPath = "/Home/LogOut";
-    options.AccessDeniedPath = "/Home/Index";
-});
-
-if (hangfireServerEnabled || recurringJobsEnabled || hangfireDashboardEnabled)
-{
-    builder.Services.AddHangfire(config => config
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UseInMemoryStorage());
-}
-
-if (hangfireServerEnabled)
-    builder.Services.AddHangfireServer();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IReportService, ReportService>();
-builder.Services.AddScoped<IDhaPortalService, DhaPortalService>();
-builder.Services.AddScoped<IRhaPortalService, RhaPortalService>();
-builder.Services.AddScoped<PortalSyncService>();
-builder.Services.AddScoped<ReconciliationService>();
-builder.Services.AddScoped<RemittanceParserService>();
-builder.Services.AddScoped<XmlParsingService>();
-if (builder.Configuration.GetValue("BackgroundJobs:PendingDownloads:HostedServiceEnabled", false))
-    builder.Services.AddHostedService<PendingDownloadService>();
-builder.Services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
-    new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
-builder.Services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>
-    new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
-builder.Services.AddMemoryCache();
-builder.Services.AddControllersWithViews();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromHours(8);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
+builder.Services.AddAnalytikaModules(
+    dbPath,
+    hangfireServerEnabled,
+    recurringJobsEnabled,
+    builder.Configuration.GetValue("BackgroundJobs:PendingDownloads:HostedServiceEnabled", false));
 
 // Respect PORT env variable (set by preview/hosting environment)
 var port = Environment.GetEnvironmentVariable("PORT");
