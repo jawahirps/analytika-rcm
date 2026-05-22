@@ -270,6 +270,16 @@ small,
 .analytika-navbar .container-fluid {
   height: 56px;
   align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.analytika-navbar .navbar-collapse {
+  min-width: 0;
+}
+
+.analytika-navbar .navbar-nav {
+  min-width: 0;
 }
 
 html[dir="rtl"] body {
