@@ -24,6 +24,129 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        :root {
+            --shell-bg: linear-gradient(145deg, #051F20 0%, #141E30 55%, #023859 100%);
+            --shell-panel: rgba(11,43,38,.84);
+            --shell-panel-2: rgba(20,30,48,.88);
+            --shell-line: rgba(84,172,191,.22);
+            --shell-text: #DAF1DE;
+            --shell-muted: #8EB69B;
+            --shell-accent: #54ACBF;
+            --shell-accent-2: #26658C;
+            --shell-glow: 0 18px 42px rgba(1,28,64,.32);
+        }
+
+        body {
+            background: var(--shell-bg) !important;
+            color: var(--shell-text);
+        }
+
+        .analytika-navbar {
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+            margin: 0;
+            padding: .9rem 0;
+            background: rgba(11,43,38,.82) !important;
+            border-bottom: 1px solid var(--shell-line);
+            backdrop-filter: blur(18px) saturate(160%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            box-shadow: 0 12px 32px rgba(1,28,64,.18);
+        }
+        .analytika-navbar .container-fluid {
+            max-width: 1600px;
+            gap: .75rem;
+        }
+        .analytika-brand {
+            background: linear-gradient(180deg, rgba(20,30,48,.92), rgba(11,43,38,.94)) !important;
+            border: 1px solid var(--shell-line) !important;
+            border-radius: 18px !important;
+            padding: .75rem .9rem !important;
+            box-shadow: var(--shell-glow);
+        }
+        .brand-text,
+        .brand-sub {
+            color: var(--shell-text) !important;
+        }
+        .brand-sub {
+            opacity: .78;
+            letter-spacing: .06em;
+        }
+        .analytika-navbar .nav-link,
+        .analytika-navbar .profile-btn,
+        .analytika-navbar .bell-btn,
+        .analytika-navbar .theme-toggle-btn,
+        .analytika-navbar .lang-toggle-btn {
+            color: var(--shell-text) !important;
+        }
+        .analytika-navbar .nav-link {
+            border-radius: 12px;
+            padding: .7rem .95rem !important;
+        }
+        .analytika-navbar .nav-link.active,
+        .analytika-navbar .nav-link:hover {
+            background: rgba(84,172,191,.12);
+            color: #A7EBF2 !important;
+        }
+        .analytika-navbar .dropdown-menu {
+            background: rgba(11,43,38,.96);
+            border: 1px solid var(--shell-line);
+            box-shadow: var(--shell-glow);
+            border-radius: 16px;
+            color: var(--shell-text);
+        }
+        .analytika-navbar .dropdown-item {
+            color: var(--shell-text);
+            border-radius: 10px;
+            margin: 2px 6px;
+        }
+        .analytika-navbar .dropdown-item:hover {
+            background: rgba(84,172,191,.12);
+            color: #A7EBF2;
+        }
+        .analytika-navbar .navbar-toggler {
+            border-color: var(--shell-line);
+            background: rgba(20,30,48,.92);
+        }
+        .analytika-navbar .navbar-toggler-icon {
+            filter: invert(1) brightness(1.2);
+        }
+        .theme-toggle-btn,
+        .lang-toggle-btn {
+            background: rgba(20,30,48,.92) !important;
+            border-color: var(--shell-line) !important;
+        }
+        .lang-toggle-btn.active {
+            background: rgba(84,172,191,.16) !important;
+            color: #A7EBF2 !important;
+        }
+        .bell-btn,
+        .profile-btn {
+            background: rgba(20,30,48,.92) !important;
+            border-color: var(--shell-line) !important;
+        }
+        main {
+            position: relative;
+        }
+        main::before {
+            content: "";
+            position: fixed;
+            inset: 72px 0 0 0;
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, rgba(84,172,191,.04) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(84,172,191,.04) 1px, transparent 1px);
+            background-size: 44px 44px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 92%);
+            z-index: 0;
+        }
+        @@media (max-width: 991px) {
+            .analytika-brand {
+                padding: .65rem .8rem !important;
+            }
+        }
+    </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
@@ -40,13 +163,13 @@
         <!-- Brand -->
         <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#C0863F" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#111111"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#332985"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#C0863F"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#C61F32"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#111111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#111111"/>
+                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#051F20"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#8EB69B"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#051F20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#051F20"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
@@ -187,14 +310,14 @@
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="min-width:320px;border-radius:12px;overflow:hidden;">
-                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#111111;">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#051F20;">
                             <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
                             <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
                         </div>
                         <div id="notificationList">
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#F2F1EE;">
-                                    <i class="fas fa-file-download" style="color:#332985;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#0B2B26;">
+                                    <i class="fas fa-file-download" style="color:#54ACBF;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">New transactions available</div>
@@ -203,8 +326,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
-                                <div class="notif-icon flex-shrink-0" style="background:#F2F1EE;">
-                                    <i class="fas fa-file-code" style="color:#C0863F;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#0B2B26;">
+                                    <i class="fas fa-file-code" style="color:#8EB69B;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">XML Parsing summary</div>
@@ -213,8 +336,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#F2F1EE;">
-                                    <i class="fas fa-sync" style="color:#111111;"></i>
+                                <div class="notif-icon flex-shrink-0" style="background:#0B2B26;">
+                                    <i class="fas fa-sync" style="color:#A7EBF2;"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">Daily sync complete</div>
@@ -223,8 +346,8 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="text-center py-2" style="background:#F2F1EE;border-top:1px solid #d9d6cf;">
-                            <a href="/Portal/Sync" style="font-size:.75rem;color:#332985;text-decoration:none;" data-i18n="view_all_activity">View all activity</a>
+                        <div class="text-center py-2" style="background:#0B2B26;border-top:1px solid rgba(84,172,191,.16);">
+                            <a href="/Portal/Sync" style="font-size:.75rem;color:#A7EBF2;text-decoration:none;" data-i18n="view_all_activity">View all activity</a>
                         </div>
                     </div>
                 </li>
@@ -274,6 +397,46 @@
     }
     @RenderBody()
 </main>
+<style>
+.global-ai-pet {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 1800;
+    width: 72px;
+    height: 72px;
+    border: 0;
+    border-radius: 999px;
+    background: radial-gradient(circle at 30% 28%, #f8fdff 0%, #d8edf7 46%, #a7d2e9 100%);
+    box-shadow: 0 14px 32px rgba(10, 34, 58, .28), inset 0 0 0 2px rgba(255,255,255,.85);
+    display: grid;
+    place-items: center;
+}
+.global-ai-pet::before {
+    content: "";
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: radial-gradient(circle at 50% 45%, #49c2ff 0%, #1471b3 55%, #0f466f 100%);
+    box-shadow: 0 0 14px rgba(73,194,255,.55);
+}
+.global-ai-pet-label {
+    position: fixed;
+    right: 92px;
+    bottom: 38px;
+    z-index: 1799;
+    background: #070e22;
+    color: #c8f5e8;
+    border: 1px solid rgba(121, 199, 178, .35);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: .76rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+</style>
+<div id="globalAiPetLabel" class="global-ai-pet-label">AI Assistant</div>
+<button type="button" id="globalAiPet" class="global-ai-pet" aria-label="Open AI assistant"></button>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -284,7 +447,7 @@
 <script>
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#332985;"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#54ACBF;"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
@@ -379,6 +542,24 @@ function clearNotifications() {
             applyTheme(next);
         });
     }
+})();
+
+(function initGlobalAiPet() {
+    const pet = document.getElementById('globalAiPet');
+    const label = document.getElementById('globalAiPetLabel');
+    if (!pet) return;
+
+    pet.addEventListener('click', function () {
+        const drawer = document.getElementById('biFilterAgentDrawer');
+        const drawerInput = document.getElementById('biFilterAgentInputDrawer');
+        if (drawer) {
+            drawer.removeAttribute('hidden');
+            if (drawerInput) drawerInput.focus();
+            if (label) label.style.display = 'none';
+            return;
+        }
+        window.location.href = '/Home/RCMDashboard';
+    });
 })();
 </script>
 </body>

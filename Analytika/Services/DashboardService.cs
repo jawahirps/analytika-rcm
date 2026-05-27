@@ -236,15 +236,27 @@ public class DashboardService : IDashboardService
             .ToList();
 
         var records = datedRecords.Select(r => r.Record).ToList();
-        var distinctClaimCount = records
-            .Select(r => string.IsNullOrWhiteSpace(r.ClaimId) ? $"record:{r.Id}" : r.ClaimId)
+        var claimIds = records
+            .Select(r => string.IsNullOrWhiteSpace(r.ClaimId) ? $"record:{r.Id}" : r.ClaimId.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var distinctClaimCount = claimIds.Count;
+        var submissionCount = records.Count(r => r.RecordKind == "Submission");
+        var remittanceCount = records.Count(r => r.RecordKind == "Remittance");
+        var deniedRecordCount = records.Count(HasDenial);
+        var deniedClaimCount = records
+            .Where(HasDenial)
+            .Select(r => string.IsNullOrWhiteSpace(r.ClaimId) ? $"record:{r.Id}" : r.ClaimId.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Count();
-        var netAmount = records.Sum(r => r.NetAmount);
-        var deniedCount = records.Count(HasDenial);
-        var cleanRate = records.Count == 0
+        var matchedCount = records.Count(r => r.IsMatched);
+        var unmatchedCount = Math.Max(0, distinctClaimCount - matchedCount);
+        var submittedAmount = records.Where(r => r.RecordKind == "Submission").Sum(r => r.NetAmount);
+        var paidAmount = records.Where(r => r.RecordKind == "Remittance").Sum(r => r.PaidAmount);
+        var netAmount = submittedAmount > 0 ? submittedAmount : records.Sum(r => r.NetAmount);
+        var cleanRate = distinctClaimCount == 0
             ? 0
-            : (int)Math.Round((records.Count - deniedCount) * 100.0 / records.Count);
+            : (int)Math.Round((distinctClaimCount - deniedClaimCount) * 100.0 / distinctClaimCount);
         var tatDays = AverageTatDays(records);
 
         var trend = datedRecords
@@ -261,6 +273,35 @@ public class DashboardService : IDashboardService
             .TakeLast(12)
             .ToList();
 
+        if (activeTab.Equals("Remittance", StringComparison.OrdinalIgnoreCase))
+        {
+            trend = datedRecords
+                .Where(r => r.Date.HasValue)
+                .GroupBy(r => new DateOnly(r.Date!.Value.Year, r.Date.Value.Month, 1))
+                .OrderBy(g => g.Key)
+                .Select(g => new DashboardTrendPoint
+                {
+                    Label = g.Key.ToString("MMM yy", CultureInfo.InvariantCulture),
+                    Value = (int)Math.Round(g.Sum(x => x.Record.PaidAmount))
+                })
+                .TakeLast(12)
+                .ToList();
+        }
+        else if (activeTab.Equals("Denials", StringComparison.OrdinalIgnoreCase))
+        {
+            trend = datedRecords
+                .Where(r => r.Date.HasValue)
+                .GroupBy(r => new DateOnly(r.Date!.Value.Year, r.Date.Value.Month, 1))
+                .OrderBy(g => g.Key)
+                .Select(g => new DashboardTrendPoint
+                {
+                    Label = g.Key.ToString("MMM yy", CultureInfo.InvariantCulture),
+                    Value = g.Count(x => HasDenial(x.Record))
+                })
+                .TakeLast(12)
+                .ToList();
+        }
+
         var breakdown = BuildBreakdown(activeTab, records);
         var pendingFiles = await CountPendingFilesAsync(filters);
         var latestDate = datedRecords
@@ -272,7 +313,7 @@ public class DashboardService : IDashboardService
         var scopeText = BuildScopeText(filters, records.Count);
         var summary = records.Count == 0
             ? "No parsed portal records match the selected filters."
-            : $"{activeTab} is calculated from {records.Count:N0} parsed records and {distinctClaimCount:N0} distinct claims. {scopeText}";
+            : BuildSummary(activeTab, records.Count, distinctClaimCount, submissionCount, remittanceCount, deniedClaimCount, paidAmount, netAmount, scopeText);
 
         return new RCMDashboardViewModel
         {
@@ -287,20 +328,14 @@ public class DashboardService : IDashboardService
             ReceiverOptions = receiverOptions,
             PayerOptions = payerOptions,
             EncounterTypeOptions = encounterTypeOptions,
-            Metrics =
-            [
-                new DashboardMetric { Label = "Total Claims", Value = $"{distinctClaimCount:N0}", Delta = "Parsed claims", Icon = "fa-file-medical", Tone = "teal" },
-                new DashboardMetric { Label = "Net Value", Value = FormatMoney(netAmount), Delta = "Claim net sum", Icon = "fa-coins", Tone = "gold" },
-                new DashboardMetric { Label = "Clean Rate", Value = records.Count == 0 ? "0%" : $"{cleanRate}%", Delta = $"{deniedCount:N0} denied", Icon = "fa-circle-check", Tone = "green" },
-                new DashboardMetric { Label = "TAT", Value = tatDays.HasValue ? $"{tatDays.Value:N0} days" : "N/A", Delta = "Actual dates", Icon = "fa-clock", Tone = "blue" }
-            ],
+            Metrics = BuildMetrics(activeTab, distinctClaimCount, submissionCount, remittanceCount, deniedClaimCount, matchedCount, unmatchedCount, submittedAmount, paidAmount, netAmount, cleanRate, tatDays),
             Trend = trend,
             Breakdown = breakdown,
             Insights =
             [
                 records.Count == 0
                     ? new DashboardInsight { Title = "No matching data", Detail = "Fetch and parse portal XML records for this filter scope.", Status = "Empty" }
-                    : new DashboardInsight { Title = "Current scope", Detail = $"{records.Count:N0} parsed records are included in the active dashboard calculation.", Status = "Actual" },
+                    : new DashboardInsight { Title = "Current scope", Detail = $"{records.Count:N0} parsed records are included in active dashboard calculation.", Status = "Actual" },
                 pendingFiles > 0
                     ? new DashboardInsight { Title = "Pending files", Detail = $"{pendingFiles:N0} portal transaction files are still not downloaded.", Status = "Action" }
                     : new DashboardInsight { Title = "Downloaded files", Detail = "No pending portal transaction downloads were found for this facility scope.", Status = "Clear" },
@@ -464,5 +499,70 @@ public class DashboardService : IDashboardService
         return parts.Count == 0
             ? "No filters are applied."
             : $"Applied filters: {string.Join(", ", parts)}.";
+    }
+
+    private static string BuildSummary(
+        string activeTab,
+        int recordCount,
+        int distinctClaimCount,
+        int submissionCount,
+        int remittanceCount,
+        int deniedClaimCount,
+        decimal paidAmount,
+        decimal netAmount,
+        string scopeText)
+    {
+        return activeTab switch
+        {
+            "Submissions" => $"{distinctClaimCount:N0} claims from {submissionCount:N0} submission rows. {scopeText}",
+            "Resubmissions" => $"{recordCount:N0} parsed resubmission rows across {distinctClaimCount:N0} claims. {scopeText}",
+            "Remittance" => $"{remittanceCount:N0} remittance rows, {FormatMoney(paidAmount)} paid value. {scopeText}",
+            "Denials" => $"{deniedClaimCount:N0} denied claims surfaced from {recordCount:N0} parsed rows. {scopeText}",
+            "Clinicians" => $"{distinctClaimCount:N0} claims grouped by clinician across {recordCount:N0} rows. {scopeText}",
+            "Operations" => $"{recordCount:N0} operational records analyzed; net value {FormatMoney(netAmount)}. {scopeText}",
+            "Insurance" => $"{distinctClaimCount:N0} claims analyzed for payer behavior. {scopeText}",
+            "Department" => $"{recordCount:N0} records grouped for department view. {scopeText}",
+            _ => $"{activeTab} is calculated from {recordCount:N0} parsed records and {distinctClaimCount:N0} distinct claims. {scopeText}"
+        };
+    }
+
+    private static List<DashboardMetric> BuildMetrics(
+        string activeTab,
+        int distinctClaimCount,
+        int submissionCount,
+        int remittanceCount,
+        int deniedClaimCount,
+        int matchedCount,
+        int unmatchedCount,
+        decimal submittedAmount,
+        decimal paidAmount,
+        decimal netAmount,
+        int cleanRate,
+        int? tatDays)
+    {
+        return activeTab switch
+        {
+            "Remittance" => new List<DashboardMetric>
+            {
+                new() { Label = "Remit Rows", Value = $"{remittanceCount:N0}", Delta = "Parsed RA rows", Icon = "fa-receipt", Tone = "teal" },
+                new() { Label = "Paid Value", Value = FormatMoney(paidAmount), Delta = "Paid amount", Icon = "fa-sack-dollar", Tone = "gold" },
+                new() { Label = "Matched Claims", Value = $"{matchedCount:N0}", Delta = $"{unmatchedCount:N0} unmatched", Icon = "fa-link", Tone = "green" },
+                new() { Label = "TAT", Value = tatDays.HasValue ? $"{tatDays.Value:N0} days" : "N/A", Delta = "Settlement dates", Icon = "fa-clock", Tone = "blue" }
+            },
+            "Denials" => new List<DashboardMetric>
+            {
+                new() { Label = "Denied Claims", Value = $"{deniedClaimCount:N0}", Delta = "Claims with denial", Icon = "fa-ban", Tone = "teal" },
+                new() { Label = "Claim Count", Value = $"{distinctClaimCount:N0}", Delta = "Distinct claims", Icon = "fa-file-medical", Tone = "gold" },
+                new() { Label = "Clean Rate", Value = $"{cleanRate}%", Delta = "Inverse of denial share", Icon = "fa-circle-check", Tone = "green" },
+                new() { Label = "TAT", Value = tatDays.HasValue ? $"{tatDays.Value:N0} days" : "N/A", Delta = "Actual dates", Icon = "fa-clock", Tone = "blue" }
+            },
+            _ => new List<DashboardMetric>
+            {
+                new() { Label = "Total Claims", Value = $"{distinctClaimCount:N0}", Delta = activeTab == "Submissions" ? $"{submissionCount:N0} submission rows" : "Parsed claims", Icon = "fa-file-medical", Tone = "teal" },
+                new() { Label = "Net Value", Value = FormatMoney(netAmount), Delta = activeTab == "Submissions" ? "Submission net sum" : "Claim net sum", Icon = "fa-coins", Tone = "gold" },
+                new() { Label = "Clean Rate", Value = $"{cleanRate}%", Delta = $"{deniedClaimCount:N0} denied", Icon = "fa-circle-check", Tone = "green" },
+                new() { Label = "TAT", Value = tatDays.HasValue ? $"{tatDays.Value:N0} days" : "N/A", Delta = "Actual dates", Icon = "fa-clock", Tone = "blue" }
+            }
+        };
     }
 }

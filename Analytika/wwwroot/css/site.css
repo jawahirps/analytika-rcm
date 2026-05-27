@@ -9,17 +9,17 @@
    CSS Custom Properties
    ---------------------------------------------------------------- */
 :root {
-  /* Ghaf palette: paper, black ink, indigo, ochre, red */
-  --deep-navy:     #111111;
-  --classic-teal:  #332985;
-  --forest-teal:   #C0863F;
-  --seafoam-blue:  #5F6260;
-  --sage-teal:     #332985;
-  --ice-blue:      #111111;
-  --soft-white:    #F2F1EE;
-  --gold:          #C0863F;
-  --coral:         #C61F32;
-  --mint:          #C0863F;
+  /* LUNA + green palette */
+  --deep-navy:     #141E30;
+  --classic-teal:  #54ACBF;
+  --forest-teal:   #26658C;
+  --seafoam-blue:  #35577D;
+  --sage-teal:     #8EB69B;
+  --ice-blue:      #A7EBF2;
+  --soft-white:    #DAF1DE;
+  --gold:          #54ACBF;
+  --coral:         #8EB69B;
+  --mint:          #A7EBF2;
 
   /* Compatibility aliases used across existing views */
   --navy:          var(--deep-navy);
@@ -29,47 +29,47 @@
   --emerald:       var(--classic-teal);
   --teal-vivid:    var(--classic-teal);
   --emerald-dark:  var(--forest-teal);
-  --emerald-light: rgba(51,41,133,0.10);
-  --emerald-pale:  rgba(51,41,133,0.06);
+  --emerald-light: rgba(84,172,191,0.16);
+  --emerald-pale:  rgba(84,172,191,0.08);
 
   /* Legacy accent aliases mapped to sage teal */
   --amber:         var(--sage-teal);
   --amber-dark:    var(--forest-teal);
-  --amber-light:   rgba(192,134,63,0.15);
+  --amber-light:   rgba(38,101,140,0.15);
 
   /* Neutral surface */
-  --bg:            #F2F1EE;
-  --surface:       rgba(251,250,247,0.90);
-  --surface-strong:rgba(251,250,247,0.96);
-  --surface-alt:   rgba(17,17,17,0.07);
-  --glass:         rgba(251,250,247,0.82);
-  --glass-strong:  rgba(251,250,247,0.94);
-  --glass-dark:    rgba(17,17,17,0.86);
-  --glass-border:  rgba(17,17,17,0.14);
-  --border:        rgba(17,17,17,0.14);
-  --border-light:  rgba(17,17,17,0.09);
+  --bg:            #051F20;
+  --surface:       rgba(11,43,38,0.90);
+  --surface-strong:rgba(20,30,48,0.96);
+  --surface-alt:   rgba(84,172,191,0.10);
+  --glass:         rgba(20,30,48,0.82);
+  --glass-strong:  rgba(20,30,48,0.94);
+  --glass-dark:    rgba(11,43,38,0.86);
+  --glass-border:  rgba(84,172,191,0.20);
+  --border:        rgba(84,172,191,0.20);
+  --border-light:  rgba(84,172,191,0.12);
 
   /* Text */
-  --text:          var(--deep-navy);
-  --text-secondary:var(--forest-teal);
-  --text-muted:    #5F6260;
-  --text-invert:   #ffffff;
+  --text:          #DAF1DE;
+  --text-secondary:#8EB69B;
+  --text-muted:    #8EB69B;
+  --text-invert:   #051F20;
 
   /* Semantic */
-  --success:       #332985;
-  --warning:       #C0863F;
-  --danger:        #C61F32;
-  --info:          #332985;
+  --success:       #8EB69B;
+  --warning:       #54ACBF;
+  --danger:        #35577D;
+  --info:          #26658C;
 
   /* Layout */
   --radius-sm:     6px;
   --radius:        8px;
   --radius-lg:     10px;
   --radius-xl:     12px;
-  --shadow-xs:     0 1px 2px rgba(17,17,17,0.04), 0 1px 0 rgba(255,255,255,0.5) inset;
-  --shadow-sm:     0 8px 22px rgba(17,17,17,0.08), 0 1px 0 rgba(255,255,255,0.76) inset;
-  --shadow-md:     0 14px 36px rgba(17,17,17,0.11), 0 1px 0 rgba(255,255,255,0.78) inset;
-  --shadow-lg:     0 22px 58px rgba(17,17,17,0.15), 0 1px 0 rgba(255,255,255,0.80) inset;
+  --shadow-xs:     0 1px 2px rgba(1,28,64,0.14), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-sm:     0 8px 22px rgba(1,28,64,0.18), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-md:     0 14px 36px rgba(1,28,64,0.22), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-lg:     0 22px 58px rgba(1,28,64,0.28), 0 1px 0 rgba(255,255,255,0.05) inset;
   --blur:          blur(22px) saturate(175%);
 
   /* Transitions */
@@ -97,15 +97,15 @@ html[data-theme="dark"] {
 
 html[data-theme="dark"] body {
   background:
-    radial-gradient(circle at top left, rgba(167,235,242,0.12), transparent 22%),
-    linear-gradient(145deg, #011C40 0%, rgba(1,28,64,0.94) 42%, rgba(38,101,140,0.30) 74%, #023859 100%);
-  color: #EAF4FB;
+    radial-gradient(circle at top left, rgba(84,172,191,0.14), transparent 22%),
+    linear-gradient(145deg, #051F20 0%, rgba(20,30,48,0.96) 42%, rgba(38,101,140,0.32) 74%, #023859 100%);
+  color: #DAF1DE;
 }
 
 html[data-theme="dark"] .analytika-navbar {
-  background: rgba(1,28,64,0.82);
-  border-bottom-color: rgba(167,235,242,0.14);
-  box-shadow: 0 10px 28px rgba(0,0,0,0.28), inset 0 -1px 0 rgba(167,235,242,0.08);
+  background: rgba(11,43,38,0.82);
+  border-bottom-color: rgba(84,172,191,0.16);
+  box-shadow: 0 10px 28px rgba(1,28,64,0.28), inset 0 -1px 0 rgba(84,172,191,0.08);
 }
 
 html[data-theme="dark"] .analytika-brand,
@@ -115,9 +115,9 @@ html[data-theme="dark"] .metric-card,
 html[data-theme="dark"] .panel,
 html[data-theme="dark"] .card,
 html[data-theme="dark"] .alert {
-  background: rgba(1,28,64,0.76) !important;
-  border-color: rgba(167,235,242,0.12) !important;
-  color: #EAF4FB;
+  background: rgba(11,43,38,0.78) !important;
+  border-color: rgba(84,172,191,0.14) !important;
+  color: #DAF1DE;
 }
 
 html[data-theme="dark"] .brand-name-wrap .brand-text,
@@ -131,7 +131,7 @@ html[data-theme="dark"] h6,
 html[data-theme="dark"] .metric-value,
 html[data-theme="dark"] .panel-title,
 html[data-theme="dark"] .bi-title {
-  color: #EAF4FB;
+  color: #DAF1DE;
 }
 
 html[data-theme="dark"] .analytika-navbar .nav-link,
@@ -146,7 +146,7 @@ html[data-theme="dark"] .ss-lbl,
 html[data-theme="dark"] .fac-meta-row,
 html[data-theme="dark"] .fac-stat .l,
 html[data-theme="dark"] .fac-stat .meta-inline {
-  color: rgba(234,244,251,0.78) !important;
+  color: rgba(218,241,222,0.78) !important;
 }
 
 html[data-theme="dark"] .text-muted,
@@ -154,42 +154,42 @@ html[data-theme="dark"] .text-body-secondary,
 html[data-theme="dark"] .small,
 html[data-theme="dark"] small,
 html[data-theme="dark"] .form-text {
-  color: rgba(234,244,251,0.72) !important;
+  color: rgba(142,182,155,0.74) !important;
 }
 
 html[data-theme="dark"] .form-control,
 html[data-theme="dark"] .form-select,
 html[data-theme="dark"] .input-group-text {
-  background: rgba(1,28,64,0.82);
-  color: #EAF4FB;
-  border-color: rgba(167,235,242,0.14);
+  background: rgba(20,30,48,0.82);
+  color: #DAF1DE;
+  border-color: rgba(84,172,191,0.16);
 }
 
 html[data-theme="dark"] .lang-toggle-btn,
 html[data-theme="dark"] .theme-toggle-btn {
-  border-color: rgba(167,235,242,0.16);
-  background: rgba(1,28,64,0.72);
-  color: #EAF4FB;
+  border-color: rgba(84,172,191,0.16);
+  background: rgba(20,30,48,0.72);
+  color: #DAF1DE;
 }
 
 html[data-theme="dark"] .lang-toggle-btn.active {
-  background: rgba(167,235,242,0.16);
+  background: rgba(84,172,191,0.16);
   color: #A7EBF2;
 }
 
 html[data-theme="dark"] .react-shell-chip,
 html[data-theme="dark"] .sb-chip {
-  background: rgba(1,28,64,0.72);
-  border-color: rgba(167,235,242,0.12);
-  color: #EAF4FB;
+  background: rgba(20,30,48,0.72);
+  border-color: rgba(84,172,191,0.12);
+  color: #DAF1DE;
 }
 
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   background:
-    linear-gradient(90deg, rgba(1,28,64,0.035) 1px, transparent 1px),
-    linear-gradient(180deg, rgba(1,28,64,0.035) 1px, transparent 1px),
-    linear-gradient(145deg, #fbfdff 0%, rgba(244,248,251,0.98) 38%, rgba(231,240,246,0.74) 70%, #f8fbfd 100%);
+    linear-gradient(90deg, rgba(84,172,191,0.04) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(84,172,191,0.04) 1px, transparent 1px),
+    linear-gradient(145deg, #051F20 0%, rgba(20,30,48,0.98) 38%, rgba(38,101,140,0.72) 70%, #023859 100%);
   background-size: 42px 42px, 42px 42px, auto;
   background-attachment: fixed;
   color: var(--text);
@@ -228,13 +228,13 @@ h1, h2, h3, h4, h5, h6 {
 .page-title {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--navy);
+  color: #DAF1DE;
   letter-spacing: -0.3px;
 }
 
 .page-subtitle {
   font-size: 0.825rem;
-  color: var(--text-muted);
+  color: #8EB69B;
   margin-top: 2px;
 }
 

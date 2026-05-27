@@ -26,22 +26,22 @@
 @section Styles {
 <style>
 :root {
-    --teal:#09D8C7;
-    --blue:#17364F;
-    --navy:#0D1A2F;
-    --plum:#411E3A;
-    --red:#BD0927;
-    --burgundy:#500A1F;
-    --line:rgba(9,216,199,.16);
-    --muted:#17364F;
-    --surface:rgba(255,255,255,.92);
+    --teal:#54ACBF;
+    --blue:#26658C;
+    --navy:#141E30;
+    --plum:#35577D;
+    --red:#8EB69B;
+    --burgundy:#0B2B26;
+    --line:rgba(84,172,191,.22);
+    --muted:#35577D;
+    --surface:rgba(20,30,48,.86);
 }
 .bi-shell {
     min-height: calc(100vh - 56px);
     background:
-        radial-gradient(circle at 0% 18%, rgba(9,216,199,.26), transparent 30%),
-        radial-gradient(circle at 100% 0%, rgba(189,9,39,.14), transparent 32%),
-        linear-gradient(140deg, rgba(13,26,47,.12) 0%, rgba(23,54,79,.08) 42%, rgba(255,255,255,.98) 100%);
+        radial-gradient(circle at 0% 18%, rgba(84,172,191,.24), transparent 30%),
+        radial-gradient(circle at 100% 0%, rgba(142,182,155,.16), transparent 32%),
+        linear-gradient(145deg, #051F20 0%, #141E30 58%, #023859 100%);
 }
 .bi-intro {
     max-width: 980px;
@@ -1369,24 +1369,24 @@
 }
 /* Final coherent executive BI design */
 .bi-shell {
-    --ui-bg:#f2f1ee;
-    --ui-card:#fbfaf7;
-    --ui-ink:#111111;
-    --ui-muted:#5f6260;
-    --ui-soft:#ebe8e2;
-    --ui-line:#d9d6cf;
-    --ui-accent:#c0863f;
-    --ui-accent-2:#332985;
-    --ui-danger:#c61f32;
-    --ui-black:#0d0d0d;
-    --ui-shadow:0 18px 48px rgba(17,17,17,.10);
+    --ui-bg:#051F20;
+    --ui-card:#0B2B26;
+    --ui-ink:#DAF1DE;
+    --ui-muted:#8EB69B;
+    --ui-soft:#163332;
+    --ui-line:#235347;
+    --ui-accent:#54ACBF;
+    --ui-accent-2:#26658C;
+    --ui-danger:#35577D;
+    --ui-black:#011C40;
+    --ui-shadow:0 18px 48px rgba(1,28,64,.35);
     min-height:calc(100vh - 56px);
     padding:0;
     background:
-        linear-gradient(115deg, transparent 0 24%, rgba(51,41,133,.075) 24.1% 24.7%, transparent 24.8% 100%),
-        radial-gradient(circle at 16% 12%, rgba(198,31,50,.10), transparent 28%),
-        radial-gradient(circle at 88% 8%, rgba(192,134,63,.16), transparent 30%),
-        linear-gradient(180deg, #fbfaf7 0%, var(--ui-bg) 100%) !important;
+        linear-gradient(115deg, transparent 0 24%, rgba(84,172,191,.09) 24.1% 24.7%, transparent 24.8% 100%),
+        radial-gradient(circle at 16% 12%, rgba(142,182,155,.18), transparent 28%),
+        radial-gradient(circle at 88% 8%, rgba(38,101,140,.24), transparent 30%),
+        linear-gradient(180deg, #0B2B26 0%, var(--ui-bg) 100%) !important;
     color:var(--ui-ink);
     font-family:Inter, "Segoe UI", Arial, sans-serif;
     overflow-x:hidden;
@@ -1510,6 +1510,35 @@
 .bi-filter-agent-hint { color:var(--ui-muted); }
 .bi-filter-agent-status { color:#11734a; }
 .bi-filter-agent-status.error { color:#8a1f2a; }
+.bi-filter-agent-drawer {
+    position:fixed;
+    right:16px;
+    bottom:16px;
+    width:min(420px, calc(100vw - 24px));
+    border:1px solid var(--ui-line);
+    border-radius:16px;
+    background:rgba(255,255,255,.94);
+    box-shadow:0 18px 40px rgba(9, 26, 47, .22);
+    padding:12px;
+    z-index:1200;
+}
+.bi-filter-agent-drawer[hidden] { display:none !important; }
+.bi-filter-agent-head {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+}
+.bi-filter-agent-head strong { font-size:.9rem; color:var(--ui-ink); }
+.bi-filter-agent-close {
+    width:32px;
+    height:32px;
+    border:1px solid var(--ui-line);
+    border-radius:10px;
+    background:#fff;
+    color:var(--ui-ink);
+}
 .bi-filter-submit,
 .bi-date-submit {
     border:0 !important;
@@ -1670,9 +1699,11 @@
     box-shadow:none !important;
     margin:0 0 18px !important;
     overflow:visible;
+    align-items:stretch;
 }
 .metric-card {
-    min-height:148px !important;
+    min-height:220px !important;
+    height:100% !important;
     padding:18px !important;
     display:grid !important;
     grid-template-columns:1fr auto;
@@ -1946,7 +1977,13 @@
         grid-template-columns:repeat(4,minmax(0,1fr));
     }
     .metric-grid {
-        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+        grid-template-columns:repeat(4,minmax(240px,1fr)) !important;
+        overflow-x:auto !important;
+        padding-bottom:6px !important;
+        scroll-snap-type:x mandatory;
+    }
+    .metric-card {
+        scroll-snap-align:start;
     }
     .dash-grid {
         grid-template-columns:1fr;
@@ -1979,9 +2016,12 @@
     .bi-date-input {
         flex:1 1 125px;
     }
-    .bi-tabs,
-    .metric-grid {
+    .bi-tabs {
         grid-template-columns:1fr !important;
+    }
+    .metric-grid {
+        grid-template-columns:repeat(4,minmax(250px,1fr)) !important;
+        overflow-x:auto !important;
     }
     .bi-title {
         font-size:2.1rem;
@@ -1989,6 +2029,499 @@
     .breakdown-row {
         grid-template-columns:1fr;
     }
+}
+/* Strong final palette lock (LUNA + green only) */
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .bi-header,
+.bi-shell .metric-card,
+.bi-shell .panel {
+    background:rgba(11,43,38,.82) !important;
+    border-color:#235347 !important;
+    color:#DAF1DE !important;
+}
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-date-range,
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-tabs-toggle,
+.bi-shell .bi-header-icon,
+.bi-shell .bi-calendar-icon {
+    background:rgba(20,30,48,.88) !important;
+    border-color:#235347 !important;
+    color:#DAF1DE !important;
+}
+.bi-shell .bi-title,
+.bi-shell .metric-value,
+.bi-shell .panel-title,
+.bi-shell .breakdown-label,
+.bi-shell .insight-title { color:#DAF1DE !important; }
+.bi-shell .bi-desc,
+.bi-shell .metric-label,
+.bi-shell .summary,
+.bi-shell .breakdown-detail,
+.bi-shell .insight-detail,
+.bi-shell .bi-filter-field label,
+.bi-shell .bi-filter-active { color:#8EB69B !important; }
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit {
+    background:#023859 !important;
+    border-color:#26658C !important;
+    color:#A7EBF2 !important;
+}
+.bi-shell .metric-delta,
+.bi-shell .insight-badge {
+    background:rgba(84,172,191,.16) !important;
+    color:#A7EBF2 !important;
+    border-color:#35577D !important;
+}
+.bi-shell .metric-meter {
+    background:rgba(20,30,48,.7) !important;
+    border-color:#235347 !important;
+}
+.bi-shell .metric-meter > span,
+.bi-shell .breakdown-fill {
+    background:linear-gradient(90deg,#54ACBF,#26658C,#8EB69B) !important;
+}
+/* Full theme override */
+.bi-shell,
+.bi-shell * {
+    --ui-bg:#051F20 !important;
+    --ui-card:#0B2B26 !important;
+    --ui-ink:#DAF1DE !important;
+    --ui-muted:#8EB69B !important;
+    --ui-soft:#163332 !important;
+    --ui-line:#235347 !important;
+    --ui-accent:#54ACBF !important;
+    --ui-accent-2:#26658C !important;
+    --ui-danger:#35577D !important;
+}
+.bi-shell {
+    background:
+        radial-gradient(circle at 10% 0%, rgba(84,172,191,.22), transparent 28%),
+        radial-gradient(circle at 100% 0%, rgba(142,182,155,.18), transparent 30%),
+        linear-gradient(145deg, #051F20 0%, #141E30 62%, #023859 100%) !important;
+    color:#DAF1DE !important;
+}
+.bi-shell .bi-layout,
+.bi-shell .bi-content {
+    background:transparent !important;
+}
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .bi-header,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .bi-date-range {
+    background:linear-gradient(180deg, rgba(11,43,38,.94), rgba(20,30,48,.92)) !important;
+    border:1px solid #235347 !important;
+    box-shadow:0 16px 34px rgba(1,28,64,.38) !important;
+}
+.bi-shell .bi-tab {
+    background:rgba(20,30,48,.7) !important;
+    color:#8EB69B !important;
+    border-color:transparent !important;
+}
+.bi-shell .bi-tab.active {
+    background:rgba(84,172,191,.16) !important;
+    color:#DAF1DE !important;
+    border-color:#35577D !important;
+}
+.bi-shell .bi-title,
+.bi-shell .metric-value,
+.bi-shell .panel-title,
+.bi-shell .breakdown-label,
+.bi-shell .insight-title,
+.bi-shell .trend-value,
+.bi-shell .bi-filter-title {
+    color:#DAF1DE !important;
+}
+.bi-shell .bi-desc,
+.bi-shell .metric-label,
+.bi-shell .summary,
+.bi-shell .breakdown-detail,
+.bi-shell .insight-detail,
+.bi-shell .trend-label,
+.bi-shell .bi-filter-field label,
+.bi-shell .bi-filter-active,
+.bi-shell .bi-header-eyebrow {
+    color:#8EB69B !important;
+}
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input {
+    background:rgba(20,30,48,.92) !important;
+    border:1px solid #235347 !important;
+    color:#DAF1DE !important;
+}
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit,
+.bi-shell .bi-filter-agent-run {
+    background:#023859 !important;
+    border:1px solid #26658C !important;
+    color:#A7EBF2 !important;
+}
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-tabs-toggle,
+.bi-shell .bi-header-icon,
+.bi-shell .bi-calendar-icon,
+.bi-shell .bi-filter-agent-close {
+    background:rgba(20,30,48,.92) !important;
+    color:#A7EBF2 !important;
+    border:1px solid #235347 !important;
+}
+.bi-shell .metric-icon {
+    background:rgba(84,172,191,.14) !important;
+    color:#A7EBF2 !important;
+}
+.bi-shell .metric-delta,
+.bi-shell .insight-badge {
+    background:rgba(84,172,191,.12) !important;
+    color:#A7EBF2 !important;
+    border:1px solid #35577D !important;
+}
+.bi-shell .metric-meter,
+.bi-shell .breakdown-track {
+    background:rgba(20,30,48,.8) !important;
+    border-color:#235347 !important;
+}
+.bi-shell .metric-meter > span,
+.bi-shell .breakdown-fill,
+.bi-shell .trend-line {
+    background:linear-gradient(90deg,#54ACBF,#26658C,#8EB69B) !important;
+}
+.bi-shell .trend-grid-lines line,
+.bi-shell .trend-baseline,
+.bi-shell .trend-axis {
+    stroke:#235347 !important;
+}
+.bi-shell .trend-axis-label,
+.bi-shell .trend-y-label,
+.bi-shell .trend-point text {
+    fill:#8EB69B !important;
+}
+.bi-shell .trend-point circle {
+    fill:#54ACBF !important;
+    stroke:#A7EBF2 !important;
+}
+/* DashKit-style final layer */
+.bi-shell .bi-layout {
+    max-width: 1560px !important;
+    padding: 20px !important;
+    gap: 18px !important;
+}
+.bi-shell .bi-tabs-shell {
+    top: 88px !important;
+}
+.bi-shell .bi-tabs,
+.bi-shell .bi-filter-card,
+.bi-shell .bi-header,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .bi-filter-agent-drawer {
+    border-radius: 20px !important;
+    box-shadow: 0 18px 44px rgba(1,28,64,.22) !important;
+}
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs {
+    padding: 16px !important;
+}
+.bi-shell .bi-header {
+    padding: 22px 24px !important;
+    min-height: 210px;
+}
+.bi-shell .bi-title {
+    font-size: clamp(2.2rem, 3.2vw, 3.6rem) !important;
+    letter-spacing: -0.06em !important;
+}
+.bi-shell .bi-desc {
+    max-width: 52rem;
+    font-size: 1rem !important;
+    line-height: 1.65 !important;
+}
+.bi-shell .metric-grid {
+    gap: 16px !important;
+}
+.bi-shell .metric-card {
+    min-height: 180px !important;
+    padding: 18px 18px 16px !important;
+    background: linear-gradient(180deg, rgba(11,43,38,.92), rgba(20,30,48,.90)) !important;
+}
+.bi-shell .metric-label {
+    font-size: .74rem !important;
+    letter-spacing: .08em !important;
+}
+.bi-shell .metric-value {
+    font-size: clamp(1.9rem, 2.4vw, 2.55rem) !important;
+}
+.bi-shell .metric-meter {
+    height: 10px !important;
+    margin-top: 14px !important;
+}
+.bi-shell .dash-grid {
+    gap: 16px !important;
+}
+.bi-shell .dash-grid .panel:first-child {
+    min-height: 470px !important;
+}
+.bi-shell .panel {
+    padding: 18px !important;
+}
+.bi-shell .panel-title {
+    padding-bottom: 10px !important;
+    margin-bottom: 14px !important;
+}
+.bi-shell .trend-line-chart {
+    min-height: 320px !important;
+    border-radius: 18px !important;
+    background:
+        linear-gradient(180deg, rgba(84,172,191,.08), rgba(20,30,48,.02)),
+        rgba(11,43,38,.88) !important;
+}
+.bi-shell .zc-segmented {
+    gap: 10px !important;
+}
+.bi-shell .zc-segmented span {
+    border-radius: 12px !important;
+    background: rgba(20,30,48,.80) !important;
+    color: #8EB69B !important;
+}
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input,
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit,
+.bi-shell .bi-filter-agent-run {
+    min-height: 42px !important;
+}
+.bi-shell [style*="background:#fff"],
+.bi-shell [style*="background: #fff"],
+.bi-shell [style*="background:#ffffff"],
+.bi-shell [style*="background: #ffffff"],
+.bi-shell [style*="background:rgba(255,255,255"],
+.bi-shell [style*="background: rgba(255,255,255"],
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .bi-header,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .trend-line-chart,
+.bi-shell .breakdown-track,
+.bi-shell .bi-date-range,
+.bi-shell .bi-filter-agent-drawer,
+.bi-shell .zc-segmented span,
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input,
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-tabs-toggle,
+.bi-shell .bi-header-icon,
+.bi-shell .bi-calendar-icon,
+.bi-shell .bi-filter-agent-close,
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit,
+.bi-shell .bi-filter-agent-run {
+    background: rgba(20,30,48,.90) !important;
+    color: #DAF1DE !important;
+    border-color: rgba(84,172,191,.18) !important;
+}
+.bi-shell .trend-grid-lines line {
+    stroke: rgba(84,172,191,.14) !important;
+}
+.bi-shell .trend-area {
+    fill: url(#trendAreaGradient) !important;
+}
+.bi-shell .trend-line {
+    stroke: url(#trendLineGradient) !important;
+}
+.bi-shell .trend-point circle {
+    fill: #54ACBF !important;
+    stroke: #A7EBF2 !important;
+}
+.bi-shell .trend-point text,
+.bi-shell .trend-axis-label,
+.bi-shell .trend-y-label,
+.bi-shell .trend-empty {
+    fill: #8EB69B !important;
+}
+.bi-shell .metric-delta,
+.bi-shell .insight-badge {
+    background: rgba(84,172,191,.14) !important;
+    color: #A7EBF2 !important;
+    border: 1px solid rgba(84,172,191,.22) !important;
+}
+.bi-shell .bi-filter-active,
+.bi-shell .summary,
+.bi-shell .breakdown-detail,
+.bi-shell .insight-detail,
+.bi-shell .bi-desc,
+.bi-shell .trend-label,
+.bi-shell .bi-filter-field label {
+    color: #8EB69B !important;
+}
+.bi-shell .metric-icon {
+    background: rgba(84,172,191,.14) !important;
+    color: #A7EBF2 !important;
+}
+.bi-shell .metric-meter span,
+.bi-shell .breakdown-fill {
+    background: linear-gradient(90deg, #54ACBF, #26658C, #8EB69B) !important;
+}
+.bi-shell .bi-shell,
+.bi-shell .bi-layout,
+.bi-shell .bi-content,
+.bi-shell .bi-header,
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .bi-tabs-shell,
+.bi-shell .bi-filter-agent-drawer,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .trend-line-chart,
+.bi-shell .breakdown-panel,
+.bi-shell .insights-panel,
+.bi-shell .bi-date-range,
+.bi-shell .zc-segmented span,
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input,
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-tabs-toggle,
+.bi-shell .bi-header-icon,
+.bi-shell .bi-calendar-icon,
+.bi-shell .bi-filter-agent-close,
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit,
+.bi-shell .bi-filter-agent-run,
+.bi-shell .bi-ai-launcher,
+.bi-shell .bi-ai-pet {
+    border-color: #dfe7f2 !important;
+}
+.bi-shell .bi-header,
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .bi-filter-agent-drawer {
+    box-shadow: 0 14px 34px rgba(21, 38, 69, 0.08) !important;
+}
+.bi-shell .bi-content,
+.bi-shell .bi-layout,
+.bi-shell .bi-shell {
+    background:
+        radial-gradient(circle at 8% 0%, rgba(60, 108, 255, 0.10), transparent 26%),
+        radial-gradient(circle at 92% 4%, rgba(91, 196, 255, 0.10), transparent 26%),
+        linear-gradient(180deg, #f4f7fb 0%, #eef3f9 55%, #e9eef6 100%) !important;
+}
+.bi-shell .bi-tab,
+.bi-shell .bi-tab:hover,
+.bi-shell .bi-tab.active {
+    background: #f6f9ff !important;
+    color: #243750 !important;
+    border-color: #dce6f5 !important;
+}
+.bi-shell .bi-tab.active {
+    background: linear-gradient(180deg, #ffffff, #f1f6ff) !important;
+    border-left-color: #4f7cff !important;
+    box-shadow: 0 10px 24px rgba(56, 92, 164, 0.14) !important;
+}
+.bi-shell .bi-header-eyebrow,
+.bi-shell .bi-filter-title,
+.bi-shell .breakdown-label,
+.bi-shell .insight-title,
+.bi-shell .trend-value,
+.bi-shell .panel-title,
+.bi-shell .bi-title {
+    color: #1f2e46 !important;
+}
+.bi-shell .bi-header-text,
+.bi-shell .summary,
+.bi-shell .breakdown-detail,
+.bi-shell .insight-detail,
+.bi-shell .trend-label,
+.bi-shell .bi-desc,
+.bi-shell .bi-filter-field label,
+.bi-shell .bi-filter-active {
+    color: #5c6f88 !important;
+}
+.bi-shell .metric-value,
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input,
+.bi-shell .metric-label,
+.bi-shell .metric-delta,
+.bi-shell .insight-badge,
+.bi-shell .bi-date-range,
+.bi-shell .breakdown-track {
+    color: #1f2e46 !important;
+}
+.bi-shell .trend-grid-lines line {
+    stroke: #d8e3f2 !important;
+}
+.bi-shell .trend-axis-label,
+.bi-shell .trend-y-label,
+.bi-shell .trend-empty {
+    fill: #7b8fa8 !important;
+}
+.bi-shell .trend-line {
+    stroke: #4f7cff !important;
+}
+.bi-shell .trend-area {
+    fill: rgba(79, 124, 255, 0.14) !important;
+}
+.bi-shell .breakdown-fill,
+.bi-shell .metric-meter span {
+    background: linear-gradient(90deg, #4f7cff, #49b9ff, #7adfba) !important;
+}
+.bi-shell .bi-filter-submit,
+.bi-shell .bi-date-submit,
+.bi-shell .bi-filter-agent-run,
+.bi-shell .bi-ai-launcher,
+.bi-shell .bi-ai-pet,
+.bi-shell .bi-filter-reset {
+    background: linear-gradient(180deg, #4f7cff, #2f58d8) !important;
+    color: #ffffff !important;
+    border-color: #3f66de !important;
+}
+.bi-shell .bi-filter-submit:hover,
+.bi-shell .bi-date-submit:hover,
+.bi-shell .bi-filter-agent-run:hover,
+.bi-shell .bi-ai-launcher:hover,
+.bi-shell .bi-ai-pet:hover,
+.bi-shell .bi-filter-reset:hover {
+    background: linear-gradient(180deg, #5f8bff, #3e66e2) !important;
+}
+.bi-shell .bi-filter-card,
+.bi-shell .bi-tabs,
+.bi-shell .metric-card,
+.bi-shell .panel,
+.bi-shell .bi-filter-agent-drawer,
+.bi-shell .bi-header {
+    background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%) !important;
+}
+.bi-shell .metric-icon {
+    background: linear-gradient(180deg, #eef4ff, #e3edff) !important;
+    color: #2f58d8 !important;
+}
+.bi-shell .metric-delta,
+.bi-shell .insight-badge {
+    background: #eef4ff !important;
+    color: #2f58d8 !important;
+    border: 1px solid #d8e6ff !important;
+}
+.bi-shell .bi-filter-field select,
+.bi-shell .bi-date-input,
+.bi-shell .bi-filter-agent-input,
+.bi-shell .bi-date-range,
+.bi-shell .bi-tabs-toggle,
+.bi-shell .bi-filter-reset,
+.bi-shell .bi-header-icon,
+.bi-shell .bi-calendar-icon,
+.bi-shell .bi-filter-agent-close {
+    background: #ffffff !important;
+    color: #304562 !important;
+    border-color: #dce6f3 !important;
 }
 </style>
 }
@@ -2136,6 +2669,20 @@
                 </a>
             </div>
         </div>
+        <section id="biFilterAgentDrawer" class="bi-filter-agent-drawer" hidden aria-label="Filter Agent">
+            <div class="bi-filter-agent-head">
+                <strong>Filter Agent</strong>
+                <button type="button" id="biFilterAgentClose" class="bi-filter-agent-close" aria-label="Close filter agent">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+            <div class="bi-filter-agent-row">
+                <input id="biFilterAgentInputDrawer" class="bi-filter-agent-input" type="text" placeholder="facility Alnoor Muhaisnah, payer TPA004, from 2026-05-01 to 2026-05-27" />
+                <button type="button" id="biFilterAgentRunDrawer" class="bi-filter-agent-run">Run</button>
+            </div>
+            <div class="bi-filter-agent-hint">Understands: facility, receiver, payer, encounter type, date range.</div>
+            <div id="biFilterAgentStatusDrawer" class="bi-filter-agent-status" aria-live="polite"></div>
+        </section>
 
         <section class="metric-grid" aria-label="Dashboard metrics">
             @foreach (var metric in Model.Metrics)
@@ -2193,13 +2740,13 @@
                     <svg class="trend-svg" viewBox="0 0 720 290" role="img" aria-label="@Model.ActiveTab trend chart">
                         <defs>
                             <linearGradient id="trendAreaGradient" x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stop-color="#332985" stop-opacity=".24" />
-                                <stop offset="100%" stop-color="#c0863f" stop-opacity=".03" />
+                                <stop offset="0%" stop-color="#54ACBF" stop-opacity=".24" />
+                                <stop offset="100%" stop-color="#0B2B26" stop-opacity=".03" />
                             </linearGradient>
                             <linearGradient id="trendLineGradient" x1="0" x2="1" y1="0" y2="0">
-                                <stop offset="0%" stop-color="#332985" />
-                                <stop offset="62%" stop-color="#c0863f" />
-                                <stop offset="100%" stop-color="#c61f32" />
+                                <stop offset="0%" stop-color="#54ACBF" />
+                                <stop offset="62%" stop-color="#26658C" />
+                                <stop offset="100%" stop-color="#8EB69B" />
                             </linearGradient>
                         </defs>
                         <g class="trend-grid-lines">
@@ -2368,6 +2915,13 @@
     const agentInput = document.getElementById('biFilterAgentInput');
     const agentRun = document.getElementById('biFilterAgentRun');
     const agentStatus = document.getElementById('biFilterAgentStatus');
+    const drawer = document.getElementById('biFilterAgentDrawer');
+    const drawerInput = document.getElementById('biFilterAgentInputDrawer');
+    const drawerRun = document.getElementById('biFilterAgentRunDrawer');
+    const drawerStatus = document.getElementById('biFilterAgentStatusDrawer');
+    const drawerClose = document.getElementById('biFilterAgentClose');
+    const drawerFab = document.getElementById('biFilterAgentFab');
+    const launcher = document.querySelector('.bi-chat-icon');
     if (!filterForm || !dateForm || !agentInput || !agentRun || !agentStatus) return;
 
     const norm = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -2470,6 +3024,58 @@
         event.preventDefault();
         applyFromText();
     });
+
+    const syncStatus = () => {
+        if (!drawerStatus) return;
+        drawerStatus.textContent = agentStatus.textContent || '';
+        drawerStatus.className = agentStatus.className;
+    };
+
+    const runFromDrawer = () => {
+        if (!drawerInput) return;
+        agentInput.value = drawerInput.value;
+        applyFromText();
+        syncStatus();
+    };
+
+    if (drawerRun) {
+        drawerRun.addEventListener('click', runFromDrawer);
+    }
+    if (drawerInput) {
+        drawerInput.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            runFromDrawer();
+        });
+    }
+    if (launcher && drawer) {
+        launcher.addEventListener('click', () => {
+            const isHidden = drawer.hasAttribute('hidden');
+            if (isHidden) {
+                drawer.removeAttribute('hidden');
+                if (drawerInput) {
+                    drawerInput.value = agentInput.value;
+                    drawerInput.focus();
+                }
+                syncStatus();
+            } else {
+                drawer.setAttribute('hidden', 'hidden');
+            }
+        });
+    }
+    if (drawerFab && drawer) {
+        drawerFab.addEventListener('click', () => {
+            drawer.removeAttribute('hidden');
+            if (drawerInput) {
+                drawerInput.value = agentInput.value;
+                drawerInput.focus();
+            }
+            syncStatus();
+        });
+    }
+    if (drawerClose && drawer) {
+        drawerClose.addEventListener('click', () => drawer.setAttribute('hidden', 'hidden'));
+    }
 })();
 </script>
 }
