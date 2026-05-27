@@ -1,6 +1,8 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace Analytika.Services;
@@ -104,7 +106,7 @@ public class DashboardService : IDashboardService
                 return new FacilityStatusRow
                 {
                     FacilityId = f.Id,
-                    FacilityName = portal == "RHA" ? $"{f.Name} RHA" : f.Name,
+                    FacilityName = portal.Length > 0 ? $"{f.Name} {portal}" : f.Name,
                     HasCredential = portal.Length > 0,
                     Portal = portal.Length > 0 ? portal : null,
                     LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
@@ -201,20 +203,76 @@ public class DashboardService : IDashboardService
             _ => "Used to keep reporting aligned across dashboards."
         };
 
-        var profiles = new Dictionary<string, (string Summary, int Seed)>
+        var recordsQuery = _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.ReadyForReport);
+
+        recordsQuery = activeTab switch
         {
-            ["Submissions"] = ($"Claim submission volumes are stable with {stableFieldTitle} as the shared timeline field across exports.", 86),
-            ["Resubmissions"] = ($"Resubmission queues are trending down as aging worklists clear, organized by {stableFieldTitle}.", 64),
-            ["Remittance"] = ("Collections remain healthy with a focused reconciliation backlog.", 78),
-            ["Denials"] = ("Denial pressure is concentrated in authorization and coding categories.", 52),
-            ["Clinicians"] = ("Clinician productivity is balanced, with a few outliers needing follow-up.", 71),
-            ["Operations"] = ("Operational throughput is steady and turnaround time is within target.", 83),
-            ["Insurance"] = ("Payer performance is mixed; two networks are driving most exceptions.", 67),
-            ["Department"] = ("Department-level activity is led by emergency, cardiology, and radiology.", 75)
+            "Submissions" => recordsQuery.Where(r => r.RecordKind == "Submission"),
+            "Resubmissions" => recordsQuery.Where(r => r.ResubmissionType != null && r.ResubmissionType != ""),
+            "Remittance" => recordsQuery.Where(r => r.RecordKind == "Remittance"),
+            "Denials" => recordsQuery.Where(r => r.DenialCodesJson != null && r.DenialCodesJson != ""),
+            "Clinicians" => recordsQuery.Where(r => r.Clinician != null && r.Clinician != ""),
+            _ => recordsQuery
         };
 
-        var profile = profiles[activeTab];
-        var seed = profile.Seed;
+        if (filters.FacilityId.HasValue)
+            recordsQuery = recordsQuery.Where(r => r.FacilityId == filters.FacilityId.Value);
+
+        if (!string.IsNullOrWhiteSpace(filters.Receiver))
+            recordsQuery = recordsQuery.Where(r => (r.ReceiverName ?? r.ReceiverId) == filters.Receiver);
+
+        if (!string.IsNullOrWhiteSpace(filters.Payer))
+            recordsQuery = recordsQuery.Where(r => (r.PayerName ?? r.PayerId) == filters.Payer);
+
+        if (!string.IsNullOrWhiteSpace(filters.EncounterType))
+            recordsQuery = recordsQuery.Where(r => r.EncounterType == filters.EncounterType);
+
+        var datedRecords = (await recordsQuery.ToListAsync())
+            .Select(r => new { Record = r, Date = DashboardDate(r) })
+            .Where(r => (!filters.DateFrom.HasValue || (r.Date.HasValue && r.Date.Value >= filters.DateFrom.Value)) &&
+                        (!filters.DateTo.HasValue || (r.Date.HasValue && r.Date.Value <= filters.DateTo.Value)))
+            .ToList();
+
+        var records = datedRecords.Select(r => r.Record).ToList();
+        var distinctClaimCount = records
+            .Select(r => string.IsNullOrWhiteSpace(r.ClaimId) ? $"record:{r.Id}" : r.ClaimId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        var netAmount = records.Sum(r => r.NetAmount);
+        var deniedCount = records.Count(HasDenial);
+        var cleanRate = records.Count == 0
+            ? 0
+            : (int)Math.Round((records.Count - deniedCount) * 100.0 / records.Count);
+        var tatDays = AverageTatDays(records);
+
+        var trend = datedRecords
+            .Where(r => r.Date.HasValue)
+            .GroupBy(r => new DateOnly(r.Date!.Value.Year, r.Date.Value.Month, 1))
+            .OrderBy(g => g.Key)
+            .Select(g => new DashboardTrendPoint
+            {
+                Label = g.Key.ToString("MMM yy", CultureInfo.InvariantCulture),
+                Value = g.Select(x => string.IsNullOrWhiteSpace(x.Record.ClaimId) ? $"record:{x.Record.Id}" : x.Record.ClaimId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count()
+            })
+            .TakeLast(12)
+            .ToList();
+
+        var breakdown = BuildBreakdown(activeTab, records);
+        var pendingFiles = await CountPendingFilesAsync(filters);
+        var latestDate = datedRecords
+            .Where(r => r.Date.HasValue)
+            .Select(r => r.Date!.Value)
+            .DefaultIfEmpty()
+            .Max();
+        var hasLatestDate = latestDate != default;
+        var scopeText = BuildScopeText(filters, records.Count);
+        var summary = records.Count == 0
+            ? "No parsed portal records match the selected filters."
+            : $"{activeTab} is calculated from {records.Count:N0} parsed records and {distinctClaimCount:N0} distinct claims. {scopeText}";
 
         return new RCMDashboardViewModel
         {
@@ -222,7 +280,7 @@ public class DashboardService : IDashboardService
             Tabs = tabs,
             StableFieldTitle = stableFieldTitle,
             StableFieldDetail = stableFieldDetail,
-            Summary = profile.Summary,
+            Summary = summary,
             RefreshedAt = DateTime.Now,
             Filters = filters,
             FacilityOptions = facilityOptions,
@@ -231,33 +289,180 @@ public class DashboardService : IDashboardService
             EncounterTypeOptions = encounterTypeOptions,
             Metrics =
             [
-                new DashboardMetric { Label = "Total Claims", Value = $"{seed * 124:N0}", Delta = "+8.4%", Icon = "fa-file-medical", Tone = "teal" },
-                new DashboardMetric { Label = "Net Value", Value = $"AED {seed * 18:N0}K", Delta = "+5.1%", Icon = "fa-coins", Tone = "gold" },
-                new DashboardMetric { Label = "Clean Rate", Value = $"{Math.Min(seed + 9, 96)}%", Delta = "+2.7%", Icon = "fa-circle-check", Tone = "green" },
-                new DashboardMetric { Label = "TAT", Value = $"{Math.Max(2, 14 - seed % 9)} days", Delta = "-1.3d", Icon = "fa-clock", Tone = "blue" }
+                new DashboardMetric { Label = "Total Claims", Value = $"{distinctClaimCount:N0}", Delta = "Parsed claims", Icon = "fa-file-medical", Tone = "teal" },
+                new DashboardMetric { Label = "Net Value", Value = FormatMoney(netAmount), Delta = "Claim net sum", Icon = "fa-coins", Tone = "gold" },
+                new DashboardMetric { Label = "Clean Rate", Value = records.Count == 0 ? "0%" : $"{cleanRate}%", Delta = $"{deniedCount:N0} denied", Icon = "fa-circle-check", Tone = "green" },
+                new DashboardMetric { Label = "TAT", Value = tatDays.HasValue ? $"{tatDays.Value:N0} days" : "N/A", Delta = "Actual dates", Icon = "fa-clock", Tone = "blue" }
             ],
-            Trend =
-            [
-                new DashboardTrendPoint { Label = "Jan", Value = seed - 18 },
-                new DashboardTrendPoint { Label = "Feb", Value = seed - 10 },
-                new DashboardTrendPoint { Label = "Mar", Value = seed - 4 },
-                new DashboardTrendPoint { Label = "Apr", Value = seed + 3 },
-                new DashboardTrendPoint { Label = "May", Value = seed + 8 },
-                new DashboardTrendPoint { Label = "Jun", Value = seed + 12 }
-            ],
-            Breakdown =
-            [
-                new DashboardBreakdownItem { Label = "Emergency", Value = seed + 10, Detail = "Highest activity" },
-                new DashboardBreakdownItem { Label = "Cardiology", Value = seed - 4, Detail = "Within target" },
-                new DashboardBreakdownItem { Label = "Radiology", Value = seed - 12, Detail = "Watchlist" },
-                new DashboardBreakdownItem { Label = "Orthopedics", Value = seed - 18, Detail = "Improving" }
-            ],
+            Trend = trend,
+            Breakdown = breakdown,
             Insights =
             [
-                new DashboardInsight { Title = "Priority focus", Detail = $"{activeTab} exceptions are concentrated in three queues.", Status = "Action" },
-                new DashboardInsight { Title = "Best performer", Detail = "Clean claims improved across the latest reporting cycle.", Status = "Good" },
-                new DashboardInsight { Title = "Risk signal", Detail = "Aging work above seven days needs daily review.", Status = "Watch" }
+                records.Count == 0
+                    ? new DashboardInsight { Title = "No matching data", Detail = "Fetch and parse portal XML records for this filter scope.", Status = "Empty" }
+                    : new DashboardInsight { Title = "Current scope", Detail = $"{records.Count:N0} parsed records are included in the active dashboard calculation.", Status = "Actual" },
+                pendingFiles > 0
+                    ? new DashboardInsight { Title = "Pending files", Detail = $"{pendingFiles:N0} portal transaction files are still not downloaded.", Status = "Action" }
+                    : new DashboardInsight { Title = "Downloaded files", Detail = "No pending portal transaction downloads were found for this facility scope.", Status = "Clear" },
+                hasLatestDate
+                    ? new DashboardInsight { Title = "Latest activity", Detail = $"Latest parsed reporting date is {latestDate:dd MMM yyyy}.", Status = "Fresh" }
+                    : new DashboardInsight { Title = "Latest activity", Detail = "No reportable dates were found in the selected records.", Status = "Empty" }
             ]
         };
+    }
+
+    private async Task<int> CountPendingFilesAsync(RcmDashboardFilters filters)
+    {
+        var query = _db.PortalTransactions.AsNoTracking().Where(t => !t.FileDownloaded);
+        if (filters.FacilityId.HasValue)
+            query = query.Where(t => t.FacilityId == filters.FacilityId.Value);
+
+        return await query.CountAsync();
+    }
+
+    private static List<DashboardBreakdownItem> BuildBreakdown(string activeTab, List<XmlParsedRecord> records)
+    {
+        IEnumerable<IGrouping<string, XmlParsedRecord>> groups = activeTab switch
+        {
+            "Denials" => records
+                .SelectMany(r => DenialCodes(r).DefaultIfEmpty("Uncoded").Select(code => new { Code = code, Record = r }))
+                .GroupBy(x => x.Code, x => x.Record),
+            "Clinicians" => records.GroupBy(r => CleanGroup(r.Clinician, "Unassigned clinician")),
+            "Insurance" or "Remittance" => records.GroupBy(r => CleanGroup(r.PayerName ?? r.PayerId, "Unassigned payer")),
+            "Department" or "Operations" => records.GroupBy(r => CleanGroup(r.EncounterType, "Unspecified encounter")),
+            "Resubmissions" => records.GroupBy(r => CleanGroup(r.ResubmissionType, "Unspecified resubmission")),
+            _ => records.GroupBy(r => CleanGroup(r.EncounterType ?? r.ReceiverName ?? r.ReceiverId, "Unspecified"))
+        };
+
+        return groups
+            .Select(g => new DashboardBreakdownItem
+            {
+                Label = g.Key,
+                Value = g.Select(r => string.IsNullOrWhiteSpace(r.ClaimId) ? $"record:{r.Id}" : r.ClaimId)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count(),
+                Detail = $"{g.Count():N0} parsed records"
+            })
+            .OrderByDescending(x => x.Value)
+            .ThenBy(x => x.Label)
+            .Take(8)
+            .ToList();
+    }
+
+    private static string CleanGroup(string? value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+
+    private static bool HasDenial(XmlParsedRecord record)
+        => DenialCodes(record).Count > 0;
+
+    private static List<string> DenialCodes(XmlParsedRecord record)
+    {
+        if (string.IsNullOrWhiteSpace(record.DenialCodesJson))
+            return [];
+
+        try
+        {
+            var codes = JsonSerializer.Deserialize<List<string>>(record.DenialCodesJson);
+            if (codes != null)
+                return codes.Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+        catch (JsonException)
+        {
+            // Some legacy imports stored denial codes as delimited text instead of JSON.
+        }
+
+        return record.DenialCodesJson
+            .Split([',', ';', '|', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static DateOnly? DashboardDate(XmlParsedRecord record)
+        => TryDate(record.TreatmentDate)
+            ?? TryDate(record.SubmissionDate)
+            ?? TryDate(record.TransactionDate)
+            ?? TryDate(record.SettlementDate)
+            ?? ServiceMonthDate(record)
+            ?? DateOnly.FromDateTime(record.ParsedAt);
+
+    private static DateOnly? ServiceMonthDate(XmlParsedRecord record)
+    {
+        if (int.TryParse(record.ServiceYear, out var year) &&
+            int.TryParse(record.ServiceMonth, out var month) &&
+            year is >= 1900 and <= 2200 &&
+            month is >= 1 and <= 12)
+        {
+            return new DateOnly(year, month, 1);
+        }
+
+        return null;
+    }
+
+    private static DateOnly? TryDate(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var formats = new[]
+        {
+            "yyyy-MM-dd",
+            "yyyy-MM-ddTHH:mm:ss",
+            "dd/MM/yyyy",
+            "dd/MM/yyyy HH:mm:ss",
+            "MM/dd/yyyy",
+            "MM/dd/yyyy HH:mm:ss"
+        };
+
+        if (DateTime.TryParseExact(raw.Trim(), formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var exact))
+            return DateOnly.FromDateTime(exact);
+
+        if (DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
+            return DateOnly.FromDateTime(parsed);
+
+        return null;
+    }
+
+    private static int? AverageTatDays(List<XmlParsedRecord> records)
+    {
+        var values = records
+            .Select(r =>
+            {
+                var start = TryDate(r.TreatmentDate) ?? TryDate(r.SubmissionDate) ?? TryDate(r.TransactionDate);
+                var end = TryDate(r.SettlementDate) ?? (r.MatchedAt.HasValue ? DateOnly.FromDateTime(r.MatchedAt.Value) : null);
+                return start.HasValue && end.HasValue && end.Value >= start.Value
+                    ? end.Value.DayNumber - start.Value.DayNumber
+                    : (int?)null;
+            })
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value)
+            .ToList();
+
+        return values.Count == 0 ? null : (int)Math.Round(values.Average());
+    }
+
+    private static string FormatMoney(decimal amount)
+    {
+        var abs = Math.Abs(amount);
+        return abs switch
+        {
+            >= 1_000_000 => $"AED {amount / 1_000_000m:N1}M",
+            >= 1_000 => $"AED {amount / 1_000m:N0}K",
+            _ => $"AED {amount:N0}"
+        };
+    }
+
+    private static string BuildScopeText(RcmDashboardFilters filters, int recordCount)
+    {
+        var parts = new List<string>();
+        if (filters.FacilityId.HasValue) parts.Add($"facility #{filters.FacilityId.Value}");
+        if (!string.IsNullOrWhiteSpace(filters.Receiver)) parts.Add($"receiver {filters.Receiver}");
+        if (!string.IsNullOrWhiteSpace(filters.Payer)) parts.Add($"payer {filters.Payer}");
+        if (!string.IsNullOrWhiteSpace(filters.EncounterType)) parts.Add($"encounter {filters.EncounterType}");
+        if (filters.DateFrom.HasValue || filters.DateTo.HasValue)
+            parts.Add($"dates {(filters.DateFrom?.ToString("dd/MM/yyyy") ?? "start")} to {(filters.DateTo?.ToString("dd/MM/yyyy") ?? "today")}");
+
+        return parts.Count == 0
+            ? "No filters are applied."
+            : $"Applied filters: {string.Join(", ", parts)}.";
     }
 }

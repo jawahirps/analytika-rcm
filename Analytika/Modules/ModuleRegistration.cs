@@ -80,8 +80,8 @@ public static class ModuleRegistration
         services.AddScoped<IRhaPortalService, RhaPortalService>();
         services.AddScoped<PortalSyncService>();
         services.AddScoped<ReconciliationService>();
-        services.AddScoped<RemittanceParserService>();
         services.AddScoped<XmlParsingService>();
+        services.AddScoped<ResubmissionProjectionService>();
         return services;
     }
 

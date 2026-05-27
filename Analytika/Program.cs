@@ -120,10 +120,10 @@ if (recurringJobsEnabled)
         svc => svc.RunDailyDhaSyncAsync(),
         Cron.Daily(2));
 
-    // Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
-    RecurringJob.AddOrUpdate<RemittanceParserService>(
-        "remittance-auto-parse",
-        svc => svc.ParsePendingAsync(null),
+    // Every 2 hours: run the unified XML parser and refresh the resubmission queue projection.
+    RecurringJob.AddOrUpdate<ResubmissionProjectionService>(
+        "resubmission-queue-projection",
+        svc => svc.ParseXmlAndSyncAsync(null, CancellationToken.None),
         "0 */2 * * *");
 }
 else

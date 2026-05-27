@@ -14,14 +14,14 @@ public class ResubmissionController : Controller
 {
     private readonly AppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly RemittanceParserService _parser;
+    private readonly ResubmissionProjectionService _projection;
 
     public ResubmissionController(AppDbContext db, UserManager<ApplicationUser> userManager,
-        RemittanceParserService parser)
+        ResubmissionProjectionService projection)
     {
         _db = db;
         _userManager = userManager;
-        _parser = parser;
+        _projection = projection;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────────────
@@ -70,6 +70,18 @@ public class ResubmissionController : Controller
             .Skip((page - 1) * pageSize).Take(pageSize)
             .ToListAsync();
 
+        var remittanceHistory = await _db.RemittanceClaims
+            .AsNoTracking()
+            .Select(rc => new DenialHistory
+            {
+                Id = rc.Id,
+                DenialCodesJson = rc.DenialCodesJson,
+                ClaimCategory = rc.ClaimCategory,
+                PaidAmount = rc.PaidAmount
+            })
+            .ToListAsync();
+        ViewBag.DenialInsights = BuildDenialInsights(items, remittanceHistory);
+
         // Summary counts
         var all = _db.RemittanceClaims.Include(rc => rc.Task).AsNoTracking();
         if (!isAdmin) all = all.Where(rc => rc.Task != null && rc.Task.AssignedToUserId == userId);
@@ -115,8 +127,10 @@ public class ResubmissionController : Controller
     [Authorize(Roles = "Admin,FacilityAdmin,Analyst")]
     public async Task<IActionResult> Parse(int? facilityId)
     {
-        var (parsed, skipped, errors) = await _parser.ParsePendingAsync(facilityId);
-        TempData["Success"] = $"Parsed {parsed} remittance file(s). Skipped: {skipped}. Errors: {errors}.";
+        var result = await _projection.ParseXmlAndSyncAsync(facilityId);
+        TempData["Success"] =
+            $"XML parsed {result.XmlFilesParsed} file(s), saved {result.XmlRowsSaved} parsed row(s), " +
+            $"projected {result.CreatedQueueRows} resubmission queue row(s).";
         return RedirectToAction(nameof(Index));
     }
 
@@ -149,6 +163,17 @@ public class ResubmissionController : Controller
         ViewBag.DenialCodes = claim.DenialCodesJson != null
             ? JsonSerializer.Deserialize<List<string>>(claim.DenialCodesJson) ?? new()
             : new List<string>();
+        var remittanceHistory = await _db.RemittanceClaims
+            .AsNoTracking()
+            .Select(rc => new DenialHistory
+            {
+                Id = rc.Id,
+                DenialCodesJson = rc.DenialCodesJson,
+                ClaimCategory = rc.ClaimCategory,
+                PaidAmount = rc.PaidAmount
+            })
+            .ToListAsync();
+        ViewBag.DenialInsight = BuildDenialInsights(new[] { claim }, remittanceHistory).GetValueOrDefault(claim.Id);
 
         return View(claim);
     }
@@ -466,6 +491,108 @@ public class ResubmissionController : Controller
             _ => "Other"
         };
     }
+
+    private static Dictionary<int, DenialIntelligence> BuildDenialInsights(
+        IEnumerable<RemittanceClaim> visibleClaims,
+        IEnumerable<DenialHistory> remittanceHistory)
+    {
+        var history = remittanceHistory.Select(r => new
+        {
+            r.Id,
+            Codes = ParseDenialCodes(r.DenialCodesJson),
+            r.ClaimCategory,
+            r.PaidAmount
+        }).ToList();
+
+        var codeCounts = history
+            .SelectMany(r => r.Codes)
+            .GroupBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var paidCodes = history
+            .Where(r => r.PaidAmount > 0)
+            .SelectMany(r => r.Codes)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return visibleClaims.ToDictionary(claim => claim.Id, claim =>
+        {
+            var codes = ParseDenialCodes(claim.DenialCodesJson);
+            var codeCategories = codes
+                .Select(DenialCategory)
+                .Where(c => c != "Other")
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var primaryCategory = codeCategories.Count switch
+            {
+                0 => string.IsNullOrWhiteSpace(claim.ClaimCategory) ? "Unknown" : claim.ClaimCategory,
+                1 => codeCategories[0],
+                _ => "Mixed"
+            };
+
+            var repeatedCodes = codes
+                .Where(code => codeCounts.TryGetValue(code, out var count) && count > 1)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var neverPaidCodes = codes
+                .Where(code => !paidCodes.Contains(code))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new DenialIntelligence
+            {
+                Category = primaryCategory,
+                IsTechnical = primaryCategory is "Technical" or "Mixed",
+                IsMedical = primaryCategory is "Medical" or "Mixed",
+                IsRecursivePattern = repeatedCodes.Count > 0,
+                IsRedAlert = neverPaidCodes.Count > 0 && claim.PaidAmount <= 0,
+                RepeatedCodes = repeatedCodes,
+                NeverPaidCodes = neverPaidCodes
+            };
+        });
+    }
+
+    private static List<string> ParseDenialCodes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json == "[]")
+            return [];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json)?
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Select(c => c.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList() ?? [];
+        }
+        catch (JsonException)
+        {
+            return json
+                .Split([',', ';', '|', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+    }
+}
+
+public class DenialIntelligence
+{
+    public string Category { get; set; } = "Unknown";
+    public bool IsTechnical { get; set; }
+    public bool IsMedical { get; set; }
+    public bool IsRecursivePattern { get; set; }
+    public bool IsRedAlert { get; set; }
+    public List<string> RepeatedCodes { get; set; } = [];
+    public List<string> NeverPaidCodes { get; set; } = [];
+}
+
+public class DenialHistory
+{
+    public int Id { get; set; }
+    public string? DenialCodesJson { get; set; }
+    public string ClaimCategory { get; set; } = "Unknown";
+    public decimal PaidAmount { get; set; }
 }
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace Analytika.Models;
 
@@ -11,54 +12,64 @@ public static class SeedData
             serviceProvider.GetRequiredService<DbContextOptions<AppDbContext>>());
 
         // Seed facilities
-        if (!context.Facilities.Any())
+        var requiredFacilities = new[]
         {
-            context.Facilities.AddRange(
-                new Facility { Name = "Alnoor Deira" },
-                new Facility { Name = "Alnoor Rashidiya" },
-                new Facility { Name = "Alnoor Abu Dhabi" }
-            );
-        }
+            "Alnoor Deira",
+            "Alnoor Rashidiya",
+            "Alnoor Abu Dhabi",
+            "Noor Al Shifa Medical Center Ajman",
+            "Noor Al Shifa Medical Center UAQ"
+        };
 
-        if (!context.Receivers.Any())
+        foreach (var facilityName in requiredFacilities)
         {
-            context.Receivers.AddRange(
-                new Receiver { Name = "Neuron LLC - Dha" },
-                new Receiver { Name = "Mednet UAE" },
-                new Receiver { Name = "Emirates Insurance" }
-            );
-        }
-
-        if (!context.Payers.Any())
-        {
-            context.Payers.AddRange(
-                new Payer { Name = "Dewa - Dha" },
-                new Payer { Name = "Dubai Health Authority" },
-                new Payer { Name = "ADNIC" },
-                new Payer { Name = "AXA Gulf" }
-            );
-        }
-
-        if (!context.Clinicians.Any())
-        {
-            context.Clinicians.AddRange(
-                new Clinician { Name = "Dr. Ahmed Al Mansoori" },
-                new Clinician { Name = "Dr. Sara Hassan" },
-                new Clinician { Name = "Dr. Mohammed Al Rashidi" }
-            );
-        }
-
-        if (!context.Departments.Any())
-        {
-            context.Departments.AddRange(
-                new Department { Name = "Emergency" },
-                new Department { Name = "Cardiology" },
-                new Department { Name = "Orthopedics" },
-                new Department { Name = "Radiology" }
-            );
+            if (!await context.Facilities.AnyAsync(f => f.Name == facilityName))
+            {
+                context.Facilities.Add(new Facility { Name = facilityName, IsActive = true });
+            }
         }
 
         await context.SaveChangesAsync();
+
+        await UpsertPortalCredentialAsync(
+            context,
+            "Noor Al Shifa Medical Center Ajman",
+            "DHA",
+            "Noor Al Shifa Ajman eClaim",
+            "NOOR AL SHIFA",
+            "NOOR@1232024",
+            "https://dhpo.eclaimlink.ae",
+            null);
+
+        await UpsertPortalCredentialAsync(
+            context,
+            "Noor Al Shifa Medical Center Ajman",
+            "RHA",
+            "Noor Al Shifa Ajman RHA",
+            "info@nooralshifa.ae",
+            "NOORalshifa@2026",
+            "https://tmbapi.riayati.ae:8083",
+            "c03ab47d-afeb-4dfa-a048-856338db3764");
+
+        await UpsertPortalCredentialAsync(
+            context,
+            "Noor Al Shifa Medical Center UAQ",
+            "DHA",
+            "Noor Al Shifa UAQ eClaim",
+            "NOOR AL SHIFA UAQ",
+            "Noor@2025",
+            "https://dhpo.eclaimlink.ae",
+            null);
+
+        await UpsertPortalCredentialAsync(
+            context,
+            "Noor Al Shifa Medical Center UAQ",
+            "RHA",
+            "Noor Al Shifa UAQ RHA",
+            "infouaq@nooralshifa.ae",
+            "Noor@0542321553",
+            "https://tmbapi.riayati.ae:8083",
+            "385a3b2b-5168-4df4-ae8d-edc9559f1987");
 
         // Seed admin user
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -81,35 +92,47 @@ public static class SeedData
             await userManager.AddToRoleAsync(admin, "Admin");
         }
 
-        // Seed demo report requests
-        if (!context.ReportRequests.Any())
-        {
-            var random = new Random(42);
-            var statuses = new[] { "Completed", "Pending", "Processing", "Failed" };
-            var reportTypes = new[] { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle" };
+    }
 
-            for (int i = 1; i <= 50; i++)
+    private static async Task UpsertPortalCredentialAsync(
+        AppDbContext context,
+        string facilityName,
+        string portal,
+        string credentialName,
+        string username,
+        string password,
+        string apiBaseUrl,
+        string? licenseCode)
+    {
+        var facility = await context.Facilities.FirstAsync(f => f.Name == facilityName);
+        var encodedPassword = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
+        var existing = await context.PortalCredentials
+            .FirstOrDefaultAsync(c => c.FacilityId == facility.Id && c.Portal == portal);
+
+        if (existing == null)
+        {
+            context.PortalCredentials.Add(new PortalCredential
             {
-                var from = new DateTime(2026, 1, 1).AddDays(random.Next(0, 60));
-                context.ReportRequests.Add(new ReportRequest
-                {
-                    ReportId = $"ANA-{3000000 + i:D7}",
-                    ReportType = reportTypes[random.Next(reportTypes.Length)],
-                    BranchId = random.Next(1, 4),
-                    ReceiverId = random.Next(1, 4),
-                    PayerId = random.Next(1, 5),
-                    ClinicianId = random.Next(1, 4),
-                    DepartmentId = random.Next(1, 5),
-                    DateFrom = from,
-                    DateTo = from.AddDays(random.Next(7, 60)),
-                    Status = statuses[random.Next(statuses.Length)],
-                    RequestedAt = from.AddDays(-1),
-                    GeneratedAt = DateTime.UtcNow.AddDays(-random.Next(1, 30)),
-                    FileFormat = "Excel",
-                    RequestedBy = "admin@ghafbi.ae"
-                });
-            }
+                Portal = portal,
+                FacilityId = facility.Id,
+                CredentialName = credentialName,
+                Username = username,
+                PasswordEncrypted = encodedPassword,
+                ApiBaseUrl = apiBaseUrl,
+                LicenseCode = licenseCode,
+                IsActive = true
+            });
             await context.SaveChangesAsync();
+            return;
         }
+
+        existing.CredentialName = credentialName;
+        existing.Username = username;
+        existing.PasswordEncrypted = encodedPassword;
+        existing.ApiBaseUrl = apiBaseUrl;
+        existing.LicenseCode = licenseCode;
+        existing.IsActive = true;
+        existing.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
     }
 }

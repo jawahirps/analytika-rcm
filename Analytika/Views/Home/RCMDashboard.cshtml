@@ -15,8 +15,8 @@
         ["Department"]    = ("fa-building",        "Department and facility performance breakdown"),
     };
 
-    var maxTrend = Math.Max(1, Model.Trend.Max(x => x.Value));
-    var maxBreakdown = Math.Max(1, Model.Breakdown.Max(x => x.Value));
+    var maxTrend = Math.Max(1, Model.Trend.Any() ? Model.Trend.Max(x => x.Value) : 0);
+    var maxBreakdown = Math.Max(1, Model.Breakdown.Any() ? Model.Breakdown.Max(x => x.Value) : 0);
     var reportDateFrom = Model.Filters.DateFrom ?? new DateOnly(2023, 1, 1);
     var reportDateTo = Model.Filters.DateTo ?? DateOnly.FromDateTime(DateTime.Today);
     var reportDateFromText = reportDateFrom.ToString("dd/MM/yyyy");
@@ -631,6 +631,1322 @@
         height:38px;
     }
 }
+
+/* VaultX-inspired sky dashboard redesign */
+:root {
+    --sky-hero:#25a9ec;
+    --sky-deep:#0782c8;
+    --sky-soft:#dff5ff;
+    --ink-blue:#102f55;
+    --muted-blue:#5f7c96;
+    --glass:rgba(255,255,255,.72);
+    --glass-strong:rgba(255,255,255,.9);
+    --glass-line:rgba(255,255,255,.55);
+    --shadow-blue:rgba(15,85,130,.18);
+}
+.bi-shell {
+    min-height:calc(100vh - 56px);
+    position:relative;
+    overflow:hidden;
+    background:
+        radial-gradient(circle at 14% 8%, rgba(255,255,255,.82) 0 5%, transparent 16%),
+        radial-gradient(circle at 86% 4%, rgba(255,255,255,.6) 0 7%, transparent 18%),
+        linear-gradient(180deg, #effbff 0%, #ffffff 48%, #eaf8ff 100%) !important;
+    color:var(--ink-blue);
+}
+.bi-shell::before {
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    opacity:.72;
+    background:
+        radial-gradient(ellipse at 18% 8%, rgba(255,255,255,.8) 0 5%, transparent 18%),
+        radial-gradient(ellipse at 76% 12%, rgba(255,255,255,.72) 0 6%, transparent 20%),
+        linear-gradient(180deg, rgba(37,169,236,.26), transparent 45%),
+        url("data:image/svg+xml,%3Csvg width='1600' height='900' viewBox='0 0 1600 900' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 770 C180 690 260 750 410 690 C560 630 690 670 820 620 C980 558 1080 645 1240 586 C1405 525 1510 610 1600 548 L1600 900 L0 900 Z' fill='%239bdcbb' fill-opacity='.48'/%3E%3Cpath d='M0 822 C210 742 315 805 476 740 C628 678 742 720 890 682 C1038 644 1156 710 1308 662 C1450 617 1538 658 1600 626 L1600 900 L0 900 Z' fill='%235fbf93' fill-opacity='.42'/%3E%3Cpath d='M0 858 C220 805 400 852 570 806 C738 760 878 815 1040 776 C1202 737 1395 782 1600 724 L1600 900 L0 900 Z' fill='%23d7f3ff' fill-opacity='.7'/%3E%3Cg stroke='%238ed8ff' stroke-opacity='.22' fill='none'%3E%3Cpath d='M40 420 C220 320 310 460 458 365 S724 320 890 410 1210 500 1500 332'/%3E%3Cpath d='M120 520 C300 444 440 555 610 472 S920 440 1110 505 1360 548 1540 465'/%3E%3C/g%3E%3C/svg%3E");
+    background-size:cover;
+    background-position:center bottom;
+}
+.bi-layout {
+    position:relative;
+    z-index:1;
+    max-width:1480px;
+    padding:1.15rem;
+    gap:1rem;
+}
+.bi-filter-card,
+.bi-tabs,
+.metric-grid,
+.panel {
+    background:var(--glass) !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    border-radius:22px !important;
+    box-shadow:0 20px 60px var(--shadow-blue), inset 0 1px 0 rgba(255,255,255,.72) !important;
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+}
+.bi-header {
+    position:relative;
+    min-height:360px;
+    margin-bottom:1.15rem;
+    overflow:hidden;
+    align-items:flex-start;
+    justify-content:space-between;
+    padding:3.1rem 3.3rem 6rem;
+    color:#fff;
+    background:
+        radial-gradient(circle at 18% 26%, rgba(255,255,255,.72) 0 6%, transparent 18%),
+        radial-gradient(circle at 80% 22%, rgba(255,255,255,.5) 0 6%, transparent 19%),
+        linear-gradient(135deg, var(--sky-hero) 0%, #16a5e7 48%, var(--sky-deep) 100%) !important;
+    border:0 !important;
+    border-radius:26px 26px 0 0 !important;
+    clip-path:polygon(0 0, 100% 0, 100% 78%, 50% 100%, 0 78%);
+    box-shadow:0 28px 80px rgba(7,130,200,.28) !important;
+}
+.bi-header::before,
+.bi-header::after {
+    content:"";
+    position:absolute;
+    pointer-events:none;
+    border-radius:999px;
+    background:rgba(255,255,255,.36);
+    filter:blur(22px);
+}
+.bi-header::before {
+    width:220px;
+    height:80px;
+    left:12%;
+    top:32%;
+}
+.bi-header::after {
+    width:280px;
+    height:96px;
+    right:10%;
+    top:16%;
+}
+.bi-header-left,
+.bi-header-tools {
+    position:relative;
+    z-index:1;
+}
+.bi-header-left {
+    max-width:620px;
+    text-align:left;
+    gap:.75rem;
+}
+.bi-header-eyebrow {
+    color:rgba(255,255,255,.86) !important;
+    font-size:.78rem;
+    font-weight:700;
+    letter-spacing:.02em;
+}
+.bi-header-eyebrow::before {
+    color:#fff;
+}
+.bi-title {
+    color:#fff !important;
+    font-size:clamp(2.8rem, 6vw, 5.9rem);
+    line-height:.86;
+    letter-spacing:-.07em;
+    text-shadow:0 18px 44px rgba(2,56,89,.22);
+}
+.bi-desc {
+    color:rgba(255,255,255,.9) !important;
+    font-size:1rem;
+    font-weight:500;
+    max-width:520px;
+}
+.bi-date-range {
+    background:rgba(255,255,255,.72) !important;
+    border:1px solid rgba(255,255,255,.72) !important;
+    border-radius:16px !important;
+    box-shadow:0 16px 36px rgba(7,92,140,.2), inset 0 1px 0 rgba(255,255,255,.8) !important;
+    backdrop-filter:blur(18px);
+}
+.bi-date-input,
+.bi-filter-field select {
+    min-height:42px;
+    border:1px solid rgba(16,47,85,.12) !important;
+    border-radius:12px !important;
+    background:rgba(255,255,255,.86) !important;
+    color:var(--ink-blue) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.75);
+}
+.bi-filter-submit,
+.bi-date-submit,
+.bi-filter-reset,
+.bi-tabs-toggle,
+.bi-header-icon,
+.bi-calendar-icon {
+    min-height:42px;
+    border-radius:999px !important;
+    border:1px solid rgba(255,255,255,.68) !important;
+    box-shadow:0 10px 26px rgba(7,92,140,.18), inset 0 1px 0 rgba(255,255,255,.72) !important;
+}
+.bi-filter-submit,
+.bi-date-submit {
+    color:#fff !important;
+    background:#081a2f !important;
+}
+.bi-filter-reset,
+.bi-tabs-toggle,
+.bi-header-icon,
+.bi-calendar-icon {
+    color:var(--ink-blue) !important;
+    background:rgba(255,255,255,.76) !important;
+}
+.bi-tabs {
+    gap:.55rem;
+    padding:.65rem;
+}
+.bi-tab {
+    min-height:46px;
+    border-radius:999px !important;
+    border:1px solid transparent !important;
+    background:transparent !important;
+    color:var(--ink-blue) !important;
+    transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.bi-tab:hover {
+    background:rgba(255,255,255,.7) !important;
+    transform:translateX(3px);
+}
+.bi-tab.active {
+    background:#081a2f !important;
+    color:#fff !important;
+    box-shadow:0 12px 28px rgba(8,26,47,.18), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.bi-tab.active i,
+.bi-tab.active small {
+    color:#fff !important;
+}
+.metric-grid {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:1rem;
+    padding:0;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+}
+.metric-card {
+    min-height:158px;
+    padding:1.25rem;
+    border:1px solid rgba(255,255,255,.74) !important;
+    border-radius:22px !important;
+    background:rgba(255,255,255,.68) !important;
+    box-shadow:0 20px 48px rgba(15,85,130,.13), inset 0 1px 0 rgba(255,255,255,.78) !important;
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.metric-card:hover {
+    transform:translateY(-4px);
+}
+.metric-icon {
+    width:46px;
+    height:46px;
+    border-radius:14px;
+    background:linear-gradient(135deg, rgba(37,169,236,.18), rgba(255,255,255,.72)) !important;
+    color:var(--sky-deep) !important;
+}
+.metric-label,
+.panel-title,
+.breakdown-label,
+.insight-title,
+.bi-filter-title {
+    color:var(--ink-blue) !important;
+}
+.metric-value {
+    color:#071b34 !important;
+}
+.metric-delta {
+    color:#0782c8 !important;
+}
+.summary,
+.trend-label,
+.breakdown-detail,
+.insight-detail,
+.bi-filter-field label,
+.bi-filter-active {
+    color:var(--muted-blue) !important;
+}
+.metric-explain {
+    border:1px solid rgba(255,255,255,.7) !important;
+    border-radius:18px !important;
+    background:rgba(8,26,47,.9) !important;
+    color:#eefaff !important;
+    box-shadow:0 24px 54px rgba(8,26,47,.28), inset 0 1px 0 rgba(255,255,255,.16) !important;
+}
+.trend-bar {
+    background:linear-gradient(180deg, #1cb2f2, #0b73b8) !important;
+}
+.breakdown-track {
+    background:rgba(8,130,200,.12) !important;
+}
+.breakdown-fill {
+    background:linear-gradient(90deg, #25a9ec, #9bdcbb) !important;
+}
+@@media (max-width: 992px) {
+    .bi-header {
+        min-height:310px;
+        padding:2rem 1.35rem 5rem;
+    }
+    .metric-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+}
+@@media (max-width: 640px) {
+    .bi-layout {
+        padding:.75rem;
+    }
+    .bi-header {
+        clip-path:polygon(0 0, 100% 0, 100% 88%, 50% 100%, 0 88%);
+        min-height:300px;
+        border-radius:22px 22px 0 0 !important;
+    }
+    .bi-title {
+        font-size:2.5rem;
+    }
+    .metric-grid {
+        grid-template-columns:1fr;
+    }
+}
+
+/* ZoomCharts IT Support Performance Report inspired layout */
+.bi-shell {
+    --zc-navy:#090d34;
+    --zc-navy-2:#131854;
+    --zc-teal:#39c4bd;
+    --zc-teal-dark:#1f9f9a;
+    --zc-bg:#eef7ff;
+    --zc-card:#ffffff;
+    --zc-text:#2c2f35;
+    --zc-muted:#8c929c;
+    --zc-line:#e8edf3;
+    min-height:calc(100vh - 56px);
+    background:
+        radial-gradient(circle at 78% 12%, rgba(57,196,189,.12), transparent 28%),
+        linear-gradient(180deg, #f7fbff 0%, var(--zc-bg) 100%) !important;
+    color:var(--zc-text);
+    overflow-x:hidden;
+}
+.bi-shell::before {
+    display:none;
+}
+.bi-layout {
+    max-width:1680px;
+    grid-template-columns:170px minmax(0,1fr);
+    gap:1.25rem;
+    padding:1.15rem;
+}
+.bi-tabs-shell {
+    width:170px;
+    top:72px;
+}
+.bi-filter-card {
+    display:none !important;
+}
+.bi-tabs {
+    min-height:calc(100vh - 96px);
+    padding:0 !important;
+    gap:0;
+    overflow:hidden;
+    background:linear-gradient(180deg, var(--zc-navy), #0b0f38 100%) !important;
+    border:0 !important;
+    border-radius:0 !important;
+    box-shadow:10px 0 28px rgba(9,13,52,.16) !important;
+    backdrop-filter:none;
+}
+.bi-tabs::before {
+    content:"SupportIQ";
+    display:flex;
+    align-items:center;
+    min-height:96px;
+    padding:0 1.15rem;
+    color:#fff;
+    font-size:1.08rem;
+    font-weight:900;
+    letter-spacing:-.02em;
+    background:
+        radial-gradient(circle at 23% 34%, #53d4a3 0 12%, transparent 13%),
+        radial-gradient(circle at 42% 57%, #6052d8 0 16%, transparent 17%),
+        linear-gradient(180deg, rgba(255,255,255,.08), transparent);
+}
+.bi-tabs::after {
+    content:"";
+    display:block;
+    height:7px;
+    margin:0 0 1.5rem;
+    background:linear-gradient(90deg, transparent, var(--zc-teal), transparent);
+}
+.bi-tab {
+    min-height:76px;
+    padding:0 1rem !important;
+    justify-content:flex-start;
+    gap:.85rem;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    color:rgba(255,255,255,.7) !important;
+    font-size:.95rem;
+    font-weight:700;
+    box-shadow:none !important;
+}
+.bi-tab i {
+    width:25px;
+    font-size:1.2rem;
+    color:rgba(255,255,255,.66) !important;
+}
+.bi-tab:hover,
+.bi-tab.active {
+    background:linear-gradient(90deg, rgba(44,54,154,.96), rgba(20,28,91,.94)) !important;
+    color:#fff !important;
+    transform:none;
+}
+.bi-tab.active i,
+.bi-tab.active small {
+    color:#fff !important;
+}
+.bi-tab small {
+    margin-left:auto;
+    color:rgba(255,255,255,.55) !important;
+}
+.bi-tabs-toggle {
+    display:none;
+}
+.bi-content {
+    padding:0;
+}
+.bi-header {
+    min-height:82px;
+    padding:.9rem 1.4rem !important;
+    margin-bottom:1rem;
+    align-items:flex-start;
+    color:var(--zc-text);
+    background:transparent !important;
+    border:0 !important;
+    border-radius:0 !important;
+    clip-path:none !important;
+    box-shadow:none !important;
+}
+.bi-header::before,
+.bi-header::after {
+    display:none;
+}
+.bi-header-left {
+    max-width:none;
+}
+.bi-title {
+    color:#161a22 !important;
+    font-family:"Inter", "Segoe UI", Arial, sans-serif;
+    font-size:1.75rem;
+    line-height:1.15;
+    letter-spacing:-.025em;
+    text-shadow:none;
+}
+.bi-desc {
+    color:#111827 !important;
+    font-size:.86rem;
+    font-weight:800;
+}
+.bi-header-tools {
+    gap:.55rem;
+    align-items:flex-start;
+}
+.bi-date-form {
+    align-items:center;
+}
+.bi-calendar-icon,
+.bi-header-icon {
+    width:38px;
+    height:38px;
+    min-height:38px;
+    border:0 !important;
+    border-radius:50% !important;
+    color:#fff !important;
+    background:var(--zc-teal) !important;
+    box-shadow:0 8px 16px rgba(57,196,189,.28) !important;
+}
+.bi-date-range {
+    background:#fff !important;
+    border:1px solid var(--zc-line) !important;
+    border-radius:12px !important;
+    box-shadow:0 8px 24px rgba(43,70,100,.08) !important;
+    padding:.3rem;
+}
+.bi-date-input {
+    min-height:34px;
+    border:0 !important;
+    border-radius:8px !important;
+    background:#fff !important;
+    color:#2c2f35 !important;
+    font-size:.82rem;
+    font-weight:800;
+}
+.bi-date-submit {
+    width:36px;
+    min-height:36px;
+    border:0 !important;
+    border-radius:50% !important;
+    color:#fff !important;
+    background:var(--zc-teal) !important;
+    box-shadow:0 8px 16px rgba(57,196,189,.28) !important;
+}
+.metric-grid {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:1.35rem;
+    margin-bottom:1.35rem;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+}
+.metric-card,
+.panel {
+    background:var(--zc-card) !important;
+    border:1px solid #edf1f6 !important;
+    border-radius:6px !important;
+    box-shadow:0 8px 22px rgba(43,70,100,.07) !important;
+    backdrop-filter:none;
+}
+.metric-card {
+    min-height:185px;
+    padding:1.25rem 1.3rem;
+    display:grid;
+    grid-template-columns:1fr auto;
+    grid-template-rows:auto 1fr;
+    gap:.45rem 1rem;
+}
+.metric-card > div:nth-child(2) {
+    grid-column:1 / -1;
+}
+.metric-icon {
+    grid-column:2;
+    grid-row:1;
+    width:54px;
+    height:54px;
+    border-radius:50%;
+    color:#fff !important;
+    background:var(--zc-teal) !important;
+    box-shadow:0 8px 18px rgba(57,196,189,.34) !important;
+    font-size:1.35rem;
+}
+.metric-label {
+    color:#7b828d !important;
+    font-size:1rem;
+    font-weight:500;
+    text-transform:none;
+}
+.metric-value {
+    color:#2c2f35 !important;
+    font-size:2rem;
+    font-weight:900;
+    letter-spacing:.01em;
+}
+.metric-delta {
+    display:inline-flex;
+    align-items:center;
+    width:max-content;
+    padding:.22rem .75rem;
+    border-radius:999px;
+    color:#277d45 !important;
+    background:#dff4df;
+    border:1px solid #a9d8ae;
+    font-size:.82rem;
+    font-weight:900;
+}
+.metric-card:nth-child(2) .metric-delta,
+.metric-card:nth-child(3) .metric-delta {
+    color:#a7465e !important;
+    background:#f2ccd5;
+    border-color:#d99aaa;
+}
+.metric-spark {
+    height:55px;
+    margin-top:.85rem;
+    display:flex;
+    align-items:end;
+    gap:7px;
+    border-bottom:1px dashed #cfd6df;
+}
+.metric-spark span {
+    width:18%;
+    border-radius:999px 999px 0 0;
+    background:linear-gradient(180deg, transparent 0 45%, #b7bec8 46% 52%, transparent 53% 100%);
+    position:relative;
+}
+.metric-spark span::after {
+    content:"";
+    display:block;
+    height:2px;
+    background:#8a9098;
+    transform:rotate(-20deg);
+    transform-origin:left center;
+}
+.metric-spark span:nth-child(1)::after { transform:rotate(50deg); }
+.metric-spark span:nth-child(2)::after { transform:rotate(-38deg); }
+.metric-spark span:nth-child(3)::after { transform:rotate(18deg); }
+.metric-spark span:nth-child(4)::after { transform:rotate(34deg); }
+.metric-spark span:nth-child(5)::after { transform:rotate(-45deg); background:#53b66b; }
+.metric-spark span:nth-child(6)::after { transform:rotate(24deg); background:#bb405e; }
+.dash-grid {
+    display:grid;
+    grid-template-columns:minmax(0,1.5fr) minmax(360px,.9fr);
+    gap:1.35rem;
+    align-items:start;
+}
+.dash-grid .panel:first-child {
+    grid-row:span 2;
+    min-height:575px;
+}
+.panel {
+    padding:1.35rem 1.45rem;
+}
+.panel-title {
+    color:var(--zc-teal) !important;
+    font-size:1.12rem;
+    font-weight:900;
+    border-bottom:1px solid var(--zc-line);
+    padding-bottom:.8rem;
+    margin-bottom:.75rem;
+}
+.summary {
+    color:#7b828d !important;
+    font-size:.84rem;
+    font-style:italic;
+}
+.zc-segmented {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:.35rem;
+    margin:1rem 0 1.15rem;
+}
+.zc-segmented span {
+    min-height:42px;
+    display:grid;
+    place-items:center;
+    border:1px solid #e2e7ee;
+    border-radius:16px;
+    color:#30333a;
+    background:#fff;
+    font-size:.82rem;
+    font-weight:900;
+}
+.zc-segmented .active {
+    border-bottom:4px solid var(--zc-teal);
+    border-radius:0;
+    color:#161a22;
+}
+.trend {
+    min-height:395px;
+    align-items:end;
+    gap:.35rem;
+    padding:1.25rem .6rem .6rem;
+    border-top:1px solid #eef2f6;
+    background:
+        linear-gradient(#fff,#fff) padding-box,
+        repeating-linear-gradient(0deg, transparent 0 65px, #eef2f6 66px 67px);
+}
+.trend-bar {
+    width:100%;
+    max-width:none;
+    min-height:18px;
+    border-radius:999px 999px 0 0;
+    background:linear-gradient(180deg, #5fcfca, #21a7a2) !important;
+    box-shadow:0 0 0 1px rgba(33,167,162,.12);
+}
+.trend-value {
+    color:#2c2f35;
+}
+.trend-label {
+    color:#68717e !important;
+    font-size:.68rem;
+}
+.dash-grid .panel:nth-child(2) {
+    min-height:280px;
+}
+.dash-grid .panel:nth-child(2) .breakdown-row {
+    grid-template-columns:1fr;
+    justify-items:center;
+    border:0;
+}
+.dash-grid .panel:nth-child(2)::after {
+    content:"";
+    display:block;
+    width:190px;
+    height:190px;
+    margin:1.1rem auto .2rem;
+    border-radius:50%;
+    background:conic-gradient(var(--zc-teal) 0 39%, #b9f1ee 39% 68%, #e5e5e5 68% 100%);
+    box-shadow:inset 0 0 0 48px #fff, 0 8px 22px rgba(57,196,189,.16);
+}
+.breakdown-row {
+    grid-template-columns:150px 1fr 58px;
+    border-top:1px solid var(--zc-line);
+}
+.breakdown-label {
+    color:#43464d !important;
+}
+.breakdown-detail {
+    color:#9097a2 !important;
+}
+.breakdown-track {
+    height:24px;
+    background:#d6d6d6 !important;
+    border-radius:6px;
+    box-shadow:inset 0 2px 5px rgba(0,0,0,.12);
+}
+.breakdown-fill {
+    background:linear-gradient(180deg, #50c8c2, #269b97) !important;
+    border-radius:6px;
+}
+.breakdown-value {
+    color:#4d535c;
+}
+.insight {
+    border-top:1px solid var(--zc-line);
+}
+.insight-badge {
+    background:#e9faf8;
+    color:var(--zc-teal-dark);
+}
+.metric-explain {
+    background:#11163e !important;
+    border-color:rgba(57,196,189,.35) !important;
+}
+@@media (max-width: 1100px) {
+    .bi-layout {
+        grid-template-columns:76px minmax(0,1fr);
+    }
+    .bi-tabs-shell {
+        width:76px;
+    }
+    .bi-tab span,
+    .bi-tab small,
+    .bi-tabs::before {
+        font-size:0;
+    }
+    .metric-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    .dash-grid {
+        grid-template-columns:1fr;
+    }
+}
+@@media (max-width: 720px) {
+    .bi-layout {
+        display:block;
+        padding:.75rem;
+    }
+    .bi-tabs-shell {
+        position:relative;
+        top:auto;
+        width:100%;
+        margin-bottom:.75rem;
+    }
+    .bi-tabs {
+        min-height:auto;
+        display:grid;
+        grid-template-columns:repeat(4,minmax(0,1fr));
+    }
+    .bi-tabs::before,
+    .bi-tabs::after {
+        display:none;
+    }
+    .bi-tab {
+        min-height:54px;
+        justify-content:center;
+    }
+    .metric-grid {
+        grid-template-columns:1fr;
+    }
+    .bi-header {
+        flex-direction:column;
+        gap:.85rem;
+    }
+}
+/* Final coherent executive BI design */
+.bi-shell {
+    --ui-bg:#f2f1ee;
+    --ui-card:#fbfaf7;
+    --ui-ink:#111111;
+    --ui-muted:#5f6260;
+    --ui-soft:#ebe8e2;
+    --ui-line:#d9d6cf;
+    --ui-accent:#c0863f;
+    --ui-accent-2:#332985;
+    --ui-danger:#c61f32;
+    --ui-black:#0d0d0d;
+    --ui-shadow:0 18px 48px rgba(17,17,17,.10);
+    min-height:calc(100vh - 56px);
+    padding:0;
+    background:
+        linear-gradient(115deg, transparent 0 24%, rgba(51,41,133,.075) 24.1% 24.7%, transparent 24.8% 100%),
+        radial-gradient(circle at 16% 12%, rgba(198,31,50,.10), transparent 28%),
+        radial-gradient(circle at 88% 8%, rgba(192,134,63,.16), transparent 30%),
+        linear-gradient(180deg, #fbfaf7 0%, var(--ui-bg) 100%) !important;
+    color:var(--ui-ink);
+    font-family:Inter, "Segoe UI", Arial, sans-serif;
+    overflow-x:hidden;
+}
+.bi-shell::before,
+.bi-shell::after,
+.metric-card::before,
+.dash-grid .panel:nth-child(2)::after,
+.bi-tabs::before,
+.bi-tabs::after {
+    display:none !important;
+    content:none !important;
+}
+.bi-layout {
+    max-width:1520px;
+    margin:0 auto;
+    padding:22px;
+    display:grid;
+    grid-template-columns:280px minmax(0,1fr);
+    gap:22px;
+    position:relative;
+    z-index:1;
+}
+.bi-tabs-shell {
+    width:auto !important;
+    position:sticky;
+    top:76px;
+    align-self:start;
+}
+.bi-filter-card,
+.bi-tabs,
+.bi-header,
+.metric-card,
+.panel,
+.metric-grid {
+    border:1px solid var(--ui-line) !important;
+    border-radius:18px !important;
+    background:rgba(255,255,255,.88) !important;
+    box-shadow:var(--ui-shadow) !important;
+    backdrop-filter:blur(18px) saturate(150%);
+    -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.bi-filter-card {
+    display:block !important;
+    padding:18px !important;
+    margin:0 0 16px !important;
+}
+.bi-filter-title {
+    color:var(--ui-ink) !important;
+    font-size:.76rem;
+    font-weight:900;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    margin-bottom:10px;
+}
+.bi-filter-field {
+    gap:6px;
+    margin-bottom:10px;
+}
+.bi-filter-field label,
+.bi-filter-active {
+    color:var(--ui-muted) !important;
+    font-size:.72rem;
+    font-weight:800;
+}
+.bi-filter-field select,
+.bi-date-input {
+    width:100%;
+    min-height:40px;
+    border:1px solid var(--ui-line) !important;
+    border-radius:12px !important;
+    background:#fff !important;
+    color:var(--ui-ink) !important;
+    font-size:.84rem;
+    font-weight:700;
+    box-shadow:none !important;
+}
+.bi-filter-actions {
+    margin-top:12px;
+}
+.bi-filter-submit,
+.bi-date-submit {
+    border:0 !important;
+    border-radius:12px !important;
+    background:var(--ui-ink) !important;
+    color:#fff !important;
+    min-height:40px;
+    box-shadow:none !important;
+}
+.bi-filter-reset,
+.bi-tabs-toggle,
+.bi-header-icon,
+.bi-calendar-icon {
+    border:1px solid var(--ui-line) !important;
+    border-radius:12px !important;
+    background:#fff !important;
+    color:var(--ui-ink) !important;
+    box-shadow:none !important;
+}
+.bi-tabs {
+    display:flex !important;
+    flex-direction:column;
+    gap:8px !important;
+    padding:14px !important;
+    min-height:auto !important;
+}
+.bi-tabs-toggle {
+    display:none !important;
+}
+.bi-tab {
+    min-height:44px !important;
+    padding:0 12px !important;
+    border:1px solid transparent !important;
+    border-radius:12px !important;
+    background:transparent !important;
+    color:var(--ui-muted) !important;
+    font-size:.86rem;
+    font-weight:800;
+    text-transform:none;
+    letter-spacing:0;
+    box-shadow:none !important;
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.bi-tab i {
+    color:currentColor !important;
+}
+.bi-tab small {
+    margin-left:auto;
+    color:currentColor !important;
+    opacity:.55;
+}
+.bi-tab:hover {
+    background:var(--ui-soft) !important;
+    color:var(--ui-ink) !important;
+    transform:none !important;
+}
+.bi-tab.active {
+    background:rgba(51,41,133,.10) !important;
+    color:var(--ui-accent-2) !important;
+    border-color:rgba(51,41,133,.26) !important;
+}
+.bi-content {
+    min-width:0;
+    padding:0 !important;
+}
+.bi-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    padding:22px 24px !important;
+    margin:0 0 18px !important;
+    min-height:auto !important;
+    clip-path:none !important;
+    color:var(--ui-ink) !important;
+    position:relative;
+    overflow:hidden;
+}
+.bi-header::before {
+    content:"" !important;
+    display:block !important;
+    position:absolute;
+    inset:auto 28px 18px auto;
+    width:132px;
+    height:48px;
+    opacity:.22;
+    background:
+        repeating-linear-gradient(0deg, var(--ui-black) 0 3px, transparent 3px 10px),
+        linear-gradient(135deg, transparent 0 44%, var(--ui-accent) 44% 56%, transparent 56% 100%);
+    pointer-events:none;
+}
+.bi-header::after {
+    content:"" !important;
+    display:block !important;
+    position:absolute;
+    left:24px;
+    bottom:18px;
+    width:86px;
+    height:6px;
+    background:linear-gradient(90deg, var(--ui-accent-2) 0 30%, var(--ui-accent) 30% 62%, var(--ui-danger) 62% 100%);
+    pointer-events:none;
+}
+.bi-title {
+    margin:0;
+    color:var(--ui-ink) !important;
+    font-size:clamp(2rem, 3vw, 3.2rem);
+    line-height:1;
+    font-weight:900;
+    letter-spacing:-.055em;
+    text-shadow:none !important;
+}
+.bi-desc,
+.bi-header-eyebrow {
+    color:var(--ui-muted) !important;
+    font-size:.9rem;
+    font-weight:700;
+    text-transform:none;
+    letter-spacing:0;
+}
+.bi-header-tools,
+.bi-date-form,
+.bi-date-range {
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+.bi-date-range {
+    padding:6px;
+    border:1px solid var(--ui-line) !important;
+    border-radius:14px !important;
+    background:#fff !important;
+    box-shadow:none !important;
+}
+.bi-date-input {
+    width:142px;
+}
+.bi-date-submit,
+.bi-calendar-icon,
+.bi-header-icon {
+    width:40px;
+    height:40px;
+    display:grid;
+    place-items:center;
+    text-decoration:none;
+}
+.bi-chat-icon::after {
+    background:var(--ui-danger);
+}
+.metric-grid {
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+    gap:14px !important;
+    padding:0 !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+    margin:0 0 18px !important;
+    overflow:visible;
+}
+.metric-card {
+    min-height:148px !important;
+    padding:18px !important;
+    display:grid !important;
+    grid-template-columns:1fr auto;
+    grid-template-rows:auto 1fr;
+    gap:10px 14px !important;
+    position:relative;
+    overflow:visible !important;
+}
+.metric-card > div:nth-child(2) {
+    grid-column:1 / -1;
+}
+.metric-icon {
+    width:44px !important;
+    height:44px !important;
+    border-radius:14px !important;
+    display:grid;
+    place-items:center;
+    background:rgba(51,41,133,.10) !important;
+    color:var(--ui-accent-2) !important;
+    box-shadow:none !important;
+}
+.metric-label,
+.panel-title,
+.breakdown-label,
+.insight-title {
+    color:var(--ui-ink) !important;
+    font-size:.78rem;
+    font-weight:900;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+}
+.metric-value {
+    color:var(--ui-ink) !important;
+    font-size:2rem;
+    line-height:1.05;
+    font-weight:900;
+    letter-spacing:-.045em;
+}
+.metric-delta {
+    display:inline-flex;
+    width:max-content;
+    padding:4px 10px;
+    border-radius:999px;
+    background:rgba(192,134,63,.14) !important;
+    color:#8a551b !important;
+    border:1px solid rgba(192,134,63,.34) !important;
+    font-size:.78rem;
+    font-weight:900;
+}
+.metric-card:nth-child(2) .metric-delta,
+.metric-card:nth-child(3) .metric-delta {
+    background:rgba(198,31,50,.10) !important;
+    color:var(--ui-danger) !important;
+    border-color:rgba(198,31,50,.28) !important;
+}
+.metric-spark {
+    height:36px;
+    margin-top:10px;
+    display:flex;
+    align-items:end;
+    gap:6px;
+    border-bottom:1px dashed var(--ui-line);
+}
+.metric-spark span {
+    flex:1;
+    height:100%;
+    position:relative;
+}
+.metric-spark span::after {
+    content:"";
+    display:block;
+    height:2px;
+    background:var(--ui-accent);
+    transform-origin:left center;
+}
+.metric-meter {
+    width:100%;
+    height:12px;
+    margin-top:16px;
+    border-radius:999px;
+    background:
+        linear-gradient(90deg, rgba(17,17,17,.07), rgba(192,134,63,.10)),
+        repeating-linear-gradient(90deg, transparent 0 14%, rgba(17,17,17,.10) 14% 15%);
+    overflow:hidden;
+}
+.metric-meter span {
+    display:block;
+    width:100%;
+    height:100%;
+    border-radius:inherit;
+    background:linear-gradient(90deg, var(--ui-accent-2), var(--ui-accent));
+    box-shadow:0 0 18px rgba(192,134,63,.28);
+}
+.dash-grid {
+    display:grid;
+    grid-template-columns:minmax(0,1.55fr) minmax(320px,.9fr);
+    gap:18px !important;
+    align-items:start;
+    margin:0 !important;
+}
+.dash-grid .panel:first-child {
+    grid-row:span 2;
+    min-height:520px;
+}
+.panel {
+    padding:20px !important;
+}
+.panel-title {
+    margin:0 0 12px;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--ui-line);
+}
+.summary,
+.trend-label,
+.breakdown-detail,
+.insight-detail {
+    color:var(--ui-muted) !important;
+}
+.zc-segmented {
+    display:grid !important;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px !important;
+    margin:14px 0 18px;
+    border:0 !important;
+}
+.zc-segmented span {
+    min-height:38px;
+    display:grid;
+    place-items:center;
+    border:1px solid var(--ui-line) !important;
+    border-radius:12px !important;
+    background:#fff !important;
+    color:var(--ui-muted) !important;
+    font-size:.78rem;
+    font-weight:900;
+}
+.zc-segmented .active {
+    background:var(--ui-ink) !important;
+    color:#fff !important;
+    border-color:var(--ui-ink) !important;
+}
+.trend {
+    min-height:330px;
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:12px;
+    align-items:end;
+    padding:16px 4px 4px;
+    background:linear-gradient(#fff,#fff) !important;
+}
+.chart-panel {
+    overflow:hidden;
+}
+.trend-line-chart {
+    min-height:340px;
+    display:block;
+    padding:12px 0 0;
+    background:
+        linear-gradient(180deg, rgba(51,41,133,.045), rgba(192,134,63,.045)),
+        var(--ui-card) !important;
+    border:1px solid var(--ui-line);
+    border-radius:16px;
+}
+.trend-svg {
+    display:block;
+    width:100%;
+    height:auto;
+    min-height:300px;
+}
+.trend-grid-lines line {
+    stroke:#e4e7ec;
+    stroke-width:1;
+}
+.trend-area {
+    fill:url(#trendAreaGradient);
+}
+.trend-line {
+    fill:none;
+    stroke:url(#trendLineGradient);
+    stroke-width:4;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    filter:drop-shadow(0 8px 10px rgba(51,41,133,.16));
+}
+.trend-point circle {
+    fill:#fff;
+    stroke:var(--ui-accent);
+    stroke-width:3;
+}
+.trend-point text {
+    fill:var(--ui-ink);
+    font-size:12px;
+    font-weight:900;
+    text-anchor:middle;
+}
+.trend-axis-label {
+    fill:var(--ui-muted);
+    font-size:12px;
+    font-weight:800;
+    text-anchor:middle;
+}
+.trend-y-label,
+.trend-empty {
+    fill:var(--ui-muted);
+    font-size:12px;
+    font-weight:800;
+    text-anchor:end;
+}
+.trend-empty {
+    text-anchor:middle;
+    font-size:15px;
+}
+.trend-bar,
+.breakdown-fill {
+    background:linear-gradient(180deg, var(--ui-accent-2), var(--ui-accent)) !important;
+    border-radius:999px 999px 6px 6px !important;
+}
+.breakdown-panel {
+    position:relative;
+}
+.breakdown-panel .breakdown-row {
+    display:grid;
+    grid-template-columns:140px minmax(120px,1fr) 52px !important;
+    justify-items:stretch !important;
+    gap:12px;
+    padding:14px 0;
+    border-top:1px solid var(--ui-line) !important;
+}
+.breakdown-panel .breakdown-track {
+    width:100%;
+    height:14px;
+    border-radius:999px !important;
+    background:var(--ui-soft) !important;
+    overflow:hidden;
+    box-shadow:none !important;
+}
+.breakdown-panel .breakdown-fill {
+    height:100%;
+    border-radius:999px !important;
+    background:linear-gradient(90deg, var(--ui-accent-2), var(--ui-accent)) !important;
+}
+.breakdown-panel .breakdown-value {
+    color:var(--ui-ink);
+    font-weight:900;
+}
+.insight {
+    border-top:1px solid var(--ui-line);
+}
+.insight-badge {
+    border-radius:999px;
+    background:rgba(192,134,63,.14);
+    color:#8a551b;
+    border:1px solid rgba(192,134,63,.34);
+}
+.metric-explain {
+    border-radius:16px !important;
+    background:var(--ui-ink) !important;
+    color:#fff !important;
+    border:1px solid rgba(255,255,255,.1) !important;
+    box-shadow:0 24px 54px rgba(16,24,40,.25) !important;
+}
+@@media (max-width: 1120px) {
+    .bi-layout {
+        grid-template-columns:1fr;
+    }
+    .bi-tabs-shell {
+        position:static;
+    }
+    .bi-tabs {
+        display:grid !important;
+        grid-template-columns:repeat(4,minmax(0,1fr));
+    }
+    .metric-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    }
+    .dash-grid {
+        grid-template-columns:1fr;
+    }
+    .bi-filter-card form {
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:12px;
+    }
+    .bi-filter-title,
+    .bi-filter-actions,
+    .bi-filter-active {
+        grid-column:1 / -1;
+    }
+}
+@@media (max-width: 680px) {
+    .bi-layout {
+        padding:12px;
+    }
+    .bi-header {
+        flex-direction:column;
+        align-items:stretch;
+    }
+    .bi-header-tools,
+    .bi-date-form,
+    .bi-date-range {
+        width:100%;
+        flex-wrap:wrap;
+    }
+    .bi-date-input {
+        flex:1 1 125px;
+    }
+    .bi-tabs,
+    .metric-grid {
+        grid-template-columns:1fr !important;
+    }
+    .bi-title {
+        font-size:2.1rem;
+    }
+    .breakdown-row {
+        grid-template-columns:1fr;
+    }
+}
 </style>
 }
 
@@ -775,45 +2091,112 @@
             <article class="metric-card">
                 <div class="metric-icon tone-@metric.Tone"><i class="fas @metric.Icon"></i></div>
                 <div>
-                    <div class="metric-label">@metric.Label</div>
-                        <div class="metric-value">@metric.Value</div>
-                        <div class="metric-delta">@metric.Delta</div>
-                    </div>
-                </article>
+	                    <div class="metric-label">@metric.Label</div>
+	                        <div class="metric-value">@metric.Value</div>
+	                        <div class="metric-delta">@metric.Delta</div>
+                            <div class="metric-meter" aria-hidden="true">
+                                <span></span>
+                            </div>
+	                    </div>
+	                </article>
             }
         </section>
 
         <section class="dash-grid">
-            <article class="panel glow-card" data-glow-color="blue">
-                <h2 class="panel-title">Performance Trend</h2>
-                <p class="summary">@Model.Summary</p>
-                <div class="trend">
-                    @foreach (var point in Model.Trend)
-                    {
-                        var height = Math.Max(18, (int)Math.Round(point.Value * 100.0 / maxTrend));
-                        <div class="trend-col">
-                            <div class="trend-value">@point.Value%</div>
-                            <div class="trend-bar" style="height:@height%;"></div>
-                            <div class="trend-label">@point.Label</div>
-                        </div>
-                    }
-                </div>
-            </article>
-
-            <article class="panel glow-card" data-glow-color="purple">
-                <h2 class="panel-title">Breakdown</h2>
-                @foreach (var item in Model.Breakdown)
+            @{
+                var trendValues = Model.Trend.Select(p => p.Value).ToList();
+                var trendMin = trendValues.Any() ? trendValues.Min() : 0;
+                var trendMax = trendValues.Any() ? trendValues.Max() : 1;
+                if (trendMin == trendMax) { trendMin = Math.Max(0, trendMin - 10); trendMax += 10; }
+                const double chartW = 720;
+                const double chartH = 290;
+                const double padL = 44;
+                const double padR = 18;
+                const double padT = 24;
+                const double padB = 42;
+                var plotW = chartW - padL - padR;
+                var plotH = chartH - padT - padB;
+                var trendCount = Math.Max(1, Model.Trend.Count);
+                var chartPoints = Model.Trend.Select((p, i) =>
                 {
-                    var width = Math.Max(5, (int)Math.Round(item.Value * 100.0 / maxBreakdown));
-                    <div class="breakdown-row">
-                        <div>
-                            <div class="breakdown-label">@item.Label</div>
-                            <div class="breakdown-detail">@item.Detail</div>
-                        </div>
-                        <div class="breakdown-track"><div class="breakdown-fill" style="width:@width%;"></div></div>
-                        <div class="breakdown-value">@item.Value%</div>
+                    var x = padL + (trendCount == 1 ? plotW / 2 : (plotW * i / (trendCount - 1)));
+                    var y = padT + ((trendMax - p.Value) * plotH / Math.Max(1, trendMax - trendMin));
+                    return new { p.Label, p.Value, X = x, Y = y };
+                }).ToList();
+                var linePoints = string.Join(" ", chartPoints.Select(p => $"{p.X.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)},{p.Y.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}"));
+                var areaPoints = chartPoints.Any()
+                    ? $"{padL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)},{(chartH - padB).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} {linePoints} {(chartW - padR).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)},{(chartH - padB).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}"
+                    : string.Empty;
+            }
+            <article class="panel glow-card chart-panel" data-glow-color="blue">
+		                <h2 class="panel-title">Performance Trend</h2>
+		                <p class="summary">@Model.Summary</p>
+                    <div class="zc-segmented" aria-label="Trend metric selector">
+                        <span class="active"># @Model.ActiveTab</span>
+                        <span>Clean Rate</span>
+                        <span>Net Value</span>
+                        <span>TAT</span>
                     </div>
-                }
+                <div class="trend trend-line-chart">
+                    <svg class="trend-svg" viewBox="0 0 720 290" role="img" aria-label="@Model.ActiveTab trend chart">
+                        <defs>
+                            <linearGradient id="trendAreaGradient" x1="0" x2="0" y1="0" y2="1">
+                                <stop offset="0%" stop-color="#332985" stop-opacity=".24" />
+                                <stop offset="100%" stop-color="#c0863f" stop-opacity=".03" />
+                            </linearGradient>
+                            <linearGradient id="trendLineGradient" x1="0" x2="1" y1="0" y2="0">
+                                <stop offset="0%" stop-color="#332985" />
+                                <stop offset="62%" stop-color="#c0863f" />
+                                <stop offset="100%" stop-color="#c61f32" />
+                            </linearGradient>
+                        </defs>
+                        <g class="trend-grid-lines">
+                            <line x1="44" y1="24" x2="702" y2="24" />
+                            <line x1="44" y1="80" x2="702" y2="80" />
+                            <line x1="44" y1="136" x2="702" y2="136" />
+                            <line x1="44" y1="192" x2="702" y2="192" />
+                            <line x1="44" y1="248" x2="702" y2="248" />
+                        </g>
+                        @Html.Raw($"<text class=\"trend-y-label\" x=\"30\" y=\"30\">{trendMax:N0}</text>")
+                        @Html.Raw($"<text class=\"trend-y-label\" x=\"30\" y=\"252\">{trendMin:N0}</text>")
+                        @if (chartPoints.Any())
+                        {
+                            <polygon class="trend-area" points="@areaPoints"></polygon>
+                            <polyline class="trend-line" points="@linePoints"></polyline>
+                        }
+                        else
+                        {
+                            @Html.Raw("<text class=\"trend-empty\" x=\"360\" y=\"150\">No parsed records for selected filters</text>")
+                        }
+                        @foreach (var point in chartPoints)
+                        {
+                            <g class="trend-point" transform="translate(@point.X.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) @point.Y.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))">
+                                <circle r="5"></circle>
+                                @Html.Raw($"<text y=\"-12\">{point.Value:N0}</text>")
+                            </g>
+                        }
+                        @foreach (var point in chartPoints)
+                        {
+                            @Html.Raw($"<text class=\"trend-axis-label\" x=\"{point.X.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)}\" y=\"276\">{System.Net.WebUtility.HtmlEncode(point.Label)}</text>")
+                        }
+                    </svg>
+                </div>
+	            </article>
+
+	            <article class="panel glow-card breakdown-panel" data-glow-color="purple">
+	                <h2 class="panel-title">Breakdown</h2>
+	                @foreach (var item in Model.Breakdown)
+	                {
+	                    var width = Math.Max(5, (int)Math.Round(item.Value * 100.0 / maxBreakdown));
+	                    <div class="breakdown-row">
+	                        <div>
+	                            <div class="breakdown-label">@item.Label</div>
+	                            <div class="breakdown-detail">@item.Detail</div>
+	                        </div>
+	                        <div class="breakdown-track"><div class="breakdown-fill" style="width:@width%;"></div></div>
+	                        <div class="breakdown-value">@item.Value:N0</div>
+	                    </div>
+	                }
             </article>
 
             <article class="panel glow-card" data-glow-color="green">

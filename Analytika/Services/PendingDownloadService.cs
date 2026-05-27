@@ -64,13 +64,13 @@ public class PendingDownloadService : BackgroundService
     private async Task RunAsync(CancellationToken ct)
     {
         var batchSize = GetBatchSize();
-        var autoParse = _config.GetValue("BackgroundJobs:PendingDownloads:AutoParseRemittance", false);
+        var autoProject = _config.GetValue("BackgroundJobs:PendingDownloads:AutoProjectResubmission", false);
 
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var dha = scope.ServiceProvider.GetRequiredService<IDhaPortalService>();
         var cache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
-        var parser = scope.ServiceProvider.GetRequiredService<RemittanceParserService>();
+        var projection = scope.ServiceProvider.GetRequiredService<ResubmissionProjectionService>();
 
         var pending = await db.PortalTransactions
             .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA")
@@ -84,8 +84,8 @@ public class PendingDownloadService : BackgroundService
         if (!pending.Any())
         {
             // Even with no new downloads, parse anything not yet converted to claims
-            if (autoParse)
-                await AutoParseAsync(parser, 0);
+            if (autoProject)
+                await AutoProjectAsync(projection, 0, ct);
             return;
         }
 
@@ -169,9 +169,9 @@ public class PendingDownloadService : BackgroundService
         _logger.LogInformation("[PendingDownload] Run complete — {done} downloaded ({rem} remittance), {failed} failed / {total} total",
             done, doneRemittance, failed, pending.Count);
 
-        // Auto-parse: convert newly downloaded remittance XMLs into claims (reads FileContentXml already in DB)
-        if (autoParse)
-            await AutoParseAsync(parser, doneRemittance);
+        // Auto-project: unified XML parser reads downloaded XML, then updates the resubmission queue projection.
+        if (autoProject)
+            await AutoProjectAsync(projection, doneRemittance, ct);
     }
 
     private async Task<string> WaitForNextRunAsync(bool scheduledRunEnabled, TimeSpan scheduledLocalTime, CancellationToken stoppingToken)
@@ -226,18 +226,22 @@ public class PendingDownloadService : BackgroundService
         return nextRun - now;
     }
 
-    private async Task AutoParseAsync(RemittanceParserService parser, int newRemittanceCount)
+    private async Task AutoProjectAsync(ResubmissionProjectionService projection, int newRemittanceCount, CancellationToken ct)
     {
         try
         {
-            var (parsed, skipped, errors) = await parser.ParsePendingAsync();
-            if (parsed > 0 || newRemittanceCount > 0)
-                _logger.LogInformation("[PendingDownload] Auto-parse: {parsed} new claims created, {skipped} skipped, {errors} errors",
-                    parsed, skipped, errors);
+            var result = await projection.ParseXmlAndSyncAsync(ct: ct);
+            if (result.CreatedQueueRows > 0 || result.XmlRowsSaved > 0 || newRemittanceCount > 0)
+            {
+                _logger.LogInformation(
+                    "[PendingDownload] Auto-project: {xmlRows} parsed XML row(s), {queueRows} resubmission queue row(s)",
+                    result.XmlRowsSaved,
+                    result.CreatedQueueRows);
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[PendingDownload] Auto-parse failed");
+            _logger.LogError(ex, "[PendingDownload] Auto-project failed");
         }
     }
 }

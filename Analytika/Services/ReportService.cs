@@ -22,7 +22,6 @@ public class ReportService : IReportService
     private readonly ILogger<ReportService> _logger;
     private readonly IWebHostEnvironment _env;
     private readonly IEmailService _emailService;
-    private readonly RemittanceParserService _remittanceParser;
     private readonly XmlParsingService _xmlParsingService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
@@ -32,7 +31,6 @@ public class ReportService : IReportService
         ILogger<ReportService> logger,
         IWebHostEnvironment env,
         IEmailService emailService,
-        RemittanceParserService remittanceParser,
         XmlParsingService xmlParsingService,
         IServiceScopeFactory scopeFactory,
         IConfiguration configuration)
@@ -41,7 +39,6 @@ public class ReportService : IReportService
         _logger = logger;
         _env = env;
         _emailService = emailService;
-        _remittanceParser = remittanceParser;
         _xmlParsingService = xmlParsingService;
         _scopeFactory = scopeFactory;
         _configuration = configuration;

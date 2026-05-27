@@ -5,6 +5,8 @@
     bool isAdmin = ViewBag.IsAdmin;
     var facilities = (List<Facility>)ViewBag.Facilities;
     var coders     = (List<ApplicationUser>)ViewBag.Coders;
+    var denialInsights = ViewBag.DenialInsights as Dictionary<int, Analytika.Controllers.DenialIntelligence>
+        ?? new Dictionary<int, Analytika.Controllers.DenialIntelligence>();
 }
 
 @section Styles {
@@ -31,6 +33,29 @@
 .denied-amt { font-weight:700; color:#dc2626; }
 .paid-amt   { font-weight:600; color:#16a34a; }
 .filter-bar { background:#EAF4FB; border:1px solid #EAF4FB; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; }
+.denial-intel {
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+    max-width:220px;
+}
+.intel-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:.2rem .46rem;
+    border-radius:999px;
+    font-size:.62rem;
+    font-weight:800;
+    line-height:1;
+    border:1px solid transparent;
+    white-space:nowrap;
+}
+.intel-technical { background:rgba(51,41,133,.10); color:#332985; border-color:rgba(51,41,133,.24); }
+.intel-medical { background:rgba(192,134,63,.14); color:#8a551b; border-color:rgba(192,134,63,.30); }
+.intel-mixed { background:rgba(17,17,17,.08); color:#111; border-color:rgba(17,17,17,.18); }
+.intel-pattern { background:rgba(192,134,63,.16); color:#8a551b; border-color:rgba(192,134,63,.36); }
+.intel-red { background:rgba(198,31,50,.12); color:#c61f32; border-color:rgba(198,31,50,.34); }
 </style>
 }
 
@@ -177,6 +202,7 @@
                         <th class="text-end">Paid</th>
                         <th class="text-end">Denied</th>
                         <th>Denial Codes</th>
+                        <th>Category</th>
                         <th>Status</th>
                         @if (isAdmin) { <th>Assigned To</th> }
                         <th>Priority</th>
@@ -194,6 +220,7 @@
                         var codes     = rc.DenialCodesJson != null
                             ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(rc.DenialCodesJson) ?? new()
                             : new List<string>();
+                        denialInsights.TryGetValue(rc.Id, out var insight);
                         <tr class="claim-row" data-id="@rc.Id" onclick="rowClick(event, @rc.Id)">
                             @if (isAdmin)
                             {
@@ -222,6 +249,41 @@
                                 @if (codes.Count > 3)
                                 {
                                     <span class="text-muted" style="font-size:.68rem;">+@(codes.Count-3)</span>
+                                }
+                            </td>
+                            <td>
+                                @if (insight != null)
+                                {
+                                    <div class="denial-intel">
+                                        @if (insight.Category == "Mixed")
+                                        {
+                                            <span class="intel-badge intel-mixed"><i class="fas fa-layer-group"></i>Mixed</span>
+                                        }
+                                        else if (insight.IsTechnical)
+                                        {
+                                            <span class="intel-badge intel-technical"><i class="fas fa-screwdriver-wrench"></i>Technical</span>
+                                        }
+                                        else if (insight.IsMedical)
+                                        {
+                                            <span class="intel-badge intel-medical"><i class="fas fa-notes-medical"></i>Medical</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="intel-badge intel-mixed"><i class="fas fa-circle-question"></i>@insight.Category</span>
+                                        }
+                                        @if (insight.IsRecursivePattern)
+                                        {
+                                            <span class="intel-badge intel-pattern" title="Repeated denial code(s): @string.Join(", ", insight.RepeatedCodes)">
+                                                <i class="fas fa-repeat"></i>Pattern
+                                            </span>
+                                        }
+                                        @if (insight.IsRedAlert)
+                                        {
+                                            <span class="intel-badge intel-red" title="Never paid before for code(s): @string.Join(", ", insight.NeverPaidCodes)">
+                                                <i class="fas fa-triangle-exclamation"></i>Red alert
+                                            </span>
+                                        }
+                                    </div>
                                 }
                             </td>
                             <td><span class="badge-status bs-@status">@status</span></td>
@@ -260,12 +322,12 @@
                     @if (!Model.Any())
                     {
                         <tr>
-                            <td colspan="12" class="text-center text-muted py-5">
+                            <td colspan="13" class="text-center text-muted py-5">
                                 <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
                                 No claims found.
                                 @if (ViewBag.UnparsedCount > 0 && isAdmin)
                                 {
-                                    <span>Click <strong>Parse Remittances</strong> to load them.</span>
+                                    <span>Click <strong>Project Queue</strong> to load parsed remittance claims.</span>
                                 }
                             </td>
                         </tr>
