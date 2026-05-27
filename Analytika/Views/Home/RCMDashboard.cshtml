@@ -1467,6 +1467,49 @@
 .bi-filter-actions {
     margin-top:12px;
 }
+.bi-filter-agent {
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px dashed rgba(21, 52, 91, .22);
+}
+.bi-filter-agent label {
+    display:block;
+    font-weight:700;
+    margin-bottom:8px;
+}
+.bi-filter-agent-row {
+    display:flex;
+    gap:8px;
+}
+.bi-filter-agent-input {
+    flex:1;
+    min-width:0;
+    border:1px solid rgba(21, 52, 91, .22);
+    border-radius:12px;
+    padding:9px 10px;
+    background:rgba(255, 255, 255, .66);
+    color:var(--ui-ink);
+    font-size:.9rem;
+}
+.bi-filter-agent-run {
+    border:1px solid rgba(9, 26, 47, .34);
+    background:#070e22;
+    color:#c8f5e8;
+    border-radius:12px;
+    font-size:.84rem;
+    font-weight:700;
+    padding:0 12px;
+    min-height:40px;
+}
+.bi-filter-agent-hint,
+.bi-filter-agent-status {
+    margin-top:8px;
+    font-size:.8rem;
+    line-height:1.35;
+}
+.bi-filter-agent-hint { color:var(--ui-muted); }
+.bi-filter-agent-status { color:#11734a; }
+.bi-filter-agent-status.error { color:#8a1f2a; }
 .bi-filter-submit,
 .bi-date-submit {
     border:0 !important;
@@ -2031,6 +2074,15 @@
                             Filtered view
                         </div>
                     }
+                    <div class="bi-filter-agent" aria-label="Filter Agent">
+                        <label for="biFilterAgentInput">Filter Agent</label>
+                        <div class="bi-filter-agent-row">
+                            <input id="biFilterAgentInput" class="bi-filter-agent-input" type="text" placeholder="facility Alnoor Muhaisnah, payer TPA004, from 2026-05-01 to 2026-05-27" />
+                            <button type="button" id="biFilterAgentRun" class="bi-filter-agent-run">Run</button>
+                        </div>
+                        <div class="bi-filter-agent-hint">Understands: facility, receiver, payer, encounter type, date range.</div>
+                        <div id="biFilterAgentStatus" class="bi-filter-agent-status" aria-live="polite"></div>
+                    </div>
                 </form>
             </section>
             <nav class="bi-tabs" id="biTabsNav" role="tablist" aria-label="Dashboard sections">
@@ -2309,6 +2361,114 @@
             window.sessionStorage.setItem(collapsedKey, '0');
             window.sessionStorage.setItem(collapseAtKey, String(Date.now() + 5000));
         });
+    });
+
+    const filterForm = document.querySelector('.bi-filter-card form');
+    const dateForm = document.querySelector('.bi-date-form');
+    const agentInput = document.getElementById('biFilterAgentInput');
+    const agentRun = document.getElementById('biFilterAgentRun');
+    const agentStatus = document.getElementById('biFilterAgentStatus');
+    if (!filterForm || !dateForm || !agentInput || !agentRun || !agentStatus) return;
+
+    const norm = (value) => (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const selectMatch = (selectEl, targetText) => {
+        const want = norm(targetText);
+        if (!want) return false;
+        const options = Array.from(selectEl.options);
+        let best = null;
+        for (const opt of options) {
+            const text = norm(opt.textContent);
+            const value = norm(opt.value);
+            if (!text && !value) continue;
+            if (text === want || value === want) {
+                selectEl.value = opt.value;
+                return true;
+            }
+            if (text.includes(want) || want.includes(text) || value.includes(want) || want.includes(value)) {
+                const score = Math.max(text.length, value.length);
+                if (!best || score > best.score) best = { value: opt.value, score };
+            }
+        }
+        if (!best) return false;
+        selectEl.value = best.value;
+        return true;
+    };
+
+    const parseRange = (text) => {
+        const ymd = text.match(/from\s+(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/i);
+        if (ymd) return { from: ymd[1], to: ymd[2] };
+        const isoAny = text.match(/(\d{4}-\d{2}-\d{2}).*?(\d{4}-\d{2}-\d{2})/i);
+        if (isoAny) return { from: isoAny[1], to: isoAny[2] };
+        const now = new Date();
+        if (/today/i.test(text)) {
+            const d = now.toISOString().slice(0, 10);
+            return { from: d, to: d };
+        }
+        if (/this\s+month/i.test(text)) {
+            const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+            const to = now.toISOString().slice(0, 10);
+            return { from, to };
+        }
+        if (/last\s+month/i.test(text)) {
+            const fromDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const toDate = new Date(now.getFullYear(), now.getMonth(), 0);
+            return { from: fromDate.toISOString().slice(0, 10), to: toDate.toISOString().slice(0, 10) };
+        }
+        return null;
+    };
+
+    const pullField = (text, key) => {
+        const pattern = new RegExp(`${key}\\s*[:=]?\\s*([\\w\\-\\s@@.]+?)(?=\\s+(facility|receiver|payer|encounter|from|to)\\b|$)`, 'i');
+        const match = text.match(pattern);
+        return match ? match[1].trim() : '';
+    };
+
+    const applyFromText = () => {
+        const text = (agentInput.value || '').trim();
+        if (!text) {
+            agentStatus.textContent = 'Type a request first.';
+            agentStatus.classList.add('error');
+            return;
+        }
+        agentStatus.classList.remove('error');
+        const mapped = [];
+        const misses = [];
+        const facility = pullField(text, 'facility');
+        const receiver = pullField(text, 'receiver');
+        const payer = pullField(text, 'payer');
+        const encounter = pullField(text, 'encounter(?:\\s*type)?');
+
+        if (facility) (selectMatch(filterForm.querySelector('#facilityId'), facility) ? mapped : misses).push(`facility ${facility}`);
+        if (receiver) (selectMatch(filterForm.querySelector('#receiver'), receiver) ? mapped : misses).push(`receiver ${receiver}`);
+        if (payer) (selectMatch(filterForm.querySelector('#payer'), payer) ? mapped : misses).push(`payer ${payer}`);
+        if (encounter) (selectMatch(filterForm.querySelector('#encounterType'), encounter) ? mapped : misses).push(`encounter ${encounter}`);
+
+        const range = parseRange(text);
+        if (range) {
+            const fromInput = dateForm.querySelector('input[name="dateFrom"]');
+            const toInput = dateForm.querySelector('input[name="dateTo"]');
+            if (fromInput && toInput) {
+                fromInput.value = range.from;
+                toInput.value = range.to;
+                mapped.push(`date ${range.from} to ${range.to}`);
+            }
+        }
+
+        const message = [`Applied: ${mapped.length ? mapped.join(', ') : 'none'}`];
+        if (misses.length) message.push(`Not matched: ${misses.join(', ')}`);
+        agentStatus.textContent = message.join(' | ');
+        if (!mapped.length) {
+            agentStatus.classList.add('error');
+            return;
+        }
+        filterForm.requestSubmit();
+    };
+
+    agentRun.addEventListener('click', applyFromText);
+    agentInput.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        applyFromText();
     });
 })();
 </script>
