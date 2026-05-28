@@ -5,5 +5,5 @@ namespace Analytika.Services;
 public interface IDashboardService
 {
     Task<FacilityStatusViewModel> BuildFacilityStatusAsync();
-    RCMDashboardViewModel BuildRcmDashboard(string tab);
+    Task<RCMDashboardViewModel> BuildRcmDashboardAsync(string tab, RcmDashboardFilters filters);
 }

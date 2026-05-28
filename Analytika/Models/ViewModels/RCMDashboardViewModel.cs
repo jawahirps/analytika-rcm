@@ -12,6 +12,34 @@ public class RCMDashboardViewModel
     public List<DashboardInsight> Insights { get; set; } = new();
     public string Summary { get; set; } = string.Empty;
     public DateTime RefreshedAt { get; set; } = DateTime.Now;
+    public RcmDashboardFilters Filters { get; set; } = new();
+    public List<DashboardFilterOption> FacilityOptions { get; set; } = new();
+    public List<DashboardFilterOption> ReceiverOptions { get; set; } = new();
+    public List<DashboardFilterOption> PayerOptions { get; set; } = new();
+    public List<DashboardFilterOption> EncounterTypeOptions { get; set; } = new();
+    public bool HasActiveFilters =>
+        Filters.FacilityId.HasValue ||
+        !string.IsNullOrWhiteSpace(Filters.Receiver) ||
+        !string.IsNullOrWhiteSpace(Filters.Payer) ||
+        !string.IsNullOrWhiteSpace(Filters.EncounterType) ||
+        Filters.DateFrom.HasValue ||
+        Filters.DateTo.HasValue;
+}
+
+public class RcmDashboardFilters
+{
+    public int? FacilityId { get; set; }
+    public string? Receiver { get; set; }
+    public string? Payer { get; set; }
+    public string? EncounterType { get; set; }
+    public DateOnly? DateFrom { get; set; }
+    public DateOnly? DateTo { get; set; }
+}
+
+public class DashboardFilterOption
+{
+    public string Value { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }
 
 public class DashboardMetric

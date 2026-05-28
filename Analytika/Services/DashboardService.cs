@@ -18,84 +18,104 @@ public class DashboardService : IDashboardService
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
-        var credsByFacility = await _db.PortalCredentials
+        var credentials = await _db.PortalCredentials
             .Where(c => c.IsActive)
-            .GroupBy(c => c.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Portals = g.Select(c => c.Portal).ToList() })
+            .Select(c => new { c.FacilityId, c.Portal })
             .ToListAsync();
 
         var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
         var logProjection = await _db.PortalFetchLogs
             .AsNoTracking()
-            .Select(l => new { l.FacilityId, l.Status, l.Operation, l.FetchedAt })
+            .Select(l => new { l.FacilityId, l.Portal, l.Status, l.Operation, l.FetchedAt })
             .ToListAsync();
 
         var latestMeaningful = logProjection
             .Where(l => meaningfulOps.Contains(l.Operation))
-            .GroupBy(l => l.FacilityId)
+            .GroupBy(l => new { l.FacilityId, Portal = l.Portal.ToUpper() })
             .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
 
         var latestAny = logProjection
-            .GroupBy(l => l.FacilityId)
+            .GroupBy(l => new { l.FacilityId, Portal = l.Portal.ToUpper() })
             .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
 
         var cutoff = DateTime.UtcNow.AddHours(-48);
         var recentSuccess = logProjection
             .Where(l => l.Status == "Success" && l.FetchedAt >= cutoff)
-            .Select(l => l.FacilityId)
+            .Select(l => new { l.FacilityId, Portal = l.Portal.ToUpper() })
             .ToHashSet();
 
         var txStats = await _db.PortalTransactions
             .AsNoTracking()
-            .GroupBy(t => t.FacilityId)
+            .GroupBy(t => new { t.FacilityId, Portal = t.Portal.ToUpper() })
             .Select(g => new
             {
-                FacilityId = g.Key,
+                g.Key.FacilityId,
+                g.Key.Portal,
                 Records = g.Count(),
                 DownloadedFiles = g.Count(t => t.FileDownloaded),
                 PendingFiles = g.Count(t => !t.FileDownloaded)
             })
             .ToListAsync();
 
-        var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
-        var txMap = txStats.ToDictionary(x => x.FacilityId);
+        var txMap = txStats.ToDictionary(x => new { x.FacilityId, x.Portal });
         var claimMap = await _db.XmlParsedRecords
             .AsNoTracking()
             .Where(r => r.RecordKind == "Submission")
-            .GroupBy(r => r.FacilityId)
+            .Join(
+                _db.PortalTransactions.AsNoTracking(),
+                r => r.PortalTransactionId,
+                t => t.Id,
+                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.ClaimId })
+            .GroupBy(r => new { r.FacilityId, r.Portal })
             .Select(g => new
             {
-                FacilityId = g.Key,
+                g.Key.FacilityId,
+                g.Key.Portal,
                 ClaimCount = g.Select(r => r.ClaimId).Distinct().Count()
             })
-            .ToDictionaryAsync(x => x.FacilityId, x => x.ClaimCount);
+            .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
 
-        var rows = facilities.Select(f =>
+        var rows = facilities.SelectMany(f =>
         {
-            credMap.TryGetValue(f.Id, out var cred);
-            txMap.TryGetValue(f.Id, out var tx);
-            claimMap.TryGetValue(f.Id, out var claimCount);
-            latestMeaningful.TryGetValue(f.Id, out var mLog);
-            latestAny.TryGetValue(f.Id, out var anyLog);
-            var displayLog = mLog ?? anyLog;
+            var activePortals = credentials
+                .Where(c => c.FacilityId == f.Id)
+                .Select(c => c.Portal.ToUpper())
+                .Distinct()
+                .OrderBy(p => p == "DHA" ? 0 : 1)
+                .ToList();
 
-            var effectiveStatus = recentSuccess.Contains(f.Id) ? "Success"
-                                : mLog?.Status ?? anyLog?.Status;
-
-            return new FacilityStatusRow
+            if (activePortals.Count == 0)
             {
-                FacilityId = f.Id,
-                FacilityName = f.Name,
-                HasCredential = cred != null,
-                Portal = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
-                LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-                LastSyncStatus = effectiveStatus,
-                RecordCount = tx?.Records ?? 0,
-                ClaimCount = claimCount,
-                FileCount = tx?.DownloadedFiles ?? 0,
-                DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
-                PendingFilesCount = tx?.PendingFiles ?? 0,
-            };
+                activePortals.Add("");
+            }
+
+            return activePortals.Select(portal =>
+            {
+                var key = new { FacilityId = f.Id, Portal = portal };
+                txMap.TryGetValue(key, out var tx);
+                claimMap.TryGetValue(key, out var claimCount);
+                latestMeaningful.TryGetValue(key, out var mLog);
+                latestAny.TryGetValue(key, out var anyLog);
+                var displayLog = mLog ?? anyLog;
+
+                var effectiveStatus = recentSuccess.Contains(key) ? "Success"
+                                    : mLog?.Status ?? anyLog?.Status;
+
+                return new FacilityStatusRow
+                {
+                    FacilityId = f.Id,
+                    FacilityName = portal == "RHA" ? $"{f.Name} RHA" : f.Name,
+                    HasCredential = portal.Length > 0,
+                    Portal = portal.Length > 0 ? portal : null,
+                    LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
+                    LastSyncStatus = effectiveStatus,
+                    RecordCount = tx?.Records ?? 0,
+                    ClaimCount = claimCount,
+                    FileCount = tx?.DownloadedFiles ?? 0,
+                    DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
+                    PendingFilesCount = tx?.PendingFiles ?? 0,
+                };
+            });
         })
         .OrderBy(r => r.Status)
         .ThenBy(r => r.FacilityName)
@@ -113,8 +133,49 @@ public class DashboardService : IDashboardService
         };
     }
 
-    public RCMDashboardViewModel BuildRcmDashboard(string tab)
+    public async Task<RCMDashboardViewModel> BuildRcmDashboardAsync(string tab, RcmDashboardFilters filters)
     {
+        filters ??= new RcmDashboardFilters();
+
+        var facilityOptions = await _db.Facilities
+            .AsNoTracking()
+            .Where(f => f.IsActive)
+            .OrderBy(f => f.Name)
+            .Select(f => new DashboardFilterOption { Value = f.Id.ToString(), Label = f.Name })
+            .ToListAsync();
+
+        var receiverOptions = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Select(r => r.ReceiverName ?? r.ReceiverId)
+            .Where(v => v != null && v != "")
+            .Select(v => v!)
+            .Distinct()
+            .OrderBy(v => v)
+            .Take(80)
+            .Select(v => new DashboardFilterOption { Value = v, Label = v })
+            .ToListAsync();
+
+        var payerOptions = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Select(r => r.PayerName ?? r.PayerId)
+            .Where(v => v != null && v != "")
+            .Select(v => v!)
+            .Distinct()
+            .OrderBy(v => v)
+            .Take(80)
+            .Select(v => new DashboardFilterOption { Value = v, Label = v })
+            .ToListAsync();
+
+        var encounterTypeOptions = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.EncounterType != null && r.EncounterType != "")
+            .Select(r => r.EncounterType!)
+            .Distinct()
+            .OrderBy(v => v)
+            .Take(80)
+            .Select(v => new DashboardFilterOption { Value = v, Label = v })
+            .ToListAsync();
+
         var tabs = new List<string> { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
         var activeTab = tabs.Contains(tab, StringComparer.OrdinalIgnoreCase)
             ? tabs.First(t => t.Equals(tab, StringComparison.OrdinalIgnoreCase))
@@ -163,6 +224,11 @@ public class DashboardService : IDashboardService
             StableFieldDetail = stableFieldDetail,
             Summary = profile.Summary,
             RefreshedAt = DateTime.Now,
+            Filters = filters,
+            FacilityOptions = facilityOptions,
+            ReceiverOptions = receiverOptions,
+            PayerOptions = payerOptions,
+            EncounterTypeOptions = encounterTypeOptions,
             Metrics =
             [
                 new DashboardMetric { Label = "Total Claims", Value = $"{seed * 124:N0}", Delta = "+8.4%", Icon = "fa-file-medical", Tone = "teal" },

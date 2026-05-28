@@ -207,17 +207,17 @@ public class PortalController : Controller
                 return (0, new List<PortalFetchResultRow>(), $"No active RHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
 
             var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
-            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
             if (authErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"RHA Auth failed: {authErr}");
 
             (List<PortalFetchResultRow> rows, string? error) rhaResult;
             if (vm.Operation == "GetRemittances")
-                rhaResult = await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+                rhaResult = await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo, cred.LicenseCode);
             else if (vm.Operation == "GetPriorAuthorizations")
-                rhaResult = await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+                rhaResult = await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo, cred.LicenseCode);
             else
-                rhaResult = await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo);
+                rhaResult = await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", vm.DateFrom, vm.DateTo, cred.LicenseCode);
 
             foreach (var row in rhaResult.rows)
             {
@@ -384,7 +384,7 @@ public class PortalController : Controller
         string? rhaToken = null;
         if (vm.Portal == "RHA")
         {
-            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
+            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
             if (authErr != null)
             {
                 freshVm.IsError = true;
@@ -463,7 +463,7 @@ public class PortalController : Controller
                     var batch = new SyncBatchResult { Period = period, Label = label, Operation = "GetClaims" };
                     try
                     {
-                        var (rows, err) = await _rha.GetClaimsAsync(rhaToken!, cred.ApiBaseUrl ?? "", fromStr, toStr);
+                        var (rows, err) = await _rha.GetClaimsAsync(rhaToken!, cred.ApiBaseUrl ?? "", fromStr, toStr, cred.LicenseCode);
                         batch.Fetched = rows.Count;
                         batch.Error = err;
                         var (n, d, _) = await _sync.UpsertDhaTransactionsWithDownloadAsync(rows, "", "", vm.FacilityId!.Value, "GetClaims", period, "RHA", skipDownload: true);
@@ -479,7 +479,7 @@ public class PortalController : Controller
                     var batch = new SyncBatchResult { Period = period, Label = label, Operation = "GetRemittances" };
                     try
                     {
-                        var (rows, err) = await _rha.GetRemittancesAsync(rhaToken!, cred.ApiBaseUrl ?? "", fromStr, toStr);
+                        var (rows, err) = await _rha.GetRemittancesAsync(rhaToken!, cred.ApiBaseUrl ?? "", fromStr, toStr, cred.LicenseCode);
                         batch.Fetched = rows.Count;
                         batch.Error = err;
                         var (n, d, _) = await _sync.UpsertDhaTransactionsWithDownloadAsync(rows, "", "", vm.FacilityId!.Value, "GetRemittances", period, "RHA", skipDownload: true);
@@ -1209,13 +1209,13 @@ public class PortalController : Controller
                 });
             }
 
-            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "");
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "", cred.LicenseCode);
             if (authErr != null) return Json(new { ok = false, message = authErr });
             (List<PortalFetchResultRow> rows, string? error) rhaRes = operation switch
             {
-                "GetRemittances" => await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo),
-                "GetPriorAuthorizations" => await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo),
-                _ => await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo)
+                "GetRemittances" => await _rha.GetRemittancesAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo, cred.LicenseCode),
+                "GetPriorAuthorizations" => await _rha.GetPriorAuthorizationsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo, cred.LicenseCode),
+                _ => await _rha.GetClaimsAsync(token!, cred.ApiBaseUrl ?? "", dateFrom, dateTo, cred.LicenseCode)
             };
             if (rhaRes.error != null) return Json(new { ok = false, message = rhaRes.error });
             return Json(new

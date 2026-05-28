@@ -186,15 +186,15 @@
                         <i class="fas fa-bell"></i>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end p-0 shadow" style="min-width:320px;border-radius:12px;overflow:hidden;">
-                        <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#011C40;">
+                    <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
                             <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
                             <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
                         </div>
                         <div id="notificationList">
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
-                                    <i class="fas fa-file-download" style="color:#35577D;"></i>
+                                <div class="notif-icon flex-shrink-0 notification-icon-muted">
+                                    <i class="fas fa-file-download"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">New transactions available</div>
@@ -203,8 +203,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
-                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
-                                    <i class="fas fa-file-code" style="color:#54ACBF;"></i>
+                                <div class="notif-icon flex-shrink-0 notification-icon-accent">
+                                    <i class="fas fa-file-code"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">XML Parsing summary</div>
@@ -213,8 +213,8 @@
                                 </div>
                             </a>
                             <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0" style="background:#EAF4FB;">
-                                    <i class="fas fa-sync" style="color:#011C40;"></i>
+                                <div class="notif-icon flex-shrink-0 notification-icon-primary">
+                                    <i class="fas fa-sync"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
                                     <div class="fw-semibold text-dark">Daily sync complete</div>
@@ -223,8 +223,8 @@
                                 </div>
                             </a>
                         </div>
-                        <div class="text-center py-2" style="background:#EAF4FB;border-top:1px solid #eee;">
-                            <a href="/Portal/Sync" style="font-size:.75rem;color:#35577D;text-decoration:none;" data-i18n="view_all_activity">View all activity</a>
+                        <div class="text-center py-2 notification-menu-footer">
+                            <a href="/Portal/Sync" class="notification-footer-link" data-i18n="view_all_activity">View all activity</a>
                         </div>
                     </div>
                 </li>
@@ -284,7 +284,7 @@
 <script>
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1" style="color:#011C40;"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
