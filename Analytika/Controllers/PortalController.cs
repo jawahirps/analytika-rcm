@@ -109,6 +109,10 @@ public class PortalController : Controller
                 };
 
                 var (dlResult, dlFileName, dlBytes, dlError) = await _dha.DownloadTransactionFileAsync(cred.Username, pwd, vm.FileId);
+                if (dlBytes == null || dlBytes.Length == 0)
+                {
+                    (dlResult, dlFileName, dlBytes, dlError) = await _dha.DownloadTransactionFileArchiveAsync(cred.Username, pwd, vm.FileId);
+                }
                 if (dlError != null)
                 {
                     log.Status = "Failed";
@@ -1158,6 +1162,10 @@ public class PortalController : Controller
                     if (string.IsNullOrWhiteSpace(fileId))
                         return Json(new { ok = false, message = "File ID required." });
                     var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.Username, pwd, fileId);
+                    if (dlBytes == null || dlBytes.Length == 0)
+                    {
+                        (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileArchiveAsync(cred.Username, pwd, fileId);
+                    }
                     if (dlErr != null) return Json(new { ok = false, message = dlErr });
                     return Json(new { ok = true, message = $"Downloaded: {dlFileName} ({dlBytes?.Length ?? 0:N0} bytes)", rows = Array.Empty<object>() });
                 }
@@ -1595,6 +1603,10 @@ public class PortalController : Controller
             try
             {
                 var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.username, cred.pwd, tx.FileId!);
+                if (dlBytes == null || dlBytes.Length == 0)
+                {
+                    (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileArchiveAsync(cred.username, cred.pwd, tx.FileId!);
+                }
                 if (dlErr == null && dlBytes?.Length > 0)
                 {
                     var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);

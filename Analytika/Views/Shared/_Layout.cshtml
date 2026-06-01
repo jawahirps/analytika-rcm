@@ -148,6 +148,172 @@
         }
     </style>
     @await RenderSectionAsync("Styles", required: false)
+    <style>
+        :root {
+            --app-bg: #f6f7fb;
+            --app-surface: rgba(255,255,255,.68);
+            --app-surface-soft: rgba(248,250,252,.58);
+            --app-line: rgba(226,232,240,.72);
+            --app-ink: #111827;
+            --app-muted: #6b7280;
+            --app-accent: #ff6f61;
+            --app-accent-dark: #e65347;
+            --app-success: #16a34a;
+            --app-warning: #f59e0b;
+            --app-info: #2563eb;
+            --app-radius: 12px;
+            --app-shadow: 0 18px 46px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255,255,255,.72);
+        }
+
+        html,
+        body {
+            background:
+                radial-gradient(circle at 8% 8%, rgba(255,111,97,.20), transparent 26%),
+                radial-gradient(circle at 88% 0%, rgba(37,99,235,.13), transparent 25%),
+                linear-gradient(90deg, rgba(255,255,255,.24) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(15,23,42,.045) 1px, transparent 1px),
+                linear-gradient(135deg, #f8fafc 0%, #eef2f7 48%, #f9fafb 100%) !important;
+            background-size: 34px 34px, 34px 34px, auto !important;
+            color: var(--app-ink) !important;
+        }
+
+        .analytika-navbar {
+            background: rgba(255,255,255,.66) !important;
+            border-bottom: 1px solid var(--app-line) !important;
+            box-shadow: 0 12px 34px rgba(15, 23, 42, .08) !important;
+            backdrop-filter: blur(24px) saturate(170%);
+            -webkit-backdrop-filter: blur(24px) saturate(170%);
+        }
+
+        .analytika-brand,
+        .dropdown-menu,
+        .card,
+        .panel,
+        .metric-card,
+        .dd-card,
+        .filter-card,
+        .table-card,
+        .info-card,
+        .stat-card,
+        .filter-bar,
+        .cs-card,
+        .rsb-card,
+        .wl-card,
+        .detail-card,
+        .xp-shell,
+        .xp-stat,
+        .xp-progress,
+        .upload-zone,
+        .list-group-item,
+        .modal-content,
+        .toast,
+        .alert,
+        .bi-tabs,
+        .bi-filter-card,
+        .bi-header,
+        .bi-shell .panel,
+        .bi-filter-agent-drawer {
+            background: var(--app-surface) !important;
+            border: 1px solid var(--app-line) !important;
+            border-radius: var(--app-radius) !important;
+            box-shadow: var(--app-shadow) !important;
+            color: var(--app-ink) !important;
+            backdrop-filter: blur(24px) saturate(165%) !important;
+            -webkit-backdrop-filter: blur(24px) saturate(165%) !important;
+        }
+
+        .analytika-navbar .nav-link,
+        .analytika-navbar .dropdown-item,
+        .brand-text,
+        h1, h2, h3, h4, h5, h6,
+        .page-title,
+        .panel-title,
+        .metric-value,
+        .bi-title,
+        .bi-shell .metric-value {
+            color: var(--app-ink) !important;
+        }
+
+        .brand-sub,
+        .page-subtitle,
+        .text-muted,
+        .small,
+        small,
+        .form-text,
+        .bi-desc,
+        .summary,
+        .breakdown-detail,
+        .insight-detail,
+        .trend-label,
+        .metric-delta {
+            color: var(--app-muted) !important;
+        }
+
+        .analytika-navbar .nav-link,
+        .bi-tab {
+            border-radius: 10px !important;
+            font-weight: 700 !important;
+        }
+
+        .analytika-navbar .nav-link.active,
+        .analytika-navbar .nav-link:hover,
+        .bi-tab.active {
+            background: #fff1ef !important;
+            color: var(--app-accent-dark) !important;
+            border-color: rgba(255,111,97,.28) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
+        }
+
+        .btn-primary,
+        .btn-emerald,
+        .btn-teal,
+        .btn-submit-report,
+        .btn-download,
+        .bi-filter-submit,
+        .bi-date-submit,
+        .bi-filter-agent-run,
+        .bi-ai-launcher,
+        .bi-ai-pet,
+        .page-item.active .page-link {
+            background: linear-gradient(180deg, #ff7a6e, var(--app-accent)) !important;
+            border-color: var(--app-accent) !important;
+            color: #ffffff !important;
+            box-shadow: 0 10px 22px rgba(255, 111, 97, .22) !important;
+        }
+
+        .btn-outline-secondary,
+        .btn-light,
+        .form-control,
+        .form-select,
+        .input-group-text,
+        .select2-container--default .select2-selection--single,
+        .bi-date-input,
+        .bi-filter-field select,
+        .bi-filter-agent-input {
+            background: var(--app-surface-soft) !important;
+            border: 1px solid var(--app-line) !important;
+            border-radius: 10px !important;
+            color: var(--app-ink) !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.64) !important;
+            backdrop-filter: blur(18px) saturate(150%) !important;
+            -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+        }
+
+        .table thead th,
+        .data-table thead th,
+        .search-results th {
+            background: #f8fafc !important;
+            color: #374151 !important;
+            border-color: var(--app-line) !important;
+        }
+
+        .badge,
+        .status-badge,
+        .metric-delta,
+        .insight-badge {
+            border-radius: 999px !important;
+        }
+    </style>
 </head>
 <body>
 

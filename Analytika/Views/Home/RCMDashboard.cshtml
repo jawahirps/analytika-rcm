@@ -2640,6 +2640,203 @@
 .bi-shell .breakdown-fill {
     background: linear-gradient(90deg, #58bbff, #6f8bff, #8fd7ff) !important;
 }
+/* SmartHR-inspired final layer: clean HR/admin dashboard language */
+.bi-shell {
+    min-height: calc(100vh - 56px);
+    background:
+        radial-gradient(circle at 12% 4%, rgba(255,111,97,.22), transparent 26%),
+        radial-gradient(circle at 88% 2%, rgba(37,99,235,.14), transparent 26%),
+        linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(15,23,42,.045) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(247,248,251,.92) 0%, rgba(238,242,247,.82) 48%, rgba(248,250,252,.92) 100%) !important;
+    background-size: 34px 34px, 34px 34px, auto !important;
+    color: #111827 !important;
+}
+.bi-layout {
+    max-width: 1540px !important;
+    padding: 20px !important;
+    gap: 18px !important;
+}
+.bi-tabs,
+.bi-filter-card,
+.bi-header,
+.metric-card,
+.panel,
+.bi-filter-agent-drawer {
+    background: rgba(255,255,255,.64) !important;
+    border: 1px solid rgba(226,232,240,.76) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 18px 46px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255,255,255,.72) !important;
+    backdrop-filter: blur(24px) saturate(165%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(165%) !important;
+}
+.bi-tabs,
+.bi-filter-card {
+    padding: 14px !important;
+}
+.bi-tab {
+    min-height: 42px !important;
+    border-radius: 10px !important;
+    background: transparent !important;
+    color: #4b5563 !important;
+    border: 1px solid transparent !important;
+    font-weight: 700 !important;
+}
+.bi-tab:hover {
+    background: #f8fafc !important;
+    color: #111827 !important;
+    transform: none !important;
+}
+.bi-tab.active {
+    background: #fff1ef !important;
+    border-left-color: #ff6f61 !important;
+    border-color: #ffd6d1 !important;
+    color: #d93f34 !important;
+    box-shadow: none !important;
+}
+.bi-tab.active i,
+.bi-tab i {
+    color: currentColor !important;
+}
+.bi-tabs-toggle,
+.bi-refresh,
+.bi-field,
+.insight-badge,
+.bi-date-range,
+.bi-filter-field select,
+.bi-date-input,
+.bi-filter-agent-input,
+.bi-filter-reset,
+.bi-header-icon,
+.bi-calendar-icon,
+.bi-filter-agent-close {
+    background: rgba(248,250,252,.62) !important;
+    border: 1px solid rgba(226,232,240,.72) !important;
+    color: #4b5563 !important;
+    border-radius: 10px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
+    backdrop-filter: blur(18px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+}
+.bi-header {
+    padding: 22px !important;
+    align-items: center !important;
+}
+.bi-title {
+    color: #111827 !important;
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+}
+.bi-desc,
+.summary,
+.breakdown-detail,
+.insight-detail,
+.trend-label,
+.metric-delta,
+.bi-field small,
+.bi-filter-field label,
+.bi-filter-active {
+    color: #6b7280 !important;
+}
+.metric-grid {
+    gap: 16px !important;
+}
+.metric-card {
+    min-height: 126px !important;
+    padding: 18px !important;
+    align-items: flex-start !important;
+    flex-direction: column !important;
+}
+.metric-card::before {
+    display: none !important;
+}
+.metric-icon {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 12px !important;
+    background: #fff1ef !important;
+    color: #ff6f61 !important;
+}
+.metric-label,
+.panel-title,
+.breakdown-label,
+.insight-title,
+.bi-filter-title {
+    color: #374151 !important;
+    font-weight: 800 !important;
+}
+.metric-value {
+    color: #111827 !important;
+    font-size: 1.7rem !important;
+    font-weight: 850 !important;
+    letter-spacing: 0 !important;
+}
+.metric-delta,
+.insight-badge {
+    display: inline-flex !important;
+    width: fit-content !important;
+    margin-top: 4px !important;
+    padding: 4px 9px !important;
+    border-radius: 999px !important;
+    background: rgba(236,253,243,.72) !important;
+    color: #15803d !important;
+    border-color: #bbf7d0 !important;
+    font-weight: 800 !important;
+}
+.bi-filter-submit,
+.bi-date-submit,
+.bi-filter-agent-run,
+.bi-ai-launcher,
+.bi-ai-pet {
+    background: linear-gradient(180deg, #ff7a6e, #ff5f52) !important;
+    border-color: #ff6f61 !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 22px rgba(255, 111, 97, .24) !important;
+}
+.dash-grid {
+    gap: 16px !important;
+}
+.panel {
+    padding: 20px !important;
+}
+.trend-bar,
+.breakdown-fill,
+.metric-meter span {
+    background: linear-gradient(180deg, #ff6f61, #ff9b73) !important;
+}
+.trend-line {
+    stroke: #ff6f61 !important;
+}
+.trend-area {
+    fill: rgba(255,111,97,.14) !important;
+}
+.trend-grid-lines line {
+    stroke: #e7eaf0 !important;
+}
+.trend-axis-label,
+.trend-y-label,
+.trend-point text,
+.trend-empty {
+    fill: #6b7280 !important;
+}
+.breakdown-track,
+.metric-meter {
+    background: #eef2f7 !important;
+}
+.breakdown-row,
+.insight {
+    border-color: #eef2f7 !important;
+}
+@@media (max-width: 992px) {
+    .bi-layout {
+        grid-template-columns: 1fr !important;
+    }
+    .bi-tabs-shell {
+        position: static !important;
+        width: 100% !important;
+    }
+}
 </style>
 }
 

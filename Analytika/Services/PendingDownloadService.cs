@@ -132,6 +132,11 @@ public class PendingDownloadService : BackgroundService
             {
                 var (_, _, dlBytes, dlErr) = await dha.DownloadTransactionFileAsync(
                     cred.username, cred.pwd, tx.FileId!);
+                if (dlBytes == null || dlBytes.Length == 0)
+                {
+                    (_, _, dlBytes, dlErr) = await dha.DownloadTransactionFileArchiveAsync(
+                        cred.username, cred.pwd, tx.FileId!);
+                }
 
                 if (dlErr == null && dlBytes?.Length > 0)
                 {

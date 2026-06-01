@@ -216,6 +216,10 @@ public class PortalSyncService
                     try
                     {
                         var (_, dlFileName, dlBytes, _) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
+                        if (dlBytes == null || dlBytes.Length == 0)
+                        {
+                            (_, dlFileName, dlBytes, _) = await _dha.DownloadTransactionFileArchiveAsync(login, pwd, row.FileId);
+                        }
                         if (dlBytes?.Length > 0)
                         {
                             var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
