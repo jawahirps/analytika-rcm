@@ -71,6 +71,18 @@ public class PortalSyncViewModel
     // Existing DB counts for display
     public long TotalInDb { get; set; }
     public long TotalFilesInDb { get; set; }
+    public List<PortalFacilityOption> PortalFacilities { get; set; } = new();
+}
+
+public class PortalFacilityOption
+{
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = "";
+    public string Portal { get; set; } = "";
+    public string? CredentialName { get; set; }
+    public string DisplayName => string.IsNullOrWhiteSpace(CredentialName)
+        ? $"{FacilityName} {Portal}"
+        : $"{FacilityName} {Portal} - {CredentialName}";
 }
 
 public class SyncBatchResult

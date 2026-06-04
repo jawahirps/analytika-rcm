@@ -24,22 +24,94 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
     <style>
         :root {
-            --shell-bg: linear-gradient(145deg, #051F20 0%, #141E30 55%, #023859 100%);
-            --shell-panel: rgba(11,43,38,.84);
-            --shell-panel-2: rgba(20,30,48,.88);
-            --shell-line: rgba(84,172,191,.22);
-            --shell-text: #DAF1DE;
-            --shell-muted: #8EB69B;
-            --shell-accent: #54ACBF;
-            --shell-accent-2: #26658C;
-            --shell-glow: 0 18px 42px rgba(1,28,64,.32);
+            color-scheme: light;
+            --ops-bg: #eef7fc;
+            --ops-bg-2: #f7fbfe;
+            --ops-surface: rgba(255, 255, 255, .92);
+            --ops-surface-soft: rgba(244, 250, 254, .86);
+            --ops-surface-strong: #ffffff;
+            --ops-ink: #10233f;
+            --ops-ink-2: #24415f;
+            --ops-muted: #6d8196;
+            --ops-line: rgba(177, 208, 231, .76);
+            --ops-line-strong: rgba(127, 174, 211, .52);
+            --ops-primary: #2478ff;
+            --ops-primary-2: #63b7ff;
+            --ops-cyan: #37c7dc;
+            --ops-mint: #55d7b7;
+            --ops-success: #078766;
+            --ops-warning: #b87516;
+            --ops-danger: #d93f55;
+            --ops-radius: 16px;
+            --ops-radius-sm: 10px;
+            --ops-shadow: 0 18px 44px rgba(22, 75, 128, .10), 0 6px 18px rgba(16, 35, 63, .06);
+            --ops-shadow-soft: 0 10px 28px rgba(36, 120, 255, .08);
+            --ops-focus: 0 0 0 .2rem rgba(36, 120, 255, .15);
+            --ops-wall:
+                radial-gradient(circle at 12% 7%, rgba(99, 183, 255, .28), transparent 30%),
+                radial-gradient(circle at 86% 10%, rgba(55, 199, 220, .16), transparent 32%),
+                linear-gradient(180deg, var(--ops-bg) 0%, var(--ops-bg-2) 48%, #f4f9fd 100%);
         }
 
+        [data-theme="dark"] {
+            color-scheme: dark;
+            --ops-bg: #0e2034;
+            --ops-bg-2: #122940;
+            --ops-surface: rgba(18, 41, 64, .92);
+            --ops-surface-soft: rgba(27, 57, 84, .88);
+            --ops-surface-strong: #162f49;
+            --ops-ink: #eef8ff;
+            --ops-ink-2: #cbe2f5;
+            --ops-muted: #9fb7ca;
+            --ops-line: rgba(125, 177, 214, .28);
+            --ops-line-strong: rgba(125, 177, 214, .42);
+            --ops-shadow: 0 20px 46px rgba(0, 0, 0, .22);
+            --ops-shadow-soft: 0 12px 30px rgba(0, 0, 0, .18);
+            --ops-wall:
+                radial-gradient(circle at 12% 7%, rgba(36, 120, 255, .22), transparent 30%),
+                radial-gradient(circle at 86% 10%, rgba(55, 199, 220, .13), transparent 32%),
+                linear-gradient(180deg, #0b1b2d 0%, #11253a 56%, #0e2034 100%);
+        }
+
+        html,
         body {
-            background: var(--shell-bg) !important;
-            color: var(--shell-text);
+            min-height: 100%;
+            background: var(--ops-wall) !important;
+            background-attachment: fixed !important;
+            color: var(--ops-ink) !important;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+            font-size: 14px;
+        }
+
+        body { overflow-x: hidden; }
+        main,
+        .dash-section,
+        .bi-shell,
+        .bi-layout,
+        .bi-content,
+        .xp-page,
+        .rsb-page,
+        .portal-page,
+        .xml-page {
+            background: transparent !important;
+            color: var(--ops-ink) !important;
+        }
+        main { position: relative; isolation: isolate; }
+        main::before {
+            content: "";
+            position: fixed;
+            inset: 72px 0 0;
+            pointer-events: none;
+            z-index: -1;
+            opacity: .7;
+            background:
+                linear-gradient(90deg, rgba(36, 120, 255, .035) 1px, transparent 1px),
+                linear-gradient(180deg, rgba(36, 120, 255, .035) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,.68), transparent 92%);
         }
 
         .analytika-navbar {
@@ -47,148 +119,80 @@
             top: 0;
             z-index: 1030;
             margin: 0;
-            padding: .9rem 0;
-            background: rgba(11,43,38,.82) !important;
-            border-bottom: 1px solid var(--shell-line);
-            backdrop-filter: blur(18px) saturate(160%);
-            -webkit-backdrop-filter: blur(18px) saturate(160%);
-            box-shadow: 0 12px 32px rgba(1,28,64,.18);
+            padding: .7rem 0;
+            background: rgba(255,255,255,.82) !important;
+            border-bottom: 1px solid var(--ops-line) !important;
+            box-shadow: var(--ops-shadow-soft) !important;
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
         }
-        .analytika-navbar .container-fluid {
-            max-width: 1600px;
-            gap: .75rem;
-        }
+        [data-theme="dark"] .analytika-navbar { background: rgba(15, 32, 52, .86) !important; }
+        .analytika-navbar .container-fluid { max-width: 1640px; gap: .6rem; }
         .analytika-brand {
-            background: linear-gradient(180deg, rgba(20,30,48,.92), rgba(11,43,38,.94)) !important;
-            border: 1px solid var(--shell-line) !important;
-            border-radius: 18px !important;
-            padding: .75rem .9rem !important;
-            box-shadow: var(--shell-glow);
+            background: var(--ops-surface) !important;
+            border: 1px solid var(--ops-line) !important;
+            border-radius: 14px !important;
+            padding: .62rem .78rem !important;
+            box-shadow: var(--ops-shadow-soft) !important;
+            gap: .62rem;
         }
-        .brand-text,
-        .brand-sub {
-            color: var(--shell-text) !important;
-        }
-        .brand-sub {
-            opacity: .78;
-            letter-spacing: .06em;
-        }
+        .brand-icon-sm { width: 38px; height: 38px; flex: 0 0 auto; }
+        .brand-icon-sm circle { stroke: var(--ops-primary) !important; }
+        .brand-icon-sm rect:nth-of-type(1), .brand-icon-sm polygon { fill: var(--ops-ink) !important; }
+        .brand-icon-sm rect:nth-of-type(2), .brand-icon-sm polyline { fill: var(--ops-primary) !important; stroke: var(--ops-primary) !important; }
+        .brand-icon-sm rect:nth-of-type(3) { fill: var(--ops-primary-2) !important; }
+        .brand-icon-sm rect:nth-of-type(4) { fill: var(--ops-mint) !important; }
+        .brand-text { color: var(--ops-ink) !important; font-weight: 800; letter-spacing: -.01em; line-height: 1; }
+        .brand-sub { color: var(--ops-muted) !important; font-size: .72rem; font-weight: 800; letter-spacing: .055em; text-transform: uppercase; }
+
         .analytika-navbar .nav-link,
-        .analytika-navbar .profile-btn,
-        .analytika-navbar .bell-btn,
-        .analytika-navbar .theme-toggle-btn,
-        .analytika-navbar .lang-toggle-btn {
-            color: var(--shell-text) !important;
-        }
-        .analytika-navbar .nav-link {
-            border-radius: 12px;
-            padding: .7rem .95rem !important;
-        }
-        .analytika-navbar .nav-link.active,
-        .analytika-navbar .nav-link:hover {
-            background: rgba(84,172,191,.12);
-            color: #A7EBF2 !important;
-        }
-        .analytika-navbar .dropdown-menu {
-            background: rgba(11,43,38,.96);
-            border: 1px solid var(--shell-line);
-            box-shadow: var(--shell-glow);
-            border-radius: 16px;
-            color: var(--shell-text);
-        }
-        .analytika-navbar .dropdown-item {
-            color: var(--shell-text);
-            border-radius: 10px;
-            margin: 2px 6px;
-        }
-        .analytika-navbar .dropdown-item:hover {
-            background: rgba(84,172,191,.12);
-            color: #A7EBF2;
-        }
-        .analytika-navbar .navbar-toggler {
-            border-color: var(--shell-line);
-            background: rgba(20,30,48,.92);
-        }
-        .analytika-navbar .navbar-toggler-icon {
-            filter: invert(1) brightness(1.2);
-        }
+        .analytika-navbar .dropdown-item,
+        .profile-btn,
+        .bell-btn,
         .theme-toggle-btn,
         .lang-toggle-btn {
-            background: rgba(20,30,48,.92) !important;
-            border-color: var(--shell-line) !important;
+            color: var(--ops-ink-2) !important;
         }
+        .analytika-navbar .nav-link {
+            border-radius: 999px;
+            padding: .58rem .82rem !important;
+            font-size: .86rem;
+            font-weight: 750;
+            border: 1px solid transparent;
+        }
+        .analytika-navbar .nav-link.active,
+        .analytika-navbar .nav-link:hover,
         .lang-toggle-btn.active {
-            background: rgba(84,172,191,.16) !important;
-            color: #A7EBF2 !important;
+            background: var(--ops-surface-strong) !important;
+            border-color: var(--ops-line) !important;
+            color: var(--ops-primary) !important;
+            box-shadow: 0 8px 18px rgba(36, 120, 255, .10) !important;
         }
+        .dropdown-menu {
+            background: var(--ops-surface-strong) !important;
+            border: 1px solid var(--ops-line) !important;
+            border-radius: 14px !important;
+            box-shadow: var(--ops-shadow) !important;
+            padding: .45rem !important;
+        }
+        .analytika-navbar .dropdown-item { border-radius: 10px; margin: 1px 0; font-weight: 650; }
+        .analytika-navbar .dropdown-item:hover { background: var(--ops-surface-soft) !important; color: var(--ops-primary) !important; }
+        .navbar-toggler,
         .bell-btn,
-        .profile-btn {
-            background: rgba(20,30,48,.92) !important;
-            border-color: var(--shell-line) !important;
+        .profile-btn,
+        .theme-toggle-btn,
+        .lang-toggle-btn {
+            background: var(--ops-surface) !important;
+            border: 1px solid var(--ops-line) !important;
+            border-radius: 999px !important;
+            box-shadow: none !important;
         }
-        main {
-            position: relative;
-        }
-        main::before {
-            content: "";
-            position: fixed;
-            inset: 72px 0 0 0;
-            pointer-events: none;
-            background:
-                linear-gradient(90deg, rgba(84,172,191,.04) 1px, transparent 1px),
-                linear-gradient(180deg, rgba(84,172,191,.04) 1px, transparent 1px);
-            background-size: 44px 44px;
-            mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 92%);
-            z-index: 0;
-        }
-        @@media (max-width: 991px) {
-            .analytika-brand {
-                padding: .65rem .8rem !important;
-            }
-        }
-    </style>
-    @await RenderSectionAsync("Styles", required: false)
-    <style>
-        :root {
-            --app-bg: #f6f7fb;
-            --app-surface: rgba(255,255,255,.68);
-            --app-surface-soft: rgba(248,250,252,.58);
-            --app-line: rgba(226,232,240,.72);
-            --app-ink: #111827;
-            --app-muted: #6b7280;
-            --app-accent: #ff6f61;
-            --app-accent-dark: #e65347;
-            --app-success: #16a34a;
-            --app-warning: #f59e0b;
-            --app-info: #2563eb;
-            --app-radius: 12px;
-            --app-shadow: 0 18px 46px rgba(15, 23, 42, .10), inset 0 1px 0 rgba(255,255,255,.72);
-        }
+        .navbar-toggler { min-width: 48px; min-height: 48px; border-radius: 14px !important; }
+        .profile-avatar-circle { background: linear-gradient(135deg, var(--ops-primary), var(--ops-cyan)) !important; color: #fff !important; }
 
-        html,
-        body {
-            background:
-                radial-gradient(circle at 8% 8%, rgba(255,111,97,.20), transparent 26%),
-                radial-gradient(circle at 88% 0%, rgba(37,99,235,.13), transparent 25%),
-                linear-gradient(90deg, rgba(255,255,255,.24) 1px, transparent 1px),
-                linear-gradient(180deg, rgba(15,23,42,.045) 1px, transparent 1px),
-                linear-gradient(135deg, #f8fafc 0%, #eef2f7 48%, #f9fafb 100%) !important;
-            background-size: 34px 34px, 34px 34px, auto !important;
-            color: var(--app-ink) !important;
-        }
-
-        .analytika-navbar {
-            background: rgba(255,255,255,.66) !important;
-            border-bottom: 1px solid var(--app-line) !important;
-            box-shadow: 0 12px 34px rgba(15, 23, 42, .08) !important;
-            backdrop-filter: blur(24px) saturate(170%);
-            -webkit-backdrop-filter: blur(24px) saturate(170%);
-        }
-
-        .analytika-brand,
-        .dropdown-menu,
         .card,
         .panel,
+        .dashboard-hero,
         .metric-card,
         .dd-card,
         .filter-card,
@@ -208,33 +212,64 @@
         .modal-content,
         .toast,
         .alert,
+        .ss-card,
+        .fac-status-card,
+        .summary-card,
+        .sync-card,
+        .sync-panel,
+        .portal-card,
         .bi-tabs,
         .bi-filter-card,
         .bi-header,
+        .bi-content > section,
         .bi-shell .panel,
-        .bi-filter-agent-drawer {
-            background: var(--app-surface) !important;
-            border: 1px solid var(--app-line) !important;
-            border-radius: var(--app-radius) !important;
-            box-shadow: var(--app-shadow) !important;
-            color: var(--app-ink) !important;
-            backdrop-filter: blur(24px) saturate(165%) !important;
-            -webkit-backdrop-filter: blur(24px) saturate(165%) !important;
+        .bi-filter-agent-drawer,
+        .bi-date-form,
+        .bi-agent-card,
+        .bi-chat-card,
+        .flatpickr-calendar,
+        .select2-dropdown {
+            background: var(--ops-surface) !important;
+            border: 1px solid var(--ops-line) !important;
+            border-radius: var(--ops-radius) !important;
+            box-shadow: var(--ops-shadow) !important;
+            color: var(--ops-ink) !important;
+        }
+        .dashboard-hero,
+        .bi-header,
+        .xp-toolbar,
+        .metric-card,
+        .ss-card {
+            background: linear-gradient(180deg, var(--ops-surface-strong), var(--ops-surface-soft)) !important;
+        }
+        .bi-shell::before,
+        .bi-shell::after,
+        .dash-section::before,
+        .dash-section::after {
+            opacity: .22 !important;
+            pointer-events: none !important;
         }
 
-        .analytika-navbar .nav-link,
-        .analytika-navbar .dropdown-item,
-        .brand-text,
         h1, h2, h3, h4, h5, h6,
         .page-title,
         .panel-title,
+        .metric-title,
         .metric-value,
+        .metric-card h3,
+        .metric-card strong,
         .bi-title,
-        .bi-shell .metric-value {
-            color: var(--app-ink) !important;
+        .bi-shell .metric-value,
+        .dashboard-hero h1,
+        .dashboard-hero h2,
+        .fac-name,
+        .xp-title h4,
+        .xp-stat .num,
+        .xp-table .facility,
+        .table,
+        .data-table,
+        .search-results {
+            color: var(--ops-ink) !important;
         }
-
-        .brand-sub,
         .page-subtitle,
         .text-muted,
         .small,
@@ -245,73 +280,218 @@
         .breakdown-detail,
         .insight-detail,
         .trend-label,
-        .metric-delta {
-            color: var(--app-muted) !important;
-        }
-
-        .analytika-navbar .nav-link,
-        .bi-tab {
-            border-radius: 10px !important;
-            font-weight: 700 !important;
-        }
-
-        .analytika-navbar .nav-link.active,
-        .analytika-navbar .nav-link:hover,
-        .bi-tab.active {
-            background: #fff1ef !important;
-            color: var(--app-accent-dark) !important;
-            border-color: rgba(255,111,97,.28) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
+        .metric-caption,
+        .metric-subtitle,
+        .dashboard-hero p,
+        .fac-meta,
+        .table td,
+        .data-table td,
+        .search-results td,
+        .xp-table td,
+        .xp-stat .lbl,
+        .xp-empty {
+            color: var(--ops-muted) !important;
         }
 
         .btn-primary,
+        .btn-success,
         .btn-emerald,
         .btn-teal,
         .btn-submit-report,
         .btn-download,
+        .btn-login,
         .bi-filter-submit,
         .bi-date-submit,
         .bi-filter-agent-run,
         .bi-ai-launcher,
         .bi-ai-pet,
-        .page-item.active .page-link {
-            background: linear-gradient(180deg, #ff7a6e, var(--app-accent)) !important;
-            border-color: var(--app-accent) !important;
-            color: #ffffff !important;
-            box-shadow: 0 10px 22px rgba(255, 111, 97, .22) !important;
+        .page-item.active .page-link,
+        button[type="submit"]:not(.btn-link):not(.dropdown-item) {
+            background: linear-gradient(180deg, var(--ops-primary-2), var(--ops-primary)) !important;
+            border: 1px solid rgba(36,120,255,.34) !important;
+            color: #fff !important;
+            border-radius: 999px !important;
+            box-shadow: 0 12px 24px rgba(36, 120, 255, .22) !important;
+            font-weight: 800 !important;
         }
-
         .btn-outline-secondary,
         .btn-light,
+        .btn-secondary,
+        .btn-outline-primary,
+        .btn-outline-dark,
+        .btn-outline-success,
+        .btn-ghost,
+        .bi-tabs-toggle,
+        .bi-filter-reset,
+        .bi-date-reset,
+        .bi-chat-icon,
+        .xp-btn-icon,
         .form-control,
         .form-select,
         .input-group-text,
         .select2-container--default .select2-selection--single,
+        .select2-container--default .select2-selection--multiple,
         .bi-date-input,
         .bi-filter-field select,
-        .bi-filter-agent-input {
-            background: var(--app-surface-soft) !important;
-            border: 1px solid var(--app-line) !important;
-            border-radius: 10px !important;
-            color: var(--app-ink) !important;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,.64) !important;
-            backdrop-filter: blur(18px) saturate(150%) !important;
-            -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+        .bi-filter-agent-input,
+        input,
+        select,
+        textarea {
+            background: var(--ops-surface-strong) !important;
+            border: 1px solid var(--ops-line) !important;
+            border-radius: var(--ops-radius-sm) !important;
+            color: var(--ops-ink) !important;
+            box-shadow: none !important;
+        }
+        .btn-outline-primary,
+        .btn-outline-success,
+        .btn-outline-dark,
+        .btn-outline-secondary,
+        .btn-ghost { color: var(--ops-primary) !important; }
+        .form-control:focus,
+        .form-select:focus,
+        .bi-date-input:focus,
+        .bi-filter-field select:focus,
+        .bi-filter-agent-input:focus {
+            border-color: var(--ops-primary) !important;
+            box-shadow: var(--ops-focus) !important;
         }
 
+        .bi-tab,
+        .nav-pills .nav-link,
+        .filter-tabs .nav-link {
+            border-radius: 999px !important;
+            color: var(--ops-ink-2) !important;
+            font-weight: 800 !important;
+            border: 1px solid transparent !important;
+        }
+        .bi-tab.active,
+        .bi-tab:hover,
+        .nav-pills .nav-link.active,
+        .filter-tabs .nav-link.active {
+            background: var(--ops-surface-strong) !important;
+            border-color: var(--ops-line) !important;
+            color: var(--ops-primary) !important;
+        }
+
+        .table,
+        .data-table,
+        .search-results,
+        .xp-table {
+            --bs-table-bg: transparent !important;
+            --bs-table-striped-bg: rgba(232,245,255,.56) !important;
+            --bs-table-hover-bg: rgba(36,120,255,.07) !important;
+            border-color: var(--ops-line) !important;
+        }
         .table thead th,
         .data-table thead th,
-        .search-results th {
-            background: #f8fafc !important;
-            color: #374151 !important;
-            border-color: var(--app-line) !important;
+        .search-results th,
+        .table-card thead th,
+        .xp-table thead th {
+            background: #eaf6ff !important;
+            color: var(--ops-ink-2) !important;
+            border-color: var(--ops-line) !important;
+            font-weight: 900 !important;
+            letter-spacing: .025em !important;
+        }
+        .table-responsive { overflow-x: auto; }
+        .table-card,
+        .sync-table,
+        .xml-table,
+        .search-results,
+        .data-table {
+            overflow-x: auto !important;
         }
 
         .badge,
         .status-badge,
         .metric-delta,
-        .insight-badge {
+        .insight-badge,
+        .fac-portal,
+        .status-pill,
+        .xp-badge,
+        .pct-badge,
+        .overdue-badge {
             border-radius: 999px !important;
+            border: 1px solid rgba(255,255,255,.58) !important;
+            background: #eaf6ff !important;
+            color: var(--ops-primary) !important;
+            font-weight: 800 !important;
+        }
+        .text-success, .status-connected, .connected, .badge-success, .xp-badge.ready, .xp-badge.sub { color: var(--ops-success) !important; }
+        .text-danger, .status-disconnected, .disconnected, .badge-danger { color: var(--ops-danger) !important; }
+        .text-warning, .status-degraded, .degraded, .badge-warning, .xp-badge.pending { color: var(--ops-warning) !important; }
+        .progress, .xp-progress-track, .breakdown-track, .bar-bg { background: rgba(177, 208, 231, .42) !important; border-radius: 999px !important; }
+        .progress-bar, .xp-progress-fill, .breakdown-fill, .metric-progress, .fac-progress-fill, .bar-fill { background: linear-gradient(90deg, var(--ops-primary), var(--ops-primary-2), var(--ops-mint)) !important; }
+        .metric-card i, .ss-icon, .notif-icon, .xp-title i, .fac-status-card .status-dot, .bi-shell .metric-icon, .bi-shell article i { color: var(--ops-primary) !important; }
+        .metric-card,
+        .bi-shell .metric-card {
+            min-height: 176px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+        }
+        .metric-grid,
+        .bi-shell .metric-grid {
+            align-items: stretch !important;
+        }
+
+        [style*="background:#051F20"], [style*="background: #051F20"],
+        [style*="background:#0B2B26"], [style*="background: #0B2B26"],
+        [style*="background:#011C40"], [style*="background: #011C40"],
+        [style*="background:#070e22"], [style*="background: #070e22"],
+        [style*="background:var(--navy)"], [style*="background: var(--navy)"] {
+            background: var(--ops-primary) !important;
+            color: #fff !important;
+        }
+
+        .global-ai-pet {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 1800;
+            width: 68px;
+            height: 68px;
+            border: 1px solid var(--ops-line);
+            border-radius: 999px;
+            background: radial-gradient(circle at 35% 25%, #fff 0%, #e8f7ff 48%, #bfeaff 100%);
+            box-shadow: 0 18px 42px rgba(36,120,255,.20), inset 0 1px 0 rgba(255,255,255,.94);
+            display: grid;
+            place-items: center;
+        }
+        .global-ai-pet::before {
+            content: "";
+            width: 42px;
+            height: 23px;
+            border-radius: 999px;
+            background: radial-gradient(circle at 50% 45%, #81e8ff 0%, var(--ops-primary-2) 52%, var(--ops-primary) 100%);
+            box-shadow: 0 0 14px rgba(99,183,255,.55);
+        }
+        .global-ai-pet-label {
+            position: fixed;
+            right: 88px;
+            bottom: 38px;
+            z-index: 1799;
+            background: rgba(16,35,63,.88);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,.22);
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: .76rem;
+            font-weight: 800;
+            white-space: nowrap;
+            backdrop-filter: blur(18px);
+        }
+
+        @@media (max-width: 991px) {
+            html, body { font-size: 13px; }
+            .analytika-navbar .container-fluid { gap: .5rem !important; }
+            .analytika-brand { max-width: calc(100vw - 104px) !important; border-radius: 14px !important; }
+            .analytika-navbar .navbar-toggler { min-width: 52px !important; min-height: 52px !important; border-radius: 14px !important; }
+            .dashboard-hero, .bi-header, .xp-toolbar { padding: 1rem !important; }
+            .metric-card, .ss-card, .fac-status-card { min-height: 168px !important; }
+            .global-ai-pet { width: 58px; height: 58px; right: 12px; bottom: 12px; }
+            .global-ai-pet-label { display: none; }
         }
     </style>
 </head>
@@ -415,6 +595,9 @@
                         </a></li>
                         <li><a class="dropdown-item" asp-controller="Portal" asp-action="XmlParsing">
                             <i class="fas fa-file-code me-2 text-muted"></i>XML Parsing
+                        </a></li>
+                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="XmlParsingFork">
+                            <i class="fas fa-code-branch me-2 text-muted"></i>XML Parsing Fork
                         </a></li>
                     </ul>
                 </li>
@@ -563,44 +746,6 @@
     }
     @RenderBody()
 </main>
-<style>
-.global-ai-pet {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 1800;
-    width: 72px;
-    height: 72px;
-    border: 0;
-    border-radius: 999px;
-    background: radial-gradient(circle at 30% 28%, #f8fdff 0%, #d8edf7 46%, #a7d2e9 100%);
-    box-shadow: 0 14px 32px rgba(10, 34, 58, .28), inset 0 0 0 2px rgba(255,255,255,.85);
-    display: grid;
-    place-items: center;
-}
-.global-ai-pet::before {
-    content: "";
-    width: 44px;
-    height: 24px;
-    border-radius: 999px;
-    background: radial-gradient(circle at 50% 45%, #49c2ff 0%, #1471b3 55%, #0f466f 100%);
-    box-shadow: 0 0 14px rgba(73,194,255,.55);
-}
-.global-ai-pet-label {
-    position: fixed;
-    right: 92px;
-    bottom: 38px;
-    z-index: 1799;
-    background: #070e22;
-    color: #c8f5e8;
-    border: 1px solid rgba(121, 199, 178, .35);
-    border-radius: 10px;
-    padding: 6px 10px;
-    font-size: .76rem;
-    font-weight: 700;
-    white-space: nowrap;
-}
-</style>
 <div id="globalAiPetLabel" class="global-ai-pet-label">AI Assistant</div>
 <button type="button" id="globalAiPet" class="global-ai-pet" aria-label="Open AI assistant"></button>
 

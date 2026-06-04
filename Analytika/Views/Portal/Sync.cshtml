@@ -55,9 +55,9 @@
                     <div class="col-md-5">
                         <label class="form-label">Facilities <span class="text-muted fw-normal">(leave blank = all active)</span></label>
                         <select id="syncAllFacilities" class="form-select form-select-sm select2-multi" multiple>
-                            @foreach (var f in Model.Facilities)
+                            @foreach (var f in Model.PortalFacilities)
                             {
-                                <option value="@f.Value">@f.Text</option>
+                                <option value="@f.FacilityId" data-portal="@f.Portal">@f.DisplayName</option>
                             }
                         </select>
                     </div>
@@ -204,9 +204,9 @@
                     <label class="form-label">Facility</label>
                     <select id="mfFacility" class="form-select form-select-sm">
                         <option value="">— Select —</option>
-                        @foreach (var f in Model.Facilities)
+                        @foreach (var f in Model.PortalFacilities)
                         {
-                            <option value="@f.Value">@f.Text</option>
+                            <option value="@f.FacilityId" data-portal="@f.Portal">@f.DisplayName</option>
                         }
                     </select>
                 </div>
@@ -299,8 +299,12 @@
                         <!-- Facility -->
                         <div class="mb-3">
                             <label class="form-label">Facility</label>
-                            <select asp-for="FacilityId" asp-items="Model.Facilities" class="form-select" id="facilitySelect">
+                            <select asp-for="FacilityId" class="form-select" id="facilitySelect">
                                 <option value="">— Select Facility —</option>
+                                @foreach (var f in Model.PortalFacilities)
+                                {
+                                    <option value="@f.FacilityId" data-portal="@f.Portal" selected="@(Model.FacilityId == f.FacilityId && Model.Portal == f.Portal ? "selected" : null)">@f.DisplayName</option>
+                                }
                             </select>
                         </div>
 
@@ -345,9 +349,9 @@
                     <div class="mb-2">
                         <select class="form-select" id="syncNewFacility">
                             <option value="">— Select Facility —</option>
-                            @foreach (var f in Model.Facilities)
+                            @foreach (var f in Model.PortalFacilities)
                             {
-                                <option value="@f.Value">@f.Text</option>
+                                <option value="@f.FacilityId" data-portal="@f.Portal">@f.DisplayName</option>
                             }
                         </select>
                     </div>
@@ -1169,6 +1173,7 @@
     }
     function mfUpdateOps() {
         const portal = document.querySelector('input[name="mfPortal"]:checked')?.value || 'DHA';
+        filterPortalFacilityOptions(portal, ['mfFacility']);
         const sel = document.getElementById('mfOperation');
         sel.innerHTML = '';
         (MF_OPS[portal] || []).forEach(op => {
@@ -1229,5 +1234,45 @@
             statusEl.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Request failed</span>`;
         }
     }
+
+    function filterPortalFacilityOptions(portal, selectIds) {
+        selectIds.forEach(id => {
+            const select = document.getElementById(id);
+            if (!select) return;
+            const selected = select.value;
+            let selectedStillVisible = false;
+            Array.from(select.options).forEach(option => {
+                const optionPortal = option.dataset.portal;
+                const visible = !optionPortal || optionPortal === portal;
+                option.hidden = !visible;
+                option.disabled = !visible;
+                if (visible && option.value === selected) selectedStillVisible = true;
+            });
+            if (!selectedStillVisible) select.value = '';
+        });
+    }
+
+    function getSelectedPortal() {
+        return document.querySelector('input[name="Portal"]:checked')?.value || 'DHA';
+    }
+
+    function syncPortalFacilityLists() {
+        const portal = getSelectedPortal();
+        filterPortalFacilityOptions(portal, ['facilitySelect', 'syncNewFacility', 'syncAllFacilities']);
+        if (window.jQuery) {
+            $('#syncAllFacilities').trigger('change.select2');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('input[name="Portal"]').forEach(input => {
+            input.addEventListener('change', syncPortalFacilityLists);
+        });
+        document.querySelectorAll('input[name="mfPortal"]').forEach(input => {
+            input.addEventListener('change', () => filterPortalFacilityOptions(input.value, ['mfFacility']));
+        });
+        syncPortalFacilityLists();
+        filterPortalFacilityOptions(document.querySelector('input[name="mfPortal"]:checked')?.value || 'DHA', ['mfFacility']);
+    });
 </script>
 }

@@ -463,6 +463,121 @@
             .login-top-tools { align-items: stretch; }
             .login-top-tools .theme-toggle-btn { flex: 1; justify-content: center; }
         }
+
+        /* Healthcare ops login override */
+        :root {
+            --ops-bg: #eef7fc;
+            --ops-surface: rgba(255,255,255,.94);
+            --ops-ink: #10233f;
+            --ops-muted: #667d92;
+            --ops-line: rgba(177,208,231,.74);
+            --ops-primary: #2478ff;
+            --ops-primary-2: #63b7ff;
+            --ops-mint: #55d7b7;
+        }
+        body {
+            background:
+                radial-gradient(circle at 12% 7%, rgba(99,183,255,.24), transparent 30%),
+                radial-gradient(circle at 86% 12%, rgba(85,215,183,.18), transparent 32%),
+                linear-gradient(180deg, #eef7fc 0%, #f7fbfe 52%, #f4f9fd 100%) !important;
+            color: var(--ops-ink) !important;
+        }
+        html[data-theme="dark"] body {
+            background:
+                radial-gradient(circle at 12% 7%, rgba(36,120,255,.22), transparent 30%),
+                radial-gradient(circle at 86% 12%, rgba(55,199,220,.14), transparent 32%),
+                linear-gradient(180deg, #0b1b2d 0%, #11253a 56%, #0e2034 100%) !important;
+            color: #eef8ff !important;
+        }
+        .login-shell {
+            min-height: 100vh !important;
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            place-items: center !important;
+            padding: clamp(18px, 3vw, 44px) !important;
+        }
+        .login-hero { display: none !important; }
+        .login-rail {
+            width: min(100%, 520px) !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            background: transparent !important;
+            color: var(--ops-ink) !important;
+        }
+        html[data-theme="dark"] .login-rail { color: #eef8ff !important; }
+        .login-top-tools {
+            position: static !important;
+            justify-content: flex-end !important;
+            margin-bottom: 12px !important;
+        }
+        .auth-card {
+            max-width: 520px !important;
+            padding: clamp(24px, 4vw, 34px) !important;
+            border-radius: 18px !important;
+            background: var(--ops-surface) !important;
+            border: 1px solid var(--ops-line) !important;
+            box-shadow: 0 22px 54px rgba(22,75,128,.12), 0 8px 24px rgba(16,35,63,.07) !important;
+            color: var(--ops-ink) !important;
+        }
+        html[data-theme="dark"] .auth-card {
+            background: rgba(18,41,64,.92) !important;
+            border-color: rgba(125,177,214,.28) !important;
+            color: #eef8ff !important;
+        }
+        .auth-kicker {
+            background: #eaf6ff !important;
+            color: var(--ops-primary) !important;
+            border: 1px solid var(--ops-line) !important;
+        }
+        .auth-card h1 {
+            color: var(--ops-ink) !important;
+            letter-spacing: -.035em !important;
+        }
+        html[data-theme="dark"] .auth-card h1 { color: #eef8ff !important; }
+        .auth-subtitle, .subtitle { color: var(--ops-muted) !important; }
+        html[data-theme="dark"] .auth-subtitle,
+        html[data-theme="dark"] .subtitle { color: #9fb7ca !important; }
+        .form-control {
+            min-height: 48px !important;
+            border-radius: 12px !important;
+            border: 1px solid var(--ops-line) !important;
+            background: #fff !important;
+            color: var(--ops-ink) !important;
+        }
+        html[data-theme="dark"] .form-control {
+            background: rgba(15,32,52,.94) !important;
+            border-color: rgba(125,177,214,.32) !important;
+            color: #eef8ff !important;
+        }
+        .btn-login {
+            border-radius: 999px !important;
+            background: linear-gradient(180deg, var(--ops-primary-2), var(--ops-primary)) !important;
+            border: 1px solid rgba(36,120,255,.34) !important;
+            color: #fff !important;
+            box-shadow: 0 14px 28px rgba(36,120,255,.24) !important;
+        }
+        .lang-btn,
+        .theme-toggle-btn {
+            border-radius: 999px !important;
+            background: rgba(255,255,255,.88) !important;
+            border: 1px solid var(--ops-line) !important;
+            color: var(--ops-ink) !important;
+        }
+        html[data-theme="dark"] .lang-btn,
+        html[data-theme="dark"] .theme-toggle-btn {
+            background: rgba(18,41,64,.92) !important;
+            color: #eef8ff !important;
+            border-color: rgba(125,177,214,.32) !important;
+        }
+        .lang-btn.active {
+            background: var(--ops-primary) !important;
+            color: #fff !important;
+        }
+        @@media (max-width: 520px) {
+            .login-shell { padding: 14px !important; }
+            .auth-card { border-radius: 14px !important; }
+            .login-top-tools { justify-content: stretch !important; }
+        }
     </style>
 </head>
 <body>

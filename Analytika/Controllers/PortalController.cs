@@ -331,9 +331,12 @@ public class PortalController : Controller
     // ── Sync to DB ─────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> Sync()
+    public async Task<IActionResult> Sync(string? portal, int? facilityId)
     {
         var vm = await BuildSyncVmAsync();
+        if (!string.IsNullOrWhiteSpace(portal))
+            vm.Portal = portal.Trim().ToUpperInvariant() == "RHA" ? "RHA" : "DHA";
+        vm.FacilityId = facilityId;
         return View(vm);
     }
 
@@ -790,6 +793,14 @@ public class PortalController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> XmlParsingFork(List<int>? facilityId, string? search, string? kind)
+    {
+        await _xmlParsing.EnsureSchemaAsync();
+        var vm = await _reconciliation.GetXmlParsingStatsAsync(facilityId, search, kind);
+        return View(vm);
+    }
+
+    [HttpGet]
     public async Task XmlParsingPrepareStream([FromQuery] List<int>? facilityId, bool rebuild = false)
     {
         var ct = HttpContext.RequestAborted;
@@ -882,19 +893,41 @@ public class PortalController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ParseXmlRecord(int id)
+    public async Task<IActionResult> XmlParsingForkMatch([FromForm] List<int>? facilityId)
+    {
+        await _xmlParsing.EnsureSchemaAsync();
+        var selected = facilityId?.Where(id => id > 0).Distinct().ToList() ?? new();
+        if (selected.Count == 0)
+        {
+            var result = await _xmlParsing.MatchParsedRecordsAsync();
+            TempData["Success"] = $"Matched {result.MatchedClaimRefs:N0} claim reference(s).";
+        }
+        else
+        {
+            var matched = 0;
+            foreach (var id in selected)
+                matched += (await _xmlParsing.MatchParsedRecordsAsync(id)).MatchedClaimRefs;
+            TempData["Success"] = $"Matched {matched:N0} claim reference(s) across selected facilities.";
+        }
+
+        return RedirectToAction(nameof(XmlParsingFork), new { facilityId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ParseXmlRecord(int id, string? returnTo = null)
     {
         var result = await _xmlParsing.ReparseTransactionAsync(id);
         TempData[result.Errors > 0 ? "Error" : "Success"] =
             result.Errors > 0
                 ? "XML record could not be parsed."
                 : $"Parsed {result.RecordsSaved:N0} claim-level row(s) from the selected XML.";
-        return RedirectToAction(nameof(XmlParsing));
+        return RedirectToAction(XmlParsingReturnAction(returnTo));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteXmlRecord(int id)
+    public async Task<IActionResult> DeleteXmlRecord(int id, string? returnTo = null)
     {
         await _xmlParsing.EnsureSchemaAsync();
         await _db.XmlParsedRecords.Where(r => r.PortalTransactionId == id).ExecuteDeleteAsync();
@@ -912,17 +945,17 @@ public class PortalController : Controller
             TempData["Error"] = "Downloaded XML record was not found.";
         }
 
-        return RedirectToAction(nameof(XmlParsing));
+        return RedirectToAction(XmlParsingReturnAction(returnTo));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddXmlRecord(XmlRecordEditInput input)
+    public async Task<IActionResult> AddXmlRecord(XmlRecordEditInput input, string? returnTo = null)
     {
         if (input.FacilityId <= 0)
         {
             TempData["Error"] = "Select a facility before adding an XML record.";
-            return RedirectToAction(nameof(XmlParsing));
+            return RedirectToAction(XmlParsingReturnAction(returnTo));
         }
 
         var transactionId = string.IsNullOrWhiteSpace(input.TransactionId)
@@ -962,18 +995,18 @@ public class PortalController : Controller
             await _xmlParsing.ReparseTransactionAsync(tx.Id);
 
         TempData["Success"] = "XML record added and saved.";
-        return RedirectToAction(nameof(XmlParsing));
+        return RedirectToAction(XmlParsingReturnAction(returnTo));
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditXmlRecord(XmlRecordEditInput input)
+    public async Task<IActionResult> EditXmlRecord(XmlRecordEditInput input, string? returnTo = null)
     {
         var tx = await _db.PortalTransactions.FirstOrDefaultAsync(t => t.Id == input.Id);
         if (tx == null)
         {
             TempData["Error"] = "XML record was not found.";
-            return RedirectToAction(nameof(XmlParsing));
+            return RedirectToAction(XmlParsingReturnAction(returnTo));
         }
 
         tx.FacilityId = input.FacilityId > 0 ? input.FacilityId : tx.FacilityId;
@@ -999,8 +1032,11 @@ public class PortalController : Controller
         await _xmlParsing.ReparseTransactionAsync(tx.Id);
 
         TempData["Success"] = "XML record updated and parsed.";
-        return RedirectToAction(nameof(XmlParsing));
+        return RedirectToAction(XmlParsingReturnAction(returnTo));
     }
+
+    private static string XmlParsingReturnAction(string? returnTo) =>
+        string.Equals(returnTo, nameof(XmlParsingFork), StringComparison.Ordinal) ? nameof(XmlParsingFork) : nameof(XmlParsing);
 
     // Keep old URL working
     [HttpGet]
@@ -1761,12 +1797,27 @@ public class PortalController : Controller
     private async Task<PortalSyncViewModel> BuildSyncVmAsync()
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
+        var portalFacilities = await _db.PortalCredentials
+            .Include(c => c.Facility)
+            .Where(c => c.IsActive && c.Facility != null && c.Facility.IsActive)
+            .AsNoTracking()
+            .OrderBy(c => c.Facility!.Name)
+            .ThenBy(c => c.Portal)
+            .Select(c => new PortalFacilityOption
+            {
+                FacilityId = c.FacilityId,
+                FacilityName = c.Facility!.Name,
+                Portal = c.Portal.ToUpper(),
+                CredentialName = c.CredentialName
+            })
+            .ToListAsync();
         var totalInDb = await _db.PortalTransactions.CountAsync();
         var totalFiles = await _db.PortalTransactions.CountAsync(t => t.FileDownloaded);
 
         return new PortalSyncViewModel
         {
             Facilities = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            PortalFacilities = portalFacilities,
             TotalInDb = totalInDb,
             TotalFilesInDb = totalFiles
         };
