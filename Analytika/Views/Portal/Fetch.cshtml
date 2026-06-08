@@ -99,6 +99,11 @@
                                 <option value="1" selected>1 — New (not yet downloaded)</option>
                                 <option value="2" selected>2 — Already downloaded</option>
                             </select>
+                            <div class="mt-2 d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([1])">New Only</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([2])">Downloaded Only</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([1,2])">Both</button>
+                            </div>
                         </div>
 
                         <div class="mb-3" id="txTypeSection" style="display:none;">
@@ -523,6 +528,17 @@ function setFetchRange(months) {
     from.setMonth(from.getMonth() - months);
     document.getElementById('DateFrom').value = from.toISOString().split('T')[0];
     document.getElementById('DateTo').value   = today.toISOString().split('T')[0];
+}
+
+function setTxStatus(statuses) {
+    const sel = document.getElementById('txStatusSelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+        opt.selected = statuses.includes(parseInt(opt.value));
+    });
+    if (sel.classList.contains('select2-hidden-accessible')) {
+        $(sel).trigger('change');
+    }
 }
 
 // Init on load
