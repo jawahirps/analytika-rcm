@@ -63,7 +63,7 @@ public class PortalSyncService
             var dhpoTo = DhaPortalService.FormatDhpoDate(end.ToString("yyyy-MM-dd"), endOfDay: true);
             var period = start.ToString("yyyy-MM");
 
-            var allRows = await SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes, statuses: [1]);
+            var allRows = await SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
             var uniqueRows = DeduplicateRows(allRows);
             if (!uniqueRows.Any()) continue;
 

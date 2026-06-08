@@ -437,19 +437,12 @@ public class PortalController : Controller
                     var dhpoFrom = DhaPortalService.FormatDhpoDate(fromStr);
                     var dhpoTo = DhaPortalService.FormatDhpoDate(toStr, endOfDay: true);
 
-                    // 8 searches: direction(1=sent,2=received) × txType(2=Claim,8=Remittance,16=PAReq,32=PAAuth)
-                    // status=1 (new/undownloaded only) — portal rejects transactionID=-1 with error -3
+                    // 16 searches: direction(1=sent,2=received) × txType(2,8,16,32) × status(1=new,2=already-downloaded)
+                    // Both statuses needed: files may be marked downloaded by another company's system,
+                    // we never call SetTransactionDownloaded so they'd be invisible with status=1 only.
                     var txTypes = new[] { 2, 8, 16, 32 };
-                    var allRowsList = new List<PortalFetchResultRow>();
+                    var allRowsList = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
                     string? firstErr = null;
-                    foreach (var txType in txTypes)
-                    {
-                        var (_, rowsSent, eSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, 1, txType);
-                        var (_, rowsRecv, eRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, 1, txType);
-                        allRowsList.AddRange(rowsSent);
-                        allRowsList.AddRange(rowsRecv);
-                        firstErr ??= eSent ?? eRecv;
-                    }
 
                     // Deduplicate by FileID
                     var allRows = allRowsList
