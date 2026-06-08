@@ -51,6 +51,9 @@ public class DhaPortalService : IDhaPortalService
     public const int TxTypePriorRequest = 16;
     public const int TxTypePriorAuth = 32;
 
+    // Standard set used for bulk sync: Claims, Remittances, PA Requests, PA Authorizations
+    public static readonly int[] DefaultTxTypes = [TxTypeClaim, TxTypeRemittance, TxTypePriorRequest, TxTypePriorAuth];
+
     public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache)
     {
         _httpClientFactory = httpClientFactory;

@@ -69,6 +69,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Portal, e.FacilityId, e.TransactionId }).IsUnique();
             entity.HasIndex(e => new { e.FacilityId, e.FileDownloaded });  // PendingDownloadService WHERE FileDownloaded = false
+            entity.HasIndex(e => new { e.FacilityId, e.FileId });         // Fetch page DB cross-reference by (FacilityId, FileId)
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
         });
 
