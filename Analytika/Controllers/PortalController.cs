@@ -55,7 +55,7 @@ public class PortalController : Controller
         freshVm.SearchText = vm.SearchText;
         freshVm.TransactionStatuses = vm.TransactionStatuses.Count > 0 ? vm.TransactionStatuses : new() { 1 };
         freshVm.Directions = vm.Directions.Count > 0 ? vm.Directions : new() { 2 };
-        freshVm.TransactionIds = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2 };
+        freshVm.TransactionIds = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2, 8 };
         freshVm.MinRecord = vm.MinRecord;
         freshVm.MaxRecord = vm.MaxRecord;
         freshVm.FileId = vm.FileId;
