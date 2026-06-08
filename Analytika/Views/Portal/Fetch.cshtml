@@ -238,7 +238,16 @@
                                             <td class="py-2 align-middle text-muted">@(r.Amount ?? "—")</td>
                                             <td class="py-2 align-middle text-muted">@(r.Date ?? "—")</td>
                                             <td class="pe-4 py-2 align-middle" style="font-size:.75rem;">
-                                                @if (!string.IsNullOrEmpty(r.FileName))
+                                                @if (r.DbFileDownloaded && r.TransactionDbId > 0)
+                                                {
+                                                    <a href="/Portal/DownloadFile/@r.TransactionDbId"
+                                                       class="btn btn-sm btn-outline-success"
+                                                       style="border-radius:6px;font-size:.72rem;"
+                                                       title="Download saved XML">
+                                                        <i class="fas fa-download me-1"></i>@(!string.IsNullOrEmpty(r.FileName) ? r.FileName : "Download XML")
+                                                    </a>
+                                                }
+                                                else if (!string.IsNullOrEmpty(r.FileName))
                                                 {
                                                     <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:6px;font-size:.72rem;"
                                                             onclick="prefillDownload('@r.FileName')">

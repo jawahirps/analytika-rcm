@@ -311,6 +311,26 @@ public class PortalController : Controller
             ? string.Join(" ", statusMessages)
             : $"Fetched {totalFetched} records successfully.";
 
+        // Cross-reference results with DB so the view can show direct download links
+        if (allRows.Count > 0)
+        {
+            var fileIds = allRows.Select(r => r.FileId).Where(id => id != "-").Distinct().ToList();
+            var facIds  = allRows.Select(r => r.FacilityId).Distinct().ToList();
+            var dbRecs  = await _db.PortalTransactions
+                .Where(t => facIds.Contains(t.FacilityId) && t.FileId != null && fileIds.Contains(t.FileId))
+                .Select(t => new { t.Id, t.FacilityId, t.FileId, t.FileDownloaded })
+                .ToListAsync();
+            var dbLookup = dbRecs.ToDictionary(t => (t.FacilityId, t.FileId!));
+            foreach (var row in allRows)
+            {
+                if (dbLookup.TryGetValue((row.FacilityId, row.FileId), out var rec))
+                {
+                    row.TransactionDbId  = rec.Id;
+                    row.DbFileDownloaded = rec.FileDownloaded;
+                }
+            }
+        }
+
         _db.PortalFetchLogs.AddRange(logs);
         await _db.SaveChangesAsync();
 
