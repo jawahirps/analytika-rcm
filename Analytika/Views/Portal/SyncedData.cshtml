@@ -91,9 +91,9 @@
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-3 flex-wrap">
                     <span class="fw-semibold" style="color:var(--navy);font-size:.82rem;">
-                        <i class="fas fa-robot me-1" style="color:#A7EBF2;"></i>Background Download Service
+                        <i class="fas fa-robot me-1" style="color:var(--forest-teal);"></i>Background Download Service
                     </span>
-                    <span id="bgSvcStatus" class="badge" style="font-size:.72rem;background:rgba(0,139,139,0.12);color:#A7EBF2;">
+                    <span id="bgSvcStatus" class="badge" style="font-size:.72rem;background:rgba(0,139,139,0.12);color:var(--forest-teal);">
                         <i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Checking…
                     </span>
                     <span id="bgSvcInfo" class="text-muted" style="font-size:.75rem;"></span>
@@ -108,7 +108,7 @@
                     <form id="bgTriggerForm" onsubmit="triggerBgDownload(event)">
                         @Html.AntiForgeryToken()
                         <button type="submit" id="bgTriggerBtn" class="btn btn-sm"
-                                style="border:1px solid #A7EBF2;color:#A7EBF2;font-size:.78rem;padding:3px 10px;">
+                                style="border:1px solid #A7EBF2;color:var(--forest-teal);font-size:.78rem;padding:3px 10px;">
                             <i class="fas fa-play me-1"></i>Run Now
                         </button>
                     </form>
@@ -507,7 +507,7 @@ async function pollBgStatus() {
             trigBtn.disabled = true;
         } else {
             statusEl.innerHTML = '<i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Idle';
-            statusEl.style.background = 'rgba(0,139,139,0.12)'; statusEl.style.color = '#A7EBF2';
+            statusEl.style.background = 'rgba(0,139,139,0.12)'; statusEl.style.color = 'var(--forest-teal)';
             wrapEl.style.display = 'none';
             trigBtn.disabled = false;
             if (d.lastRunAt) {

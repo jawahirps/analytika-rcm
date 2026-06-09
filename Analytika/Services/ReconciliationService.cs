@@ -130,6 +130,22 @@ public class ReconciliationService
         .OrderBy(r => r.FacilityName)
         .ToList();
 
+        // Pre-load HashSets of parsed transaction IDs by kind to avoid correlated subqueries
+        HashSet<int>? submissionTxIds = null;
+        HashSet<int>? remittanceTxIds = null;
+        if (string.Equals(kind, "Submission", StringComparison.OrdinalIgnoreCase))
+        {
+            var submissionBase = _db.XmlParsedRecords.AsNoTracking().Where(r => r.RecordKind == "Submission");
+            if (facilityIds?.Count > 0) submissionBase = submissionBase.Where(r => facilityIds.Contains(r.FacilityId));
+            submissionTxIds = (await submissionBase.Select(r => r.PortalTransactionId).Distinct().ToListAsync()).ToHashSet();
+        }
+        else if (string.Equals(kind, "Remittance", StringComparison.OrdinalIgnoreCase))
+        {
+            var remittanceBase = _db.XmlParsedRecords.AsNoTracking().Where(r => r.RecordKind == "Remittance");
+            if (facilityIds?.Count > 0) remittanceBase = remittanceBase.Where(r => facilityIds.Contains(r.FacilityId));
+            remittanceTxIds = (await remittanceBase.Select(r => r.PortalTransactionId).Distinct().ToListAsync()).ToHashSet();
+        }
+
         var recordQuery = _db.PortalTransactions
             .Include(t => t.Facility)
             .AsNoTracking()
@@ -144,14 +160,14 @@ public class ReconciliationService
                 || (t.FileName != null && t.FileName.Contains(search))
                 || (t.Payer != null && t.Payer.Contains(search))
                 || t.Status.Contains(search));
-        if (string.Equals(kind, "Submission", StringComparison.OrdinalIgnoreCase))
+        if (submissionTxIds != null)
             recordQuery = recordQuery.Where(t =>
-                _db.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id && r.RecordKind == "Submission")
+                submissionTxIds.Contains(t.Id)
                 || (t.Type.Contains("Claim")
                     || (t.FileName != null && (t.FileName.StartsWith("CLM") || t.FileName.Contains("Claim")))));
-        else if (string.Equals(kind, "Remittance", StringComparison.OrdinalIgnoreCase))
+        else if (remittanceTxIds != null)
             recordQuery = recordQuery.Where(t =>
-                _db.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id && r.RecordKind == "Remittance")
+                remittanceTxIds.Contains(t.Id)
                 || t.Type.Contains("Remittance")
                 || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance"))));
 

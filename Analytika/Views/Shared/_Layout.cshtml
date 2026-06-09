@@ -74,23 +74,6 @@
                            asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
                     </li>
                 }
-                @if (canAccessResubmission)
-                {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resubmission" ? "active" : "")"
-                       href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-tasks me-1" style="font-size:.75rem;"></i>Resubmission
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" asp-controller="Resubmission" asp-action="Index">
-                            <i class="fas fa-list-ul me-2 text-muted" style="width:14px;"></i>Allocation Board</a></li>
-                        <li><a class="dropdown-item" asp-controller="Resubmission" asp-action="Workload">
-                            <i class="fas fa-users me-2 text-muted" style="width:14px;"></i>Workload</a></li>
-                        <li><a class="dropdown-item" asp-controller="Resubmission" asp-action="DenialDashboard">
-                            <i class="fas fa-chart-pie me-2 text-muted" style="width:14px;"></i>Denial Dashboard</a></li>
-                    </ul>
-                </li>
-                }
                 @if (canAccessRcm)
                 {
                 <li class="nav-item dropdown">

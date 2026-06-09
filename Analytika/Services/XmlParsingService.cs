@@ -103,7 +103,19 @@ public class XmlParsingService
             txQuery = txQuery.Where(t => t.FacilityId == facilityId.Value);
 
         if (!rebuild)
-            txQuery = txQuery.Where(t => !_db.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id));
+        {
+            // Pre-load already-parsed transaction IDs into a HashSet to avoid a correlated subquery per row
+            var alreadyParsedQuery = _db.XmlParsedRecords.AsNoTracking()
+                .Select(r => r.PortalTransactionId)
+                .Distinct();
+            if (facilityId.HasValue)
+                alreadyParsedQuery = _db.XmlParsedRecords.AsNoTracking()
+                    .Where(r => r.FacilityId == facilityId.Value)
+                    .Select(r => r.PortalTransactionId)
+                    .Distinct();
+            var alreadyParsedIds = (await alreadyParsedQuery.ToListAsync(ct)).ToHashSet();
+            txQuery = txQuery.Where(t => !alreadyParsedIds.Contains(t.Id));
+        }
 
         var total = await txQuery.CountAsync(ct);
         var result = new XmlParsingRunResult { FilesScanned = total };

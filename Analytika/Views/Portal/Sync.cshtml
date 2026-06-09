@@ -93,7 +93,7 @@
     </div>
 
     <!-- Single-Facility Sync Panel (hidden until started) -->
-    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
+    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #26658C!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -109,9 +109,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncOneProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
+                    <div id="syncOneProgress" class="progress-bar" style="background:var(--classic-teal);width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#A7EBF2;min-width:32px;text-align:right;">0%</span>
+                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:var(--forest-teal);min-width:32px;text-align:right;">0%</span>
             </div>
             <div id="syncOneCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
                 <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;">
@@ -120,19 +120,20 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncOneCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncOneCtrFiles">0</strong>
                 </span>
             </div>
+            <div id="syncOneByType" class="d-flex gap-2 mb-1 flex-wrap" style="font-size:.72rem;"></div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
-            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
     </div>
 
     <!-- Sync All Progress Panel (hidden until started) -->
-    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
+    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #26658C!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -149,7 +150,7 @@
             <!-- Overall progress -->
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncAllProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
+                    <div id="syncAllProgress" class="progress-bar" style="background:var(--classic-teal);width:0%;transition:width .3s;"></div>
                 </div>
                 <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#011C40;min-width:32px;text-align:right;">0%</span>
             </div>
@@ -161,14 +162,15 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncAllCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncAllCtrFiles">0</strong>
                 </span>
             </div>
             <!-- Current facility + month -->
+            <div id="syncAllByType" class="d-flex gap-2 mb-1 flex-wrap" style="font-size:.72rem;"></div>
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <!-- Scrollable log -->
-            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
@@ -571,7 +573,7 @@
                                                             data-fid="@f.Value" data-type="2"
                                                             title="Submission / Claims XML"
                                                             onclick="dlToggle(this)"
-                                                            style="font-size:.66rem;border:1px solid #A7EBF2;background:rgba(0,139,139,0.12);color:#A7EBF2;border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                            style="font-size:.66rem;border:1px solid #26658C;background:rgba(0,139,139,0.12);color:var(--forest-teal);border-radius:4px;padding:2px 6px;white-space:nowrap;">
                                                         <i class="fas fa-file-medical me-1"></i>Claim
                                                     </button>
                                                     <button class="btn btn-xs dl-toggle"
@@ -609,6 +611,21 @@
     let syncOneSource = null;
     let syncAllCompleted = false;
     let syncOneCompleted = false;
+
+    // ── Per-type download breakdown (Submission / Reconciliation / …) ──
+    const TYPE_LABELS = { 'Claim':'Submissions', 'Remittance':'Reconciliation', 'Prior Auth':'Prior Auth', 'Prior Authorization':'Prior Authorization', 'Prior Request':'Prior Request', 'Person Register':'Person Register', 'Prescription':'Prescription' };
+    const TYPE_ICONS  = { 'Claim':'fa-file-invoice', 'Remittance':'fa-file-invoice-dollar', 'Prior Auth':'fa-shield-halved', 'Prior Authorization':'fa-shield-halved', 'Prior Request':'fa-clipboard-check' };
+    function renderByType(elId, byType) {
+        const el = document.getElementById(elId);
+        if (!el || !byType) return;
+        const keys = Object.keys(byType).filter(k => (byType[k] || 0) > 0);
+        if (!keys.length) return;
+        el.innerHTML = keys.map(k => {
+            const label = TYPE_LABELS[k] || k;
+            const icon  = TYPE_ICONS[k] || 'fa-file';
+            return `<span class="px-2 py-1 rounded" style="background:rgba(1,28,64,.06);color:var(--forest-teal);font-weight:600;"><i class="fas ${icon} me-1"></i>${label}: <strong>${(byType[k]||0).toLocaleString()}</strong></span>`;
+        }).join('');
+    }
 
     function saveCkpt(data) {
         localStorage.setItem(CKPT_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
@@ -753,7 +770,7 @@
                         <span class="px-2 py-1 rounded" style="background:rgba(102,178,178,0.15);color:#54ACBF;font-size:.75rem;">
                             <i class="fas fa-history me-1"></i>Already in DB: <strong>${data.dups ?? 0}</strong>
                         </span>
-                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;font-size:.75rem;">
+                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);font-size:.75rem;">
                             <i class="fas fa-file-download me-1"></i>Files: <strong>${data.filesDownloaded ?? 0}</strong>
                         </span>
                     </div>`;
@@ -859,7 +876,7 @@
             const d = JSON.parse(e.data);
 
             if (d.status === 'start') {
-                addLog(`▶ ${d.message}`, '#A7EBF2');
+                addLog(`▶ ${d.message}`, '#26658C');
 
             } else if (d.status === 'resumed') {
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
@@ -884,6 +901,7 @@
             } else if (d.status === 'processing') {
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 setProgress(d.pct || 0);
+                renderByType('syncAllByType', d.byType);
 
             } else if (d.status === 'facility_done') {
                 updateAllCtrs(d.saved||0, d.dups||0, d.files||0);
@@ -910,6 +928,7 @@
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
+                renderByType('syncAllByType', d.byType);
                 curLbl.textContent = 'Complete';
                 clearCkpt();
                 source.close();
@@ -1033,7 +1052,7 @@
 
             if (d.status === 'start') {
                 title.textContent = d.message;
-                addLog(`▶ ${d.message}`, '#A7EBF2');
+                addLog(`▶ ${d.message}`, '#26658C');
 
             } else if (d.status === 'resumed') {
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
@@ -1058,6 +1077,7 @@
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
+                renderByType('syncOneByType', d.byType);
 
             } else if (d.status === 'facility_done') {
                 updateOneCtrs(d.saved||0, d.dups||0, d.files||0);
@@ -1078,6 +1098,7 @@
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
+                renderByType('syncOneByType', d.byType);
                 curLbl.textContent = 'Complete';
                 clearCkpt();
                 source.close(); done();
