@@ -64,20 +64,20 @@
                 <li class="nav-item">
                     <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() is "Dashboard" or "RCMDashboard" ? "active" : "")"
                        asp-controller="Home" asp-action="Dashboard">
-                        <i class="fas fa-signal me-1" style="font-size:.75rem;"></i>Dashboard
+                        <i class="fas fa-signal nav-ico" style="font-size:.75rem;"></i><span class="nav-label">Dashboard</span>
                     </a>
                 </li>
                 @if (canAccessRcm)
                 {
                     <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
-                           asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
+                           asp-controller="Home" asp-action="RCMDashboard"><i class="fas fa-chart-column nav-ico"></i><span class="nav-label">BI Reports</span></a>
                     </li>
                 }
                 @if (canAccessRcm)
                 {
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Advanced Reports</a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-folder-tree nav-ico"></i><span class="nav-label">Advanced Reports</span></a>
                     <ul class="dropdown-menu">
                         <li class="dropdown-submenu">
                             <a class="dropdown-item dropdown-toggle" href="#">Claim Processing</a>
@@ -98,7 +98,7 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Portal" ? "active" : "")"
                        href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-cloud-download-alt me-1" style="font-size:.78rem;"></i>Portal
+                        <i class="fas fa-cloud-download-alt nav-ico" style="font-size:.78rem;"></i><span class="nav-label">Portal</span>
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" asp-controller="Portal" asp-action="Sync">
@@ -118,7 +118,7 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
                            href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-alt me-1" style="font-size:.8rem;"></i>Admin
+                            <i class="fas fa-shield-alt nav-ico" style="font-size:.8rem;"></i><span class="nav-label">Admin</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users">
@@ -148,7 +148,7 @@
                     </li>
                 }
                 <li class="nav-item">
-                    <a class="nav-link" href="#Support" data-i18n="support">Support</a>
+                    <a class="nav-link" href="#Support"><i class="fas fa-headset nav-ico"></i><span class="nav-label" data-i18n="support">Support</span></a>
                 </li>
             </ul>
 
