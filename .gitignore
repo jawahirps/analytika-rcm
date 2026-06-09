@@ -7,6 +7,11 @@ Analytika/wwwroot/reports/
 .DS_Store
 *.user
 *.swp
+*.swo
+*.swn
+
+# Codex runtime cruft
+.codex-spreadsheets/node_modules
 Analytika/analytika.db.gz
 Analytika/analytika.db-shm
 Analytika/analytika.db-wal
