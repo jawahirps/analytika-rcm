@@ -199,7 +199,7 @@ public class PortalSyncService
             }
         }
 
-        if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded);
+        if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded, filesByType);
         return (newCount, dupCount, filesDownloaded);
     }
 
