@@ -40,13 +40,19 @@
         <!-- Brand -->
         <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
+                <!-- Ghaf tree + data: branching canopy of data nodes over a trunk -->
+                <path d="M22 21 C22 14 17 10 11 10" stroke="#26658C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 12 28 8 34 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 V7" stroke="#011C40" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="7"  r="2.3" fill="#011C40"/>
+                <circle cx="11" cy="10" r="2"   fill="#26658C"/>
+                <circle cx="34" cy="10" r="2"   fill="#54ACBF"/>
+                <circle cx="14" cy="15" r="1.5" fill="#54ACBF"/>
+                <circle cx="30" cy="15" r="1.5" fill="#A7EBF2"/>
+                <path d="M22 21 V36" stroke="#011C40" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M15 38 H29" stroke="#26658C" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
