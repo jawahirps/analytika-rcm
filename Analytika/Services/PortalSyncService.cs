@@ -102,7 +102,7 @@ public class PortalSyncService
         int facilityId, string operation, string period,
         string portal,
         bool skipDownload = false,
-        Func<int, int, int, Task>? onProgress = null)
+        Func<int, int, int, IReadOnlyDictionary<string, int>, Task>? onProgress = null)
     {
         if (!rows.Any()) return (0, 0, 0);
 
@@ -125,6 +125,13 @@ public class PortalSyncService
         int dupCount = existingSet.Count - needsRetrySet.Count;   // already-downloaded = true dup
 
         int newCount = 0, filesDownloaded = 0;
+        // Per-type download tally (Claim = submission, Remittance = reconciliation, Prior Auth, etc.)
+        var filesByType = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        void TallyType(string? type)
+        {
+            var key = string.IsNullOrWhiteSpace(type) ? "Other" : type.Trim();
+            filesByType[key] = filesByType.GetValueOrDefault(key) + 1;
+        }
 
         // 3. Parallel download new records
         if (newRows.Any())
@@ -157,14 +164,14 @@ public class PortalSyncService
                     SyncedAt = now
                 });
 
-                if (dlOk) filesDownloaded++;
+                if (dlOk) { filesDownloaded++; TallyType(row.Type); }
                 newCount++;
                 progressBatch++;
 
                 if (newCount % 100 == 0)
                 {
                     await _db.SaveChangesAsync();
-                    if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded);
+                    if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded, filesByType);
                     progressBatch = 0;
                 }
             }
@@ -188,6 +195,7 @@ public class PortalSyncService
                         .SetProperty(t => t.FileSizeBytes, sizeBytes)
                         .SetProperty(t => t.FileDownloadedAt, retryNow));
                 filesDownloaded++;
+                TallyType(row.Type);
             }
         }
 

@@ -1074,7 +1074,7 @@ public class PortalController : Controller
 
         await _sync.UpsertDhaTransactionsWithDownloadAsync(
             rows, cred.Username, pwd, vm.FacilityId!.Value, "BulkSave", period, "DHA",
-            onProgress: async (saved, dups, files) =>
+            onProgress: async (saved, dups, files, byType) =>
             {
                 lastSaved = saved; lastDups = dups; lastFiles = files;
                 await Send(new
@@ -1085,7 +1085,8 @@ public class PortalController : Controller
                     saved,
                     downloaded = files,
                     duplicates = dups,
-                    pending = total - saved - dups
+                    pending = total - saved - dups,
+                    byType
                 });
             });
 
@@ -1259,6 +1260,7 @@ public class PortalController : Controller
         var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
+        var grandByType = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         int totalSteps = monthChunks.Count;
         int stepsDone = Math.Min(resumeMonthIdx, totalSteps);  // pre-credit already-done months
 
@@ -1288,11 +1290,14 @@ public class PortalController : Controller
 
             if (uniqueMonth.Any())
             {
+                IReadOnlyDictionary<string, int> monthByType = new Dictionary<string, int>();
                 var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
-                    uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
+                    uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA",
+                    onProgress: (s, d, f, bt) => { monthByType = bt; return Task.CompletedTask; });
                 grandSaved += ns; grandDups += nd; grandFiles += nf;
+                foreach (var kv in monthByType) grandByType[kv.Key] = grandByType.GetValueOrDefault(kv.Key) + kv.Value;
                 ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
-                await Send(new { status = "processing", facilityIndex = 1, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
+                await Send(new { status = "processing", facilityIndex = 1, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct, byType = grandByType });
             }
         }
 
@@ -1312,7 +1317,7 @@ public class PortalController : Controller
         _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
         await Send(new { status = "facility_done", facilityIndex = 1, facilityName = facName, saved = grandSaved, dups = grandDups, files = grandFiles, pct = 100 });
-        await Send(new { status = "done", message = $"Complete — {grandSaved} new · {grandDups} dup · {grandFiles} files · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles });
+        await Send(new { status = "done", message = $"Complete — {grandSaved} new · {grandDups} dup · {grandFiles} files · {monthChunks.Count} months", grandTotal, grandSaved, grandDups, grandFiles, byType = grandByType });
     }
 
     // ── Sync All Facilities — 2-year bulk download ──────────────────
