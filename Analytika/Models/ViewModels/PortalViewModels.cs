@@ -256,3 +256,41 @@ public class SyncedDataViewModel
     public int PageSize { get; set; } = 50;
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
 }
+
+// ── Data Validation (one-click integrity check) ──────────────────
+public class DataValidationViewModel
+{
+    public int TotalTransactions { get; set; }
+    public int TotalDownloaded { get; set; }
+    public int TotalPending { get; set; }
+    public int DistinctParsedFiles { get; set; }
+    public int DownloadedNotParsed { get; set; }
+    public List<DataValidationDup> Duplicates { get; set; } = new();
+    public List<DataValidationFacility> Facilities { get; set; } = new();
+    public List<DataValidationType> ByType { get; set; } = new();
+}
+
+public class DataValidationDup
+{
+    public string Portal { get; set; } = "";
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = "";
+    public string TransactionId { get; set; } = "";
+    public int Count { get; set; }
+}
+
+public class DataValidationFacility
+{
+    public int FacilityId { get; set; }
+    public string FacilityName { get; set; } = "";
+    public int Total { get; set; }
+    public int Downloaded { get; set; }
+    public int Pending { get; set; }
+}
+
+public class DataValidationType
+{
+    public string Type { get; set; } = "";
+    public int Total { get; set; }
+    public int Downloaded { get; set; }
+}

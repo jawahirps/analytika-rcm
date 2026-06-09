@@ -42,6 +42,80 @@ public class PortalController : Controller
         return View(vm);
     }
 
+    // ── Data Validation — one-click integrity check over the DB ──────
+    [HttpGet]
+    public async Task<IActionResult> DataValidation()
+    {
+        var facilityNames = await _db.Facilities.AsNoTracking()
+            .ToDictionaryAsync(f => f.Id, f => f.Name);
+
+        string FacName(int id) => facilityNames.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
+            ? n : $"Facility {id}";
+
+        var vm = new DataValidationViewModel
+        {
+            TotalTransactions   = await _db.PortalTransactions.CountAsync(),
+            TotalDownloaded     = await _db.PortalTransactions.CountAsync(t => t.FileDownloaded),
+            TotalPending        = await _db.PortalTransactions.CountAsync(t => !t.FileDownloaded),
+            DistinctParsedFiles = await _db.XmlParsedRecords.Select(r => r.PortalTransactionId).Distinct().CountAsync()
+        };
+
+        // Duplicate check — should be 0 (unique index on Portal+FacilityId+TransactionId)
+        var dups = await _db.PortalTransactions
+            .GroupBy(t => new { t.Portal, t.FacilityId, t.TransactionId })
+            .Where(g => g.Count() > 1)
+            .Select(g => new { g.Key.Portal, g.Key.FacilityId, g.Key.TransactionId, Count = g.Count() })
+            .Take(200)
+            .ToListAsync();
+        vm.Duplicates = dups.Select(d => new DataValidationDup
+        {
+            Portal = d.Portal,
+            FacilityId = d.FacilityId,
+            FacilityName = FacName(d.FacilityId),
+            TransactionId = d.TransactionId,
+            Count = d.Count
+        }).ToList();
+
+        // Per-facility coverage
+        var fac = await _db.PortalTransactions
+            .GroupBy(t => t.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(x => x.FileDownloaded) })
+            .ToListAsync();
+        vm.Facilities = fac
+            .Select(f => new DataValidationFacility
+            {
+                FacilityId = f.FacilityId,
+                FacilityName = FacName(f.FacilityId),
+                Total = f.Total,
+                Downloaded = f.Downloaded,
+                Pending = f.Total - f.Downloaded
+            })
+            .OrderBy(f => f.FacilityName)
+            .ToList();
+
+        // Downloaded but not yet parsed
+        var parsedIds = _db.XmlParsedRecords.Select(r => r.PortalTransactionId).Distinct();
+        vm.DownloadedNotParsed = await _db.PortalTransactions
+            .CountAsync(t => t.FileDownloaded && !parsedIds.Contains(t.Id));
+
+        // Coverage by transaction type
+        var byType = await _db.PortalTransactions
+            .GroupBy(t => t.Type)
+            .Select(g => new { Type = g.Key, Total = g.Count(), Downloaded = g.Count(x => x.FileDownloaded) })
+            .ToListAsync();
+        vm.ByType = byType
+            .Select(t => new DataValidationType
+            {
+                Type = string.IsNullOrWhiteSpace(t.Type) ? "—" : t.Type,
+                Total = t.Total,
+                Downloaded = t.Downloaded
+            })
+            .OrderByDescending(t => t.Total)
+            .ToList();
+
+        return View(vm);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Fetch(PortalFetchViewModel vm)
@@ -1408,28 +1482,38 @@ public class PortalController : Controller
                 if (mi < monthStart) continue;  // skip already-completed months for resume facility
 
                 var (ms, me, mlabel) = monthChunks[mi];
-                var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
-                var dhpoTo = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
-
-                // Parallel search — all type/status combos at once (max 4 concurrent)
-                var monthRows = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, effectiveTxTypes);
-                var uniqueMonth = PortalSyncService.DeduplicateRows(monthRows);
-                grandTotal += uniqueMonth.Count;
-                stepsDone++;
+                stepsDone++;  // count the month once, success or failure, so the run always advances
                 int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
-                ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
-
-                if (uniqueMonth.Any())
+                try
                 {
-                    var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
-                        uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
-                    facSaved += ns; facDups += nd; facFiles += nf;
-                    grandSaved += ns; grandDups += nd; grandFiles += nf;
+                    var dhpoFrom = DhaPortalService.FormatDhpoDate(ms.ToString("yyyy-MM-dd"));
+                    var dhpoTo = DhaPortalService.FormatDhpoDate(me.ToString("yyyy-MM-dd"), endOfDay: true);
+
+                    // Parallel search — all type/status combos at once (max 4 concurrent)
+                    var monthRows = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, effectiveTxTypes);
+                    var uniqueMonth = PortalSyncService.DeduplicateRows(monthRows);
+                    grandTotal += uniqueMonth.Count;
 
                     ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                    await Send(new { status = "processing", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
+                    await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
+
+                    if (uniqueMonth.Any())
+                    {
+                        var (ns, nd, nf) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
+                            uniqueMonth, cred.Username, pwd, cred.FacilityId, "MonthWiseSync", ms.ToString("yyyy-MM"), "DHA");
+                        facSaved += ns; facDups += nd; facFiles += nf;
+                        grandSaved += ns; grandDups += nd; grandFiles += nf;
+
+                        ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
+                        await Send(new { status = "processing", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, saved = grandSaved, dups = grandDups, files = grandFiles, pct });
+                    }
+                }
+                catch (OperationCanceledException) { throw; }  // user paused / connection closed — stop cleanly
+                catch (Exception ex)
+                {
+                    // One bad month/facility must not stall the whole overnight run — log + continue
+                    await Send(new { status = "warning", message = $"[{facName}] {mlabel}: {ex.Message}", facilityIndex, facilityFi = fi });
                 }
             }
 

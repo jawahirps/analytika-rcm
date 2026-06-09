@@ -1,0 +1,159 @@
+@model Analytika.Models.ViewModels.DataValidationViewModel
+@{
+    ViewData["Title"] = "Data Validation";
+    var dupOk = Model.Duplicates.Count == 0;
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-4 d-flex justify-content-between align-items-end flex-wrap gap-2">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Data Validation</h4>
+            <small class="text-muted">One-click integrity check of fetched &amp; downloaded data in the database</small>
+        </div>
+        <a asp-action="DataValidation" class="btn btn-primary btn-sm">
+            <i class="fas fa-rotate me-1"></i> Re-run check
+        </a>
+    </div>
+
+    <!-- Top stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-label">Total Records</div>
+                <div class="stat-value">@Model.TotalTransactions.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-label">Files Downloaded</div>
+                <div class="stat-value" style="color:var(--mint);">@Model.TotalDownloaded.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-label">Pending Download</div>
+                <div class="stat-value" style="color:@(Model.TotalPending > 0 ? "var(--gold)" : "var(--mint)");">@Model.TotalPending.ToString("N0")</div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-label">Parsed Files</div>
+                <div class="stat-value" style="color:var(--classic-teal);">@Model.DistinctParsedFiles.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Duplicate check -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="fas fa-@(dupOk ? "circle-check" : "triangle-exclamation")" style="color:@(dupOk ? "var(--mint)" : "var(--danger)");"></i>
+                <span class="fw-bold" style="color:var(--navy);">Duplicate check</span>
+            </div>
+            @if (dupOk)
+            {
+                <p class="text-muted mb-0" style="font-size:.85rem;">
+                    No duplicate records found. Uniqueness is enforced at the database level on
+                    <code>(Portal, FacilityId, TransactionId)</code>.
+                </p>
+            }
+            else
+            {
+                <p class="text-danger mb-2" style="font-size:.85rem;">
+                    @Model.Duplicates.Count duplicate group(s) found (showing up to 200):
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0" style="font-size:.8rem;">
+                        <thead><tr><th>Portal</th><th>Facility</th><th>Transaction ID</th><th class="text-end">Count</th></tr></thead>
+                        <tbody>
+                        @foreach (var d in Model.Duplicates)
+                        {
+                            <tr><td>@d.Portal</td><td>@d.FacilityName</td><td>@d.TransactionId</td><td class="text-end fw-semibold">@d.Count</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Per-facility coverage -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="fw-bold mb-3" style="color:var(--navy);">Coverage by facility</div>
+                    @if (Model.Facilities.Count == 0)
+                    {
+                        <p class="text-muted mb-0" style="font-size:.85rem;">No records yet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm mb-0" style="font-size:.82rem;">
+                                <thead><tr><th>Facility</th><th class="text-end">Total</th><th class="text-end">Downloaded</th><th class="text-end">Pending</th></tr></thead>
+                                <tbody>
+                                @foreach (var f in Model.Facilities)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold" style="color:var(--navy);">@f.FacilityName</td>
+                                        <td class="text-end">@f.Total.ToString("N0")</td>
+                                        <td class="text-end" style="color:var(--mint);">@f.Downloaded.ToString("N0")</td>
+                                        <td class="text-end" style="color:@(f.Pending > 0 ? "var(--gold)" : "var(--text-muted)");">@f.Pending.ToString("N0")</td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- By type + parse coverage -->
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="fw-bold mb-3" style="color:var(--navy);">By transaction type</div>
+                    @if (Model.ByType.Count == 0)
+                    {
+                        <p class="text-muted mb-0" style="font-size:.85rem;">No records yet.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm mb-0" style="font-size:.82rem;">
+                            <thead><tr><th>Type</th><th class="text-end">Total</th><th class="text-end">Downloaded</th></tr></thead>
+                            <tbody>
+                            @foreach (var t in Model.ByType)
+                            {
+                                <tr><td>@t.Type</td><td class="text-end">@t.Total.ToString("N0")</td><td class="text-end" style="color:var(--mint);">@t.Downloaded.ToString("N0")</td></tr>
+                            }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <div class="fw-bold mb-2" style="color:var(--navy);">Parse coverage</div>
+                    <p class="mb-1" style="font-size:.85rem;">
+                        <span class="fw-semibold">@Model.DistinctParsedFiles.ToString("N0")</span> of
+                        <span class="fw-semibold">@Model.TotalDownloaded.ToString("N0")</span> downloaded files parsed.
+                    </p>
+                    @if (Model.DownloadedNotParsed > 0)
+                    {
+                        <p class="mb-0" style="font-size:.82rem;color:var(--gold);">
+                            <i class="fas fa-triangle-exclamation me-1"></i>@Model.DownloadedNotParsed.ToString("N0") downloaded file(s) not yet parsed — run XML Parsing.
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="mb-0" style="font-size:.82rem;color:var(--mint);">
+                            <i class="fas fa-circle-check me-1"></i>All downloaded files are parsed.
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
