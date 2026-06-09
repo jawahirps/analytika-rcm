@@ -93,7 +93,7 @@
     </div>
 
     <!-- Single-Facility Sync Panel (hidden until started) -->
-    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
+    <div id="syncOnePanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #26658C!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -125,14 +125,14 @@
                 </span>
             </div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
-            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
     </div>
 
     <!-- Sync All Progress Panel (hidden until started) -->
-    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #A7EBF2!important;">
+    <div id="syncAllPanel" class="card border-0 shadow-sm mb-4" style="display:none;border-left:3px solid #26658C!important;">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0 fw-bold" style="color:var(--navy);font-size:.85rem;">
@@ -168,7 +168,7 @@
             <!-- Current facility + month -->
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <!-- Scrollable log -->
-            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#EAF4FB;border-radius:6px;padding:8px;line-height:1.9;">
+            <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
                 <span class="text-muted">Initialising…</span>
             </div>
         </div>
@@ -571,7 +571,7 @@
                                                             data-fid="@f.Value" data-type="2"
                                                             title="Submission / Claims XML"
                                                             onclick="dlToggle(this)"
-                                                            style="font-size:.66rem;border:1px solid #A7EBF2;background:rgba(0,139,139,0.12);color:var(--forest-teal);border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                            style="font-size:.66rem;border:1px solid #26658C;background:rgba(0,139,139,0.12);color:var(--forest-teal);border-radius:4px;padding:2px 6px;white-space:nowrap;">
                                                         <i class="fas fa-file-medical me-1"></i>Claim
                                                     </button>
                                                     <button class="btn btn-xs dl-toggle"
@@ -859,7 +859,7 @@
             const d = JSON.parse(e.data);
 
             if (d.status === 'start') {
-                addLog(`▶ ${d.message}`, '#A7EBF2');
+                addLog(`▶ ${d.message}`, '#26658C');
 
             } else if (d.status === 'resumed') {
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
@@ -1033,7 +1033,7 @@
 
             if (d.status === 'start') {
                 title.textContent = d.message;
-                addLog(`▶ ${d.message}`, '#A7EBF2');
+                addLog(`▶ ${d.message}`, '#26658C');
 
             } else if (d.status === 'resumed') {
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
