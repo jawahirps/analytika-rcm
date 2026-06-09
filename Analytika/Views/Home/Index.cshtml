@@ -27,7 +27,7 @@
         /* ── Left panel ── */
         .login-left {
             width: 40%;
-            background: #0f172a;
+            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -41,7 +41,7 @@
             position: absolute;
             width: 380px; height: 380px;
             border-radius: 50%;
-            border: 1px solid rgba(16,185,129,0.12);
+            border: 1px solid rgba(84,172,191,0.12);
             bottom: -140px; right: -120px;
         }
         .login-left::after {
@@ -49,14 +49,14 @@
             position: absolute;
             width: 220px; height: 220px;
             border-radius: 50%;
-            border: 1px solid rgba(16,185,129,0.08);
+            border: 1px solid rgba(84,172,191,0.08);
             top: 40px; right: 40px;
         }
         .accent-ring {
             position: absolute;
             width: 160px; height: 160px;
             border-radius: 50%;
-            border: 1px solid rgba(16,185,129,0.06);
+            border: 1px solid rgba(84,172,191,0.06);
             bottom: 120px; left: -50px;
         }
         .brand-logo {
@@ -76,7 +76,7 @@
         }
         .brand-sub {
             font-size: 0.62rem;
-            color: #10b981;
+            color: #54ACBF;
             font-weight: 600;
             letter-spacing: 1.6px;
             text-transform: uppercase;
@@ -93,7 +93,7 @@
             margin-bottom: 14px;
             letter-spacing: -0.5px;
         }
-        .left-tagline h2 span { color: #10b981; }
+        .left-tagline h2 span { color: #54ACBF; }
         .left-tagline p {
             font-size: 0.875rem;
             color: rgba(255,255,255,0.45);
@@ -117,7 +117,7 @@
             font-size: 0.72rem;
             color: rgba(255,255,255,0.6);
         }
-        .feature-pill i { color: #10b981; font-size: 0.65rem; }
+        .feature-pill i { color: #54ACBF; font-size: 0.65rem; }
         .left-footer {
             font-size: 0.72rem;
             color: rgba(255,255,255,0.22);
@@ -140,7 +140,7 @@
         .login-right h1 {
             font-size: 1.55rem;
             font-weight: 700;
-            color: #0A1828;
+            color: #011C40;
             margin-bottom: 6px;
             letter-spacing: -0.4px;
         }
@@ -164,13 +164,13 @@
             border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
-            color: #0A1828;
+            color: #011C40;
             background: #f8fafc;
             transition: border-color 0.18s, box-shadow 0.18s;
         }
         .form-control:focus {
-            border-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+            border-color: #54ACBF;
+            box-shadow: 0 0 0 3px rgba(84,172,191,0.12);
             background: #fff;
             outline: none;
         }
@@ -186,7 +186,7 @@
             font-size: 0.85rem;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: #10b981; }
+        .input-group:focus-within .input-group-text { border-color: #54ACBF; }
         .input-icon {
             background: #f8fafc;
             border: 1.5px solid #e2e8f0;
@@ -199,42 +199,43 @@
             align-items: center;
             transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: #10b981; }
+        .input-group:focus-within .input-icon { border-color: #54ACBF; }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
-            background: #0f172a;
+            background: linear-gradient(135deg, #011C40 0%, #54ACBF 100%);
             color: #fff;
             border: none;
-            border-radius: 9px;
-            padding: 11px 24px;
+            border-radius: 11px;
+            padding: 12px 24px;
             font-size: 0.875rem;
             font-weight: 600;
             width: 100%;
             letter-spacing: 0.1px;
-            transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+            box-shadow: 0 6px 16px rgba(1,28,64,0.18);
+            transition: filter 0.2s, transform 0.18s cubic-bezier(0.32,0.72,0,1), box-shadow 0.2s;
             cursor: pointer;
         }
         .btn-signin:hover {
-            background: #1e293b;
+            filter: brightness(1.06);
             transform: translateY(-1px);
-            box-shadow: 0 4px 14px rgba(15,23,42,0.2);
+            box-shadow: 0 10px 24px rgba(1,28,64,0.24);
         }
         .btn-signin:active { transform: translateY(0); }
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #10b981;
+            color: #54ACBF;
             text-decoration: none;
             font-weight: 500;
         }
         .forgot-link:hover { text-decoration: underline; }
 
         .form-check-input:checked {
-            background-color: #10b981;
-            border-color: #10b981;
+            background-color: #54ACBF;
+            border-color: #54ACBF;
         }
-        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(84,172,191,0.15); }
 
         .alert-danger {
             font-size: 0.82rem;
@@ -278,11 +279,11 @@
             font-family: 'Inter', system-ui, sans-serif;
         }
         .lang-btn.active {
-            background: #0f172a;
-            border-color: #0f172a;
+            background: #011C40;
+            border-color: #011C40;
             color: #fff;
         }
-        .lang-btn:hover:not(.active) { border-color: #10b981; color: #0f172a; }
+        .lang-btn:hover:not(.active) { border-color: #54ACBF; color: #011C40; }
 
         /* AR overrides */
         html[dir="rtl"] body { font-family: 'Segoe UI', 'Noto Sans Arabic', system-ui, sans-serif; }
@@ -309,11 +310,11 @@
 
         <div class="brand-logo">
             <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#4ade80" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#4ade80" opacity="0.8"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#4ade80" opacity="0.85"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#4ade80" opacity="0.9"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#4ade80"/>
+                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#54ACBF" opacity="0.8"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#54ACBF" opacity="0.85"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF" opacity="0.9"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#54ACBF"/>
                 <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 <polygon points="35,7 31,9 33.5,13" fill="#ffffff"/>
             </svg>
