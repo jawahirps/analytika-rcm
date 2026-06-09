@@ -124,6 +124,7 @@
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncOneCtrFiles">0</strong>
                 </span>
             </div>
+            <div id="syncOneByType" class="d-flex gap-2 mb-1 flex-wrap" style="font-size:.72rem;"></div>
             <div id="syncOneCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <div id="syncOneLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
                 <span class="text-muted">Initialising…</span>
@@ -166,6 +167,7 @@
                 </span>
             </div>
             <!-- Current facility + month -->
+            <div id="syncAllByType" class="d-flex gap-2 mb-1 flex-wrap" style="font-size:.72rem;"></div>
             <div id="syncAllCurrent" style="font-size:.75rem;color:#555;margin-bottom:6px;min-height:18px;"></div>
             <!-- Scrollable log -->
             <div id="syncAllLog" style="max-height:300px;overflow-y:auto;font-size:.71rem;font-family:monospace;background:#ffffff;border:1px solid var(--border);border-radius:6px;padding:8px;line-height:1.9;color:#0D1B2A;">
@@ -610,6 +612,21 @@
     let syncAllCompleted = false;
     let syncOneCompleted = false;
 
+    // ── Per-type download breakdown (Submission / Reconciliation / …) ──
+    const TYPE_LABELS = { 'Claim':'Submissions', 'Remittance':'Reconciliation', 'Prior Auth':'Prior Auth', 'Prior Authorization':'Prior Authorization', 'Prior Request':'Prior Request', 'Person Register':'Person Register', 'Prescription':'Prescription' };
+    const TYPE_ICONS  = { 'Claim':'fa-file-invoice', 'Remittance':'fa-file-invoice-dollar', 'Prior Auth':'fa-shield-halved', 'Prior Authorization':'fa-shield-halved', 'Prior Request':'fa-clipboard-check' };
+    function renderByType(elId, byType) {
+        const el = document.getElementById(elId);
+        if (!el || !byType) return;
+        const keys = Object.keys(byType).filter(k => (byType[k] || 0) > 0);
+        if (!keys.length) return;
+        el.innerHTML = keys.map(k => {
+            const label = TYPE_LABELS[k] || k;
+            const icon  = TYPE_ICONS[k] || 'fa-file';
+            return `<span class="px-2 py-1 rounded" style="background:rgba(1,28,64,.06);color:var(--forest-teal);font-weight:600;"><i class="fas ${icon} me-1"></i>${label}: <strong>${(byType[k]||0).toLocaleString()}</strong></span>`;
+        }).join('');
+    }
+
     function saveCkpt(data) {
         localStorage.setItem(CKPT_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
     }
@@ -884,6 +901,7 @@
             } else if (d.status === 'processing') {
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 setProgress(d.pct || 0);
+                renderByType('syncAllByType', d.byType);
 
             } else if (d.status === 'facility_done') {
                 updateAllCtrs(d.saved||0, d.dups||0, d.files||0);
@@ -910,6 +928,7 @@
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
+                renderByType('syncAllByType', d.byType);
                 curLbl.textContent = 'Complete';
                 clearCkpt();
                 source.close();
@@ -1058,6 +1077,7 @@
                 grandLbl.textContent = `Saved: ${(d.saved||0).toLocaleString()} · Already in DB: ${(d.dups||0).toLocaleString()} · Files: ${(d.files||0).toLocaleString()}`;
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
+                renderByType('syncOneByType', d.byType);
 
             } else if (d.status === 'facility_done') {
                 updateOneCtrs(d.saved||0, d.dups||0, d.files||0);
@@ -1078,6 +1098,7 @@
                 addLog('', '');
                 addLog(`✅ ${d.message}`, '#3aac8a');
                 grandLbl.textContent = `${(d.grandSaved||0).toLocaleString()} new · ${(d.grandDups||0).toLocaleString()} already in DB · ${(d.grandFiles||0).toLocaleString()} files`;
+                renderByType('syncOneByType', d.byType);
                 curLbl.textContent = 'Complete';
                 clearCkpt();
                 source.close(); done();
