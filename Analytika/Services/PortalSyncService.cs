@@ -54,7 +54,7 @@ public class PortalSyncService
         var dateFrom = DateTime.Today.AddDays(-90);
         var dateTo = DateTime.Today;
         var chunks = GetDateChunks(dateFrom, dateTo, 90);
-        int[] txTypes = [2, 8, 16, 32];
+        int[] txTypes = DhaPortalService.DefaultTxTypes;
         int totalNew = 0, totalFiles = 0;
 
         foreach (var (start, end) in chunks)
@@ -63,7 +63,7 @@ public class PortalSyncService
             var dhpoTo = DhaPortalService.FormatDhpoDate(end.ToString("yyyy-MM-dd"), endOfDay: true);
             var period = start.ToString("yyyy-MM");
 
-            var allRows = await SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes, statuses: [1]);
+            var allRows = await SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
             var uniqueRows = DeduplicateRows(allRows);
             if (!uniqueRows.Any()) continue;
 

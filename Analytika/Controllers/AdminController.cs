@@ -176,16 +176,24 @@ public class AdminController : Controller
         var users = await query.OrderByDescending(u => u.CreatedAt).ToListAsync();
         var rows = new List<UserRowViewModel>();
 
+        // Batch-load all roles for these users in a single JOIN query (avoids N+1)
+        var userIds = users.Select(u => u.Id).ToList();
+        var roleMap = await _db.UserRoles
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.Name).ToList());
+
         foreach (var u in users)
         {
-            var roles = await _userManager.GetRolesAsync(u);
+            roleMap.TryGetValue(u.Id, out var roles);
             rows.Add(new UserRowViewModel
             {
                 Id = u.Id,
                 FullName = u.FullName ?? u.Email ?? "",
                 Email = u.Email ?? "",
                 UserType = u.UserType,
-                Role = roles.FirstOrDefault() ?? "—",
+                Role = roles?.FirstOrDefault() ?? "—",
                 Facilities = u.UserFacilities.Select(uf => uf.Facility?.Name ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList(),
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt
@@ -641,13 +649,21 @@ public class AdminController : Controller
             .Include(u => u.UserFacilities).ThenInclude(uf => uf.Facility)
             .AsNoTracking().OrderBy(u => u.Email).ToListAsync();
 
+        // Batch-load all roles in a single JOIN query (avoids N+1)
+        var exportUserIds = users.Select(u => u.Id).ToList();
+        var exportRoleMap = await _db.UserRoles
+            .Where(ur => exportUserIds.Contains(ur.UserId))
+            .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.Name).ToList());
+
         var sb = new StringBuilder();
         sb.AppendLine("Email,FullName,Department,UserType,Role,IsActive,Facilities");
         foreach (var u in users)
         {
-            var roles = await _userManager.GetRolesAsync(u);
+            exportRoleMap.TryGetValue(u.Id, out var roles);
             var facNames = u.UserFacilities.Select(uf => uf.Facility?.Name ?? "").Where(n => n.Length > 0);
-            sb.AppendLine($"{Csv(u.Email ?? "")},{Csv(u.FullName ?? "")},{Csv(u.Department ?? "")},{Csv(u.UserType)},{Csv(string.Join("|", roles))},{u.IsActive},{Csv(string.Join("|", facNames))}");
+            sb.AppendLine($"{Csv(u.Email ?? "")},{Csv(u.FullName ?? "")},{Csv(u.Department ?? "")},{Csv(u.UserType)},{Csv(string.Join("|", roles ?? []))},{u.IsActive},{Csv(string.Join("|", facNames))}");
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         return File(bytes, "text/csv", $"users_{DateTime.UtcNow:yyyyMMdd}.csv");

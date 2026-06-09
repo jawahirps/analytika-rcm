@@ -44,6 +44,10 @@ public class PortalFetchResultRow
     public string? Payer { get; set; }
     public string? Amount { get; set; }
     public string? RawXml { get; set; }
+
+    // Populated after DB cross-reference in Fetch action
+    public int TransactionDbId { get; set; }    // 0 if not in DB
+    public bool DbFileDownloaded { get; set; }  // true if XML is stored in our DB
 }
 
 // ── Portal Sync (persist to DB) ─────────────────────────────────

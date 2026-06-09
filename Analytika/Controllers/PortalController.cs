@@ -55,7 +55,7 @@ public class PortalController : Controller
         freshVm.SearchText = vm.SearchText;
         freshVm.TransactionStatuses = vm.TransactionStatuses.Count > 0 ? vm.TransactionStatuses : new() { 1 };
         freshVm.Directions = vm.Directions.Count > 0 ? vm.Directions : new() { 2 };
-        freshVm.TransactionIds = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2 };
+        freshVm.TransactionIds = vm.TransactionIds.Count > 0 ? vm.TransactionIds : new() { 2, 8 };
         freshVm.MinRecord = vm.MinRecord;
         freshVm.MaxRecord = vm.MaxRecord;
         freshVm.FileId = vm.FileId;
@@ -85,12 +85,11 @@ public class PortalController : Controller
 
         async Task<(int count, List<PortalFetchResultRow> rows, string? error)> FetchDhaForFacilityAsync(int facilityId, string facilityName)
         {
-            var cred = await _db.PortalCredentials
-                .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == facilityId && c.IsActive);
-            if (cred == null)
+            var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync(vm.Portal, facilityId);
+            if (credErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"No active DHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
-
-            var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+            var cred = credNullable!;
+            var pwd = pwdNullable!;
 
             if (vm.Operation == "DownloadTransactionFile")
             {
@@ -201,12 +200,11 @@ public class PortalController : Controller
 
         async Task<(int count, List<PortalFetchResultRow> rows, string? error)> FetchRhaForFacilityAsync(int facilityId, string facilityName)
         {
-            var cred = await _db.PortalCredentials
-                .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == facilityId && c.IsActive);
-            if (cred == null)
+            var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync(vm.Portal, facilityId);
+            if (credErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"No active RHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
-
-            var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+            var cred = credNullable!;
+            var pwd = pwdNullable!;
             var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
             if (authErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"RHA Auth failed: {authErr}");
@@ -311,6 +309,26 @@ public class PortalController : Controller
             ? string.Join(" ", statusMessages)
             : $"Fetched {totalFetched} records successfully.";
 
+        // Cross-reference results with DB so the view can show direct download links
+        if (allRows.Count > 0)
+        {
+            var fileIds = allRows.Select(r => r.FileId).Where(id => id != "-").Distinct().ToList();
+            var facIds  = allRows.Select(r => r.FacilityId).Distinct().ToList();
+            var dbRecs  = await _db.PortalTransactions
+                .Where(t => facIds.Contains(t.FacilityId) && t.FileId != null && fileIds.Contains(t.FileId))
+                .Select(t => new { t.Id, t.FacilityId, t.FileId, t.FileDownloaded })
+                .ToListAsync();
+            var dbLookup = dbRecs.ToDictionary(t => (t.FacilityId, t.FileId!));
+            foreach (var row in allRows)
+            {
+                if (dbLookup.TryGetValue((row.FacilityId, row.FileId), out var rec))
+                {
+                    row.TransactionDbId  = rec.Id;
+                    row.DbFileDownloaded = rec.FileDownloaded;
+                }
+            }
+        }
+
         _db.PortalFetchLogs.AddRange(logs);
         await _db.SaveChangesAsync();
 
@@ -353,17 +371,15 @@ public class PortalController : Controller
             return View(freshVm);
         }
 
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == vm.Portal && c.FacilityId == vm.FacilityId && c.IsActive);
-
-        if (cred == null)
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync(vm.Portal, vm.FacilityId!.Value);
+        if (credErr != null)
         {
             freshVm.IsError = true;
-            freshVm.StatusMessage = $"No active {vm.Portal} credentials found for this facility.";
+            freshVm.StatusMessage = credErr;
             return View(freshVm);
         }
-
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
         // Parse date range
         if (!DateTime.TryParse(vm.DateFrom, out var dateFrom))
@@ -371,15 +387,8 @@ public class PortalController : Controller
         if (!DateTime.TryParse(vm.DateTo, out var dateTo))
             dateTo = DateTime.Today;
 
-        // Chunk into monthly batches
-        var months = new List<(DateTime Start, DateTime End)>();
-        var cursor = new DateTime(dateFrom.Year, dateFrom.Month, 1);
-        while (cursor <= dateTo)
-        {
-            var end = new DateTime(cursor.Year, cursor.Month, DateTime.DaysInMonth(cursor.Year, cursor.Month));
-            months.Add((cursor < dateFrom ? dateFrom : cursor, end > dateTo ? dateTo : end));
-            cursor = cursor.AddMonths(1);
-        }
+        // Chunk into monthly batches (reuse the shared helper used by SyncFacilityStream)
+        var months = BuildMonthChunks(dateFrom, dateTo);
 
         string? rhaToken = null;
         if (vm.Portal == "RHA")
@@ -395,12 +404,11 @@ public class PortalController : Controller
         }
 
         // Process each month
-        foreach (var (start, end) in months)
+        foreach (var (start, end, label) in months)
         {
             var fromStr = start.ToString("yyyy-MM-dd");
             var toStr = end.ToString("yyyy-MM-dd");
             var period = start.ToString("yyyy-MM");
-            var label = start.ToString("MMM yyyy");
 
             if (vm.Portal == "DHA")
             {
@@ -417,28 +425,13 @@ public class PortalController : Controller
                     var dhpoFrom = DhaPortalService.FormatDhpoDate(fromStr);
                     var dhpoTo = DhaPortalService.FormatDhpoDate(toStr, endOfDay: true);
 
-                    // 8 searches: direction(1=sent,2=received) × txType(2=Claim,8=Remittance,16=PAReq,32=PAAuth)
-                    // status=1 (new/undownloaded only) — portal rejects transactionID=-1 with error -3
-                    var txTypes = new[] { 2, 8, 16, 32 };
-                    var allRowsList = new List<PortalFetchResultRow>();
-                    string? firstErr = null;
-                    foreach (var txType in txTypes)
-                    {
-                        var (_, rowsSent, eSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, 1, txType);
-                        var (_, rowsRecv, eRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, 1, txType);
-                        allRowsList.AddRange(rowsSent);
-                        allRowsList.AddRange(rowsRecv);
-                        firstErr ??= eSent ?? eRecv;
-                    }
-
-                    // Deduplicate by FileID
-                    var allRows = allRowsList
-                        .GroupBy(r => r.FileId)
-                        .Select(g => g.First())
-                        .ToList();
+                    // 16 searches: direction(1=sent,2=received) × txType(2,8,16,32) × status(1=new,2=already-downloaded)
+                    // Both statuses needed: files may be marked downloaded by another company's system,
+                    // we never call SetTransactionDownloaded so they'd be invisible with status=1 only.
+                    var allRowsList = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, DhaPortalService.DefaultTxTypes);
+                    var allRows = PortalSyncService.DeduplicateRows(allRowsList);
 
                     batch.Fetched = allRows.Count;
-                    batch.Error = firstErr;
 
                     // Download each file and upsert
                     var (n, d, filesDownloaded) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
@@ -523,13 +516,12 @@ public class PortalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SyncNew(int facilityId)
     {
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == "DHA" && c.FacilityId == facilityId && c.IsActive);
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", facilityId);
+        if (credErr != null)
+            return Json(new { ok = false, message = credErr });
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
-        if (cred == null)
-            return Json(new { ok = false, message = "No active DHA credential for this facility." });
-
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         var period = DateTime.UtcNow.ToString("yyyy-MM");
 
         try
@@ -572,7 +564,7 @@ public class PortalController : Controller
     [HttpGet]
     public async Task<IActionResult> SyncedData(string? portal, List<int>? facilityId, string? dateFrom, string? dateTo, string? search, int page = 1)
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await GetFacilitySelectListAsync();
 
         var query = _db.PortalTransactions.Include(t => t.Facility).AsNoTracking().AsQueryable();
 
@@ -599,7 +591,7 @@ public class PortalController : Controller
 
         var vm = new SyncedDataViewModel
         {
-            Facilities = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            Facilities = facilities,
             FacilityIds = facilityId ?? new(),
             Portal = portal,
             DateFrom = dateFrom,
@@ -640,15 +632,15 @@ public class PortalController : Controller
             return View("Fetch", freshVm);
         }
 
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == "DHA" && c.FacilityId == vm.FacilityId && c.IsActive);
-
-        if (cred == null)
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", vm.FacilityId!.Value);
+        if (credErr != null)
         {
             freshVm.IsError = true;
-            freshVm.StatusMessage = "No active DHA credentials found for this facility.";
+            freshVm.StatusMessage = credErr;
             return View("Fetch", freshVm);
         }
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
         if (!DateTime.TryParse(vm.DateFrom, out var parsedFrom) || !DateTime.TryParse(vm.DateTo, out var parsedTo))
         {
@@ -657,7 +649,6 @@ public class PortalController : Controller
             return View("Fetch", freshVm);
         }
 
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         var period = parsedFrom.ToString("yyyy-MM");
 
         // Auto-split into 90-day chunks (portal rejects > 100 days, error -5)
@@ -720,15 +711,15 @@ public class PortalController : Controller
         if (vm.FacilityId == null)
             return Json(new { error = "Please select a facility." });
 
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == "DHA" && c.FacilityId == vm.FacilityId && c.IsActive);
-        if (cred == null)
-            return Json(new { error = "No active DHA credentials found for this facility." });
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", vm.FacilityId!.Value);
+        if (credErr != null)
+            return Json(new { error = credErr });
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
         if (!DateTime.TryParse(vm.DateFrom, out var parsedFrom) || !DateTime.TryParse(vm.DateTo, out var parsedTo))
             return Json(new { error = "Please enter valid dates." });
 
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         var period = parsedFrom.ToString("yyyy-MM");
 
         var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
@@ -1027,21 +1018,21 @@ public class PortalController : Controller
         if (vm.FacilityId == null)
         { await Send(new { status = "error", message = "Please select a facility." }); return; }
 
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == "DHA" && c.FacilityId == vm.FacilityId && c.IsActive, ct);
-        if (cred == null)
-        { await Send(new { status = "error", message = "No active DHA credentials." }); return; }
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", vm.FacilityId!.Value);
+        if (credErr != null)
+        { await Send(new { status = "error", message = credErr }); return; }
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
         if (!DateTime.TryParse(vm.DateFrom, out var parsedFrom) || !DateTime.TryParse(vm.DateTo, out var parsedTo))
         { await Send(new { status = "error", message = "Invalid dates." }); return; }
 
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         var period = parsedFrom.ToString("yyyy-MM");
 
         await Send(new { status = "searching", total = 0, found = 0, saved = 0, downloaded = 0, duplicates = 0, pending = 0 });
 
         // Comprehensive search: all 4 txTypes × both directions × both statuses (1=new, 2=already downloaded)
-        var txTypes = new[] { 2, 8, 16, 32 };
+        var txTypes = DhaPortalService.DefaultTxTypes;
         var txStatuses = new[] { 1, 2 };
         var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
         var allRows = new List<PortalFetchResultRow>();
@@ -1142,11 +1133,11 @@ public class PortalController : Controller
         string? dateFrom, string? dateTo, string? fileId)
     {
         if (facilityId == null) return Json(new { ok = false, message = "Select a facility." });
-        var cred = await _db.PortalCredentials
-            .FirstOrDefaultAsync(c => c.Portal == portal && c.FacilityId == facilityId && c.IsActive);
-        if (cred == null) return Json(new { ok = false, message = $"No active {portal} credentials for this facility." });
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync(portal, facilityId.Value);
+        if (credErr != null) return Json(new { ok = false, message = credErr });
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
 
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
         operation ??= "SearchTransactions";
 
         try
@@ -1174,7 +1165,7 @@ public class PortalController : Controller
                     var chunks = PortalSyncService.GetDateChunks(pFrom == default ? DateTime.Today.AddMonths(-1) : pFrom,
                         pTo == default ? DateTime.Today : pTo, 90);
                     var allRows = new List<PortalFetchResultRow>();
-                    var txTypes = new[] { 2, 8, 16, 32 };
+                    var txTypes = DhaPortalService.DefaultTxTypes;
                     var txStatuses = new[] { 1, 2 };
                     string? fetchErr = null;
                     foreach (var (cs, ce) in chunks)
@@ -1258,7 +1249,7 @@ public class PortalController : Controller
 
         var parsedFrom = from != null ? DateTime.Parse(from) : DateTime.Today.AddYears(-1);
         var parsedTo = to != null ? DateTime.Parse(to) : DateTime.Today;
-        int[] txTypes = [2, 8, 16, 32];
+        int[] txTypes = DhaPortalService.DefaultTxTypes;
         var facName = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
 
         string pwd;
@@ -1372,7 +1363,7 @@ public class PortalController : Controller
 
         var parsedFrom = new DateTime(2024, 1, 1);
         var parsedTo = DateTime.Today;
-        int[] effectiveTxTypes = (txTypes?.Count > 0) ? txTypes.ToArray() : [2, 8, 16, 32];
+        int[] effectiveTxTypes = (txTypes?.Count > 0) ? txTypes.ToArray() : DhaPortalService.DefaultTxTypes;
 
         var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
 
@@ -1729,9 +1720,46 @@ public class PortalController : Controller
 
     // ── Helpers ────────────────────────────────────────────────────
 
+    // ── Credential helper ──────────────────────────────────────────
+
+    /// <summary>
+    /// Loads the first active credential matching the given portal and facility,
+    /// decodes its password, and returns all three values.
+    /// Returns a non-null <paramref name="error"/> when the credential is missing or the
+    /// stored password is corrupted — the caller should short-circuit on that case.
+    /// </summary>
+    private async Task<(PortalCredential? cred, string? pwd, string? error)> GetActiveCredentialAsync(string portal, int facilityId)
+    {
+        var cred = await _db.PortalCredentials
+            .FirstOrDefaultAsync(c => c.Portal == portal && c.FacilityId == facilityId && c.IsActive);
+        if (cred == null)
+            return (null, null, $"No active {portal} credentials found for this facility. Please configure credentials in Admin → Credentials.");
+
+        string pwd;
+        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        catch { return (null, null, "Stored password is corrupted — please re-enter the credential."); }
+
+        return (cred, pwd, null);
+    }
+
+    private const string FacilitiesCacheKey = "facilities_select_list";
+
+    private async Task<List<SelectListItem>> GetFacilitySelectListAsync()
+    {
+        if (_cache.TryGetValue(FacilitiesCacheKey, out List<SelectListItem>? cached) && cached != null)
+            return cached;
+
+        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking()
+            .Select(f => new { f.Id, f.Name })
+            .ToListAsync();
+        var items = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList();
+        _cache.Set(FacilitiesCacheKey, items, TimeSpan.FromMinutes(5));
+        return items;
+    }
+
     private async Task<PortalFetchViewModel> BuildFetchVmAsync()
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
+        var facilities = await GetFacilitySelectListAsync();
         var logs = await _db.PortalFetchLogs
             .Include(l => l.Facility)
             .AsNoTracking()
@@ -1741,22 +1769,23 @@ public class PortalController : Controller
 
         return new PortalFetchViewModel
         {
-            Facilities = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            Facilities = facilities,
             RecentLogs = logs
         };
     }
 
     private async Task<PortalSyncViewModel> BuildSyncVmAsync()
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
-        var totalInDb = await _db.PortalTransactions.CountAsync();
-        var totalFiles = await _db.PortalTransactions.CountAsync(t => t.FileDownloaded);
+        var facilitiesTask = GetFacilitySelectListAsync();
+        var totalInDbTask  = _db.PortalTransactions.CountAsync();
+        var totalFilesTask = _db.PortalTransactions.CountAsync(t => t.FileDownloaded);
+        await Task.WhenAll(facilitiesTask, totalInDbTask, totalFilesTask);
 
         return new PortalSyncViewModel
         {
-            Facilities = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            TotalInDb = totalInDb,
-            TotalFilesInDb = totalFiles
+            Facilities     = await facilitiesTask,
+            TotalInDb      = await totalInDbTask,
+            TotalFilesInDb = await totalFilesTask
         };
     }
 
