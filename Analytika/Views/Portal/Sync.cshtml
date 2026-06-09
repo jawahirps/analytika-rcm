@@ -109,9 +109,9 @@
             </div>
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncOneProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
+                    <div id="syncOneProgress" class="progress-bar" style="background:var(--classic-teal);width:0%;transition:width .3s;"></div>
                 </div>
-                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:#A7EBF2;min-width:32px;text-align:right;">0%</span>
+                <span id="syncOnePct" style="font-size:.72rem;font-weight:600;color:var(--forest-teal);min-width:32px;text-align:right;">0%</span>
             </div>
             <div id="syncOneCounters" class="d-flex gap-2 mt-1 mb-1 flex-wrap" style="font-size:.72rem;">
                 <span class="px-2 py-1 rounded" style="background:rgba(58,172,138,0.12);color:#3aac8a;">
@@ -120,7 +120,7 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncOneCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncOneCtrFiles">0</strong>
                 </span>
             </div>
@@ -149,7 +149,7 @@
             <!-- Overall progress -->
             <div class="d-flex align-items-center gap-2 mb-1">
                 <div class="progress flex-grow-1" style="height:8px;border-radius:4px;">
-                    <div id="syncAllProgress" class="progress-bar" style="background:#A7EBF2;width:0%;transition:width .3s;"></div>
+                    <div id="syncAllProgress" class="progress-bar" style="background:var(--classic-teal);width:0%;transition:width .3s;"></div>
                 </div>
                 <span id="syncAllPct" style="font-size:.72rem;font-weight:600;color:#011C40;min-width:32px;text-align:right;">0%</span>
             </div>
@@ -161,7 +161,7 @@
                 <span class="px-2 py-1 rounded" style="background:var(--amber-light);color:var(--amber-dark);">
                     <i class="fas fa-history me-1"></i>Already in DB: <strong id="syncAllCtrDup">0</strong>
                 </span>
-                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;">
+                <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);">
                     <i class="fas fa-file-download me-1"></i>Files: <strong id="syncAllCtrFiles">0</strong>
                 </span>
             </div>
@@ -571,7 +571,7 @@
                                                             data-fid="@f.Value" data-type="2"
                                                             title="Submission / Claims XML"
                                                             onclick="dlToggle(this)"
-                                                            style="font-size:.66rem;border:1px solid #A7EBF2;background:rgba(0,139,139,0.12);color:#A7EBF2;border-radius:4px;padding:2px 6px;white-space:nowrap;">
+                                                            style="font-size:.66rem;border:1px solid #A7EBF2;background:rgba(0,139,139,0.12);color:var(--forest-teal);border-radius:4px;padding:2px 6px;white-space:nowrap;">
                                                         <i class="fas fa-file-medical me-1"></i>Claim
                                                     </button>
                                                     <button class="btn btn-xs dl-toggle"
@@ -753,7 +753,7 @@
                         <span class="px-2 py-1 rounded" style="background:rgba(102,178,178,0.15);color:#54ACBF;font-size:.75rem;">
                             <i class="fas fa-history me-1"></i>Already in DB: <strong>${data.dups ?? 0}</strong>
                         </span>
-                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:#A7EBF2;font-size:.75rem;">
+                        <span class="px-2 py-1 rounded" style="background:rgba(0,139,139,0.12);color:var(--forest-teal);font-size:.75rem;">
                             <i class="fas fa-file-download me-1"></i>Files: <strong>${data.filesDownloaded ?? 0}</strong>
                         </span>
                     </div>`;

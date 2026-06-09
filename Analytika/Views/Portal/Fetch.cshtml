@@ -135,7 +135,7 @@
                             <div class="form-text" style="font-size:.7rem;">Filters by # of claims inside each file. Use -1 to disable. Max 500 files returned per call.</div>
                         </div>
 
-                        <button type="submit" class="btn w-100" style="background:#A7EBF2;color:#fff;border-radius:8px;font-weight:600;">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-cloud-download-alt me-1"></i> Fetch Data
                         </button>
                     </form>
@@ -201,7 +201,7 @@
                                     <input type="hidden" name="MinRecord"         value="@Model.MinRecord" />
                                     <input type="hidden" name="MaxRecord"         value="@Model.MaxRecord" />
                                 </form>
-                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm" style="background:#A7EBF2;color:#fff;border-radius:6px;font-size:.78rem;">
+                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm btn-primary" style="font-size:.78rem;">
                                     <i class="fas fa-database me-1"></i> Bulk Save
                                 </button>
                             }
@@ -291,7 +291,7 @@
                     </div>
                     <!-- progress bar -->
                     <div class="progress mb-3" style="height:6px;border-radius:4px;">
-                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:#A7EBF2;transition:width .3s;"></div>
+                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:var(--classic-teal);transition:width .3s;"></div>
                     </div>
                     <!-- counters -->
                     <div class="row g-2 text-center">
@@ -300,7 +300,7 @@
                             <div class="text-muted" style="font-size:.72rem;">Found</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#A7EBF2;" id="statSaved">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:var(--classic-teal);" id="statSaved">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Saved</div>
                         </div>
                         <div class="col">
@@ -339,7 +339,7 @@
                         {
                             <a href="data:application/octet-stream;base64,@Model.DownloadedFileBase64"
                                download="@Model.DownloadedFileName"
-                               class="btn btn-sm" style="background:#A7EBF2;color:#fff;border-radius:8px;">
+                               class="btn btn-sm btn-primary">
                                 <i class="fas fa-download me-1"></i> Save File
                             </a>
                         }
@@ -363,15 +363,20 @@
 
 @section Styles {
 <style>
+/* Segmented control — Apple-style portal selector */
 .portal-toggle { cursor:pointer; }
 .portal-toggle span {
-    display:block; padding:10px 12px; border-radius:8px; text-align:center;
-    border:1.5px solid #EAF4FB; background:#EAF4FB; font-size:.82rem;
-    font-weight:600; color:#495057; transition:all .15s; user-select:none;
+    display:block; padding:10px 12px; border-radius:10px; text-align:center;
+    border:1.5px solid var(--border); background:var(--surface-alt);
+    font-size:.82rem; font-weight:600; color:var(--text-secondary);
+    transition:all var(--transition); user-select:none;
 }
+.portal-toggle:hover span { border-color:var(--classic-teal); color:var(--text); }
 .portal-toggle input:checked + span {
-    background:#011C40; color:#fff; border-color:#011C40;
+    background:var(--deep-navy); color:#fff; border-color:var(--deep-navy);
+    box-shadow:0 4px 12px rgba(1,28,64,0.18);
 }
+.portal-toggle input:checked + span small { color:rgba(255,255,255,0.72) !important; }
 </style>
 }
 
