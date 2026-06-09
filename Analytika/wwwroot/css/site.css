@@ -265,7 +265,8 @@ small,
   height: 56px;
   align-items: stretch;
   min-width: 0;
-  overflow: hidden;
+  /* overflow must stay visible so dropdown menus can escape the 56px bar */
+  overflow: visible;
 }
 
 .analytika-navbar .navbar-collapse {
