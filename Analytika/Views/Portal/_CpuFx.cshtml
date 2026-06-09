@@ -1,0 +1,33 @@
+@* Animated "CPU / architecture" watermark — pure SVG/SMIL, no React/JS.
+   Shown translucently inside the sync panels while a fetch/sync is running. *@
+<svg class="cpu-fx" viewBox="0 0 200 100" fill="none" aria-hidden="true">
+    <g stroke="#54ACBF" fill="none" stroke-width="0.4" stroke-opacity="0.8">
+        <path d="M 10 20 h 79.5 q 5 0 5 5 v 30" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.4s" begin="0s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 180 10 h -69.7 q -5 0 -5 5 v 30" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.6s" begin="0.2s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 130 20 v 21.8 q 0 5 -5 5 h -10" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.8s" begin="0.4s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 170 80 v -21.8 q 0 -5 -5 -5 h -50" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.7s" begin="0.3s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 94.8 95 v -36" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.5s" begin="0.5s" repeatCount="indefinite"/>
+        </path>
+        <path d="M 30 30 h 25 q 5 0 5 5 v 6.5 q 0 5 5 5 h 20" stroke-dasharray="100 100" pathLength="100">
+            <animate attributeName="stroke-dashoffset" from="100" to="0" dur="1.9s" begin="0.1s" repeatCount="indefinite"/>
+        </path>
+    </g>
+    <rect x="85" y="40" width="30" height="20" rx="2" fill="#011C40"/>
+    <text x="100" y="52.5" font-size="7" font-weight="600" letter-spacing="0.05em" text-anchor="middle" fill="url(#cpuFxTxt)">SYNC</text>
+    <defs>
+        <linearGradient id="cpuFxTxt" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#26658C"><animate attributeName="offset" values="-2;-1;0" dur="4s" repeatCount="indefinite"/></stop>
+            <stop offset="25%" stop-color="#A7EBF2"><animate attributeName="offset" values="-1;0;1" dur="4s" repeatCount="indefinite"/></stop>
+            <stop offset="50%" stop-color="#26658C"><animate attributeName="offset" values="0;1;2" dur="4s" repeatCount="indefinite"/></stop>
+        </linearGradient>
+    </defs>
+</svg>
