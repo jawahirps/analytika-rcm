@@ -301,6 +301,25 @@
             .login-right { padding: 40px 28px; }
             .login-right-inner { max-width: 100%; }
         }
+
+        /* Animated flowing background paths (FloatingPaths effect) */
+        .login-paths {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            pointer-events: none; opacity: .55; z-index: 0;
+        }
+        .login-paths path {
+            fill: none; stroke-width: 1; stroke-opacity: .5;
+            stroke-dasharray: 6 14;
+            animation: pathFlow 16s linear infinite;
+        }
+        .login-paths path:nth-child(even) { animation-duration: 22s; stroke-opacity: .32; }
+        .login-paths path:nth-child(3n)   { animation-duration: 28s; }
+        @@keyframes pathFlow { to { stroke-dashoffset: -300; } }
+        @@media (prefers-reduced-motion: reduce) { .login-paths path { animation: none; } }
+
+        /* Footer courtesy Ghaf logo */
+        .left-footer { display: flex; align-items: center; gap: 10px; }
+        .courtesy-logo { height: 20px; width: auto; opacity: .9; }
     </style>
 </head>
 <body>
@@ -308,15 +327,31 @@
     <div class="login-left">
         <div class="accent-ring"></div>
 
+        <!-- Animated flowing paths (FloatingPaths effect, pure SVG/CSS) -->
+        <svg class="login-paths" viewBox="0 0 900 316" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+            <path d="M-50 30  C 150 0   300 120 480 60  S 760 10  950 90"  stroke="#54ACBF"/>
+            <path d="M-50 70  C 150 40  300 160 480 100 S 760 50  950 130" stroke="#A7EBF2"/>
+            <path d="M-50 110 C 150 80  300 200 480 140 S 760 90  950 170" stroke="#54ACBF"/>
+            <path d="M-50 150 C 150 120 300 240 480 180 S 760 130 950 210" stroke="#A7EBF2"/>
+            <path d="M-50 190 C 150 160 300 280 480 220 S 760 170 950 250" stroke="#54ACBF"/>
+            <path d="M-50 230 C 150 200 300 320 480 260 S 760 210 950 290" stroke="#A7EBF2"/>
+        </svg>
+
         <div class="brand-logo">
             <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#54ACBF" opacity="0.8"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#54ACBF" opacity="0.85"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF" opacity="0.9"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#54ACBF"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#ffffff"/>
+                <!-- Ghaf tree + data (light, for the dark brand panel) -->
+                <path d="M22 21 C22 14 17 10 11 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 12 28 8 34 10" stroke="#A7EBF2" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
+                <circle cx="11" cy="10" r="2"   fill="#54ACBF"/>
+                <circle cx="34" cy="10" r="2"   fill="#A7EBF2"/>
+                <circle cx="14" cy="15" r="1.5" fill="#A7EBF2"/>
+                <circle cx="30" cy="15" r="1.5" fill="#54ACBF"/>
+                <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M15 38 H29" stroke="#54ACBF" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <div>
                 <div class="brand-name">Ghaf Bi Analytix</div>
@@ -335,7 +370,10 @@
             </div>
         </div>
 
-        <div class="left-footer">&copy; 2026 Ghaf Bi Solutions. All rights reserved.</div>
+        <div class="left-footer">
+            <img src="~/images/ghaf-logo-soft-78C2C2.png" alt="Ghaf" class="courtesy-logo" />
+            <span>&copy; 2026 Ghaf Bi Solutions. All rights reserved.</span>
+        </div>
     </div>
 
     <!-- Right Login Form -->
