@@ -2514,3 +2514,38 @@ html[data-theme="dark"] .analytika-navbar {
     transform: none;
   }
 }
+
+/* --- Expandable nav tabs: icon always visible, label expands on
+       active/hover (21st.dev ExpandableTabs feel, pure CSS) --- */
+.analytika-navbar .navbar-nav.me-auto .nav-link {
+  white-space: nowrap;
+}
+.analytika-navbar .navbar-nav.me-auto .nav-link .nav-ico {
+  font-size: .9rem;
+  line-height: 1;
+}
+.analytika-navbar .navbar-nav.me-auto .nav-link .nav-label {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: max-width var(--transition), opacity var(--transition), margin-left var(--transition);
+}
+.analytika-navbar .navbar-nav.me-auto .nav-link:hover .nav-label,
+.analytika-navbar .navbar-nav.me-auto .nav-link.active .nav-label,
+.analytika-navbar .navbar-nav.me-auto .nav-item.show > .nav-link .nav-label {
+  max-width: 200px;
+  opacity: 1;
+  margin-left: 6px;
+}
+/* Active tab gets a soft pill so the icon-only tabs read as a set */
+.analytika-navbar .navbar-nav.me-auto .nav-link.active,
+.analytika-navbar .navbar-nav.me-auto .nav-item.show > .nav-link {
+  background: var(--surface-alt);
+  border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .analytika-navbar .navbar-nav.me-auto .nav-link .nav-label { transition: none; }
+}

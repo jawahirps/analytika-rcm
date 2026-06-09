@@ -40,13 +40,19 @@
         <!-- Brand -->
         <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
             <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
+                <!-- Ghaf tree + data: branching canopy of data nodes over a trunk -->
+                <path d="M22 21 C22 14 17 10 11 10" stroke="#26658C" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 12 28 8 34 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 V7" stroke="#011C40" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="22" cy="7"  r="2.3" fill="#011C40"/>
+                <circle cx="11" cy="10" r="2"   fill="#26658C"/>
+                <circle cx="34" cy="10" r="2"   fill="#54ACBF"/>
+                <circle cx="14" cy="15" r="1.5" fill="#54ACBF"/>
+                <circle cx="30" cy="15" r="1.5" fill="#A7EBF2"/>
+                <path d="M22 21 V36" stroke="#011C40" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M15 38 H29" stroke="#26658C" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
@@ -64,20 +70,20 @@
                 <li class="nav-item">
                     <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() is "Dashboard" or "RCMDashboard" ? "active" : "")"
                        asp-controller="Home" asp-action="Dashboard">
-                        <i class="fas fa-signal me-1" style="font-size:.75rem;"></i>Dashboard
+                        <i class="fas fa-signal nav-ico" style="font-size:.75rem;"></i><span class="nav-label">Dashboard</span>
                     </a>
                 </li>
                 @if (canAccessRcm)
                 {
                     <li class="nav-item">
                         <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
-                           asp-controller="Home" asp-action="RCMDashboard">BI Reports</a>
+                           asp-controller="Home" asp-action="RCMDashboard"><i class="fas fa-chart-column nav-ico"></i><span class="nav-label">BI Reports</span></a>
                     </li>
                 }
                 @if (canAccessRcm)
                 {
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Advanced Reports</a>
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-folder-tree nav-ico"></i><span class="nav-label">Advanced Reports</span></a>
                     <ul class="dropdown-menu">
                         <li class="dropdown-submenu">
                             <a class="dropdown-item dropdown-toggle" href="#">Claim Processing</a>
@@ -98,7 +104,7 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Portal" ? "active" : "")"
                        href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-cloud-download-alt me-1" style="font-size:.78rem;"></i>Portal
+                        <i class="fas fa-cloud-download-alt nav-ico" style="font-size:.78rem;"></i><span class="nav-label">Portal</span>
                     </a>
                     <ul class="dropdown-menu">
                         <li><a class="dropdown-item" asp-controller="Portal" asp-action="Sync">
@@ -118,7 +124,7 @@
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
                            href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-alt me-1" style="font-size:.8rem;"></i>Admin
+                            <i class="fas fa-shield-alt nav-ico" style="font-size:.8rem;"></i><span class="nav-label">Admin</span>
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users">
@@ -148,7 +154,7 @@
                     </li>
                 }
                 <li class="nav-item">
-                    <a class="nav-link" href="#Support" data-i18n="support">Support</a>
+                    <a class="nav-link" href="#Support"><i class="fas fa-headset nav-ico"></i><span class="nav-label" data-i18n="support">Support</span></a>
                 </li>
             </ul>
 
