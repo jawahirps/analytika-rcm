@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Analytika (Codex version)",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "J:/GhafAnalytika/analytika-rcm/.claude/worktrees/eager-grothendieck-f01499/Analytika/Analytika.csproj", "--launch-profile", "Analytika"],
+      "port": 5000
+    },
+    {
+      "name": "Analytika ASP.NET (dotnet run)",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "Analytika/Analytika.csproj", "--environment", "Development"],
+      "port": 5000
+    },
+    {
+      "name": "Analytika Mobile (Expo Web)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mobile", "run", "web"],
+      "port": 8081
+    }
+  ]
+}

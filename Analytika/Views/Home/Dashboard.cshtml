@@ -15,12 +15,10 @@
         gap: 20px;
         margin-bottom: 24px;
         padding: 22px 24px;
-        border-radius: 24px;
-        border: 1px solid rgba(8,20,35,.10);
-        background:
-            radial-gradient(circle at top right, rgba(167,235,242,.20), transparent 24%),
-            linear-gradient(145deg, rgba(255,255,255,.88) 0%, rgba(244,248,252,.92) 100%);
-        box-shadow: 0 18px 46px rgba(8,20,35,.08);
+        border-radius: 12px;
+        border: 1px solid rgba(1,28,64,.10);
+        background: #ffffff;
+        box-shadow: none;
     }
     .dashboard-hero-copy {
         display: grid;
@@ -32,13 +30,13 @@
         width: fit-content;
         align-items: center;
         gap: 8px;
-        padding: 7px 10px;
-        border-radius: 999px;
-        background: rgba(167,235,242,.18);
+        padding: 4px 10px;
+        border-radius: 4px;
+        background: rgba(1,28,64,.06);
         color: #023859;
         font-size: .7rem;
-        font-weight: 800;
-        letter-spacing: .12em;
+        font-weight: 700;
+        letter-spacing: .10em;
         text-transform: uppercase;
     }
     .dashboard-hero h4 {
@@ -78,8 +76,8 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 6px 11px;
-        border-radius: 999px;
+        padding: 4px 10px;
+        border-radius: 6px;
         background: rgba(255,255,255,.72);
         border: 1px solid rgba(8,20,35,.10);
         color: #011C40;
@@ -96,12 +94,12 @@
         margin-bottom: 28px;
     }
     .ss-card {
-        background: rgba(255,255,255,.88);
-        border-radius: 20px;
-        padding: 20px 18px 16px;
-        box-shadow: 0 18px 42px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 18px 16px 14px;
+        box-shadow: none;
         display: flex; align-items: center; gap: 14px;
-        border: 1px solid rgba(8,20,35,.10);
+        border: 1px solid rgba(1,28,64,.10);
     }
     .ss-icon {
         width: 46px; height: 46px; border-radius: 12px;
@@ -123,19 +121,20 @@
         gap: 16px;
     }
     .fac-status-card {
-        background: rgba(255,255,255,.88);
-        border-radius: 20px;
+        background: #ffffff;
+        border-radius: 10px;
         padding: 20px;
-        box-shadow: 0 18px 42px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
-        border: 1px solid rgba(8,20,35,.10);
-        border-left: 4px solid #EAF4FB;
+        box-shadow: none;
+        border: 1px solid rgba(1,28,64,.10);
+        border-left: 3px solid rgba(1,28,64,.12);
         position: relative;
-        transition: box-shadow .15s, transform .15s;
+        transition: border-color .15s;
         cursor: pointer;
     }
     .fac-status-card:hover {
-        box-shadow: 0 18px 42px rgba(8,20,35,.12);
-        transform: translateY(-2px);
+        box-shadow: none;
+        transform: none;
+        border-color: rgba(1,28,64,.18);
     }
     .fac-status-card a { text-decoration: none; color: inherit; display: block; }
     .fac-status-card a:hover { text-decoration: none; }

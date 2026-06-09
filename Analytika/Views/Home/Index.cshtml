@@ -8,712 +8,454 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ghaf Business Intelligence - Login</title>
-    <script>
-        (function () {
-            try {
-                var lang = localStorage.getItem('analytika-lang') || 'en';
-                var theme = localStorage.getItem('analytika-theme') || 'light';
-                document.documentElement.lang = lang;
-                document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-                document.documentElement.dataset.lang = lang;
-                document.documentElement.dataset.theme = theme;
-            } catch (_) {}
-        })();
-    </script>
+    <title>Ghaf Bi Analytix — Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            min-height: 100vh;
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            background:
-                linear-gradient(90deg, var(--theme-grid) 1px, transparent 1px),
-                linear-gradient(180deg, var(--theme-grid) 1px, transparent 1px),
-                linear-gradient(145deg, #fbfdff 0%, var(--bg) 46%, var(--soft-white) 100%);
-            background-size: 42px 42px, 42px 42px, auto;
-        }
-        html[data-theme="dark"] body {
-            background:
-                linear-gradient(90deg, var(--theme-grid) 1px, transparent 1px),
-                linear-gradient(180deg, var(--theme-grid) 1px, transparent 1px),
-                linear-gradient(145deg, var(--deep-navy) 0%, #072347 45%, var(--ice-blue) 100%);
-            color: var(--soft-white);
-        }
-        .login-shell {
             min-height: 100vh;
-            display: grid;
-            grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
+            display: flex;
+            background: #f8fafc;
+            -webkit-font-smoothing: antialiased;
         }
-        .login-hero {
+
+        /* ── Left panel ── */
+        .login-left {
+            width: 40%;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 44px 48px;
             position: relative;
             overflow: hidden;
-            padding: 48px 48px 40px;
-            color: var(--soft-white);
-            background:
-                linear-gradient(145deg, rgba(1,28,64,0.98) 0%, rgba(2,56,89,0.98) 52%, rgba(38,101,140,0.92) 100%);
         }
-        .login-hero::before,
-        .login-hero::after {
+        /* Subtle geometric accents */
+        .login-left::before {
             content: '';
             position: absolute;
-            border: 1px solid rgba(84,172,191,0.14);
-            border-radius: 30px;
-            pointer-events: none;
+            width: 380px; height: 380px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.12);
+            bottom: -140px; right: -120px;
         }
-        .login-hero::before { width: 540px; height: 540px; right: -280px; top: -190px; }
-        .login-hero::after { width: 280px; height: 280px; left: -120px; bottom: -120px; }
-        .hero-brand {
+        .login-left::after {
+            content: '';
+            position: absolute;
+            width: 220px; height: 220px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.08);
+            top: 40px; right: 40px;
+        }
+        .accent-ring {
+            position: absolute;
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            border: 1px solid rgba(16,185,129,0.06);
+            bottom: 120px; left: -50px;
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             position: relative;
             z-index: 1;
+        }
+        .brand-icon { width: 42px; height: 42px; }
+        .brand-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.2px;
+            line-height: 1.2;
+        }
+        .brand-sub {
+            font-size: 0.62rem;
+            color: #10b981;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            text-transform: uppercase;
+        }
+        .left-tagline {
+            position: relative;
+            z-index: 1;
+        }
+        .left-tagline h2 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.25;
+            margin-bottom: 14px;
+            letter-spacing: -0.5px;
+        }
+        .left-tagline h2 span { color: #10b981; }
+        .left-tagline p {
+            font-size: 0.875rem;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.65;
+        }
+        /* Feature pills */
+        .feature-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
+        }
+        .feature-pill {
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(84,172,191,0.18);
-            background: rgba(255,255,255,0.04);
-            color: rgba(234,244,251,0.82);
-            font-size: .72rem;
-            font-weight: 700;
-            letter-spacing: .16em;
-            text-transform: uppercase;
+            gap: 6px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 100px;
+            padding: 5px 12px;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.6);
         }
-        .hero-brand::before {
-            content: '';
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            background: var(--theme-accent);
-            box-shadow: 0 0 0 5px var(--theme-accent-soft);
-        }
-        .hero-copy {
+        .feature-pill i { color: #10b981; font-size: 0.65rem; }
+        .left-footer {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.22);
             position: relative;
             z-index: 1;
-            display: grid;
-            gap: 16px;
-            max-width: 620px;
-            margin-top: 22px;
         }
-        .hero-copy h1 {
-            max-width: 12ch;
-            color: #fff;
-            font-size: clamp(2.25rem, 4vw, 3.75rem);
-            line-height: 0.98;
-            font-weight: 800;
-            letter-spacing: -0.06em;
-        }
-        .hero-copy h1 span { color: var(--theme-accent); }
-        .hero-copy p {
-            max-width: 54ch;
-            color: rgba(234,244,251,0.74);
-            font-size: 1rem;
-            line-height: 1.75;
-        }
-        .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-        .hero-tag {
-            padding: 8px 11px;
-            border-radius: 999px;
-            border: 1px solid rgba(84,172,191,0.18);
-            background: rgba(255,255,255,0.04);
-            color: rgba(234,244,251,0.82);
-            font-size: .72rem;
-            font-weight: 700;
-            letter-spacing: .04em;
-        }
-        .hero-grid {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-            margin-top: 28px;
-        }
-        .hero-card {
-            padding: 18px 18px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(84,172,191,0.18);
-            background: rgba(1,28,64,0.26);
-            backdrop-filter: blur(16px) saturate(140%);
-            -webkit-backdrop-filter: blur(16px) saturate(140%);
-        }
-        .hero-card .label {
-            color: rgba(234,244,251,0.68);
-            font-size: .7rem;
-            font-weight: 700;
-            letter-spacing: .12em;
-            text-transform: uppercase;
-        }
-        .hero-card .value {
-            margin-top: 6px;
-            color: #fff;
-            font-size: 1.6rem;
-            font-weight: 800;
-            line-height: 1.1;
-        }
-        .hero-card .delta {
-            margin-top: 4px;
-            color: var(--theme-accent);
-            font-size: .74rem;
-            font-weight: 700;
-        }
-        .hero-list {
-            display: grid;
-            gap: 10px;
-            margin-top: 22px;
-            max-width: 520px;
-        }
-        .hero-list-row {
-            display: grid;
-            grid-template-columns: 96px 1fr 58px;
-            gap: 10px;
-            align-items: center;
-        }
-        .hero-list-row .name {
-            color: #fff;
-            font-size: .78rem;
-            font-weight: 700;
-        }
-        .hero-track {
-            height: 10px;
-            border-radius: 999px;
-            background: rgba(234,244,251,0.10);
-            overflow: hidden;
-        }
-        .hero-fill {
-            height: 100%;
-            border-radius: 999px;
-            background: linear-gradient(90deg, var(--theme-accent) 0%, var(--theme-accent-strong) 55%, var(--theme-secondary) 100%);
-        }
-        .hero-list-row .pct {
-            text-align: right;
-            color: var(--theme-accent);
-            font-size: .74rem;
-            font-weight: 800;
-        }
-        .login-rail {
-            position: relative;
+
+        /* ── Right panel ── */
+        .login-right {
+            flex: 1;
+            background: #ffffff;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            min-height: 100vh;
-            padding: 24px;
-            background: linear-gradient(180deg, rgba(248,251,253,0.98) 0%, rgba(234,244,251,0.98) 100%);
+            padding: 60px 64px;
+            position: relative;
         }
-        html[data-theme="dark"] .login-rail {
-            background: linear-gradient(180deg, rgba(1,28,64,0.88) 0%, rgba(5,24,52,0.94) 100%);
-            color: var(--soft-white);
-        }
-        .login-top-tools {
-            position: absolute;
-            top: 18px;
-            right: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        html[dir="rtl"] .login-top-tools {
-            right: auto;
-            left: 18px;
-            flex-direction: row-reverse;
-        }
-        .auth-card {
-            max-width: 460px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 30px 28px 26px;
-            border-radius: 14px;
-            background: rgba(255,255,255,0.94);
-            border: 1px solid rgba(8,20,35,0.10);
-            box-shadow: 0 24px 64px rgba(1,28,64,0.12);
-        }
-        html[data-theme="dark"] .auth-card {
-            background: rgba(1,28,64,0.86);
-            border-color: rgba(84,172,191,0.18);
-            box-shadow: 0 24px 64px rgba(0,0,0,0.24);
-        }
-        .auth-kicker {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            width: fit-content;
-            padding: 7px 10px;
-            border-radius: 999px;
-            background: var(--theme-accent-soft);
-            color: var(--theme-primary);
-            font-size: .7rem;
-            font-weight: 800;
-            letter-spacing: .12em;
-            text-transform: uppercase;
-        }
-        html[data-theme="dark"] .auth-kicker {
-            background: rgba(84,172,191,0.16);
-            color: var(--theme-accent);
-        }
-        .auth-card h1 {
-            margin: 18px 0 6px;
-            color: var(--theme-primary);
-            font-size: 1.8rem;
-            font-weight: 800;
-            letter-spacing: -0.05em;
-        }
-        html[data-theme="dark"] .auth-card h1 { color: #fff; }
-        .subtitle {
-            color: var(--theme-secondary);
-            font-size: .92rem;
-            line-height: 1.65;
-            margin-bottom: 22px;
-        }
-        html[data-theme="dark"] .subtitle { color: rgba(234,244,251,0.72); }
-        .form-label {
-            color: var(--theme-primary);
-            font-size: .78rem;
+        .login-right-inner { max-width: 380px; }
+
+        .login-right h1 {
+            font-size: 1.55rem;
             font-weight: 700;
+            color: #0A1828;
             margin-bottom: 6px;
-            letter-spacing: .02em;
+            letter-spacing: -0.4px;
         }
-        html[data-theme="dark"] .form-label { color: #EAF4FB; }
-        .input-group { border-radius: 14px; overflow: hidden; }
-        .input-icon,
-        .input-group-text {
-            background: var(--theme-accent-soft);
-            color: var(--theme-secondary);
-            border: 1px solid rgba(84,172,191,0.18);
+        .login-right .subtitle {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 32px;
         }
-        .input-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 42px;
-            border-right: 0;
+
+        .form-label {
+            font-size: 0.73rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
         }
         .form-control {
-            border-color: rgba(84,172,191,0.18);
-            box-shadow: none !important;
+            font-family: 'Inter', system-ui, sans-serif;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 9px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            color: #0A1828;
+            background: #f8fafc;
+            transition: border-color 0.18s, box-shadow 0.18s;
         }
         .form-control:focus {
-            border-color: var(--theme-accent);
-            box-shadow: 0 0 0 .18rem var(--theme-focus) !important;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+            background: #fff;
+            outline: none;
         }
-        html[data-theme="dark"] .input-icon,
-        html[data-theme="dark"] .input-group-text,
-        html[data-theme="dark"] .form-control {
-            background: rgba(1,28,64,0.82);
-            color: #EAF4FB;
-            border-color: rgba(167,235,242,0.14);
-        }
-        html[data-theme="dark"] .form-control::placeholder { color: rgba(234,244,251,0.5); }
-        .form-control::placeholder { color: rgba(2,56,89,0.36); }
+        .form-control::placeholder { color: #cbd5e1; }
         .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
             border-left: none;
+            color: #94a3b8;
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
+            transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: var(--theme-accent); }
-        .input-group:focus-within .input-icon { border-color: var(--theme-accent); }
+        .input-group:focus-within .input-group-text { border-color: #10b981; }
+        .input-icon {
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-right: none;
+            color: #94a3b8;
+            border-radius: 9px 0 0 9px;
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            transition: border-color 0.18s;
+        }
+        .input-group:focus-within .input-icon { border-color: #10b981; }
+
         .btn-signin {
-            width: 100%;
-            border: 1px solid rgba(1,28,64,0.16);
-            border-radius: 16px;
-            padding: 14px 18px;
-            font-size: .92rem;
-            font-weight: 800;
-            letter-spacing: .02em;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0f172a;
             color: #fff;
-            background: linear-gradient(135deg, var(--theme-primary), var(--theme-accent-strong));
-            box-shadow: 0 16px 36px rgba(84,172,191,0.24);
+            border: none;
+            border-radius: 9px;
+            padding: 11px 24px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            width: 100%;
+            letter-spacing: 0.1px;
+            transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+            cursor: pointer;
         }
-        .btn-signin:hover { filter: brightness(1.02); }
+        .btn-signin:hover {
+            background: #1e293b;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(15,23,42,0.2);
+        }
+        .btn-signin:active { transform: translateY(0); }
+
         .forgot-link {
-            color: var(--theme-secondary);
+            font-size: 0.78rem;
+            color: #10b981;
             text-decoration: none;
-            font-size: .76rem;
-            font-weight: 700;
+            font-weight: 500;
         }
         .forgot-link:hover { text-decoration: underline; }
-        html[data-theme="dark"] .forgot-link { color: var(--theme-accent); }
+
         .form-check-input:checked {
-            background-color: var(--theme-accent);
-            border-color: var(--theme-accent);
+            background-color: #10b981;
+            border-color: #10b981;
         }
-        .form-check-input:focus { box-shadow: 0 0 0 .18rem rgba(84,172,191,0.18); }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(16,185,129,0.15); }
+
         .alert-danger {
-            font-size: .82rem;
-            border-radius: 10px;
-            background: var(--semantic-danger-bg);
+            font-size: 0.82rem;
+            border-radius: 9px;
+            background: rgba(239,68,68,0.07);
             border: none;
-            border-left: 3px solid var(--semantic-danger);
-            color: var(--semantic-danger);
+            border-left: 3px solid #ef4444;
+            color: #b91c1c;
             padding: 10px 14px;
         }
-        .auth-meta {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 18px;
-        }
-        .auth-meta-item {
-            padding: 12px;
-            border-radius: 10px;
-            background: var(--theme-accent-soft);
-            border: 1px solid rgba(84,172,191,0.14);
-        }
-        .auth-meta-item strong {
-            display: block;
-            color: var(--theme-primary);
-            font-size: .92rem;
-        }
-        .auth-meta-item span {
-            color: var(--theme-secondary);
-            font-size: .72rem;
-        }
-        html[data-theme="dark"] .auth-meta-item {
-            background: rgba(1,28,64,0.60);
-            border-color: rgba(84,172,191,0.18);
-        }
-        html[data-theme="dark"] .auth-meta-item strong,
-        html[data-theme="dark"] .auth-meta-item span { color: rgba(234,244,251,0.82); }
         .right-footer {
-            max-width: 460px;
-            margin: 14px auto 0;
-            color: rgba(53,87,125,0.76);
-            font-size: .72rem;
-            text-align: center;
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.72rem;
+            color: #cbd5e1;
+            white-space: nowrap;
         }
-        html[data-theme="dark"] .right-footer { color: rgba(234,244,251,0.54); }
-        html[dir="rtl"] .login-hero,
-        html[dir="rtl"] .auth-card { text-align: right; }
-        @@media (max-width: 1120px) {
-            .login-shell { grid-template-columns: 1fr; min-height: 100vh; }
-            .login-hero { min-height: auto; padding: 32px 28px 26px; }
-            .login-hero::before { width: 360px; height: 360px; right: -210px; top: -160px; }
-            .login-hero::after { display: none; }
-            .hero-copy { max-width: 100%; }
-            .hero-copy h1 { max-width: 16ch; }
-            .hero-grid { max-width: 620px; }
-            .hero-list { max-width: 620px; }
-            .login-rail { min-height: auto; padding-top: 76px; padding-bottom: 34px; }
+
+        /* ── Lang toggle ── */
+        .lang-toggle-wrap {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            display: flex;
+            gap: 4px;
+            z-index: 10;
         }
-        @@media (max-width: 780px) {
-            body { min-width: 0; overflow-x: hidden; }
-            .login-shell { display: block; }
-            .login-hero { padding: 22px 18px 18px; }
-            .hero-brand {
-                max-width: 100%;
-                white-space: normal;
-                line-height: 1.35;
-                letter-spacing: .08em;
-            }
-            .hero-copy { gap: 12px; margin-top: 16px; }
-            .hero-copy h1 {
-                max-width: 100%;
-                font-size: 2.05rem;
-                line-height: 1.05;
-                letter-spacing: -0.04em;
-            }
-            .hero-copy p { font-size: .9rem; line-height: 1.6; }
-            .hero-tags { gap: 6px; }
-            .hero-tag { padding: 7px 9px; font-size: .68rem; }
-            .hero-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; }
-            .hero-card { padding: 13px 12px; border-radius: 10px; }
-            .hero-card .label { font-size: .62rem; letter-spacing: .08em; }
-            .hero-card .value { font-size: 1.25rem; }
-            .hero-card .delta { font-size: .68rem; }
-            .hero-list { gap: 8px; margin-top: 16px; }
-            .hero-list-row {
-                grid-template-columns: minmax(82px, .75fr) minmax(90px, 1fr) 42px;
-                gap: 8px;
-            }
-            .hero-list-row .name,
-            .hero-list-row .pct { font-size: .68rem; }
-            .login-rail {
-                min-height: auto;
-                padding: 16px 14px 22px;
-                justify-content: flex-start;
-            }
-            .login-top-tools {
-                position: static;
-                justify-content: space-between;
-                width: 100%;
-                margin-bottom: 12px;
-            }
-            .login-top-tools .btn { min-height: 34px; }
-            .auth-card { max-width: none; padding: 22px 16px 18px; border-radius: 12px; }
-            .auth-card h1 {
-                margin-top: 14px;
-                font-size: 1.55rem;
-                letter-spacing: -0.035em;
-            }
-            .subtitle { margin-bottom: 18px; font-size: .86rem; }
-            .input-group { border-radius: 10px; }
-            .input-icon { min-width: 38px; }
-            .form-control { min-height: 42px; }
-            .auth-meta { grid-template-columns: 1fr; gap: 8px; }
-            .auth-meta-item { padding: 10px 11px; }
-            .right-footer { margin-top: 12px; padding: 0 4px; }
+        html[dir="rtl"] .lang-toggle-wrap { right: auto; left: 24px; }
+        .lang-btn {
+            padding: 4px 12px;
+            border-radius: 999px;
+            border: 1.5px solid #e2e8f0;
+            background: #f8fafc;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.16s;
+            font-family: 'Inter', system-ui, sans-serif;
         }
-        @@media (max-width: 420px) {
-            .hero-grid { grid-template-columns: 1fr; }
-            .hero-list-row { grid-template-columns: 1fr; }
-            .hero-list-row .pct { text-align: left; }
-            .login-top-tools { align-items: stretch; }
-            .login-top-tools .theme-toggle-btn { flex: 1; justify-content: center; }
+        .lang-btn.active {
+            background: #0f172a;
+            border-color: #0f172a;
+            color: #fff;
+        }
+        .lang-btn:hover:not(.active) { border-color: #10b981; color: #0f172a; }
+
+        /* AR overrides */
+        html[dir="rtl"] body { font-family: 'Segoe UI', 'Noto Sans Arabic', system-ui, sans-serif; }
+        html[dir="rtl"] .login-left { order: 2; }
+        html[dir="rtl"] .login-right { order: 1; }
+        html[dir="rtl"] .input-icon { border-radius: 0 9px 9px 0; border-right: none; border-left: 1.5px solid #e2e8f0; }
+        html[dir="rtl"] .input-group .form-control { border-radius: 9px 0 0 9px; border-right: 1.5px solid #e2e8f0; border-left: none; }
+        html[dir="rtl"] .input-group-text { border-radius: 9px 0 0 9px; border-right: none; border-left: 1.5px solid #e2e8f0; }
+
+        @@media (max-width: 900px) {
+            .login-left { width: 44%; padding: 40px 36px; }
+        }
+        @@media (max-width: 768px) {
+            .login-left { display: none; }
+            .login-right { padding: 40px 28px; }
+            .login-right-inner { max-width: 100%; }
         }
     </style>
 </head>
 <body>
-    <div class="login-shell">
-        <section class="login-hero">
-            <div class="hero-brand" data-i18n="hero_brand">Ghaf Business Intelligence</div>
-            <div class="hero-copy">
-                <h1 data-i18n="hero_title">Investment-grade operations for healthcare revenue.</h1>
-                <p data-i18n="hero_body">Track portal activity, reconcile claims, and manage facility workflows in a cleaner workspace shaped around clarity, hierarchy, and speed.</p>
-                <div class="hero-tags">
-                    <span class="hero-tag" data-i18n="hero_tag_claims">Claims</span>
-                    <span class="hero-tag" data-i18n="hero_tag_remittance">Remittance</span>
-                    <span class="hero-tag" data-i18n="hero_tag_workflows">Facility workflows</span>
-                    <span class="hero-tag" data-i18n="hero_tag_reports">BI reporting</span>
-                </div>
-                <div class="hero-grid">
-                    <div class="hero-card">
-                        <div class="label" data-i18n="hero_metric_connected">Connected facilities</div>
-                        <div class="value">14</div>
-                        <div class="delta" data-i18n="hero_metric_connected_detail">Across DHA and RHA portals</div>
-                    </div>
-                    <div class="hero-card">
-                        <div class="label" data-i18n="hero_metric_activity">Daily activity</div>
-                        <div class="value" data-i18n="hero_metric_live">Live</div>
-                        <div class="delta" data-i18n="hero_metric_activity_detail">Fetch, sync, and review flows</div>
-                    </div>
-                </div>
-                <div class="hero-list">
-                    <div class="hero-list-row">
-                        <div class="name" data-i18n="hero_list_sync">Portal sync</div>
-                        <div class="hero-track"><div class="hero-fill" style="width: 88%;"></div></div>
-                        <div class="pct">88%</div>
-                    </div>
-                    <div class="hero-list-row">
-                        <div class="name" data-i18n="hero_list_claims">Claim review</div>
-                        <div class="hero-track"><div class="hero-fill" style="width: 74%;"></div></div>
-                        <div class="pct">74%</div>
-                    </div>
-                    <div class="hero-list-row">
-                        <div class="name" data-i18n="hero_list_remittance">Remittance</div>
-                        <div class="hero-track"><div class="hero-fill" style="width: 61%;"></div></div>
-                        <div class="pct">61%</div>
-                    </div>
-                </div>
-            </div>
-        </section>
+    <!-- Left Brand Panel -->
+    <div class="login-left">
+        <div class="accent-ring"></div>
 
-        <aside class="login-rail">
-            <div class="login-top-tools">
-                <div class="btn-group btn-group-sm" role="group" aria-label="Language toggle">
-                    <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" id="loginLangEn">EN</button>
-                    <button type="button" class="btn btn-outline-secondary lang-toggle-btn" id="loginLangAr">AR</button>
+        <div class="brand-logo">
+            <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="22" cy="22" r="20" stroke="#4ade80" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#4ade80" opacity="0.8"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#4ade80" opacity="0.85"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#4ade80" opacity="0.9"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#4ade80"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#ffffff"/>
+            </svg>
+            <div>
+                <div class="brand-name">Ghaf Bi Analytix</div>
+                <div class="brand-sub">Business Intelligence</div>
+            </div>
+        </div>
+
+        <div class="left-tagline">
+            <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
+            <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
+            <div class="feature-pills">
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+            </div>
+        </div>
+
+        <div class="left-footer">&copy; 2026 Ghaf Bi Solutions. All rights reserved.</div>
+    </div>
+
+    <!-- Right Login Form -->
+    <div class="login-right">
+
+        <!-- Language toggle -->
+        <div class="lang-toggle-wrap">
+            <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
+        </div>
+
+        <div class="login-right-inner">
+            <h1 data-i18n="welcome">Welcome back</h1>
+            <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Bi Analytix account</p>
+
+            <form asp-controller="Home" asp-action="Index" method="post">
+                @Html.AntiForgeryToken()
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div class="alert alert-danger mb-4" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid email or password.</span>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label" data-i18n="email">Email address</label>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                        <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
+                    </div>
                 </div>
-                <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="loginThemeToggle">
-                    <i class="fas fa-moon me-1"></i><span id="loginThemeLabel">Dark</span>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
+                        <a href="#" class="forgot-link" data-i18n="forgot">Forgot password?</a>
+                    </div>
+                    <div class="input-group">
+                        <span class="input-icon"><i class="fas fa-lock"></i></span>
+                        <input asp-for="Password" class="form-control" placeholder="••••••••" autocomplete="current-password" id="pwdInput" />
+                        <span class="input-group-text" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></span>
+                    </div>
+                </div>
+
+                <div class="mb-4 d-flex align-items-center gap-2">
+                    <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
+                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#94a3b8;text-transform:none;letter-spacing:0;" data-i18n="remember">Keep me signed in</label>
+                </div>
+
+                <button type="submit" class="btn-signin" data-i18n="signin">
+                    Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
                 </button>
-            </div>
+            </form>
+        </div>
 
-            <div class="auth-card">
-                <div class="auth-kicker" data-i18n="welcome_back">Welcome back</div>
-                <h1 data-i18n="login_title">Access the dashboard</h1>
-                <p class="subtitle" data-i18n="sign_in_subtitle">Sign in to your Ghaf Business Intelligence account</p>
-
-                <form action="/Home/Index" method="post">
-                    @Html.AntiForgeryToken()
-
-                    @if (!ViewData.ModelState.IsValid)
-                    {
-                        <div class="alert alert-danger mb-4" role="alert">
-                            <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="invalid_login">Invalid email or password.</span>
-                        </div>
-                    }
-
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label" data-i18n="email_address">Email address</label>
-                        <div class="input-group">
-                            <span class="input-icon"><i class="fas fa-envelope"></i></span>
-                            <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-1">
-                            <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
-                            <a href="#" class="forgot-link" data-i18n="forgot_password">Forgot password?</a>
-                        </div>
-                        <div class="input-group">
-                            <span class="input-icon"><i class="fas fa-lock"></i></span>
-                            <input asp-for="Password" class="form-control" placeholder="••••••••" autocomplete="current-password" id="pwdInput" />
-                            <span class="input-group-text" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></span>
-                        </div>
-                    </div>
-
-                    <div class="mb-4 d-flex align-items-center gap-2">
-                        <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
-                        <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:500;font-size:.82rem;text-transform:none;letter-spacing:0;" data-i18n="remember_me">Keep me signed in</label>
-                    </div>
-
-                    <button type="submit" class="btn-signin">
-                        <span data-i18n="sign_in">Sign In</span> <i class="fas fa-arrow-right ms-2" style="font-size:.75rem;opacity:.9;"></i>
-                    </button>
-                </form>
-
-                <div class="auth-meta">
-                    <div class="auth-meta-item">
-                        <strong data-i18n="meta_secure_title">Secure</strong>
-                        <span data-i18n="meta_secure_body">Role-based access</span>
-                    </div>
-                    <div class="auth-meta-item">
-                        <strong data-i18n="meta_fast_title">Fast</strong>
-                        <span data-i18n="meta_fast_body">Low-friction entry</span>
-                    </div>
-                    <div class="auth-meta-item">
-                        <strong data-i18n="meta_clear_title">Clear</strong>
-                        <span data-i18n="meta_clear_body">Chart-first UI</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="right-footer" data-i18n="copyright">© Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
-        </aside>
+        <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
     </div>
 
     <script>
+        /* ── i18n strings ── */
+        const I18N = {
+            en: {
+                welcome:  'Welcome back',
+                subtitle: 'Sign in to your Ghaf Bi Analytix account',
+                email:    'Email address',
+                password: 'Password',
+                forgot:   'Forgot password?',
+                remember: 'Keep me signed in',
+                signin:   'Sign In  →',
+                error:    'Invalid email or password.'
+            },
+            ar: {
+                welcome:  'أهلاً بعودتك',
+                subtitle: 'سجّل دخولك إلى حساب Ghaf Bi Analytix',
+                email:    'البريد الإلكتروني',
+                password: 'كلمة المرور',
+                forgot:   'نسيت كلمة المرور؟',
+                remember: 'ابقَ متصلاً',
+                signin:   'تسجيل الدخول ←',
+                error:    'البريد الإلكتروني أو كلمة المرور غير صحيحة.'
+            }
+        };
+
+        function applyLang(lang) {
+            const html = document.documentElement;
+            html.lang = lang;
+            html.dir  = lang === 'ar' ? 'rtl' : 'ltr';
+            const t = I18N[lang] || I18N.en;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (!t[key]) return;
+                // For button: keep the arrow icon, only replace the text node
+                if (el.tagName === 'BUTTON') {
+                    el.childNodes[0].textContent = t[key] + ' ';
+                } else {
+                    el.textContent = t[key];
+                }
+            });
+            document.getElementById('btnEN').classList.toggle('active', lang === 'en');
+            document.getElementById('btnAR').classList.toggle('active', lang === 'ar');
+            // Persist so _Layout.cshtml picks it up after login
+            try { localStorage.setItem('analytika-lang', lang); } catch(e) {}
+        }
+
+        function setLang(lang) { applyLang(lang); }
+
         function togglePwd() {
             const input = document.getElementById('pwdInput');
-            const icon = document.getElementById('pwdIcon');
+            const icon  = document.getElementById('pwdIcon');
             input.type = input.type === 'password' ? 'text' : 'password';
             icon.classList.toggle('fa-eye');
             icon.classList.toggle('fa-eye-slash');
         }
 
-        (function initLoginLanguageTheme() {
-            const root = document.documentElement;
-            const langEn = document.getElementById('loginLangEn');
-            const langAr = document.getElementById('loginLangAr');
-            const themeBtn = document.getElementById('loginThemeToggle');
-            const themeLabel = document.getElementById('loginThemeLabel');
-            const dict = {
-                en: {
-                    welcome_back: 'Welcome back',
-                    hero_brand: 'Ghaf Business Intelligence',
-                    hero_title: 'Investment-grade operations for healthcare revenue.',
-                    hero_body: 'Track portal activity, reconcile claims, and manage facility workflows in a cleaner workspace shaped around clarity, hierarchy, and speed.',
-                    hero_tag_claims: 'Claims',
-                    hero_tag_remittance: 'Remittance',
-                    hero_tag_workflows: 'Facility workflows',
-                    hero_tag_reports: 'BI reporting',
-                    hero_metric_connected: 'Connected facilities',
-                    hero_metric_connected_detail: 'Across DHA and RHA portals',
-                    hero_metric_activity: 'Daily activity',
-                    hero_metric_live: 'Live',
-                    hero_metric_activity_detail: 'Fetch, sync, and review flows',
-                    hero_list_sync: 'Portal sync',
-                    hero_list_claims: 'Claim review',
-                    hero_list_remittance: 'Remittance',
-                    login_title: 'Access the dashboard',
-                    sign_in_subtitle: 'Sign in to your Ghaf Business Intelligence account',
-                    invalid_login: 'Invalid email or password.',
-                    email_address: 'Email address',
-                    password: 'Password',
-                    forgot_password: 'Forgot password?',
-                    remember_me: 'Keep me signed in',
-                    sign_in: 'Sign In',
-                    meta_secure_title: 'Secure',
-                    meta_secure_body: 'Role-based access',
-                    meta_fast_title: 'Fast',
-                    meta_fast_body: 'Low-friction entry',
-                    meta_clear_title: 'Clear',
-                    meta_clear_body: 'Chart-first UI',
-                    copyright: '© Copyright. All Rights Reserved. Ghaf Bi Solutions'
-                },
-                ar: {
-                    welcome_back: 'مرحبًا بعودتك',
-                    hero_brand: 'غاف بزنس إنتليجنس',
-                    hero_title: 'عمليات بمعيار استثماري لعائدات الرعاية الصحية.',
-                    hero_body: 'تابع نشاط البوابات، ووازن المطالبات، وأدر تدفقات العمل الخاصة بالمنشآت داخل مساحة أوضح قائمة على التسلسل والسرعة.',
-                    hero_tag_claims: 'المطالبات',
-                    hero_tag_remittance: 'الإشعارات المالية',
-                    hero_tag_workflows: 'تدفقات المنشآت',
-                    hero_tag_reports: 'تقارير BI',
-                    hero_metric_connected: 'المنشآت المتصلة',
-                    hero_metric_connected_detail: 'عبر بوابتي DHA وRHA',
-                    hero_metric_activity: 'النشاط اليومي',
-                    hero_metric_live: 'مباشر',
-                    hero_metric_activity_detail: 'الجلب والمزامنة والمراجعة',
-                    hero_list_sync: 'مزامنة البوابة',
-                    hero_list_claims: 'مراجعة المطالبات',
-                    hero_list_remittance: 'الإشعارات المالية',
-                    login_title: 'الدخول إلى لوحة التحكم',
-                    sign_in_subtitle: 'سجّل الدخول إلى حساب غاف بزنس إنتليجنس',
-                    invalid_login: 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
-                    email_address: 'البريد الإلكتروني',
-                    password: 'كلمة المرور',
-                    forgot_password: 'هل نسيت كلمة المرور؟',
-                    remember_me: 'تذكرني',
-                    sign_in: 'تسجيل الدخول',
-                    meta_secure_title: 'آمن',
-                    meta_secure_body: 'وصول حسب الدور',
-                    meta_fast_title: 'سريع',
-                    meta_fast_body: 'دخول بدون تعقيد',
-                    meta_clear_title: 'واضح',
-                    meta_clear_body: 'واجهة تركّز على الرسوم',
-                    copyright: '© جميع الحقوق محفوظة. غاف بي سوليوشنز'
-                }
-            };
-
-            function applyLanguage(lang) {
-                root.lang = lang;
-                root.dir = lang === 'ar' ? 'rtl' : 'ltr';
-                root.dataset.lang = lang;
-                try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
-                document.querySelectorAll('[data-i18n]').forEach(node => {
-                    const key = node.getAttribute('data-i18n');
-                    if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
-                });
-                if (themeLabel) {
-                    const currentTheme = root.dataset.theme || 'light';
-                    const labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
-                    themeLabel.textContent = (labels[lang] || labels.en)[currentTheme === 'dark' ? 'light' : 'dark'];
-                }
-                if (langEn && langAr) {
-                    langEn.classList.toggle('active', lang === 'en');
-                    langAr.classList.toggle('active', lang === 'ar');
-                }
-            }
-
-            function applyTheme(theme) {
-                root.dataset.theme = theme;
-                try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
-                if (themeBtn && themeLabel) {
-                    const lang = root.dataset.lang || 'en';
-                    const labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
-                    themeBtn.querySelector('i').className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
-                    themeLabel.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
-                }
-            }
-
-            const currentLang = root.dataset.lang || (function(){ try { return localStorage.getItem('analytika-lang'); } catch (_) { return null; } })() || 'en';
-            const currentTheme = root.dataset.theme || (function(){ try { return localStorage.getItem('analytika-theme'); } catch (_) { return null; } })() || 'light';
-
-            applyLanguage(currentLang);
-            applyTheme(currentTheme);
-
-            if (langEn) langEn.addEventListener('click', () => applyLanguage('en'));
-            if (langAr) langAr.addEventListener('click', () => applyLanguage('ar'));
-            if (themeBtn) themeBtn.addEventListener('click', () => applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark'));
+        /* ── On load: restore saved locale ── */
+        (function () {
+            try {
+                const saved = localStorage.getItem('analytika-lang');
+                if (saved === 'ar') applyLang('ar');
+            } catch(e) {}
         })();
     </script>
 </body>
