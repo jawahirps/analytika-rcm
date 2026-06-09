@@ -9,6 +9,23 @@ var builder = WebApplication.CreateBuilder(args);
 // Allow large DB uploads (up to 3 GB) via the migration endpoint
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 3L * 1024 * 1024 * 1024);
 
+// ── Performance: response compression ──────────────────────────────────────
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+    opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    opts.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+    opts.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(
+        new[] { "text/html", "application/json", "text/css", "application/javascript", "image/svg+xml" });
+});
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(o =>
+    o.Level = System.IO.Compression.CompressionLevel.Fastest);
+builder.Services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(o =>
+    o.Level = System.IO.Compression.CompressionLevel.Fastest);
+
+// ── Performance: response caching ─────────────────────────────────────────
+builder.Services.AddResponseCaching();
+
 // In Docker the DB lives in /app/data (mounted volume); locally stays beside the app
 var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
     ?? builder.Environment.ContentRootPath;
@@ -84,7 +101,21 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStaticFiles();
+app.UseResponseCompression();
+app.UseResponseCaching();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static assets for 1 year (CSS/JS have cache-busting query strings via asp-append-version)
+        var headers = ctx.Context.Response.GetTypedHeaders();
+        headers.CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+        {
+            Public = true,
+            MaxAge = TimeSpan.FromDays(365)
+        };
+    }
+});
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
