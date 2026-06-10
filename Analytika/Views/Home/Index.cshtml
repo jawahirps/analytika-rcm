@@ -341,9 +341,56 @@
         }
         .login-right-inner { animation: slideUp 0.55s cubic-bezier(0.32,0.72,0,1) both; }
 
+        /* ── GooeyText loading overlay ── */
+        .gooey-loader {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .gooey-loader.hidden { opacity: 0; visibility: hidden; }
+
+        .gooey-container {
+            position: relative;
+            height: 80px;
+            width: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gooey-svg { position: absolute; width: 0; height: 0; }
+        .gooey-texts {
+            filter: url(#gooey-threshold);
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .gooey-text1,
+        .gooey-text2 {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.4rem, 4vw, 2.2rem);
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            text-align: center;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .gooey-text1 { opacity: 0; }
+        .gooey-text2 { opacity: 1; }
+
         @@media (prefers-reduced-motion: reduce) {
             .login-right-inner { animation: none; }
             spline-viewer { opacity: 0.5; }
+            .gooey-loader { display: none; }
         }
 
         /* Footer courtesy Ghaf logo */
@@ -356,12 +403,35 @@
     <div class="login-left">
         <div class="accent-ring"></div>
 
+        <!-- GooeyText loading overlay — visible until Spline scene is ready -->
+        <div class="gooey-loader" id="gooeyLoader" aria-live="polite" aria-label="Loading">
+            <!-- Hidden SVG filter -->
+            <svg class="gooey-svg" aria-hidden="true" focusable="false">
+                <defs>
+                    <filter id="gooey-threshold">
+                        <feColorMatrix in="SourceGraphic" type="matrix"
+                            values="1 0 0 0 0
+                                    0 1 0 0 0
+                                    0 0 1 0 0
+                                    0 0 0 255 -140" />
+                    </filter>
+                </defs>
+            </svg>
+            <div class="gooey-container">
+                <div class="gooey-texts">
+                    <span class="gooey-text1" id="gooeyText1"></span>
+                    <span class="gooey-text2" id="gooeyText2"></span>
+                </div>
+            </div>
+        </div>
+
         <!-- Spotlight (tracks mouse) -->
         <div class="spotlight" id="loginSpotlight"></div>
 
         <!-- Spline 3D interactive scene -->
         <div class="spline-wrap" aria-hidden="true">
             <spline-viewer
+                id="splineViewer"
                 url="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
                 loading-anim-type="none">
             </spline-viewer>
@@ -525,6 +595,103 @@
                 const saved = localStorage.getItem('analytika-lang');
                 if (saved === 'ar') applyLang('ar');
             } catch(e) {}
+        })();
+
+        /* ── GooeyText morph loader ── */
+        (function () {
+            const TEXTS = [
+                'Ghaf Bi Analytix',
+                'Connecting portals…',
+                'Loading workspace…',
+                'Syncing data…',
+                'Almost ready…'
+            ];
+            const MORPH_TIME    = 1.0;   // seconds per morph
+            const COOLDOWN_TIME = 0.25;  // seconds of hold between morphs
+
+            const el1    = document.getElementById('gooeyText1');
+            const el2    = document.getElementById('gooeyText2');
+            const loader = document.getElementById('gooeyLoader');
+            if (!el1 || !el2 || !loader) return;
+
+            let textIndex = TEXTS.length - 1;
+            let time      = Date.now();
+            let morph     = 0;
+            let cooldown  = COOLDOWN_TIME;
+            let rafId;
+
+            el1.textContent = TEXTS[textIndex % TEXTS.length];
+            el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+
+            function setMorph(fraction) {
+                el2.style.filter  = 'blur(' + Math.min(8 / fraction - 8, 100) + 'px)';
+                el2.style.opacity = Math.pow(fraction, 0.4);
+                const inv = 1 - fraction;
+                el1.style.filter  = 'blur(' + Math.min(8 / inv - 8, 100) + 'px)';
+                el1.style.opacity = Math.pow(inv, 0.4);
+            }
+
+            function doCooldown() {
+                morph = 0;
+                el2.style.filter  = '';
+                el2.style.opacity = '1';
+                el1.style.filter  = '';
+                el1.style.opacity = '0';
+            }
+
+            function doMorph() {
+                morph   -= cooldown;
+                cooldown = 0;
+                let fraction = morph / MORPH_TIME;
+                if (fraction > 1) {
+                    cooldown = COOLDOWN_TIME;
+                    fraction = 1;
+                }
+                setMorph(fraction);
+            }
+
+            function animate() {
+                rafId = requestAnimationFrame(animate);
+                const now = Date.now();
+                const dt  = (now - time) / 1000;
+                time = now;
+                const shouldIncrement = cooldown > 0;
+                cooldown -= dt;
+                if (cooldown <= 0) {
+                    if (shouldIncrement) {
+                        textIndex = (textIndex + 1) % TEXTS.length;
+                        el1.textContent = TEXTS[textIndex % TEXTS.length];
+                        el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+                    }
+                    doMorph();
+                } else {
+                    doCooldown();
+                }
+            }
+
+            animate();
+
+            // Dismiss loader when Spline scene fires its load event, with a 500ms min display
+            const splineEl = document.getElementById('splineViewer');
+            const MIN_MS   = 1800;
+            const startMs  = Date.now();
+
+            function dismissLoader() {
+                const elapsed = Date.now() - startMs;
+                const delay   = Math.max(0, MIN_MS - elapsed);
+                setTimeout(function () {
+                    cancelAnimationFrame(rafId);
+                    loader.classList.add('hidden');
+                }, delay);
+            }
+
+            if (splineEl) {
+                splineEl.addEventListener('load', dismissLoader, { once: true });
+                // Fallback: dismiss after 6s regardless
+                setTimeout(dismissLoader, 6000);
+            } else {
+                setTimeout(dismissLoader, 6000);
+            }
         })();
 
         /* ── Spotlight: follow mouse on the left panel ── */
