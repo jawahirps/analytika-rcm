@@ -84,6 +84,59 @@
   --bs-tertiary-color-rgb:  74, 97, 123;
 }
 
+/* ================================================================
+   Design tokens v7 — formal scales (additive; the shared vocabulary
+   for the component library + per-view rollout). Purely additive:
+   nothing references these yet, so this block changes no rendering.
+   ================================================================ */
+:root {
+  /* Type scale */
+  --fs-xs:   0.72rem;
+  --fs-sm:   0.82rem;
+  --fs-base: 0.92rem;
+  --fs-md:   1rem;
+  --fs-lg:   1.25rem;
+  --fs-xl:   1.6rem;
+  --fs-2xl:  2rem;
+  --fs-3xl:  2.6rem;
+
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-black:    800;
+
+  --lh-tight:  1.15;
+  --lh-snug:   1.35;
+  --lh-normal: 1.6;
+
+  /* Spacing scale (4px base) */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* Surface tints — replace ad-hoc rgba() sprawl across views */
+  --navy-04: rgba(1,28,64,0.04);
+  --navy-06: rgba(1,28,64,0.06);
+  --navy-08: rgba(1,28,64,0.08);
+  --navy-10: rgba(1,28,64,0.10);
+  --navy-12: rgba(1,28,64,0.12);
+  --navy-16: rgba(1,28,64,0.16);
+
+  --teal-08: rgba(84,172,191,0.08);
+  --teal-12: rgba(84,172,191,0.12);
+  --teal-16: rgba(84,172,191,0.16);
+
+  --gold-12:  rgba(184,137,36,0.12);
+  --coral-12: rgba(185,74,63,0.12);
+  --mint-12:  rgba(47,143,114,0.12);
+}
+
 /* ----------------------------------------------------------------
    Reset & Base
    ---------------------------------------------------------------- */
