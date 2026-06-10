@@ -274,8 +274,11 @@ public class PortalSyncService
             {
                 var (_, sent, _) = await _dha.SearchTransactionsAsync(login, pwd, 1, dhpoFrom, dhpoTo, combo.s, combo.t);
                 var (_, recv, _) = await _dha.SearchTransactionsAsync(login, pwd, 2, dhpoFrom, dhpoTo, combo.s, combo.t);
-                foreach (var r in sent) bag.Add(r);
-                foreach (var r in recv) bag.Add(r);
+                // Tag with the searched transaction type — authoritative (the search was
+                // scoped to combo.t), so Submitted vs Remittance counts are exact.
+                var typeName = DhaPortalService.TxTypeName(combo.t);
+                foreach (var r in sent) { r.Type = typeName; bag.Add(r); }
+                foreach (var r in recv) { r.Type = typeName; bag.Add(r); }
             }
             catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] SearchAllCombos failed for combo ({TxType}, {Status})", combo.t, combo.s); }
             finally { sem.Release(); }

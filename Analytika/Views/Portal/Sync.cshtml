@@ -893,7 +893,8 @@
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
-                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
+                const bd = (d.submissions || d.remittances) ? `  ·  ${(d.submissions||0).toLocaleString()} submitted · ${(d.remittances||0).toLocaleString()} RA` : '';
+                addLog(`${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 setProgress(d.pct || 0);
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
                 ckpt.monthIdx = (d.monthIdx ?? 0) + 1;   // next month to resume from
@@ -1067,7 +1068,8 @@
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
-                addLog(`${d.month}  ${found}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
+                const bd = (d.submissions || d.remittances) ? `  ·  ${(d.submissions||0).toLocaleString()} submitted · ${(d.remittances||0).toLocaleString()} RA` : '';
+                addLog(`${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;

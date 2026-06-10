@@ -1446,7 +1446,7 @@ public class PortalController : Controller
             int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
             ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
-            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
+            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
 
             if (uniqueMonth.Any())
             {
@@ -1582,7 +1582,7 @@ public class PortalController : Controller
                     grandTotal += uniqueMonth.Count;
 
                     ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                    await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, grandTotal, pct });
+                    await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
 
                     if (uniqueMonth.Any())
                     {
