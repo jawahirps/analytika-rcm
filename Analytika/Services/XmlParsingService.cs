@@ -259,6 +259,10 @@ public class XmlParsingService
     {
         await EnsureSchemaAsync(ct);
 
+        // A claim ref is "matched" only when a Submission AND a Remittance exist
+        // for the SAME (FacilityId, ClaimId). Correlate on both columns via EXISTS
+        // so a ClaimId reused across facilities can never cross-match, and compare
+        // ClaimId case-insensitively (COLLATE NOCASE) to align with the C# counts.
         if (facilityId.HasValue)
         {
             await _db.Database.ExecuteSqlInterpolatedAsync($@"
@@ -269,13 +273,14 @@ public class XmlParsingService
                 UPDATE ""XmlParsedRecords""
                 SET ""IsMatched"" = 1, ""MatchedAt"" = datetime('now')
                 WHERE ""FacilityId"" = {facilityId.Value}
-                  AND ""ClaimId"" IN (
-                    SELECT ""ClaimId""
-                    FROM ""XmlParsedRecords""
-                    WHERE ""FacilityId"" = {facilityId.Value}
-                    GROUP BY ""ClaimId""
-                    HAVING SUM(CASE WHEN ""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
-                       AND SUM(CASE WHEN ""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
+                  AND EXISTS (
+                    SELECT 1
+                    FROM ""XmlParsedRecords"" m
+                    WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
+                      AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
+                    GROUP BY m.""FacilityId"", m.""ClaimId""
+                    HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
+                       AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                   );
             ", ct);
         }
@@ -287,12 +292,14 @@ public class XmlParsingService
 
                 UPDATE ""XmlParsedRecords""
                 SET ""IsMatched"" = 1, ""MatchedAt"" = datetime('now')
-                WHERE ""ClaimId"" IN (
-                    SELECT ""ClaimId""
-                    FROM ""XmlParsedRecords""
-                    GROUP BY ""FacilityId"", ""ClaimId""
-                    HAVING SUM(CASE WHEN ""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
-                       AND SUM(CASE WHEN ""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
+                WHERE EXISTS (
+                    SELECT 1
+                    FROM ""XmlParsedRecords"" m
+                    WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
+                      AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
+                    GROUP BY m.""FacilityId"", m.""ClaimId""
+                    HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
+                       AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                 );
             ", ct);
         }
@@ -302,17 +309,21 @@ public class XmlParsingService
             query = query.Where(r => r.FacilityId == facilityId.Value);
 
         var rows = await query
-            .Select(r => new { r.ClaimId, r.RecordKind, r.IsMatched })
+            .Select(r => new { r.FacilityId, r.ClaimId, r.RecordKind })
             .ToListAsync(ct);
 
-        var submissionIds = rows.Where(r => r.RecordKind == SubmissionKind).Select(r => r.ClaimId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var remittanceIds = rows.Where(r => r.RecordKind == RemittanceKind).Select(r => r.ClaimId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Facility-scoped, case-insensitive key so counts match the SQL above
+        // (no cross-facility collisions; "abc" == "ABC" like COLLATE NOCASE).
+        static string Key(int facilityId, string? claimId) => facilityId + "|" + (claimId ?? "").ToUpperInvariant();
+
+        var submissionKeys = rows.Where(r => r.RecordKind == SubmissionKind).Select(r => Key(r.FacilityId, r.ClaimId)).ToHashSet();
+        var remittanceKeys = rows.Where(r => r.RecordKind == RemittanceKind).Select(r => Key(r.FacilityId, r.ClaimId)).ToHashSet();
 
         return new XmlParsingMatchResult
         {
-            MatchedClaimRefs = submissionIds.Count(id => remittanceIds.Contains(id)),
-            UnmatchedSubmissions = submissionIds.Count(id => !remittanceIds.Contains(id)),
-            UnmatchedRemittances = remittanceIds.Count(id => !submissionIds.Contains(id))
+            MatchedClaimRefs = submissionKeys.Count(k => remittanceKeys.Contains(k)),
+            UnmatchedSubmissions = submissionKeys.Count(k => !remittanceKeys.Contains(k)),
+            UnmatchedRemittances = remittanceKeys.Count(k => !submissionKeys.Contains(k))
         };
     }
 
