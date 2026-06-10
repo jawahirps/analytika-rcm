@@ -12,14 +12,19 @@
 
 @section Styles {
 <style>
-.wl-card  { border-radius:10px; border:1px solid #EAF4FB; background:#fff; padding:1.25rem; margin-bottom:1rem; }
-.wl-label { font-size:.72rem; color:#35577D; text-transform:uppercase; letter-spacing:.04em; }
-.wl-val   { font-size:1.1rem; font-weight:700; color:#011C40; }
-.bar-bg   { height:8px; background:#EAF4FB; border-radius:4px; margin-top:6px; }
-.bar-fill { height:8px; border-radius:4px; background:#35577D; transition:width .4s; }
-.coder-row:hover { background:#fafafa; }
+.wl-card  {
+    border-radius:14px; border:1px solid rgba(1,28,64,.08); background:#fff;
+    padding:1.25rem; margin-bottom:1rem; box-shadow:var(--shadow-sm);
+    transition:box-shadow var(--transition), transform var(--transition);
+}
+.wl-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.wl-label { font-size:.72rem; color:#35577D; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+.wl-val   { font-size:1.45rem; font-weight:800; color:#011C40; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.bar-bg   { height:8px; background:rgba(84,172,191,.14); border-radius:999px; margin-top:6px; overflow:hidden; }
+.bar-fill { height:8px; border-radius:999px; background:linear-gradient(90deg,#26658C,#54ACBF); transition:width .4s; }
+.coder-row:hover { background:rgba(84,172,191,.06); }
 .count-input { width:70px; text-align:center; }
-.overdue-badge { font-size:.68rem; color:#991b1b; background:#fee2e2; padding:.2em .5em; border-radius:4px; font-weight:600; }
+.overdue-badge { font-size:.68rem; color:#B94A3F; background:rgba(185,74,63,.11); padding:.2em .55em; border-radius:999px; font-weight:700; }
 </style>
 }
 

@@ -17,8 +17,19 @@
         padding: 22px 24px;
         border-radius: 16px;
         border: 1px solid rgba(1,28,64,.10);
-        background: #ffffff;
+        background: linear-gradient(135deg, #ffffff 0%, #F4FAFC 100%);
         box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+    .dashboard-hero::after {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 260px; height: 260px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(84,172,191,.16), transparent 70%);
+        pointer-events: none;
     }
     .dashboard-hero-copy {
         display: grid;

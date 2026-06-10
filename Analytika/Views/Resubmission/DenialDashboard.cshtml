@@ -24,9 +24,23 @@
 @section Styles {
 <style>
 :root { --gold:#35577D; --navy:#011C40; }
-.dd-card { border-radius:10px; border:1px solid #EAF4FB; background:#fff; padding:1.25rem; height:100%; }
-.kpi-val { font-size:1.6rem; font-weight:800; color:var(--navy); line-height:1; }
-.kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#35577D; margin-top:.25rem; }
+.dd-card {
+    border-radius:14px; border:1px solid rgba(1,28,64,.08); background:#fff;
+    padding:1.25rem; height:100%; box-shadow:var(--shadow-sm);
+    transition:box-shadow var(--transition), transform var(--transition);
+    position:relative; overflow:hidden;
+}
+.dd-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.dd-card.kpi::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,#26658C,#54ACBF,#A7EBF2);
+}
+.kpi-ico {
+    width:38px; height:38px; border-radius:11px; margin:0 auto .55rem;
+    display:flex; align-items:center; justify-content:center; font-size:.95rem;
+}
+.kpi-val { font-size:1.7rem; font-weight:800; color:var(--navy); line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.kpi-lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; color:#35577D; margin-top:.3rem; font-weight:700; }
 .denial-bar { height:10px; border-radius:5px; background:#EAF4FB; position:relative; overflow:hidden; }
 .denial-fill { height:100%; border-radius:5px; transition:width .5s ease; }
 .table-dd th { font-size:.72rem; font-weight:600; color:#35577D; text-transform:uppercase; letter-spacing:.04em; padding:.5rem .75rem; }
@@ -66,26 +80,30 @@
     <!-- KPI Row -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="dd-card text-center">
+            <div class="dd-card kpi text-center">
+                <div class="kpi-ico" style="background:rgba(1,28,64,.07);color:#011C40;"><i class="fas fa-file-invoice"></i></div>
                 <div class="kpi-val">@totalClaims.ToString("N0")</div>
                 <div class="kpi-lbl">Total Claims</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="dd-card text-center">
+            <div class="dd-card kpi text-center">
+                <div class="kpi-ico" style="background:rgba(84,172,191,.13);color:#26658C;"><i class="fas fa-coins"></i></div>
                 <div class="kpi-val">AED @((totalBilled/1000).ToString("N0"))K</div>
                 <div class="kpi-lbl">RA Received (Net)</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="dd-card text-center" style="border-color:#fee2e2;">
-                <div class="kpi-val" style="color:#dc2626;">AED @((totalDenied/1000).ToString("N0"))K</div>
+            <div class="dd-card kpi text-center">
+                <div class="kpi-ico" style="background:rgba(185,74,63,.11);color:#B94A3F;"><i class="fas fa-ban"></i></div>
+                <div class="kpi-val" style="color:#B94A3F;">AED @((totalDenied/1000).ToString("N0"))K</div>
                 <div class="kpi-lbl">Total Denied</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="dd-card text-center" style="border-color:@(overallPct > 30 ? "#fee2e2" : overallPct > 15 ? "#fef9c3" : "#dcfce7");">
-                <div class="kpi-val" style="color:@(overallPct > 30 ? "#dc2626" : overallPct > 15 ? "#ca8a04" : "#16a34a");">
+            <div class="dd-card kpi text-center">
+                <div class="kpi-ico" style="background:@(overallPct > 30 ? "rgba(185,74,63,.11)" : overallPct > 15 ? "rgba(184,137,36,.12)" : "rgba(47,143,114,.12)");color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#2F8F72");"><i class="fas fa-percent"></i></div>
+                <div class="kpi-val" style="color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#2F8F72");">
                     @overallPct.ToString("N1")%
                 </div>
                 <div class="kpi-lbl">Overall Denial Rate</div>
