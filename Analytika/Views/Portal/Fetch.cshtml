@@ -180,14 +180,15 @@
 
             @if (Model.Results.Any())
             {
-                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                var canBulk = Model.Operation == "SearchTransactions" && Model.Portal == "DHA" && Model.FacilityIds.Count == 1;
+                <div id="resultsCard" class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <div>
                             <span class="fw-bold" style="color:#011C40;">Fetch Results</span>
                             <span class="badge ms-2" style="background:#EAF4FB;color:#011C40;">@Model.TotalFetched records</span>
                         </div>
                         <div class="d-flex gap-2">
-                            @if (Model.Operation == "SearchTransactions" && Model.Portal == "DHA" && Model.FacilityIds.Count == 1)
+                            @if (canBulk)
                             {
                                 <form id="saveAllForm" style="display:none;">
                                     @Html.AntiForgeryToken()
@@ -201,6 +202,12 @@
                                     <input type="hidden" name="MinRecord"         value="@Model.MinRecord" />
                                     <input type="hidden" name="MaxRecord"         value="@Model.MaxRecord" />
                                 </form>
+                                <button type="button" id="selModeBtn" onclick="toggleSelMode()" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem;" title="Manual select mode — for special cases only">
+                                    <i class="fas fa-list-check me-1"></i> Select
+                                </button>
+                                <button type="button" id="dlSelBtn" onclick="downloadSelected()" class="btn btn-sm btn-outline-primary" style="font-size:.78rem;" disabled>
+                                    <i class="fas fa-download me-1"></i> Download Selected (<span id="selCount">0</span>)
+                                </button>
                                 <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm btn-primary" style="font-size:.78rem;">
                                     <i class="fas fa-database me-1"></i> Bulk Save
                                 </button>
@@ -215,6 +222,10 @@
                             <table class="table table-hover mb-0" style="font-size:.82rem;" id="resultsTable">
                                 <thead style="background:#EAF4FB;position:sticky;top:0;">
                                     <tr>
+                                        @if (canBulk)
+                                        {
+                                            <th class="ps-4 py-2 border-0 sel-col" style="width:34px;"><input type="checkbox" id="selAll" onclick="toggleSelAll(this)" title="Select all"></th>
+                                        }
                                         <th class="ps-4 py-2 fw-semibold text-muted border-0">Facility</th>
                                         <th class="ps-4 py-2 fw-semibold text-muted border-0">Transaction ID</th>
                                         <th class="py-2 fw-semibold text-muted border-0">Type</th>
@@ -229,6 +240,10 @@
                                     @foreach (var r in Model.Results)
                                     {
                                         <tr>
+                                            @if (canBulk)
+                                            {
+                                                <td class="ps-4 py-2 align-middle sel-col"><input type="checkbox" class="rowchk" onclick="updateSelCount()" data-fileid="@r.FileId" data-filename="@r.FileName" data-type="@r.Type" data-status="@r.Status" data-date="@r.Date" data-payer="@r.Payer" data-amount="@r.Amount"></td>
+                                            }
                                             <td class="ps-4 py-2 align-middle text-muted">@(!string.IsNullOrWhiteSpace(r.FacilityName) ? r.FacilityName : (r.FacilityId > 0 ? $"Facility {r.FacilityId}" : "—"))</td>
                                             <td class="ps-4 py-2 align-middle fw-semibold" style="color:#011C40;">@r.FileId</td>
                                             <td class="py-2 align-middle">
@@ -377,6 +392,13 @@
     box-shadow:0 4px 12px rgba(1,28,64,0.18);
 }
 .portal-toggle input:checked + span small { color:rgba(255,255,255,0.72) !important; }
+
+/* Manual multi-select download — hidden by default, revealed by the "Select" switch (special cases only) */
+#resultsCard .sel-col { display: none; }
+#resultsCard.sel-mode .sel-col { display: table-cell; }
+#dlSelBtn { display: none; }
+#resultsCard.sel-mode #dlSelBtn { display: inline-flex; }
+#resultsCard.sel-mode #selModeBtn { background: var(--deep-navy); color: #fff; border-color: var(--deep-navy); }
 </style>
 }
 
@@ -442,6 +464,58 @@ function prefillDownload(fileId) {
     updateFormFields();
     document.getElementById('FileId').value = fileId;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleSelMode() {
+    const card = document.getElementById('resultsCard');
+    if (!card) return;
+    const on = card.classList.toggle('sel-mode');
+    if (!on) {
+        document.querySelectorAll('.rowchk').forEach(c => c.checked = false);
+        const all = document.getElementById('selAll'); if (all) all.checked = false;
+        updateSelCount();
+    }
+}
+function toggleSelAll(cb) {
+    document.querySelectorAll('.rowchk').forEach(c => c.checked = cb.checked);
+    updateSelCount();
+}
+function updateSelCount() {
+    const n = document.querySelectorAll('.rowchk:checked').length;
+    const el = document.getElementById('selCount'); if (el) el.textContent = n;
+    const btn = document.getElementById('dlSelBtn'); if (btn) btn.disabled = n === 0;
+    const all = document.getElementById('selAll');
+    const total = document.querySelectorAll('.rowchk').length;
+    if (all) all.checked = total > 0 && n === total;
+}
+async function downloadSelected() {
+    const checked = [...document.querySelectorAll('.rowchk:checked')];
+    if (!checked.length) return;
+    const rows = checked.map(c => ({
+        fileId: c.dataset.fileid, fileName: c.dataset.filename, type: c.dataset.type,
+        status: c.dataset.status, date: c.dataset.date, payer: c.dataset.payer, amount: c.dataset.amount
+    }));
+    const form = document.getElementById('saveAllForm');
+    const token = form.querySelector('input[name=__RequestVerificationToken]').value;
+    const portal = form.querySelector('input[name=Portal]').value;
+    const facilityId = form.querySelector('input[name=FacilityId]').value;
+    const btn = document.getElementById('dlSelBtn'); const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Downloading…';
+    try {
+        const fd = new FormData();
+        fd.append('__RequestVerificationToken', token);
+        fd.append('portal', portal);
+        fd.append('facilityId', facilityId);
+        fd.append('rowsJson', JSON.stringify(rows));
+        const resp = await fetch('/Portal/DownloadSelected', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.error) { alert('Download failed: ' + data.error); }
+        else {
+            alert(`Downloaded ${data.downloaded} file(s) · ${data.saved} new · ${data.duplicates} already in DB. Reloading…`);
+            location.reload();
+        }
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; updateSelCount(); }
 }
 
 async function bulkSave() {

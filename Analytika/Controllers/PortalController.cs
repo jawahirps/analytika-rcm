@@ -1200,6 +1200,57 @@ public class PortalController : Controller
         return File(Encoding.UTF8.GetBytes(tx.FileContentXml), "application/xml", fileName);
     }
 
+    // ── Download selected rows (file-manager style: per-row + bulk) ──
+    private sealed class SelectedDlRow
+    {
+        public string FileId { get; set; } = "";
+        public string? FileName { get; set; }
+        public string? Type { get; set; }
+        public string? Status { get; set; }
+        public string? Date { get; set; }
+        public string? Payer { get; set; }
+        public string? Amount { get; set; }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DownloadSelected(string portal, int facilityId, string rowsJson)
+    {
+        if (string.IsNullOrWhiteSpace(rowsJson)) return Json(new { error = "No rows selected." });
+
+        List<SelectedDlRow>? sel;
+        try { sel = JsonSerializer.Deserialize<List<SelectedDlRow>>(rowsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
+        catch { return Json(new { error = "Invalid selection." }); }
+        if (sel == null || sel.Count == 0) return Json(new { error = "No rows selected." });
+
+        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync(portal, facilityId);
+        if (credErr != null) return Json(new { error = credErr });
+        var cred = credNullable!;
+        var pwd = pwdNullable!;
+
+        var rows = sel
+            .Where(r => !string.IsNullOrWhiteSpace(r.FileId) && r.FileId != "-")
+            .Select(r => new PortalFetchResultRow
+            {
+                FileId = r.FileId,
+                FacilityId = facilityId,
+                FileName = r.FileName ?? "",
+                Type = r.Type ?? "",
+                Status = r.Status ?? "",
+                Date = r.Date,
+                Payer = r.Payer,
+                Amount = r.Amount
+            })
+            .ToList();
+        if (rows.Count == 0) return Json(new { error = "No downloadable rows." });
+
+        var period = DateTime.Today.ToString("yyyy-MM");
+        var (newCount, dups, filesDownloaded) = await _sync.UpsertDhaTransactionsWithDownloadAsync(
+            rows, cred.Username, pwd, facilityId, "DownloadSelected", period, portal);
+
+        return Json(new { saved = newCount, duplicates = dups, downloaded = filesDownloaded });
+    }
+
     // ── Manual Fetch (AJAX, JSON result) ───────────────────────────
 
     [HttpPost]

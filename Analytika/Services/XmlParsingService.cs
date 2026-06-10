@@ -94,10 +94,14 @@ public class XmlParsingService
 
         var txQuery = _db.PortalTransactions
             .AsNoTracking()
-            .Where(t => t.Portal == "DHA"
-                     && t.FileDownloaded
-                     && t.FileContentXml != null
-                     && t.FileContentXml.Length > 10);
+            .Where(t => (t.Portal == "DHA"
+                            && t.FileDownloaded
+                            && t.FileContentXml != null
+                            && t.FileContentXml.Length > 10)
+                     // RHA/Riyati delivers JSON inline (no file download) — parse from RawXml
+                     || (t.Portal == "RHA"
+                            && t.RawXml != null
+                            && t.RawXml.Length > 2));
 
         if (facilityId.HasValue)
             txQuery = txQuery.Where(t => t.FacilityId == facilityId.Value);
@@ -139,6 +143,7 @@ public class XmlParsingService
                 FileId = t.FileId,
                 FileName = t.FileName,
                 FileContentXml = t.FileContentXml,
+                RawXml = t.RawXml,
                 TransactionDate = t.TransactionDate,
                 Payer = t.Payer,
                 Amount = t.Amount
@@ -214,6 +219,7 @@ public class XmlParsingService
                 FileId = t.FileId,
                 FileName = t.FileName,
                 FileContentXml = t.FileContentXml,
+                RawXml = t.RawXml,
                 TransactionDate = t.TransactionDate,
                 Payer = t.Payer,
                 Amount = t.Amount
@@ -332,6 +338,15 @@ public class XmlParsingService
         PortalTransaction tx,
         IReadOnlyDictionary<string, string> payerLookup)
     {
+        // RHA/Riyati is a distinct service: it returns JSON (stored in RawXml),
+        // not DHPO XML, so it is parsed on its own path.
+        if (string.Equals(tx.Portal, "RHA", StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var r in ParseRhaJson(tx, payerLookup))
+                yield return r;
+            yield break;
+        }
+
         if (string.IsNullOrWhiteSpace(tx.FileContentXml))
             yield break;
 
@@ -350,6 +365,119 @@ public class XmlParsingService
             foreach (var record in ParseRemittance(tx, doc))
                 yield return record;
         }
+    }
+
+    // ── RHA / Riyati JSON parsing (distinct service from DHA) ────────
+    // Riyati's REST API returns JSON (stored in PortalTransaction.RawXml).
+    // Each row is one claim/remittance. Field names use fallbacks — adjust
+    // these keys if the live Riyati payload differs.
+    private static IEnumerable<XmlParsedRecord> ParseRhaJson(
+        PortalTransaction tx,
+        IReadOnlyDictionary<string, string> payerLookup)
+    {
+        if (string.IsNullOrWhiteSpace(tx.RawXml)) return Array.Empty<XmlParsedRecord>();
+
+        var isRemit = string.Equals(tx.Type, "Remittance", StringComparison.OrdinalIgnoreCase);
+        var isClaim = string.Equals(tx.Type, "Claim", StringComparison.OrdinalIgnoreCase);
+        if (!isRemit && !isClaim) return Array.Empty<XmlParsedRecord>();  // skip PriorAuth etc.
+
+        try
+        {
+            using var doc = JsonDocument.Parse(tx.RawXml);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return Array.Empty<XmlParsedRecord>();
+
+            var claimId = (JsonStr(root, "claimId", "claimID", "ClaimId", "id", "transactionId") ?? tx.FileId ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(claimId)) return Array.Empty<XmlParsedRecord>();
+
+            var payerId = JsonStr(root, "payerId", "payerID", "insurerId", "receiverId") ?? "";
+            var payerName = JsonStr(root, "payerName", "insurerName", "payer", "receiverName");
+            var submissionDate = JsonStr(root, "submissionDate", "date", "claimDate", "transactionDate");
+            var treatmentDate = JsonStr(root, "treatmentDate", "encounterStart", "serviceDate", "start") ?? submissionDate;
+
+            string serviceYear = "", serviceMonth = "";
+            if (DateTime.TryParse(treatmentDate ?? submissionDate, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+            {
+                serviceYear = dt.Year.ToString(CultureInfo.InvariantCulture);
+                serviceMonth = dt.ToString("MMMM", CultureInfo.InvariantCulture);
+            }
+
+            var rec = new XmlParsedRecord
+            {
+                PortalTransactionId = tx.Id,
+                FacilityId = tx.FacilityId,
+                RecordKind = isRemit ? RemittanceKind : SubmissionKind,
+                ClaimId = claimId,
+                FileName = tx.FileName,
+                FileId = tx.FileId,
+                TransactionDate = tx.TransactionDate,
+                PayerId = payerId,
+                PayerName = !string.IsNullOrWhiteSpace(payerName) ? payerName : ResolveLookupName(payerId, payerLookup),
+                MemberId = JsonStr(root, "memberId", "memberID", "membershipNo", "policyNo") ?? "",
+                PatientId = JsonStr(root, "patientId", "patientID", "emiratesId", "eid") ?? "",
+                Clinician = JsonStr(root, "clinician", "clinicianId", "doctor", "provider", "orderingClinician") ?? "",
+                PrincipalDiagnosis = JsonStr(root, "principalDiagnosis", "primaryDiagnosis", "diagnosis", "icd", "icd10") ?? "",
+                TreatmentDate = treatmentDate,
+                TreatmentDateEnd = JsonStr(root, "treatmentEnd", "encounterEnd", "end"),
+                SubmissionDate = submissionDate,
+                ServiceYear = serviceYear,
+                ServiceMonth = serviceMonth,
+                NetAmount = JsonDec(root, "net", "grossAmount", "amount", "totalAmount", "claimAmount", "billedAmount"),
+                ReadyForReport = true,
+                ParsedAt = DateTime.UtcNow
+            };
+
+            if (isRemit)
+            {
+                rec.PaidAmount = JsonDec(root, "paymentAmount", "paidAmount", "paid", "settlementAmount", "netPaid");
+                rec.PaymentReference = JsonStr(root, "paymentReference", "paymentRef", "transactionReference");
+                rec.SettlementDate = JsonStr(root, "settlementDate", "paymentDate", "date");
+                var denials = CollectRhaDenials(root);
+                if (denials.Count > 0) rec.DenialCodesJson = JsonSerializer.Serialize(denials);
+            }
+
+            return new[] { rec };
+        }
+        catch { return Array.Empty<XmlParsedRecord>(); }
+    }
+
+    private static string? JsonStr(JsonElement el, params string[] keys)
+    {
+        foreach (var k in keys)
+            if (el.TryGetProperty(k, out var v))
+            {
+                if (v.ValueKind == JsonValueKind.String) return v.GetString();
+                if (v.ValueKind == JsonValueKind.Number) return v.ToString();
+            }
+        return null;
+    }
+
+    private static decimal JsonDec(JsonElement el, params string[] keys)
+    {
+        foreach (var k in keys)
+            if (el.TryGetProperty(k, out var v))
+            {
+                if (v.ValueKind == JsonValueKind.Number && v.TryGetDecimal(out var d)) return d;
+                if (v.ValueKind == JsonValueKind.String &&
+                    decimal.TryParse(v.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var ds)) return ds;
+            }
+        return 0m;
+    }
+
+    private static List<string> CollectRhaDenials(JsonElement root)
+    {
+        var list = new List<string>();
+        var single = JsonStr(root, "denialCode", "denialCodes", "rejectionCode", "denial");
+        if (!string.IsNullOrWhiteSpace(single)) list.Add(single!);
+        foreach (var arrKey in new[] { "activities", "denials", "lines", "items" })
+            if (root.TryGetProperty(arrKey, out var arr) && arr.ValueKind == JsonValueKind.Array)
+                foreach (var it in arr.EnumerateArray())
+                {
+                    if (it.ValueKind != JsonValueKind.Object) continue;
+                    var dc = JsonStr(it, "denialCode", "denialCodes", "rejectionCode", "denial");
+                    if (!string.IsNullOrWhiteSpace(dc)) list.Add(dc!);
+                }
+        return list.Distinct().ToList();
     }
 
     private static IEnumerable<XmlParsedRecord> ParseSubmission(
