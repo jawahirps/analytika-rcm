@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Xml.Linq;
 
 namespace Analytika.Services;
@@ -8,13 +9,22 @@ namespace Analytika.Services;
 public class DashboardService : IDashboardService
 {
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
 
-    public DashboardService(AppDbContext db)
+    public DashboardService(AppDbContext db, IMemoryCache cache)
     {
         _db = db;
+        _cache = cache;
     }
 
-    public async Task<FacilityStatusViewModel> BuildFacilityStatusAsync()
+    public Task<FacilityStatusViewModel> BuildFacilityStatusAsync()
+        => _cache.GetOrCreateAsync("dashboard:facilitystatus:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
+            return await BuildFacilityStatusCoreAsync();
+        })!;
+
+    private async Task<FacilityStatusViewModel> BuildFacilityStatusCoreAsync()
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
