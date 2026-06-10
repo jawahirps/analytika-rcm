@@ -1,0 +1,35 @@
+@*
+    Canonical page header (breadcrumb + title + subtitle). Usage:
+    @await Html.PartialAsync("_PageHeader", new {
+        Title="Portal Data Fetch", Subtitle="Retrieve transactions from RHA & DHA",
+        Crumbs = new[] { ("Portal","/Portal/Sync"), ("Fetch", (string?)null) } })
+    Crumbs: array of (Label, Href?) tuples; null Href renders the current (non-link) crumb.
+*@
+@model dynamic
+@{
+    string title    = (Model?.Title as string) ?? "";
+    string subtitle = Model?.Subtitle as string;
+    var crumbs = Model?.Crumbs as IEnumerable<(string Label, string? Href)>;
+}
+<div class="page-header-bar">
+    <div>
+        @if (crumbs != null)
+        {
+            <nav class="page-breadcrumb">
+                @{ var first = true; }
+                @foreach (var (cLabel, cHref) in crumbs)
+                {
+                    @if (!first) { <span class="mx-1">/</span> }
+                    first = false;
+                    @if (!string.IsNullOrEmpty(cHref)) { <a href="@cHref">@cLabel</a> }
+                    else { <span class="fw-semibold">@cLabel</span> }
+                }
+            </nav>
+        }
+        <div class="ph-title h4">@title</div>
+        @if (!string.IsNullOrEmpty(subtitle))
+        {
+            <div class="ph-sub">@subtitle</div>
+        }
+    </div>
+</div>

@@ -54,6 +54,16 @@ public class DhaPortalService : IDhaPortalService
     // Standard set used for bulk sync: Claims, Remittances, PA Requests, PA Authorizations
     public static readonly int[] DefaultTxTypes = [TxTypeClaim, TxTypeRemittance, TxTypePriorRequest, TxTypePriorAuth];
 
+    /// <summary>Canonical record type from the DHPO transaction-type code (authoritative — the search was scoped to this type).</summary>
+    public static string TxTypeName(int txType) => txType switch
+    {
+        TxTypeClaim        => "Claim",
+        TxTypeRemittance   => "Remittance",
+        TxTypePriorRequest => "Prior Request",
+        TxTypePriorAuth    => "Prior Authorization",
+        _                  => "Other"
+    };
+
     public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache)
     {
         _httpClientFactory = httpClientFactory;
