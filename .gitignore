@@ -30,3 +30,6 @@ deploy/linux/.env
 deploy/linux/data/
 deploy/linux/portal-downloads/
 deploy/linux/reports/
+
+# Data Protection keys (never commit)
+dp-keys/

@@ -6,7 +6,7 @@ services:
     plan: starter          # free plan does not support persistent disks
     region: singapore      # closest to UAE
     branch: main
-    healthCheckPath: /
+    healthCheckPath: /healthz
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production

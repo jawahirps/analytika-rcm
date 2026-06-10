@@ -23,8 +23,9 @@ public class PortalController : Controller
     private readonly ReconciliationService _reconciliation;
     private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
+    private readonly Analytika.Security.ICredentialProtector _credentials;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials)
     {
         _db = db;
         _dha = dha;
@@ -33,6 +34,7 @@ public class PortalController : Controller
         _reconciliation = reconciliation;
         _xmlParsing = xmlParsing;
         _cache = cache;
+        _credentials = credentials;
     }
 
     [HttpGet]
@@ -1414,7 +1416,7 @@ public class PortalController : Controller
         var facName = cred.Facility?.Name ?? $"Facility {cred.FacilityId}";
 
         string pwd;
-        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
         catch { await Send(new { status = "error", message = "Corrupted password." }); return; }
 
         var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
@@ -1554,7 +1556,7 @@ public class PortalController : Controller
             if (fi < resumeFacilityIdx) continue;
 
             string pwd;
-            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+            try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
             catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); stepsDone += monthChunks.Count; continue; }
 
             await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityFi = fi, facilityName = facName });
@@ -1754,7 +1756,7 @@ public class PortalController : Controller
                 var cr = await _db.PortalCredentials
                     .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId && c.IsActive && c.Portal == "DHA", ct);
                 if (cr == null) { failed++; lastId = tx.Id; await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total }); continue; }
-                try { cred = (cr.Username, Encoding.UTF8.GetString(Convert.FromBase64String(cr.PasswordEncrypted))); credCache[tx.FacilityId] = cred; }
+                try { cred = (cr.Username, _credentials.Unprotect(cr.PasswordEncrypted)); credCache[tx.FacilityId] = cred; }
                 catch { failed++; lastId = tx.Id; continue; }
             }
 
@@ -1911,7 +1913,7 @@ public class PortalController : Controller
             return (null, null, $"No active {portal} credentials found for this facility. Please configure credentials in Admin → Credentials.");
 
         string pwd;
-        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
         catch { return (null, null, "Stored password is corrupted — please re-enter the credential."); }
 
         return (cred, pwd, null);

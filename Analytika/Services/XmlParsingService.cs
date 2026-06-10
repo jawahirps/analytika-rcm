@@ -22,6 +22,10 @@ public class XmlParsingService
 
     public async Task EnsureSchemaAsync(CancellationToken ct = default)
     {
+        // On Postgres the schema is owned by EF migrations; this safety net is for
+        // legacy SQLite databases created before XmlParsedRecords existed.
+        if (!_db.Database.IsSqlite()) return;
+
         await _db.Database.ExecuteSqlRawAsync(@"
             CREATE TABLE IF NOT EXISTS ""XmlParsedRecords"" (
                 ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -259,26 +263,33 @@ public class XmlParsingService
     {
         await EnsureSchemaAsync(ct);
 
-        // A claim ref is "matched" only when a Submission AND a Remittance exist
-        // for the SAME (FacilityId, ClaimId). Correlate on both columns via EXISTS
-        // so a ClaimId reused across facilities can never cross-match, and compare
-        // ClaimId case-insensitively (COLLATE NOCASE) to align with the C# counts.
+        // Provider-aware SQL literals (SQLite stores booleans as 0/1, Postgres as TRUE/FALSE)
+        var isNpgsql = _db.Database.IsNpgsql();
+        var now = isNpgsql ? "NOW()" : "datetime('now')";
+        var matched = isNpgsql ? "TRUE" : "1";
+        var unmatched = isNpgsql ? "FALSE" : "0";
+        // Case-insensitive ClaimId grouping: SQLite uses COLLATE NOCASE, Postgres uses LOWER()
+        var groupByClaimId = isNpgsql ? @"LOWER(m.""ClaimId"")" : @"m.""ClaimId"" COLLATE NOCASE";
+        var matchClaimId   = isNpgsql ? @"LOWER(m.""ClaimId"") = LOWER(""XmlParsedRecords"".""ClaimId"")"
+                                       : @"m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE";
+
         if (facilityId.HasValue)
         {
-            await _db.Database.ExecuteSqlInterpolatedAsync($@"
+            var fid = facilityId.Value; // int — safe to inline
+            await _db.Database.ExecuteSqlRawAsync($@"
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = 0, ""MatchedAt"" = NULL
-                WHERE ""FacilityId"" = {facilityId.Value};
+                SET ""IsMatched"" = {unmatched}, ""MatchedAt"" = NULL
+                WHERE ""FacilityId"" = {fid};
 
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = 1, ""MatchedAt"" = datetime('now')
-                WHERE ""FacilityId"" = {facilityId.Value}
+                SET ""IsMatched"" = {matched}, ""MatchedAt"" = {now}
+                WHERE ""FacilityId"" = {fid}
                   AND EXISTS (
                     SELECT 1
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
-                    GROUP BY m.""FacilityId"", m.""ClaimId"" COLLATE NOCASE
+                      AND {matchClaimId}
+                    GROUP BY m.""FacilityId"", {groupByClaimId}
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                   );
@@ -286,18 +297,18 @@ public class XmlParsingService
         }
         else
         {
-            await _db.Database.ExecuteSqlRawAsync(@"
+            await _db.Database.ExecuteSqlRawAsync($@"
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = 0, ""MatchedAt"" = NULL;
+                SET ""IsMatched"" = {unmatched}, ""MatchedAt"" = NULL;
 
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = 1, ""MatchedAt"" = datetime('now')
+                SET ""IsMatched"" = {matched}, ""MatchedAt"" = {now}
                 WHERE EXISTS (
                     SELECT 1
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
-                    GROUP BY m.""FacilityId"", m.""ClaimId"" COLLATE NOCASE
+                      AND {matchClaimId}
+                    GROUP BY m.""FacilityId"", {groupByClaimId}
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                 );
