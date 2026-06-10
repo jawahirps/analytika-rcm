@@ -278,7 +278,7 @@ public class XmlParsingService
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
                       AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
-                    GROUP BY m.""FacilityId"", m.""ClaimId""
+                    GROUP BY m.""FacilityId"", m.""ClaimId"" COLLATE NOCASE
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                   );
@@ -297,7 +297,7 @@ public class XmlParsingService
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
                       AND m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE
-                    GROUP BY m.""FacilityId"", m.""ClaimId""
+                    GROUP BY m.""FacilityId"", m.""ClaimId"" COLLATE NOCASE
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                 );
