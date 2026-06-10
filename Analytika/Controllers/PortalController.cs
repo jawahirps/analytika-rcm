@@ -46,19 +46,47 @@ public class PortalController : Controller
     [HttpGet]
     public async Task<IActionResult> DataValidation()
     {
+        // Cache the whole aggregate for 60s — these GROUP BY scans are identical
+        // for every operator and don't need to recompute on each page load.
+        var vm = await _cache.GetOrCreateAsync("portal:datavalidation:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
+            return await BuildDataValidationAsync();
+        });
+        return View(vm);
+    }
+
+    private async Task<DataValidationViewModel> BuildDataValidationAsync()
+    {
         var facilityNames = await _db.Facilities.AsNoTracking()
             .ToDictionaryAsync(f => f.Id, f => f.Name);
 
         string FacName(int id) => facilityNames.TryGetValue(id, out var n) && !string.IsNullOrWhiteSpace(n)
             ? n : $"Facility {id}";
 
-        var vm = new DataValidationViewModel
-        {
-            TotalTransactions   = await _db.PortalTransactions.CountAsync(),
-            TotalDownloaded     = await _db.PortalTransactions.CountAsync(t => t.FileDownloaded),
-            TotalPending        = await _db.PortalTransactions.CountAsync(t => !t.FileDownloaded),
-            DistinctParsedFiles = await _db.XmlParsedRecords.Select(r => r.PortalTransactionId).Distinct().CountAsync()
-        };
+        var vm = new DataValidationViewModel();
+
+        // One scan for per-facility coverage; totals are derived from it (no
+        // separate Total/Downloaded/Pending COUNT round-trips).
+        var fac = await _db.PortalTransactions
+            .GroupBy(t => t.FacilityId)
+            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(x => x.FileDownloaded) })
+            .ToListAsync();
+
+        vm.TotalTransactions = fac.Sum(f => f.Total);
+        vm.TotalDownloaded   = fac.Sum(f => f.Downloaded);
+        vm.TotalPending      = vm.TotalTransactions - vm.TotalDownloaded;
+        vm.Facilities = fac
+            .Select(f => new DataValidationFacility
+            {
+                FacilityId = f.FacilityId,
+                FacilityName = FacName(f.FacilityId),
+                Total = f.Total,
+                Downloaded = f.Downloaded,
+                Pending = f.Total - f.Downloaded
+            })
+            .OrderBy(f => f.FacilityName)
+            .ToList();
 
         // Duplicate check — should be 0 (unique index on Portal+FacilityId+TransactionId)
         var dups = await _db.PortalTransactions
@@ -76,24 +104,8 @@ public class PortalController : Controller
             Count = d.Count
         }).ToList();
 
-        // Per-facility coverage
-        var fac = await _db.PortalTransactions
-            .GroupBy(t => t.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(x => x.FileDownloaded) })
-            .ToListAsync();
-        vm.Facilities = fac
-            .Select(f => new DataValidationFacility
-            {
-                FacilityId = f.FacilityId,
-                FacilityName = FacName(f.FacilityId),
-                Total = f.Total,
-                Downloaded = f.Downloaded,
-                Pending = f.Total - f.Downloaded
-            })
-            .OrderBy(f => f.FacilityName)
-            .ToList();
-
-        // Downloaded but not yet parsed
+        // Parse coverage
+        vm.DistinctParsedFiles = await _db.XmlParsedRecords.Select(r => r.PortalTransactionId).Distinct().CountAsync();
         var parsedIds = _db.XmlParsedRecords.Select(r => r.PortalTransactionId).Distinct();
         vm.DownloadedNotParsed = await _db.PortalTransactions
             .CountAsync(t => t.FileDownloaded && !parsedIds.Contains(t.Id));
@@ -113,7 +125,7 @@ public class PortalController : Controller
             .OrderByDescending(t => t.Total)
             .ToList();
 
-        return View(vm);
+        return vm;
     }
 
     [HttpPost]
@@ -657,10 +669,33 @@ public class PortalController : Controller
         var total = counts?.Total ?? 0;
         var filesDownloaded = counts?.FilesDownloaded ?? 0;
         const int pageSize = 50;
+        // Project to metadata only — never pull the FileContentXml / RawXml blobs
+        // (megabytes per row) into a listing page that only shows summary columns.
         var items = await query
             .OrderByDescending(t => t.SyncedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(t => new PortalTransaction
+            {
+                Id = t.Id,
+                Portal = t.Portal,
+                FacilityId = t.FacilityId,
+                TransactionId = t.TransactionId,
+                Type = t.Type,
+                Status = t.Status,
+                Direction = t.Direction,
+                FileId = t.FileId,
+                FileName = t.FileName,
+                FileDownloaded = t.FileDownloaded,
+                FileDownloadedAt = t.FileDownloadedAt,
+                TransactionDate = t.TransactionDate,
+                Payer = t.Payer,
+                Amount = t.Amount,
+                Operation = t.Operation,
+                SyncPeriod = t.SyncPeriod,
+                SyncedAt = t.SyncedAt,
+                Facility = t.Facility == null ? null : new Facility { Id = t.Facility.Id, Name = t.Facility.Name }
+            })
             .ToListAsync();
 
         var vm = new SyncedDataViewModel

@@ -841,7 +841,7 @@
     letter-spacing:-.04em;
 }
 .metric-delta {
-    color:var(--astryon-risk);
+    color:#2F8F72;
     font-weight:900;
 }
 .dash-grid {
@@ -923,6 +923,40 @@
 @@media (prefers-reduced-motion: reduce) {
     .panel:hover, .metric-grid:hover { transform:none; }
 }
+
+/* Dark-mode: the BI dashboard is an editorial "paper" report — keep it on its
+   light theme so the near-black ink text stays readable (app dark mode turns
+   generic .card/.panel surfaces dark, which would hide the labels/title). */
+html[data-theme="dark"] .bi-shell {
+    background: linear-gradient(180deg, #F8FBFD 0%, #F4F6F9 100%) !important;
+    color: #011C40 !important;
+}
+html[data-theme="dark"] .bi-shell .metric-grid,
+html[data-theme="dark"] .bi-shell .metric-card,
+html[data-theme="dark"] .bi-shell .panel,
+html[data-theme="dark"] .bi-shell .bi-filter-card,
+html[data-theme="dark"] .bi-shell .bi-tabs,
+html[data-theme="dark"] .bi-shell .bi-header,
+html[data-theme="dark"] .bi-shell .card {
+    background: #ffffff !important;
+    border-color: rgba(1,28,64,.08) !important;
+}
+html[data-theme="dark"] .bi-shell .bi-title,
+html[data-theme="dark"] .bi-shell .metric-value,
+html[data-theme="dark"] .bi-shell .panel-title,
+html[data-theme="dark"] .bi-shell .breakdown-label,
+html[data-theme="dark"] .bi-shell .breakdown-value,
+html[data-theme="dark"] .bi-shell .trend-value,
+html[data-theme="dark"] .bi-shell .insight-title { color: #011C40 !important; }
+html[data-theme="dark"] .bi-shell .bi-desc,
+html[data-theme="dark"] .bi-shell .metric-label,
+html[data-theme="dark"] .bi-shell .summary,
+html[data-theme="dark"] .bi-shell .trend-label,
+html[data-theme="dark"] .bi-shell .breakdown-detail,
+html[data-theme="dark"] .bi-shell .insight-detail,
+html[data-theme="dark"] .bi-shell .bi-filter-field label,
+html[data-theme="dark"] .bi-shell .bi-tab { color: #26658C !important; }
+html[data-theme="dark"] .bi-shell .metric-delta { color: #2F8F72 !important; }
 </style>
 }
 
