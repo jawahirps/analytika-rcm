@@ -899,6 +899,30 @@
         border-bottom:0;
     }
 }
+
+/* Premium accents: signature teal hairline + soft hover lift */
+.metric-grid {
+    position:relative;
+    overflow:hidden;
+}
+.metric-grid::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg,#26658C,#54ACBF,#A7EBF2);
+}
+.metric-grid,
+.panel {
+    transition:box-shadow .22s cubic-bezier(.32,.72,0,1), transform .22s cubic-bezier(.32,.72,0,1);
+}
+.panel:hover,
+.metric-grid:hover {
+    box-shadow:0 12px 32px rgba(1,28,64,.09);
+    transform:translateY(-2px);
+}
+.metric-value { font-variant-numeric:tabular-nums; }
+@@media (prefers-reduced-motion: reduce) {
+    .panel:hover, .metric-grid:hover { transform:none; }
+}
 </style>
 }
 

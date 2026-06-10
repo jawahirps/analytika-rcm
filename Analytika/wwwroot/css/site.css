@@ -1659,9 +1659,9 @@ html[data-theme="dark"] .brand-name-wrap .brand-sub {
 .container-fluid.py-4,
 .page-wrapper {
   background:
-    radial-gradient(circle at 0% 18%, rgba(9,216,199,0.22), transparent 30%),
-    radial-gradient(circle at 100% 0%, rgba(189,9,39,0.12), transparent 32%),
-    linear-gradient(140deg, rgba(13,26,47,0.10) 0%, rgba(23,54,79,0.07) 42%, rgba(255,255,255,0.98) 100%) !important;
+    radial-gradient(1100px 520px at 8% -10%, rgba(84,172,191,0.10), transparent 60%),
+    radial-gradient(900px 460px at 100% 0%, rgba(167,235,242,0.14), transparent 55%),
+    linear-gradient(180deg, #F8FBFD 0%, #F4F6F9 100%) !important;
 }
 
 .react-shell-slot {
@@ -2563,3 +2563,33 @@ html[data-theme="dark"] .analytika-navbar {
 @media (prefers-reduced-motion: reduce) {
   .cpu-fx animate { display: none; }
 }
+
+/* --- Premium KPI numerals: aligned digits, confident weight --- */
+.stat-value,
+.ss-num,
+.kpi-val,
+.metric-value,
+.wl-val,
+.fac-stat .n {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+/* Signature teal hairline that fades in on KPI-card hover */
+.stat-card,
+.ss-card {
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before,
+.ss-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #26658C, #54ACBF, #A7EBF2);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.stat-card:hover::before,
+.ss-card:hover::before { opacity: 1; }
