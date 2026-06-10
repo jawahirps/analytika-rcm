@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 namespace Analytika.Modules;
 
@@ -56,7 +59,28 @@ public static class ModuleRegistration
             .SetApplicationName("Analytika");
         services.AddSingleton<ICredentialProtector, CredentialProtector>();
 
-        services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
+        services.AddHealthChecks()
+            .AddDbContextCheck<AppDbContext>()
+            .AddCheck<SyncHealthCheck>("portal-sync");
+
+        // Telemetry export is opt-in: set OTEL_EXPORTER_OTLP_ENDPOINT
+        // (Grafana Cloud / Better Stack / any OTLP collector) to enable.
+        if (!string.IsNullOrWhiteSpace(configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+        {
+            services.AddOpenTelemetry()
+                .ConfigureResource(r => r.AddService(
+                    serviceName: configuration["OTEL_SERVICE_NAME"] ?? "ghaf-bix",
+                    serviceInstanceId: Environment.MachineName))
+                .WithTracing(t => t
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddOtlpExporter())
+                .WithMetrics(m => m
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation()
+                    .AddOtlpExporter());
+        }
 
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {

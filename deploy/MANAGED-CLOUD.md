@@ -53,6 +53,38 @@ dotnet tool install -g dotnet-ef
 cd Analytika && dotnet ef migrations add <Name> --output-dir Migrations
 ```
 
+## Monitoring (v2.0 scale chain)
+
+- **`/healthz`** aggregates two checks: DB connectivity and **portal-sync
+  staleness** — Degraded when active credentials exist but no portal fetch has
+  succeeded within `Monitoring__SyncStaleAfterHours` (default 26). Alert on
+  Degraded; it intentionally does not fail the probe, so platforms don't
+  restart pods over portal-side outages.
+- **OpenTelemetry** (traces + metrics, ASP.NET/HTTP-client/runtime
+  instrumentation) exports via OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
+  (Grafana Cloud, Better Stack, any collector). `OTEL_SERVICE_NAME` defaults
+  to `ghaf-bix`. Unset = zero overhead.
+- **Structured JSON logs**: set `Logging__JsonConsole=true` so platform log
+  aggregators can index fields instead of scraping text.
+
+## Automatic updates (CI/CD)
+
+`.github/workflows/release.yml`: every push to `main` (and every `v*` tag)
+builds the Docker image and publishes it to GHCR
+(`ghcr.io/<owner>/analytika-rcm:latest|vX.Y.Z|sha-…`). To enable automatic
+rollout, set repo variables `RENDER_DEPLOY_ENABLED` / `RAILWAY_DEPLOY_ENABLED`
+to `true` and add the matching `RENDER_DEPLOY_HOOK_URL` /
+`RAILWAY_REDEPLOY_HOOK_URL` secrets. Schema changes ride along automatically
+via migrations-on-startup.
+
+## Still to come (scale chain)
+
+- **Stripe billing** — per-facility subscription quantities reported nightly;
+  needs a Stripe account, price IDs and a customer-registry decision.
+- **Onboarding wizard** — self-service facility + credential setup UI on top
+  of the existing `TestCredential` live-validation endpoint and first-sync
+  backfill.
+
 ## File storage note
 
 Canonical claim/remittance XML is stored **in the database**
