@@ -3,16 +3,18 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Ghaf Business Intelligence</title>
+    <title>@ViewData["Title"] - Analytika RCM</title>
     <script>
         (function () {
             try {
                 var lang = localStorage.getItem('analytika-lang') || 'en';
                 var theme = localStorage.getItem('analytika-theme') || 'light';
+                var collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
                 document.documentElement.lang = lang;
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.dataset.lang = lang;
                 document.documentElement.dataset.theme = theme;
+                if (collapsed) document.documentElement.classList.add('sidebar-collapsed');
             } catch (_) {}
         })();
     </script>
@@ -23,354 +25,414 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.bootstrap5.min.css" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
 
-<nav class="navbar navbar-expand-lg analytika-navbar">
-    <div class="container-fluid px-3">
-        @{
-            var canAccessRcm = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst) || User.IsInRole(AppRoles.Billing) || User.IsInRole(AppRoles.Finance) || User.IsInRole(AppRoles.Auditor);
-            var canAccessResubmission = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst);
-            var canAccessAdmin = User.IsInRole(AppRoles.Admin);
-            var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
-        }
+@{
+    var canAccessRcm = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst) || User.IsInRole(AppRoles.Billing) || User.IsInRole(AppRoles.Finance) || User.IsInRole(AppRoles.Auditor);
+    var canAccessResubmission = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst);
+    var canAccessAdmin = User.IsInRole(AppRoles.Admin);
+    var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
 
-        <!-- Brand -->
-        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
-            <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Ghaf tree + data: branching canopy of data nodes over a trunk -->
-                <path d="M22 21 C22 14 17 10 11 10" stroke="#26658C" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 12 28 8 34 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 V7" stroke="#011C40" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="22" cy="7"  r="2.3" fill="#011C40"/>
-                <circle cx="11" cy="10" r="2"   fill="#26658C"/>
-                <circle cx="34" cy="10" r="2"   fill="#54ACBF"/>
-                <circle cx="14" cy="15" r="1.5" fill="#54ACBF"/>
-                <circle cx="30" cy="15" r="1.5" fill="#A7EBF2"/>
-                <path d="M22 21 V36" stroke="#011C40" stroke-width="2.6" stroke-linecap="round"/>
-                <path d="M15 38 H29" stroke="#26658C" stroke-width="2" stroke-linecap="round"/>
+    var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var act  = ViewContext.RouteData.Values["action"]?.ToString()     ?? "";
+
+    bool isDashboard   = ctrl == "Home"           && (act is "Dashboard" or "RCMDashboard");
+    bool isPortal      = ctrl == "Portal";
+    bool isReports     = ctrl is "ReportScheduler" or "AdvancedReports";
+    bool isResubmission= ctrl == "Resubmission";
+    bool isAdmin       = ctrl == "Admin";
+}
+
+<a href="#main-content" class="visually-hidden-focusable skip-to-main">Skip to main content</a>
+
+<!-- ═══════════════════════════════════════════════ Sidebar ═══════════════════ -->
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+
+    <div class="sidebar-header">
+        <a class="sidebar-brand" asp-controller="Home" asp-action="@brandAction">
+            <svg class="sidebar-brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
             </svg>
-            <div class="brand-name-wrap">
-                <span class="brand-text">Ghaf Bi</span>
-                <span class="brand-sub">Business Intelligence</span>
+            <div class="sidebar-brand-text">
+                <span class="sidebar-brand-name">Analytika</span>
+                <span class="sidebar-brand-sub">RCM Platform</span>
             </div>
         </a>
+        <button class="sidebar-close-btn d-lg-none" id="sidebarClose" aria-label="Close navigation">
+            <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+    </div>
 
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-            <span class="navbar-toggler-icon"></span>
+    <nav class="sidebar-nav" role="navigation">
+
+        <!-- Dashboard -->
+        <a class="sidebar-link @(isDashboard ? "active" : "")" asp-controller="Home" asp-action="@brandAction">
+            <i class="fas fa-chart-line sidebar-icon" aria-hidden="true"></i>
+            <span class="sidebar-label">Dashboard</span>
+        </a>
+
+        @if (canAccessRcm)
+        {
+        <!-- Portal -->
+        <div class="sidebar-section @(isPortal ? "expanded" : "")" id="section-portal">
+            <button class="sidebar-section-toggle" aria-expanded="@(isPortal ? "true" : "false")" aria-controls="items-portal">
+                <i class="fas fa-cloud-download-alt sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Portal</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-portal">
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "Sync" ? "active" : "")" asp-controller="Portal" asp-action="Sync">
+                    <i class="fas fa-sync-alt" aria-hidden="true"></i>Sync &amp; Fetch
+                </a>
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "SyncedData" ? "active" : "")" asp-controller="Portal" asp-action="SyncedData">
+                    <i class="fas fa-database" aria-hidden="true"></i>Synced Data
+                </a>
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "XmlParsing" ? "active" : "")" asp-controller="Portal" asp-action="XmlParsing">
+                    <i class="fas fa-file-code" aria-hidden="true"></i>XML Parsing
+                </a>
+            </div>
+        </div>
+
+        <!-- Reports -->
+        <div class="sidebar-section @(isReports ? "expanded" : "")" id="section-reports">
+            <button class="sidebar-section-toggle" aria-expanded="@(isReports ? "true" : "false")" aria-controls="items-reports">
+                <i class="fas fa-chart-bar sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Reports</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-reports">
+                <a class="sidebar-sublink @(act == "ClaimSummaryReport"      ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimSummaryReport">Claim Summary</a>
+                <a class="sidebar-sublink @(act == "ClaimActivityReports"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimActivityReports">Claim Activity</a>
+                <a class="sidebar-sublink @(act == "RemittanceActivityReport"? "active" : "")" asp-controller="ReportScheduler" asp-action="RemittanceActivityReport">Remittance Activity</a>
+                <a class="sidebar-sublink @(act == "ClaimReceiverReport"     ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimReceiverReport">Claim Receiver</a>
+                <a class="sidebar-sublink @(act == "ClaimClinicianReport"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimClinicianReport">Claim Clinician</a>
+                <a class="sidebar-sublink @(ctrl == "AdvancedReports"        ? "active" : "")" asp-controller="AdvancedReports"  asp-action="SubmissionXMLFileReport">Submission XML</a>
+                <a class="sidebar-sublink @(act == "FinanceTATReport"        ? "active" : "")" asp-controller="ReportScheduler" asp-action="FinanceTATReport">Finance TAT</a>
+                <a class="sidebar-sublink @(act == "DenialReport"            ? "active" : "")" asp-controller="ReportScheduler" asp-action="DenialReport">Denial Query</a>
+                <a class="sidebar-sublink @(act == "ClaimLifeCycleReport"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimLifeCycleReport">Claim Life Cycle</a>
+            </div>
+        </div>
+        }
+
+        @if (canAccessResubmission)
+        {
+        <!-- Resubmission -->
+        <div class="sidebar-section @(isResubmission ? "expanded" : "")" id="section-resubmission">
+            <button class="sidebar-section-toggle" aria-expanded="@(isResubmission ? "true" : "false")" aria-controls="items-resubmission">
+                <i class="fas fa-tasks sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Resubmission</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-resubmission">
+                <a class="sidebar-sublink @(act == "Workload"         ? "active" : "")" asp-controller="Resubmission" asp-action="Workload">
+                    <i class="fas fa-users" aria-hidden="true"></i>Workload
+                </a>
+                <a class="sidebar-sublink @(act == "DenialDashboard"  ? "active" : "")" asp-controller="Resubmission" asp-action="DenialDashboard">
+                    <i class="fas fa-chart-pie" aria-hidden="true"></i>Denial Dashboard
+                </a>
+            </div>
+        </div>
+        }
+
+        @if (canAccessAdmin)
+        {
+        <!-- Admin -->
+        <div class="sidebar-section @(isAdmin ? "expanded" : "")" id="section-admin">
+            <button class="sidebar-section-toggle" aria-expanded="@(isAdmin ? "true" : "false")" aria-controls="items-admin">
+                <i class="fas fa-shield-alt sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Admin</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-admin">
+                <a class="sidebar-sublink @(act == "Users"           ? "active" : "")" asp-controller="Admin" asp-action="Users">
+                    <i class="fas fa-users" aria-hidden="true"></i>Users
+                </a>
+                <a class="sidebar-sublink @(act == "Roles"           ? "active" : "")" asp-controller="Admin" asp-action="Roles">
+                    <i class="fas fa-user-shield" aria-hidden="true"></i>Roles
+                </a>
+                <a class="sidebar-sublink @(act == "Credentials"     ? "active" : "")" asp-controller="Admin" asp-action="Credentials">
+                    <i class="fas fa-key" aria-hidden="true"></i>Credentials
+                </a>
+                <a class="sidebar-sublink @(act == "CodingSets"      ? "active" : "")" asp-controller="Admin" asp-action="CodingSets">
+                    <i class="fas fa-table" aria-hidden="true"></i>Coding Sets
+                </a>
+                <a class="sidebar-sublink @(act == "EmailSettings"   ? "active" : "")" asp-controller="Admin" asp-action="EmailSettings">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>Email Settings
+                </a>
+                <a class="sidebar-sublink @(act == "ReportSchedules" ? "active" : "")" asp-controller="Admin" asp-action="ReportSchedules">
+                    <i class="fas fa-calendar-alt" aria-hidden="true"></i>Schedules
+                </a>
+                <a class="sidebar-sublink @(act == "Database"        ? "active" : "")" asp-controller="Admin" asp-action="Database">
+                    <i class="fas fa-database" aria-hidden="true"></i>Database
+                </a>
+            </div>
+        </div>
+        }
+
+        <!-- Support -->
+        <a class="sidebar-link" href="mailto:support@ghafservices.com" data-i18n-key="support">
+            <i class="fas fa-life-ring sidebar-icon" aria-hidden="true"></i>
+            <span class="sidebar-label">Support</span>
+        </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+        <button class="sidebar-collapse-btn d-none d-lg-flex" id="sidebarToggle" aria-label="Collapse sidebar">
+            <i class="fas fa-chevron-left sidebar-icon" id="sidebarToggleIcon" aria-hidden="true"></i>
+            <span class="sidebar-label">Collapse</span>
+        </button>
+    </div>
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════ Topbar ════════════════════ -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="topbar-hamburger d-lg-none" id="sidebarOpen" aria-label="Open navigation" aria-expanded="false">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <div class="topbar-right">
+        <!-- Language toggle -->
+        <div class="btn-group btn-group-sm lang-toggle-group" role="group" aria-label="Language selection">
+            <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" data-lang="en" id="langToggleEn" aria-pressed="true" aria-label="English">EN</button>
+            <button type="button" class="btn btn-outline-secondary lang-toggle-btn"        data-lang="ar" id="langToggleAr" aria-pressed="false" aria-label="Arabic">AR</button>
+        </div>
+
+        <!-- Theme toggle -->
+        <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark mode" aria-pressed="false">
+            <i class="fas fa-moon me-1" aria-hidden="true"></i><span id="themeToggleLabel">Dark</span>
         </button>
 
-        <div class="collapse navbar-collapse" id="navbarMain">
-            <!-- Left nav -->
-            <ul class="navbar-nav me-auto mb-0">
-                <li class="nav-item">
-                    <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() is "Dashboard" or "RCMDashboard" ? "active" : "")"
-                       asp-controller="Home" asp-action="Dashboard">
-                        <i class="fas fa-signal nav-ico" style="font-size:.75rem;"></i><span class="nav-label">Dashboard</span>
+        <!-- Notifications -->
+        <div class="dropdown">
+            <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                    aria-expanded="false" aria-label="Notifications" aria-haspopup="true" id="notificationsBtn">
+                <i class="fas fa-bell" aria-hidden="true"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge" aria-label="3 notifications">3</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu" aria-labelledby="notificationsBtn">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
+                    <span class="fw-semibold text-white" style="font-size:var(--fs-sm);" data-i18n="notifications">Notifications</span>
+                    <button class="btn btn-link btn-sm text-white p-0 text-decoration-none" onclick="clearNotifications()"
+                            style="font-size:var(--fs-xs);" data-i18n="mark_all_read">Mark all read</button>
+                </div>
+                <div id="notificationList">
+                    <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
+                        <div class="notif-icon flex-shrink-0 notification-icon-muted"><i class="fas fa-file-download" aria-hidden="true"></i></div>
+                        <div style="font-size:var(--fs-xs);">
+                            <div class="fw-semibold">New transactions available</div>
+                            <div class="text-muted">DHA portal has undownloaded files</div>
+                            <div class="text-muted" style="font-size:0.7rem;">Just now</div>
+                        </div>
                     </a>
-                </li>
-                @if (canAccessRcm)
-                {
-                    <li class="nav-item">
-                        <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "RCMDashboard" ? "active" : "")"
-                           asp-controller="Home" asp-action="RCMDashboard"><i class="fas fa-chart-column nav-ico"></i><span class="nav-label">BI Reports</span></a>
-                    </li>
-                }
-                @if (canAccessRcm)
-                {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-folder-tree nav-ico"></i><span class="nav-label">Advanced Reports</span></a>
-                    <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                            <a class="dropdown-item dropdown-toggle" href="#">Claim Processing</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimSummaryReport">Claim Summary</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimActivityReports">Claim Activity</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="RemittanceActivityReport">Remittance Activity</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimReceiverReport">Claim Receiver</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimClinicianReport">Claim Clinician</a></li>
-                                <li><a class="dropdown-item" asp-controller="AdvancedReports" asp-action="SubmissionXMLFileReport">Submission XML File</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="FinanceTATReport">Finance TAT</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="DenialReport">Denial Query</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimLifeCycleReport">Claim Life Cycle</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Portal" ? "active" : "")"
-                       href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-cloud-download-alt nav-ico" style="font-size:.78rem;"></i><span class="nav-label">Portal</span>
+                    <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
+                        <div class="notif-icon flex-shrink-0 notification-icon-accent"><i class="fas fa-file-code" aria-hidden="true"></i></div>
+                        <div style="font-size:var(--fs-xs);">
+                            <div class="fw-semibold">XML Parsing summary</div>
+                            <div class="text-muted">Some claims have no remittance match</div>
+                            <div class="text-muted" style="font-size:0.7rem;">Today</div>
+                        </div>
                     </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="Sync">
-                            <i class="fas fa-sync me-2 text-muted"></i>Sync &amp; Fetch
-                        </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="SyncedData">
-                            <i class="fas fa-database me-2 text-muted"></i>Synced Data
-                        </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="XmlParsing">
-                            <i class="fas fa-file-code me-2 text-muted"></i>XML Parsing
-                        </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="DataValidation">
-                            <i class="fas fa-clipboard-check me-2 text-muted"></i>Data Validation
-                        </a></li>
-                    </ul>
-                </li>
-                }
-                @if (canAccessAdmin)
-                {
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
-                           href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-alt nav-ico" style="font-size:.8rem;"></i><span class="nav-label">Admin</span>
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users">
-                                <i class="fas fa-users me-2 text-muted"></i>User Management
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Roles">
-                                <i class="fas fa-user-shield me-2 text-muted"></i>User Roles
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Credentials">
-                                <i class="fas fa-key me-2 text-muted"></i>Portal Credentials
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="CodingSets">
-                                <i class="fas fa-table me-2 text-muted"></i>DHPO Coding Sets
-                            </a></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="EmailSettings">
-                                <i class="fas fa-envelope me-2 text-muted"></i>Email Settings
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="ReportSchedules">
-                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Report Schedules
-                            </a></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Database">
-                                <i class="fas fa-database me-2 text-muted"></i>Database Migration
-                            </a></li>
-                        </ul>
-                    </li>
-                }
-                <li class="nav-item">
-                    <a class="nav-link" href="#Support"><i class="fas fa-headset nav-ico"></i><span class="nav-label" data-i18n="support">Support</span></a>
-                </li>
-            </ul>
+                    <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
+                        <div class="notif-icon flex-shrink-0 notification-icon-primary"><i class="fas fa-sync" aria-hidden="true"></i></div>
+                        <div style="font-size:var(--fs-xs);">
+                            <div class="fw-semibold">Daily sync complete</div>
+                            <div class="text-muted">Last cron run finished successfully</div>
+                            <div class="text-muted" style="font-size:0.7rem;">2 hours ago</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="text-center py-2 notification-menu-footer">
+                    <a href="/Portal/Sync" class="notification-footer-link" data-i18n="view_all_activity">View all activity</a>
+                </div>
+            </div>
+        </div>
 
-            <!-- Right side -->
-            <ul class="navbar-nav ms-auto align-items-center mb-0">
-                <li class="nav-item d-flex align-items-center gap-2 me-2 lang-theme-tools">
-                    <div class="btn-group btn-group-sm lang-toggle-group" role="group" aria-label="Language toggle">
-                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" data-lang="en" id="langToggleEn">EN</button>
-                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn" data-lang="ar" id="langToggleAr">AR</button>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn">
-                        <i class="fas fa-moon me-1"></i><span id="themeToggleLabel">Dark</span>
-                    </button>
-                </li>
-                <!-- Bell -->
-                <li class="nav-item dropdown">
-                    <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                        <i class="fas fa-bell"></i>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu">
-                        <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
-                            <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
-                            <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
-                        </div>
-                        <div id="notificationList">
-                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0 notification-icon-muted">
-                                    <i class="fas fa-file-download"></i>
-                                </div>
-                                <div style="font-size:.78rem;">
-                                    <div class="fw-semibold text-dark">New transactions available</div>
-                                    <div class="text-muted">DHA portal has undownloaded files</div>
-                                    <div class="text-muted" style="font-size:.7rem;">Just now</div>
-                                </div>
-                            </a>
-                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
-                                <div class="notif-icon flex-shrink-0 notification-icon-accent">
-                                    <i class="fas fa-file-code"></i>
-                                </div>
-                                <div style="font-size:.78rem;">
-                                    <div class="fw-semibold text-dark">XML Parsing summary</div>
-                                    <div class="text-muted">Some claims have no remittance match</div>
-                                    <div class="text-muted" style="font-size:.7rem;">Today</div>
-                                </div>
-                            </a>
-                            <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                                <div class="notif-icon flex-shrink-0 notification-icon-primary">
-                                    <i class="fas fa-sync"></i>
-                                </div>
-                                <div style="font-size:.78rem;">
-                                    <div class="fw-semibold text-dark">Daily sync complete</div>
-                                    <div class="text-muted">Last cron run finished successfully</div>
-                                    <div class="text-muted" style="font-size:.7rem;">2 hours ago</div>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="text-center py-2 notification-menu-footer">
-                            <a href="/Portal/Sync" class="notification-footer-link" data-i18n="view_all_activity">View all activity</a>
-                        </div>
-                    </div>
-                </li>
-
-                <!-- Profile -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link profile-btn dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <div class="profile-avatar-circle">
-                            @(User.Identity?.Name?.Length > 0 ? User.Identity.Name[0].ToString().ToUpper() : "U")
-                        </div>
-                        <span class="d-none d-lg-inline text-truncate" style="max-width:120px;">
-                            @User.Identity?.Name?.Split('@')[0]
-                        </span>
+        <!-- Profile -->
+        <div class="dropdown">
+            <a class="profile-btn dropdown-toggle text-decoration-none d-flex align-items-center gap-2"
+               href="#" role="button" data-bs-toggle="dropdown" aria-label="User menu" aria-expanded="false">
+                <div class="profile-avatar-circle">
+                    @(User.Identity?.Name?.Length > 0 ? User.Identity.Name[0].ToString().ToUpper() : "U")
+                </div>
+                <span class="d-none d-lg-inline text-truncate" style="max-width:120px; font-size:var(--fs-sm);">
+                    @User.Identity?.Name?.Split('@')[0]
+                </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
+                        <i class="fas fa-user me-2 text-muted" aria-hidden="true"></i><span data-i18n="profile">Profile</span>
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i><span data-i18n="profile">Profile</span></a></li>
-                        <li><hr class="dropdown-divider my-1"></li>
-                        <li>
-                            <form asp-controller="Home" asp-action="LogOut" method="post">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="dropdown-item text-danger">
-                                    <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
+                </li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <form asp-controller="Home" asp-action="LogOut" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="dropdown-item text-danger">
+                            <i class="fas fa-sign-out-alt me-2" aria-hidden="true"></i><span data-i18n="sign_out">Sign Out</span>
+                        </button>
+                    </form>
                 </li>
             </ul>
         </div>
     </div>
-</nav>
+</header>
 
-<main>
+<!-- ═══════════════════════════════════════════════ Main ══════════════════════ -->
+<main class="main-wrapper" id="main-content">
+    @RenderBody()
+</main>
+
+<!-- ═══════════════════════════════════════════════ Toasts ════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
-            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="toast align-items-center border-0 toast-success" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="4500">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    <span>@TempData["Success"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
         </div>
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="toast align-items-center border-0 toast-error" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="6000">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                    <span>@TempData["Error"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
         </div>
     }
-    @RenderBody()
-</main>
+    @if (TempData["Warning"] != null)
+    {
+        <div class="toast align-items-center border-0 toast-warning" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="5000">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                    <span>@TempData["Warning"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+</div>
 
+<!-- ═══════════════════════════════════════════════ Confirm modal ════════════ -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning" aria-hidden="true"></i>
+                </div>
+                <h6 class="fw-semibold mb-2" id="confirmModalLabel">Confirm Action</h6>
+                <p class="text-muted mb-4" id="confirmModalMessage" style="font-size:var(--fs-sm);"></p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
+// Show server-rendered toasts
+document.querySelectorAll('.toast').forEach(function(t) {
+    bootstrap.Toast.getOrCreateInstance(t).show();
+});
+
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
-    const badge = document.getElementById('bellBadge');
+        '<div class="text-center text-muted py-4" style="font-size:var(--fs-sm);"><i class="fas fa-check-circle me-1 text-primary" aria-hidden="true"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+    var badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
 
 (function initThemeLanguageControls() {
-    const root = document.documentElement;
-    const langButtons = {
-        en: document.getElementById('langToggleEn'),
-        ar: document.getElementById('langToggleAr')
+    var root = document.documentElement;
+    var langButtons = { en: document.getElementById('langToggleEn'), ar: document.getElementById('langToggleAr') };
+    var themeButton = document.getElementById('themeToggleBtn');
+    var dict = {
+        en: { support:'Support', notifications:'Notifications', mark_all_read:'Mark all read', view_all_activity:'View all activity', profile:'Profile', sign_out:'Sign Out', all_caught_up:'All caught up!' },
+        ar: { support:'الدعم', notifications:'الإشعارات', mark_all_read:'تعليم الكل كمقروء', view_all_activity:'عرض كل النشاط', profile:'الملف الشخصي', sign_out:'تسجيل الخروج', all_caught_up:'تمت المزامنة!' }
     };
-    const themeButton = document.getElementById('themeToggleBtn');
-
-    const dict = {
-        en: {
-            support: 'Support',
-            notifications: 'Notifications',
-            mark_all_read: 'Mark all read',
-            view_all_activity: 'View all activity',
-            profile: 'Profile',
-            sign_out: 'Sign Out',
-            theme: 'Dark',
-            all_caught_up: 'All caught up!'
-        },
-        ar: {
-            support: 'الدعم',
-            notifications: 'الإشعارات',
-            mark_all_read: 'تعليم الكل كمقروء',
-            view_all_activity: 'عرض كل النشاط',
-            profile: 'الملف الشخصي',
-            sign_out: 'تسجيل الخروج',
-            theme: 'داكن',
-            all_caught_up: 'تمت المزامنة!'
-        }
-    };
-
     function applyLanguage(lang) {
-        root.lang = lang;
-        root.dir = lang === 'ar' ? 'rtl' : 'ltr';
-        root.dataset.lang = lang;
+        root.lang = lang; root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.dataset.lang = lang;
         try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
-
-        document.querySelectorAll('[data-i18n]').forEach(function (node) {
+        document.querySelectorAll('[data-i18n]').forEach(function(node) {
             var key = node.getAttribute('data-i18n');
-            if (dict[lang] && dict[lang][key]) {
-                node.textContent = dict[lang][key];
-            }
+            if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
         });
-
-        Object.keys(langButtons).forEach(function (key) {
-            var btn = langButtons[key];
-            if (!btn) return;
+        Object.keys(langButtons).forEach(function(key) {
+            var btn = langButtons[key]; if (!btn) return;
             btn.classList.toggle('active', key === lang);
             btn.setAttribute('aria-pressed', key === lang ? 'true' : 'false');
         });
     }
-
     function applyTheme(theme) {
         root.dataset.theme = theme;
         try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
         if (themeButton) {
             var icon = themeButton.querySelector('i');
+            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
             var label = document.getElementById('themeToggleLabel');
-            if (icon) {
-                icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
-            }
-            if (label) {
-                var lang = root.dataset.lang || 'en';
-                var labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
-                label.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
-            }
+            if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
             themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     }
-
-    const currentLang = root.dataset.lang || (function () { try { return localStorage.getItem('analytika-lang'); } catch (_) { return null; } })() || 'en';
-    const currentTheme = root.dataset.theme || (function () { try { return localStorage.getItem('analytika-theme'); } catch (_) { return null; } })() || 'light';
-
+    var currentLang  = root.dataset.lang  || 'en';
+    var currentTheme = root.dataset.theme || 'light';
     applyLanguage(currentLang);
     applyTheme(currentTheme);
-
-    Object.keys(langButtons).forEach(function (key) {
-        var btn = langButtons[key];
-        if (!btn) return;
-        btn.addEventListener('click', function () {
-            applyLanguage(key);
-        });
+    Object.keys(langButtons).forEach(function(key) {
+        var btn = langButtons[key]; if (!btn) return;
+        btn.addEventListener('click', function() { applyLanguage(key); });
     });
-
-    if (themeButton) {
-        themeButton.addEventListener('click', function () {
-            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-            applyTheme(next);
-        });
-    }
+    if (themeButton) themeButton.addEventListener('click', function() {
+        applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+    });
 })();
 </script>
 </body>
