@@ -4,9 +4,10 @@ WORKDIR /src
 COPY Analytika/Analytika.csproj ./Analytika/
 RUN dotnet restore ./Analytika/Analytika.csproj
 COPY Analytika/ ./Analytika/
+# Framework-dependent, architecture-portable publish (runs on x64 AND arm64,
+# e.g. Oracle Cloud Always Free A1/Ampere). The aspnet base image supplies the runtime.
 RUN dotnet publish ./Analytika/Analytika.csproj \
     -c Release \
-    -r linux-x64 \
     --no-self-contained \
     -p:DebugType=none \
     -p:DebugSymbols=false \
