@@ -24,3 +24,9 @@ car-poster-proto/.venv/
 car-poster-proto/__pycache__/
 car-poster-proto/.streamlit/secrets.toml
 mobile/node_modules/
+
+# Linux deploy runtime
+deploy/linux/.env
+deploy/linux/data/
+deploy/linux/portal-downloads/
+deploy/linux/reports/

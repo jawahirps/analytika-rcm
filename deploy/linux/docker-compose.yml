@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Analytika RCM — Production stack for a Linux VM (e.g. Oracle Cloud Always Free A1)
+# Background jobs are ON here (nightly DHA/RHA sync + pending downloads).
+# Public access is via Cloudflare Tunnel — no inbound ports are opened.
+#
+#   cp .env.example .env   # then paste your Cloudflare tunnel token
+#   docker compose up -d --build
+#
+# See README.md in this folder for the full Oracle runbook.
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: analytika-rcm:latest
+    container_name: analytika
+    restart: unless-stopped
+    # Bound to localhost only; the public entry point is the cloudflared tunnel.
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:8080"
+      DB_DIR: /app/data
+      # First boot ONLY: set RunDatabaseSetupOnStartup=true once to create the
+      # schema on a fresh DB, then set back to false and recreate. If you copy an
+      # existing analytika.db into ./data, leave all three false.
+      StartupMaintenance__RunDatabaseSetupOnStartup: "false"
+      StartupMaintenance__CreateIndexesOnStartup: "false"
+      StartupMaintenance__SeedDataOnStartup: "false"
+      # Production background jobs ON (this is the difference from the PaaS configs):
+      BackgroundJobs__HangfireServerEnabled: "true"
+      BackgroundJobs__HangfireDashboardEnabled: "false"
+      BackgroundJobs__RecurringJobsEnabled: "true"
+      BackgroundJobs__PendingDownloads__HostedServiceEnabled: "true"
+    volumes:
+      - ./data:/app/data                              # SQLite DB (persisted)
+      - ./portal-downloads:/app/wwwroot/portal-downloads
+      - ./reports:/app/wwwroot/reports
+
+  # Public HTTPS entry point — routes your domain to the app with no open ports.
+  # Create a tunnel in Cloudflare Zero Trust, paste its token in .env, and set the
+  # tunnel's public hostname to service  http://app:8080.
+  # Omit this service if you prefer to expose port 8080 behind your own nginx.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
