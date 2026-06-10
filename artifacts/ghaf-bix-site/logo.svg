@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" role="img" aria-label="Ghaf BIX — Business Intelligence">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#003B4D"/>
+      <stop offset=".55" stop-color="#005A73"/>
+      <stop offset="1" stop-color="#008B8B"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="bix" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#006884"/>
+      <stop offset="1" stop-color="#008B8B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- mark -->
+  <g transform="translate(20,20) scale(0.625)">
+    <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+    <rect width="256" height="128" rx="58" fill="url(#sheen)"/>
+    <circle cx="208" cy="44" r="64" fill="none" stroke="#A7EBF2" stroke-opacity=".18" stroke-width="1.5"/>
+    <g transform="translate(38,36)" fill="none" stroke-linecap="round">
+      <path d="M90 100 C90 72 62 64 34 58"   stroke="#54ACBF" stroke-width="8.5"/>
+      <path d="M90 100 C90 72 118 64 146 58" stroke="#A7EBF2" stroke-width="8.5"/>
+      <path d="M90 100 C90 62 78 42 58 32"   stroke="#A7EBF2" stroke-width="7.5"/>
+      <path d="M90 100 C90 62 102 42 122 32" stroke="#54ACBF" stroke-width="7.5"/>
+      <path d="M90 100 V26" stroke="#ffffff" stroke-width="8"/>
+      <path d="M90 100 V152" stroke="#ffffff" stroke-width="11"/>
+      <path d="M58 162 H122" stroke="#54ACBF" stroke-width="8.5"/>
+      <circle cx="90"  cy="22" r="9.5" fill="#ffffff" stroke="none"/>
+      <circle cx="30"  cy="57" r="8"   fill="#54ACBF" stroke="none"/>
+      <circle cx="150" cy="57" r="8"   fill="#A7EBF2" stroke="none"/>
+      <circle cx="55"  cy="30" r="7"   fill="#A7EBF2" stroke="none"/>
+      <circle cx="125" cy="30" r="7"   fill="#54ACBF" stroke="none"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+    <text x="212" y="106" font-size="64" font-weight="800" letter-spacing="-1.5">
+      <tspan fill="#003B4D">Ghaf</tspan><tspan dx="14" fill="url(#bix)">BIX</tspan>
+    </text>
+    <text x="215" y="142" font-size="17" font-weight="700" letter-spacing="6" fill="#3d5e6c">BUSINESS INTELLIGENCE</text>
+  </g>
+</svg>

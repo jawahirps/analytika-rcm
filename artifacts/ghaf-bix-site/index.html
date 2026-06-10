@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Ghaf BIX — Revenue-Cycle Intelligence as a Service</title>
-<meta name="description" content="Ghaf BIX centralizes DHA & Riayati portal sync, claims intelligence, remittance reconciliation and reporting for healthcare revenue-cycle teams — projected as a multi-tenant SaaS platform." />
+<title>Ghaf BIX — Revenue-Cycle Intelligence for UAE Healthcare</title>
+<meta name="description" content="Ghaf BIX automatically syncs DHA & Riayati portal data, reconciles remittances against claims, and delivers the reports your finance team runs on — across every facility you operate." />
+<link rel="icon" type="image/svg+xml" href="logo-mark.svg" />
 <style>
   :root {
     --navy:#003B4D;
@@ -48,10 +49,7 @@
   }
   .nav-inner { display:flex; align-items:center; justify-content:space-between; height:68px; }
   .logo-mark {
-    width:40px; height:40px; border-radius:12px;
-    background:linear-gradient(135deg, var(--navy), var(--teal));
-    color:#fff; display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:13px; letter-spacing:.08em;
+    width:40px; height:40px; border-radius:12px; display:block;
     box-shadow:0 8px 18px rgba(0,59,77,.22);
   }
   .brand { display:flex; align-items:center; gap:10px; }
@@ -181,13 +179,6 @@
   .phase ul { list-style:none; display:grid; gap:8px; }
   .phase li { font-size:13px; color:var(--muted); padding-left:20px; position:relative; }
   .phase li::before { content:'✓'; position:absolute; left:0; color:var(--teal2); font-weight:800; }
-  .phase.current { border:1.5px solid rgba(0,139,139,.4); }
-  .phase.current::after {
-    content:'TODAY'; position:absolute; top:-10px; right:18px;
-    background:var(--teal2); color:#fff; font-size:9px; font-weight:800; letter-spacing:.14em;
-    padding:4px 10px; border-radius:999px;
-  }
-
   /* ---------- pricing ---------- */
   .price-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; align-items:stretch; }
   @media (max-width:900px){ .price-grid { grid-template-columns:1fr; } }
@@ -208,22 +199,6 @@
     font-size:9px; font-weight:800; letter-spacing:.14em; padding:5px 13px; border-radius:999px;
   }
 
-  /* ---------- projection ---------- */
-  .proj-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:28px; margin-top:42px; align-items:start; }
-  @media (max-width:960px){ .proj-grid { grid-template-columns:1fr; } }
-  .chart-card { padding:24px; }
-  .chart-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px; }
-  .chart-head h3 { color:var(--navy); font-size:15px; }
-  .legend { display:flex; gap:16px; font-size:11px; color:var(--muted); font-weight:600; }
-  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
-  .assump { display:grid; gap:10px; }
-  .assump .row { padding:14px 16px; display:flex; justify-content:space-between; gap:14px; align-items:baseline; }
-  .assump .k { font-size:12.5px; color:var(--muted); font-weight:600; }
-  .assump .v { font-size:14px; color:var(--navy); font-weight:800; white-space:nowrap; }
-  .funnel { display:grid; gap:8px; margin-top:18px; }
-  .funnel .f { border-radius:12px; color:#fff; font-size:12px; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; }
-  .disclaimer { margin-top:22px; font-size:11px; color:#6b8790; }
-
   /* ---------- final cta + footer ---------- */
   .cta-band { background:linear-gradient(135deg, var(--navy), var(--teal)); color:#fff; border-radius:28px; padding:56px 48px; text-align:center; position:relative; overflow:hidden; }
   .cta-band h2 { font-size:clamp(24px,3vw,34px); letter-spacing:-.02em; }
@@ -237,15 +212,14 @@
 <nav>
   <div class="wrap nav-inner">
     <div class="brand">
-      <div class="logo-mark">BIX</div>
-      <div><b>Ghaf BIX</b><small>Business Intelligence eXperience</small></div>
+      <img class="logo-mark" src="logo-mark.svg" alt="Ghaf BIX" />
+      <div><b>Ghaf BIX</b><small>Business Intelligence</small></div>
     </div>
     <div class="nav-links">
       <a href="#product">Product</a>
-      <a href="#architecture">Architecture</a>
-      <a href="#saas">SaaS Roadmap</a>
+      <a href="#architecture">Platform</a>
+      <a href="#start">Getting Started</a>
       <a href="#pricing">Pricing</a>
-      <a href="#projection">Projection</a>
     </div>
     <a class="btn btn-primary btn-sm" href="#cta">Book a demo</a>
   </div>
@@ -355,8 +329,8 @@
 <section id="architecture" class="arch-band">
   <div class="wrap">
     <div class="eyebrow">Under the hood</div>
-    <h2 class="sec">A modular pipeline, engineered to become multi-tenant SaaS.</h2>
-    <p class="sub">The platform is already structured in clean layers — ingestion, processing, intelligence and delivery — registered as composable modules. That same shape maps directly onto a multi-tenant cloud deployment.</p>
+    <h2 class="sec">Engineered for the realities of portal data.</h2>
+    <p class="sub">Portals stall. Downloads get interrupted. Files arrive malformed. Ghaf BIX is built in resilient layers that expect all of it — so your data keeps flowing without anyone babysitting a sync.</p>
 
     <div class="arch-stack">
       <div class="layer">
@@ -370,7 +344,7 @@
       </div>
       <div class="flow-arrow">▼</div>
       <div class="layer">
-        <div class="layer-head"><span class="tag">Layer 2</span><h3>Sync &amp; Ingestion Engine</h3><small>Hangfire background jobs · resumable downloads</small></div>
+        <div class="layer-head"><span class="tag">Layer 2</span><h3>Sync &amp; Ingestion Engine</h3><small>Always-on background engine · resumable downloads</small></div>
         <div class="nodes">
           <span class="node"><b>Nightly recurring sync</b> — 90-day window, 2 AM cron</span>
           <span class="node"><b>Pending-download service</b> — hosted background worker</span>
@@ -380,12 +354,12 @@
       </div>
       <div class="flow-arrow">▼</div>
       <div class="layer">
-        <div class="layer-head"><span class="tag">Layer 3</span><h3>Core Platform</h3><small>ASP.NET Core · modular service registration</small></div>
+        <div class="layer-head"><span class="tag">Layer 3</span><h3>Core Platform</h3><small>Enterprise-grade .NET foundation</small></div>
         <div class="nodes">
-          <span class="node"><b>EF Core data layer</b> — SQLite today, SQL Server/Postgres-ready</span>
-          <span class="node"><b>ASP.NET Identity</b> — roles, sessions, active-user enforcement</span>
-          <span class="node"><b>Module system</b> — services composed via a single registration point</span>
-          <span class="node"><b>Security middleware</b> — CSP, HSTS, frame/robots hardening</span>
+          <span class="node"><b>Structured claims database</b> — every record indexed and queryable</span>
+          <span class="node"><b>Role-based access</b> — per-user facility &amp; report permissions</span>
+          <span class="node"><b>Modular services</b> — sync, parsing and reporting evolve independently</span>
+          <span class="node"><b>Hardened security</b> — strict CSP, HSTS, session enforcement</span>
         </div>
       </div>
       <div class="flow-arrow">▼</div>
@@ -402,60 +376,60 @@
       </div>
       <div class="flow-arrow">▼</div>
       <div class="layer">
-        <div class="layer-head"><span class="tag">Layer 5</span><h3>Delivery &amp; Operations</h3><small>Any device, any deployment model</small></div>
+        <div class="layer-head"><span class="tag">Layer 5</span><h3>Delivery &amp; Operations</h3><small>Any device, your choice of deployment</small></div>
         <div class="nodes">
-          <span class="node"><b>Responsive web app</b> — glassy navy/teal UI</span>
-          <span class="node"><b>Mobile app</b> — React Native companion</span>
-          <span class="node"><b>Docker</b> — volume-backed data, downloads &amp; reports</span>
-          <span class="node"><b>Cloud PaaS</b> — Railway / Render manifests included</span>
-          <span class="node"><b>On-prem service</b> — Windows service + Cloudflare tunnel</span>
+          <span class="node"><b>Responsive web app</b> — works on any modern browser</span>
+          <span class="node"><b>Mobile companion app</b> — facility status on the go</span>
+          <span class="node"><b>Managed cloud</b> — we host, monitor and update it for you</span>
+          <span class="node"><b>On-premise option</b> — runs entirely inside your network</span>
+          <span class="node"><b>Email delivery</b> — scheduled reports &amp; alerts to your inbox</span>
         </div>
       </div>
     </div>
 
-    <p class="arch-note">Because background jobs, recurring syncs and hosted workers are all feature-flagged per environment, the same codebase runs as a single-clinic on-prem install or as a horizontally-scaled cloud deployment — the key enabler for the SaaS model below.</p>
+    <p class="arch-note">Cloud or on-premise, it's the same product with the same nightly sync and the same updates — your IT policy decides where it runs, not what you get.</p>
   </div>
 </section>
 
-<!-- ============ SAAS ROADMAP ============ -->
-<section id="saas">
+<!-- ============ GETTING STARTED ============ -->
+<section id="start">
   <div class="wrap">
-    <div class="eyebrow">SaaS Model Projection</div>
-    <h2 class="sec">From proven deployment to multi-tenant platform.</h2>
-    <p class="sub">Ghaf BIX is live today as a dedicated deployment. The SaaS projection is a three-phase evolution that reuses the existing modular architecture rather than rewriting it.</p>
+    <div class="eyebrow">Getting started</div>
+    <h2 class="sec">Live in days — not an implementation project.</h2>
+    <p class="sub">No HIS integration project, no data migration, no consultants. If your facility has portal credentials, Ghaf BIX can start working.</p>
 
     <div class="phases">
-      <div class="glass phase current">
-        <div class="step">Phase 1</div>
-        <h3>Dedicated Instances</h3>
-        <div class="when">Now → +6 months</div>
+      <div class="glass phase">
+        <div class="step">Step 1</div>
+        <h3>Connect</h3>
+        <div class="when">Day 1</div>
         <ul>
-          <li>One isolated instance per customer group (Docker / on-prem)</li>
-          <li>13 facilities live on a single deployment</li>
-          <li>White-glove onboarding &amp; credential setup</li>
-          <li>Validates pricing, support load &amp; sync reliability</li>
+          <li>Add your facilities and portal credentials</li>
+          <li>We validate every connection with a live test</li>
+          <li>Users &amp; roles set up for your team</li>
+          <li>Nothing to install at the facility</li>
         </ul>
       </div>
       <div class="glass phase">
-        <div class="step">Phase 2</div>
-        <h3>Managed Cloud</h3>
-        <div class="when">Months 6 → 18</div>
+        <div class="step">Step 2</div>
+        <h3>Backfill</h3>
+        <div class="when">First 48 hours</div>
         <ul>
-          <li>Hosted single-tenant pods on Railway/Render-class infra</li>
-          <li>Postgres/SQL Server migration of the EF Core layer</li>
-          <li>Centralized billing, monitoring &amp; automatic updates</li>
-          <li>Self-service facility &amp; credential onboarding</li>
+          <li>Claim &amp; remittance history syncs automatically</li>
+          <li>XML files parsed into structured records</li>
+          <li>Remittances matched against submissions</li>
+          <li>Your dashboard fills with real numbers</li>
         </ul>
       </div>
       <div class="glass phase">
-        <div class="step">Phase 3</div>
-        <h3>Multi-Tenant SaaS</h3>
-        <div class="when">Months 18 → 36</div>
+        <div class="step">Step 3</div>
+        <h3>Operate</h3>
+        <div class="when">Every day after</div>
         <ul>
-          <li>Tenant-scoped data layer &amp; shared sync worker fleet</li>
-          <li>Usage-metered pricing on records &amp; facilities</li>
-          <li>Open API + payer/HIS integrations marketplace</li>
-          <li>Expansion beyond UAE: GCC regulator portals</li>
+          <li>Nightly sync keeps every facility current</li>
+          <li>Reports generated on schedule or on demand</li>
+          <li>Denials &amp; short-pays land in the resubmission queue</li>
+          <li>Your team works the exceptions, not the exports</li>
         </ul>
       </div>
     </div>
@@ -465,9 +439,9 @@
 <!-- ============ PRICING ============ -->
 <section id="pricing" style="padding-top:0;">
   <div class="wrap">
-    <div class="eyebrow">Illustrative pricing</div>
+    <div class="eyebrow">Pricing</div>
     <h2 class="sec">Priced per facility. Scales with your group.</h2>
-    <p class="sub">Subscription pricing modeled on facility count and sync volume — predictable for clinics, economical for groups.</p>
+    <p class="sub">Simple subscription pricing based on facility count — predictable for clinics, economical for groups. Every plan includes onboarding and updates.</p>
 
     <div class="price-grid">
       <div class="glass plan">
@@ -517,39 +491,26 @@
   </div>
 </section>
 
-<!-- ============ PROJECTION ============ -->
-<section id="projection" style="padding-top:0;">
+<!-- ============ OUTCOMES ============ -->
+<section id="outcomes" style="padding-top:0;">
   <div class="wrap">
-    <div class="eyebrow">3-year model</div>
-    <h2 class="sec">The SaaS projection, in numbers.</h2>
-    <p class="sub">An illustrative bottom-up model: facility subscriptions at a blended AED 2,800/month, growing from today's 13 live facilities to a multi-tenant GCC footprint.</p>
-
-    <div class="proj-grid">
-      <div class="glass chart-card">
-        <div class="chart-head">
-          <h3>Projected ARR &amp; live facilities</h3>
-          <div class="legend">
-            <span><i style="background:linear-gradient(135deg,var(--navy),var(--teal));"></i>ARR (AED m)</span>
-            <span><i style="background:var(--sage);"></i>Facilities</span>
-          </div>
-        </div>
-        <svg id="projChart" viewBox="0 0 640 320" width="100%" height="auto" role="img" aria-label="Bar chart of projected annual recurring revenue and facility count over three years"></svg>
-        <div class="funnel">
-          <div class="f" style="background:linear-gradient(90deg,var(--navy),var(--teal));"><span>TAM — UAE private facilities billing insurers</span><span>~4,000 facilities</span></div>
-          <div class="f" style="background:linear-gradient(90deg,var(--teal),var(--teal2)); width:78%;"><span>SAM — multi-claim outpatient &amp; group operators</span><span>~1,200 facilities</span></div>
-          <div class="f" style="background:linear-gradient(90deg,var(--teal2),var(--sage)); width:56%;"><span>SOM (36 mo) — target share</span><span>~250 facilities</span></div>
-        </div>
+    <div class="eyebrow">Why teams switch</div>
+    <h2 class="sec">What changes when the pipeline runs itself.</h2>
+    <div class="feat-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="glass feat">
+        <div class="ico">⏱️</div>
+        <h3>Hours back, every week</h3>
+        <p>No more logging into portals facility by facility, downloading files, and stitching spreadsheets. The data is already in, parsed, and matched when your team starts the day.</p>
       </div>
-
-      <div class="assump">
-        <div class="glass row"><span class="k">Blended price / facility / month</span><span class="v">AED 2,800</span></div>
-        <div class="glass row"><span class="k">Year 1 — dedicated instances</span><span class="v">30 facilities · AED 1.0m ARR</span></div>
-        <div class="glass row"><span class="k">Year 2 — managed cloud</span><span class="v">100 facilities · AED 3.4m ARR</span></div>
-        <div class="glass row"><span class="k">Year 3 — multi-tenant SaaS</span><span class="v">250 facilities · AED 8.4m ARR</span></div>
-        <div class="glass row"><span class="k">Gross margin at scale (cloud pods)</span><span class="v">~78%</span></div>
-        <div class="glass row"><span class="k">Net revenue retention (group expansion)</span><span class="v">115%+</span></div>
-        <div class="glass row"><span class="k">CAC payback (founder-led → partner sales)</span><span class="v">&lt; 9 months</span></div>
-        <div class="disclaimer">Figures are an illustrative planning model for demonstration purposes, not audited forecasts. Blended ARR ≈ facilities × AED 2,800 × 12.</div>
+      <div class="glass feat">
+        <div class="ico">🎯</div>
+        <h3>Nothing slips</h3>
+        <p>Every remittance is checked against every submission automatically. Short-pays and denials surface in the resubmission queue while they're still actionable.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">🗂️</div>
+        <h3>One source of truth</h3>
+        <p>Finance, RCM and facility managers look at the same live numbers — per facility, per payer, per clinician — instead of competing versions of last week's export.</p>
       </div>
     </div>
   </div>
@@ -569,10 +530,10 @@
 <footer>
   <div class="wrap foot">
     <div class="brand">
-      <div class="logo-mark" style="width:32px;height:32px;font-size:10px;">BIX</div>
+      <img class="logo-mark" style="width:32px;height:32px;" src="logo-mark.svg" alt="Ghaf BIX" />
       <div><b style="color:var(--navy);font-size:13px;">Ghaf BIX</b><small>Revenue-cycle intelligence</small></div>
     </div>
-    <div>Demonstration website · SaaS model projection · © 2026 Ghaf Business Intelligence</div>
+    <div>© 2026 Ghaf Bi Solutions. All rights reserved.</div>
   </div>
 </footer>
 
@@ -596,51 +557,6 @@ const io = new IntersectionObserver(entries => {
   });
 }, { threshold:.4 });
 document.querySelectorAll('[data-count]').forEach(el => io.observe(el));
-
-// Projection chart (ARR bars + facility line)
-(() => {
-  const svg = document.getElementById('projChart');
-  const data = [
-    { label:'Today', arr:0.44, fac:13 },
-    { label:'Year 1', arr:1.0,  fac:30 },
-    { label:'Year 2', arr:3.4,  fac:100 },
-    { label:'Year 3', arr:8.4,  fac:250 },
-  ];
-  const W=640, H=320, padL=52, padR=46, padT=24, padB=44;
-  const maxArr=9, maxFac=260;
-  const x = i => padL + i * ((W-padL-padR) / data.length) + ((W-padL-padR)/data.length)/2;
-  const yA = v => H-padB - (v/maxArr)*(H-padT-padB);
-  const yF = v => H-padB - (v/maxFac)*(H-padT-padB);
-  let s = `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#006884"/><stop offset="1" stop-color="#003B4D"/></linearGradient></defs>`;
-  // gridlines + left axis labels (ARR)
-  for (let v=0; v<=maxArr; v+=3) {
-    s += `<line x1="${padL}" x2="${W-padR}" y1="${yA(v)}" y2="${yA(v)}" stroke="rgba(0,104,132,.12)"/>`;
-    s += `<text x="${padL-8}" y="${yA(v)+4}" text-anchor="end" font-size="11" fill="#3d5e6c">${v}m</text>`;
-  }
-  // bars
-  data.forEach((d,i) => {
-    const bw=44, bx=x(i)-bw/2, by=yA(d.arr);
-    s += `<rect x="${bx}" y="${by}" width="${bw}" height="${H-padB-by}" rx="8" fill="url(#g)">
-            <animate attributeName="height" from="0" to="${H-padB-by}" dur="0.9s" fill="freeze"/>
-            <animate attributeName="y" from="${H-padB}" to="${by}" dur="0.9s" fill="freeze"/>
-          </rect>`;
-    s += `<text x="${x(i)}" y="${by-8}" text-anchor="middle" font-size="12" font-weight="700" fill="#003B4D">${d.arr}m</text>`;
-    s += `<text x="${x(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11.5" font-weight="600" fill="#3d5e6c">${d.label}</text>`;
-  });
-  // facility line
-  const pts = data.map((d,i)=>`${x(i)},${yF(d.fac)}`).join(' ');
-  s += `<polyline points="${pts}" fill="none" stroke="#66B2B2" stroke-width="3" stroke-linecap="round" stroke-dasharray="600" stroke-dashoffset="600">
-          <animate attributeName="stroke-dashoffset" from="600" to="0" dur="1.4s" fill="freeze"/>
-        </polyline>`;
-  data.forEach((d,i)=>{
-    s += `<circle cx="${x(i)}" cy="${yF(d.fac)}" r="5" fill="#fff" stroke="#66B2B2" stroke-width="3"/>`;
-    s += `<text x="${x(i)+10}" y="${yF(d.fac)-9}" font-size="11" font-weight="700" fill="#2f6b6b">${d.fac}</text>`;
-  });
-  // right axis label
-  s += `<text x="${W-padR+34}" y="${padT+4}" text-anchor="end" font-size="10" fill="#6b8790">facilities</text>`;
-  svg.innerHTML = s;
-})();
 </script>
 </body>
 </html>

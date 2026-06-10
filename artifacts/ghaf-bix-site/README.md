@@ -1,29 +1,35 @@
 # Ghaf BIX — Demonstration Website
 
-A self-contained, single-file marketing site (`index.html`) presenting **Ghaf BIX**
-(Ghaf Business Intelligence eXperience) as a SaaS offering. No build step, no
-external dependencies — open `index.html` directly in any browser or serve the
-folder statically.
+A self-contained marketing site (`index.html`) for **Ghaf BIX** (Ghaf Business
+Intelligence). No build step — open `index.html` directly in any browser or
+serve the folder statically.
 
-## Sections
+## Logo assets
+
+| File | Use |
+|---|---|
+| `logo-mark.svg` | Square app icon / favicon — Ghaf tree with data-node canopy on a navy→teal tile |
+| `logo.svg` | Horizontal lockup — mark + "Ghaf BIX" wordmark |
+| `logo-mark-512.png` | 512×512 PNG export (app icon, social avatars) |
+| `logo-1440.png` | Wide PNG export of the lockup (docs, decks, email signatures) |
+
+The mark follows the existing in-app login motif (Ghaf tree whose branches are
+data streams ending in data points) and the brand palette (`#003B4D` navy,
+`#006884`/`#008B8B` teal, `#54ACBF`/`#A7EBF2` accents). Drop the SVGs into
+`Analytika/wwwroot/images/` if you want to use them inside the app itself.
+
+## Site sections
 
 1. **Hero** — value proposition with an animated facility-dashboard mock fed by
    real product numbers (13 facilities, 67,523 records, 47,159 files).
-2. **Product** — six feature cards mapped to the actual platform modules:
-   portal sync, XML parsing, reconciliation, reports, resubmission, admin/security.
-3. **Architecture** — the five-layer pipeline behind the product
-   (Data Sources → Sync & Ingestion → Core Platform → Intelligence → Delivery),
-   grounded in the real stack: ASP.NET Core, EF Core, Hangfire, Identity,
-   Docker / Railway / Render / Windows-service deployments.
-4. **SaaS Roadmap** — three-phase evolution: dedicated instances → managed
-   cloud → multi-tenant SaaS.
-5. **Pricing** — illustrative per-facility tiers (Clinic / Group / Enterprise).
-6. **Projection** — animated SVG chart of 3-year ARR & facility growth plus a
-   TAM/SAM/SOM funnel and unit-economics assumptions.
-
-> All commercial figures (pricing, ARR, TAM/SAM/SOM, margins) are **illustrative
-> planning numbers for demonstration purposes only** — adjust them in the
-> `Projection` section data and the pricing cards as the model firms up.
+2. **Product** — six feature cards mapped to the platform modules: portal sync,
+   XML parsing, reconciliation, reports, resubmission, admin/security.
+3. **Platform** — the five-layer pipeline behind the product, framed around
+   reliability (resumable syncs, stall detection) and deployment choice
+   (managed cloud or on-premise).
+4. **Getting Started** — Connect → Backfill → Operate, three steps to live.
+5. **Outcomes** — what changes for the team once the pipeline runs itself.
+6. **Pricing** — per-facility tiers (Clinic / Group / Enterprise).
 
 ## Quick start
 
