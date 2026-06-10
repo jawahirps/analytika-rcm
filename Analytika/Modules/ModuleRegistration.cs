@@ -26,8 +26,13 @@ public static class ModuleRegistration
 
     private static IServiceCollection AddCoreModule(this IServiceCollection services, string dbPath)
     {
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlite($"Data Source={dbPath}"));
+        // Pooled context + tuned SQLite connection (WAL/pragmas via interceptor).
+        // Pooling removes per-request DbContext allocation under load; the context
+        // is options-only so pooling is safe here.
+        services.AddDbContextPool<AppDbContext>(options =>
+            options
+                .UseSqlite($"Data Source={dbPath};Pooling=True;Foreign Keys=True")
+                .AddInterceptors(new SqlitePragmaInterceptor()));
 
         services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         {
@@ -50,6 +55,22 @@ public static class ModuleRegistration
         });
 
         services.AddMemoryCache();
+
+        // Response compression (Brotli + Gzip) — large HTML/JSON/CSS payloads
+        // shrink ~70-80% on the wire, cutting render-start time over slow links.
+        services.AddResponseCompression(o =>
+        {
+            o.EnableForHttps = true;
+            o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+            o.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+            o.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes
+                .Concat(new[] { "application/json", "image/svg+xml" });
+        });
+        services.Configure<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProviderOptions>(
+            o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+        services.Configure<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProviderOptions>(
+            o => o.Level = System.IO.Compression.CompressionLevel.Fastest);
+
         services.AddControllersWithViews();
         services.AddSession(options =>
         {

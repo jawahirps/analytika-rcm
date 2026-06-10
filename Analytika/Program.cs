@@ -47,7 +47,16 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseStaticFiles();
+app.UseResponseCompression();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Static assets are cache-busted via asp-append-version, so they can be
+        // cached aggressively. (HTML responses stay no-store via the security middleware.)
+        ctx.Context.Response.Headers["Cache-Control"] = "public,max-age=31536000,immutable";
+    }
+});
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();

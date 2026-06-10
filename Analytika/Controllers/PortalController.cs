@@ -657,10 +657,33 @@ public class PortalController : Controller
         var total = counts?.Total ?? 0;
         var filesDownloaded = counts?.FilesDownloaded ?? 0;
         const int pageSize = 50;
+        // Project to metadata only — never pull the FileContentXml / RawXml blobs
+        // (megabytes per row) into a listing page that only shows summary columns.
         var items = await query
             .OrderByDescending(t => t.SyncedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(t => new PortalTransaction
+            {
+                Id = t.Id,
+                Portal = t.Portal,
+                FacilityId = t.FacilityId,
+                TransactionId = t.TransactionId,
+                Type = t.Type,
+                Status = t.Status,
+                Direction = t.Direction,
+                FileId = t.FileId,
+                FileName = t.FileName,
+                FileDownloaded = t.FileDownloaded,
+                FileDownloadedAt = t.FileDownloadedAt,
+                TransactionDate = t.TransactionDate,
+                Payer = t.Payer,
+                Amount = t.Amount,
+                Operation = t.Operation,
+                SyncPeriod = t.SyncPeriod,
+                SyncedAt = t.SyncedAt,
+                Facility = t.Facility == null ? null : new Facility { Id = t.Facility.Id, Name = t.Facility.Name }
+            })
             .ToListAsync();
 
         var vm = new SyncedDataViewModel
