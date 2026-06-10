@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ghaf BIX — Revenue-Cycle Intelligence as a Service</title>
+<meta name="description" content="Ghaf BIX centralizes DHA & Riayati portal sync, claims intelligence, remittance reconciliation and reporting for healthcare revenue-cycle teams — projected as a multi-tenant SaaS platform." />
+<style>
+  :root {
+    --navy:#003B4D;
+    --navy-deep:#022530;
+    --teal:#006884;
+    --teal2:#008B8B;
+    --ice:#C6E2E9;
+    --soft:#F7F9F9;
+    --sage:#66B2B2;
+    --text:#16313c;
+    --muted:#3d5e6c;
+    --gold:#D9A441;
+    --radius:22px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html { scroll-behavior:smooth; }
+  body {
+    font-family: Inter, "Segoe UI", Arial, sans-serif;
+    color:var(--text);
+    background: linear-gradient(150deg, #f7f9f9 0%, #eaf6f8 45%, #f2f8f9 100%);
+    line-height:1.6;
+  }
+  img { max-width:100%; }
+  a { color:var(--teal); text-decoration:none; }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 24px; }
+  section { padding:88px 0; }
+  h2.sec { font-size:clamp(26px,3.4vw,38px); color:var(--navy); letter-spacing:-.02em; line-height:1.12; }
+  p.sub { color:var(--muted); max-width:680px; margin-top:12px; font-size:16px; }
+  .eyebrow {
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:11px; font-weight:800; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--teal2); margin-bottom:14px;
+  }
+  .eyebrow::before { content:''; width:26px; height:2px; background:var(--teal2); border-radius:2px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    position:sticky; top:0; z-index:50;
+    background:rgba(247,249,249,.82); backdrop-filter:blur(18px) saturate(170%);
+    border-bottom:1px solid rgba(198,226,233,.7);
+  }
+  .nav-inner { display:flex; align-items:center; justify-content:space-between; height:68px; }
+  .logo-mark {
+    width:40px; height:40px; border-radius:12px;
+    background:linear-gradient(135deg, var(--navy), var(--teal));
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:13px; letter-spacing:.08em;
+    box-shadow:0 8px 18px rgba(0,59,77,.22);
+  }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .brand b { color:var(--navy); font-size:16px; }
+  .brand small { display:block; font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--teal2); font-weight:700; }
+  .nav-links { display:flex; gap:26px; font-size:13.5px; font-weight:600; }
+  .nav-links a { color:var(--muted); }
+  .nav-links a:hover { color:var(--navy); }
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    border-radius:999px; padding:12px 22px; font-weight:700; font-size:14px;
+    border:1px solid transparent; cursor:pointer; transition:.2s;
+  }
+  .btn-primary { background:linear-gradient(135deg, var(--navy), var(--teal)); color:#fff; box-shadow:0 12px 26px rgba(0,59,77,.24); }
+  .btn-primary:hover { transform:translateY(-2px); box-shadow:0 16px 32px rgba(0,59,77,.3); }
+  .btn-ghost { background:rgba(255,255,255,.7); border-color:rgba(0,104,132,.25); color:var(--navy); }
+  .btn-ghost:hover { background:#fff; }
+  .btn-sm { padding:9px 18px; font-size:13px; }
+  @media (max-width:860px){ .nav-links { display:none; } }
+
+  /* ---------- hero ---------- */
+  .hero { padding:84px 0 70px; position:relative; overflow:hidden; }
+  .hero-grid { display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center; }
+  @media (max-width:960px){ .hero-grid { grid-template-columns:1fr; } }
+  .hero h1 { font-size:clamp(34px,4.6vw,54px); line-height:1.07; letter-spacing:-.025em; color:var(--navy); }
+  .hero h1 span { background:linear-gradient(120deg, var(--teal), var(--teal2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .hero p.lead { margin-top:18px; font-size:17px; color:var(--muted); max-width:540px; }
+  .hero-ctas { display:flex; gap:14px; margin-top:28px; flex-wrap:wrap; }
+  .trustline { margin-top:30px; font-size:12px; color:#6b8790; letter-spacing:.04em; }
+  .pills { display:flex; flex-wrap:wrap; gap:8px; margin-top:22px; }
+  .pill {
+    border-radius:999px; padding:7px 13px; font-size:11.5px; font-weight:700;
+    background:rgba(255,255,255,.75); border:1px solid rgba(198,226,233,.9); color:var(--navy);
+  }
+  .orb { position:absolute; border-radius:50%; filter:blur(2px); pointer-events:none; }
+  .orb.o1 { width:340px; height:340px; border:1px solid rgba(0,104,132,.14); right:-90px; top:-70px; }
+  .orb.o2 { width:520px; height:520px; border:1px solid rgba(0,139,139,.1); right:-180px; top:-160px; }
+
+  /* hero dashboard mock */
+  .glass {
+    background:rgba(255,255,255,.74);
+    border:1px solid rgba(198,226,233,.85);
+    border-radius:var(--radius);
+    box-shadow:0 18px 44px rgba(0,59,77,.12);
+    backdrop-filter:blur(18px) saturate(170%);
+  }
+  .mock { padding:18px; }
+  .mock-bar { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--ice); }
+  .dot.g { background:var(--sage); }
+  .mock-title { margin-left:8px; font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--teal); }
+  .stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .stat {
+    background:#fff; border:1px solid rgba(198,226,233,.9); border-radius:16px; padding:14px;
+  }
+  .stat .n { font-size:24px; font-weight:800; color:var(--navy); }
+  .stat .l { font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-top:3px; }
+  .fac { background:#fff; border:1px solid rgba(198,226,233,.9); border-radius:16px; padding:13px; margin-top:10px; }
+  .fac .top { display:flex; justify-content:space-between; align-items:center; }
+  .fac .name { font-weight:800; font-size:13px; color:var(--navy); }
+  .badge { font-size:9px; font-weight:800; padding:3px 9px; border-radius:999px; background:rgba(102,178,178,.18); color:var(--teal); border:1px solid rgba(0,139,139,.18); }
+  .bar { height:6px; border-radius:999px; background:#dceef2; overflow:hidden; margin-top:10px; }
+  .bar span { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg, var(--teal2), #78C2C2); animation:grow 1.6s ease both; }
+  @keyframes grow { from { width:0 !important; } }
+  .fac .meta { font-size:10.5px; color:var(--muted); margin-top:8px; display:flex; justify-content:space-between; }
+  .sync-chip {
+    display:inline-flex; align-items:center; gap:7px; margin-top:14px;
+    font-size:11px; font-weight:700; color:var(--teal);
+    background:rgba(0,139,139,.08); border:1px solid rgba(0,139,139,.18);
+    border-radius:999px; padding:7px 13px;
+  }
+  .pulse { width:8px; height:8px; border-radius:50%; background:var(--teal2); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(0,139,139,.45);} 70%{box-shadow:0 0 0 9px rgba(0,139,139,0);} 100%{box-shadow:0 0 0 0 rgba(0,139,139,0);} }
+
+  /* ---------- metrics strip ---------- */
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:54px; }
+  @media (max-width:860px){ .metrics { grid-template-columns:repeat(2,1fr); } }
+  .metric { text-align:center; padding:22px 12px; }
+  .metric .n { font-size:30px; font-weight:800; color:var(--teal); }
+  .metric .l { font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-top:4px; }
+
+  /* ---------- features ---------- */
+  .feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; }
+  @media (max-width:960px){ .feat-grid { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:640px){ .feat-grid { grid-template-columns:1fr; } }
+  .feat { padding:24px; transition:.25s; }
+  .feat:hover { transform:translateY(-4px); box-shadow:0 24px 48px rgba(0,59,77,.16); }
+  .feat .ico {
+    width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg, rgba(0,59,77,.08), rgba(0,139,139,.14));
+    border:1px solid rgba(0,139,139,.18); font-size:20px; margin-bottom:14px;
+  }
+  .feat h3 { font-size:16px; color:var(--navy); margin-bottom:6px; }
+  .feat p { font-size:13px; color:var(--muted); }
+
+  /* ---------- architecture ---------- */
+  .arch-band { background:linear-gradient(135deg, var(--navy-deep), var(--navy) 55%, var(--teal)); color:#fff; position:relative; overflow:hidden; }
+  .arch-band .eyebrow { color:var(--ice); } .arch-band .eyebrow::before { background:var(--ice); }
+  .arch-band h2.sec { color:#fff; }
+  .arch-band p.sub { color:rgba(255,255,255,.78); }
+  .arch-stack { display:grid; gap:14px; margin-top:44px; }
+  .layer {
+    border-radius:18px; padding:18px 22px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(198,226,233,.22);
+    backdrop-filter:blur(10px);
+  }
+  .layer-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  .layer-head .tag { font-size:9.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--ice); background:rgba(198,226,233,.14); border:1px solid rgba(198,226,233,.25); padding:4px 10px; border-radius:999px; }
+  .layer-head h3 { font-size:16px; }
+  .layer-head small { color:rgba(255,255,255,.6); font-size:12px; }
+  .nodes { display:flex; flex-wrap:wrap; gap:8px; }
+  .node {
+    font-size:12px; font-weight:600; padding:8px 13px; border-radius:12px;
+    background:rgba(255,255,255,.1); border:1px solid rgba(198,226,233,.2);
+  }
+  .node b { color:var(--ice); }
+  .flow-arrow { text-align:center; color:rgba(198,226,233,.55); font-size:18px; line-height:1; margin:-4px 0; }
+  .arch-note { margin-top:26px; font-size:13px; color:rgba(255,255,255,.72); border-left:3px solid var(--teal2); padding-left:14px; max-width:760px; }
+
+  /* ---------- saas roadmap ---------- */
+  .phases { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; }
+  @media (max-width:900px){ .phases { grid-template-columns:1fr; } }
+  .phase { padding:26px; position:relative; }
+  .phase .step { font-size:11px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; color:var(--teal2); }
+  .phase h3 { color:var(--navy); margin:8px 0 4px; font-size:18px; }
+  .phase .when { font-size:12px; color:var(--gold); font-weight:700; margin-bottom:12px; }
+  .phase ul { list-style:none; display:grid; gap:8px; }
+  .phase li { font-size:13px; color:var(--muted); padding-left:20px; position:relative; }
+  .phase li::before { content:'✓'; position:absolute; left:0; color:var(--teal2); font-weight:800; }
+  .phase.current { border:1.5px solid rgba(0,139,139,.4); }
+  .phase.current::after {
+    content:'TODAY'; position:absolute; top:-10px; right:18px;
+    background:var(--teal2); color:#fff; font-size:9px; font-weight:800; letter-spacing:.14em;
+    padding:4px 10px; border-radius:999px;
+  }
+
+  /* ---------- pricing ---------- */
+  .price-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:42px; align-items:stretch; }
+  @media (max-width:900px){ .price-grid { grid-template-columns:1fr; } }
+  .plan { padding:28px; display:flex; flex-direction:column; }
+  .plan h3 { color:var(--navy); font-size:17px; }
+  .plan .for { font-size:12px; color:var(--muted); margin-top:2px; min-height:34px; }
+  .plan .price { margin:18px 0 4px; font-size:34px; font-weight:800; color:var(--navy); }
+  .plan .price small { font-size:13px; color:var(--muted); font-weight:600; }
+  .plan .per { font-size:11px; color:var(--muted); margin-bottom:18px; }
+  .plan ul { list-style:none; display:grid; gap:9px; margin-bottom:24px; }
+  .plan li { font-size:13px; color:var(--muted); padding-left:20px; position:relative; }
+  .plan li::before { content:'✓'; position:absolute; left:0; color:var(--teal2); font-weight:800; }
+  .plan .btn { margin-top:auto; justify-content:center; }
+  .plan.hot { border:1.5px solid rgba(0,139,139,.45); position:relative; transform:scale(1.02); }
+  .plan.hot::after {
+    content:'MOST POPULAR'; position:absolute; top:-11px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(135deg, var(--navy), var(--teal)); color:#fff;
+    font-size:9px; font-weight:800; letter-spacing:.14em; padding:5px 13px; border-radius:999px;
+  }
+
+  /* ---------- projection ---------- */
+  .proj-grid { display:grid; grid-template-columns:1.15fr .85fr; gap:28px; margin-top:42px; align-items:start; }
+  @media (max-width:960px){ .proj-grid { grid-template-columns:1fr; } }
+  .chart-card { padding:24px; }
+  .chart-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:8px; }
+  .chart-head h3 { color:var(--navy); font-size:15px; }
+  .legend { display:flex; gap:16px; font-size:11px; color:var(--muted); font-weight:600; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .assump { display:grid; gap:10px; }
+  .assump .row { padding:14px 16px; display:flex; justify-content:space-between; gap:14px; align-items:baseline; }
+  .assump .k { font-size:12.5px; color:var(--muted); font-weight:600; }
+  .assump .v { font-size:14px; color:var(--navy); font-weight:800; white-space:nowrap; }
+  .funnel { display:grid; gap:8px; margin-top:18px; }
+  .funnel .f { border-radius:12px; color:#fff; font-size:12px; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; }
+  .disclaimer { margin-top:22px; font-size:11px; color:#6b8790; }
+
+  /* ---------- final cta + footer ---------- */
+  .cta-band { background:linear-gradient(135deg, var(--navy), var(--teal)); color:#fff; border-radius:28px; padding:56px 48px; text-align:center; position:relative; overflow:hidden; }
+  .cta-band h2 { font-size:clamp(24px,3vw,34px); letter-spacing:-.02em; }
+  .cta-band p { color:rgba(255,255,255,.82); margin:12px auto 26px; max-width:560px; font-size:15px; }
+  footer { padding:38px 0 46px; color:#6b8790; font-size:12.5px; }
+  .foot { display:flex; justify-content:space-between; gap:18px; flex-wrap:wrap; align-items:center; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <div class="brand">
+      <div class="logo-mark">BIX</div>
+      <div><b>Ghaf BIX</b><small>Business Intelligence eXperience</small></div>
+    </div>
+    <div class="nav-links">
+      <a href="#product">Product</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#saas">SaaS Roadmap</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#projection">Projection</a>
+    </div>
+    <a class="btn btn-primary btn-sm" href="#cta">Book a demo</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="orb o1"></div><div class="orb o2"></div>
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow">Revenue-Cycle Intelligence · UAE Healthcare</div>
+      <h1>Every claim, every remittance, every facility — <span>one intelligent workspace.</span></h1>
+      <p class="lead">Ghaf BIX automatically syncs DHA &amp; Riayati portal data, parses submission and remittance XML, reconciles payments, and turns it all into reports your finance team actually uses — across every facility you operate.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#cta">Book a live demo</a>
+        <a class="btn btn-ghost" href="#architecture">Explore the architecture</a>
+      </div>
+      <div class="pills">
+        <span class="pill">⛅ Cloud or on-premise</span>
+        <span class="pill">🔄 24/7 background sync</span>
+        <span class="pill">🏥 Multi-facility</span>
+        <span class="pill">📱 Mobile-ready</span>
+      </div>
+      <div class="trustline">Built for RCM teams, claims analysts, finance controllers and facility operators.</div>
+    </div>
+
+    <div class="glass mock" aria-label="Product dashboard preview">
+      <div class="mock-bar">
+        <span class="dot g"></span><span class="dot"></span><span class="dot"></span>
+        <span class="mock-title">Facility Dashboard — live</span>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="n" data-count="13">0</div><div class="l">Facilities connected</div></div>
+        <div class="stat"><div class="n" data-count="67523">0</div><div class="l">Records synced</div></div>
+        <div class="stat"><div class="n" data-count="47159">0</div><div class="l">Files downloaded</div></div>
+      </div>
+      <div class="fac">
+        <div class="top"><span class="name">Alnoor Deira</span><span class="badge">Connected</span></div>
+        <div class="bar"><span style="width:52%"></span></div>
+        <div class="meta"><span>75,286 claims · 15,636 files</span><span>Last sync 02:03</span></div>
+      </div>
+      <div class="fac">
+        <div class="top"><span class="name">Apollo Medical Center</span><span class="badge">Connected</span></div>
+        <div class="bar"><span style="width:86%"></span></div>
+        <div class="meta"><span>12,027 claims · 15,843 files</span><span>Last sync 02:03</span></div>
+      </div>
+      <div class="fac">
+        <div class="top"><span class="name">San Lucas MC</span><span class="badge">Connected</span></div>
+        <div class="bar"><span style="width:98%"></span></div>
+        <div class="meta"><span>660 claims · 807 files</span><span>Last sync 09:45</span></div>
+      </div>
+      <span class="sync-chip"><span class="pulse"></span> Nightly DHA sync running — 90-day window, all active credentials</span>
+    </div>
+  </div>
+
+  <div class="wrap metrics">
+    <div class="glass metric"><div class="n" data-count="13">0</div><div class="l">Live facilities</div></div>
+    <div class="glass metric"><div class="n" data-count="120000" data-suffix="+">0</div><div class="l">Claims processed</div></div>
+    <div class="glass metric"><div class="n" data-count="47159">0</div><div class="l">Portal files automated</div></div>
+    <div class="glass metric"><div class="n">2 AM</div><div class="l">Daily sync, zero clicks</div></div>
+  </div>
+</header>
+
+<!-- ============ PROBLEM / SOLUTION ============ -->
+<section id="product">
+  <div class="wrap">
+    <div class="eyebrow">Why Ghaf BIX</div>
+    <h2 class="sec">RCM teams lose revenue in the gap between portals and spreadsheets.</h2>
+    <p class="sub">Claims live in the DHA portal. Remittances arrive as XML. Reconciliation happens in Excel — late, manual, and per-facility. Ghaf BIX closes that gap with one automated pipeline from portal to report.</p>
+
+    <div class="feat-grid">
+      <div class="glass feat">
+        <div class="ico">🔄</div>
+        <h3>Autonomous Portal Sync</h3>
+        <p>Credential-managed DHA &amp; Riayati sync with resumable, stall-hardened downloads. Interrupted at record #12,226? It picks up exactly there — no re-runs, no gaps.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">🧩</div>
+        <h3>XML Parsing Workbench</h3>
+        <p>Submission and remittance-advice XML parsed into structured claims, activities and payment rows — with match counters for sub files, RA rows, and open references.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">⚖️</div>
+        <h3>Remittance Reconciliation</h3>
+        <p>Automatic matching of remittance lines to submitted claims surfaces underpayments, denials and unmatched references before they age out of the resubmission window.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">📊</div>
+        <h3>Claim Summary &amp; Advanced Reports</h3>
+        <p>Scheduled or on-demand reports filtered by facility, payer, clinician, department and encounter dates — generated in the background, downloadable when ready.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">♻️</div>
+        <h3>Resubmission Workflow</h3>
+        <p>Denied and short-paid claims flow into a dedicated resubmission queue, so recoverable revenue gets actioned instead of forgotten.</p>
+      </div>
+      <div class="glass feat">
+        <div class="ico">🛡️</div>
+        <h3>Admin, Audit &amp; Validation</h3>
+        <p>Role-based access, user lifecycle controls, portal data validation, email alerting, and database tooling — hardened with strict CSP and security headers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="architecture" class="arch-band">
+  <div class="wrap">
+    <div class="eyebrow">Under the hood</div>
+    <h2 class="sec">A modular pipeline, engineered to become multi-tenant SaaS.</h2>
+    <p class="sub">The platform is already structured in clean layers — ingestion, processing, intelligence and delivery — registered as composable modules. That same shape maps directly onto a multi-tenant cloud deployment.</p>
+
+    <div class="arch-stack">
+      <div class="layer">
+        <div class="layer-head"><span class="tag">Layer 1</span><h3>Data Sources</h3><small>Regulator &amp; payer portals</small></div>
+        <div class="nodes">
+          <span class="node"><b>DHA Portal</b> — claims &amp; remittance transactions</span>
+          <span class="node"><b>Riayati / RHA Portal</b> — national platform sync</span>
+          <span class="node"><b>XML files</b> — submissions &amp; remittance advice</span>
+          <span class="node"><b>Facility credentials</b> — vaulted per facility</span>
+        </div>
+      </div>
+      <div class="flow-arrow">▼</div>
+      <div class="layer">
+        <div class="layer-head"><span class="tag">Layer 2</span><h3>Sync &amp; Ingestion Engine</h3><small>Hangfire background jobs · resumable downloads</small></div>
+        <div class="nodes">
+          <span class="node"><b>Nightly recurring sync</b> — 90-day window, 2 AM cron</span>
+          <span class="node"><b>Pending-download service</b> — hosted background worker</span>
+          <span class="node"><b>Stall detection &amp; resume</b> — checkpointed progress</span>
+          <span class="node"><b>Live sync state</b> — real-time progress to the UI</span>
+        </div>
+      </div>
+      <div class="flow-arrow">▼</div>
+      <div class="layer">
+        <div class="layer-head"><span class="tag">Layer 3</span><h3>Core Platform</h3><small>ASP.NET Core · modular service registration</small></div>
+        <div class="nodes">
+          <span class="node"><b>EF Core data layer</b> — SQLite today, SQL Server/Postgres-ready</span>
+          <span class="node"><b>ASP.NET Identity</b> — roles, sessions, active-user enforcement</span>
+          <span class="node"><b>Module system</b> — services composed via a single registration point</span>
+          <span class="node"><b>Security middleware</b> — CSP, HSTS, frame/robots hardening</span>
+        </div>
+      </div>
+      <div class="flow-arrow">▼</div>
+      <div class="layer">
+        <div class="layer-head"><span class="tag">Layer 4</span><h3>Intelligence Services</h3><small>Where raw files become revenue insight</small></div>
+        <div class="nodes">
+          <span class="node"><b>XML Parsing Service</b></span>
+          <span class="node"><b>Remittance Parser</b></span>
+          <span class="node"><b>Reconciliation Service</b></span>
+          <span class="node"><b>Report Generation</b> — stateful, background</span>
+          <span class="node"><b>Dashboard Service</b> — facility health &amp; KPIs</span>
+          <span class="node"><b>Email Service</b> — alerts &amp; deliveries</span>
+        </div>
+      </div>
+      <div class="flow-arrow">▼</div>
+      <div class="layer">
+        <div class="layer-head"><span class="tag">Layer 5</span><h3>Delivery &amp; Operations</h3><small>Any device, any deployment model</small></div>
+        <div class="nodes">
+          <span class="node"><b>Responsive web app</b> — glassy navy/teal UI</span>
+          <span class="node"><b>Mobile app</b> — React Native companion</span>
+          <span class="node"><b>Docker</b> — volume-backed data, downloads &amp; reports</span>
+          <span class="node"><b>Cloud PaaS</b> — Railway / Render manifests included</span>
+          <span class="node"><b>On-prem service</b> — Windows service + Cloudflare tunnel</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="arch-note">Because background jobs, recurring syncs and hosted workers are all feature-flagged per environment, the same codebase runs as a single-clinic on-prem install or as a horizontally-scaled cloud deployment — the key enabler for the SaaS model below.</p>
+  </div>
+</section>
+
+<!-- ============ SAAS ROADMAP ============ -->
+<section id="saas">
+  <div class="wrap">
+    <div class="eyebrow">SaaS Model Projection</div>
+    <h2 class="sec">From proven deployment to multi-tenant platform.</h2>
+    <p class="sub">Ghaf BIX is live today as a dedicated deployment. The SaaS projection is a three-phase evolution that reuses the existing modular architecture rather than rewriting it.</p>
+
+    <div class="phases">
+      <div class="glass phase current">
+        <div class="step">Phase 1</div>
+        <h3>Dedicated Instances</h3>
+        <div class="when">Now → +6 months</div>
+        <ul>
+          <li>One isolated instance per customer group (Docker / on-prem)</li>
+          <li>13 facilities live on a single deployment</li>
+          <li>White-glove onboarding &amp; credential setup</li>
+          <li>Validates pricing, support load &amp; sync reliability</li>
+        </ul>
+      </div>
+      <div class="glass phase">
+        <div class="step">Phase 2</div>
+        <h3>Managed Cloud</h3>
+        <div class="when">Months 6 → 18</div>
+        <ul>
+          <li>Hosted single-tenant pods on Railway/Render-class infra</li>
+          <li>Postgres/SQL Server migration of the EF Core layer</li>
+          <li>Centralized billing, monitoring &amp; automatic updates</li>
+          <li>Self-service facility &amp; credential onboarding</li>
+        </ul>
+      </div>
+      <div class="glass phase">
+        <div class="step">Phase 3</div>
+        <h3>Multi-Tenant SaaS</h3>
+        <div class="when">Months 18 → 36</div>
+        <ul>
+          <li>Tenant-scoped data layer &amp; shared sync worker fleet</li>
+          <li>Usage-metered pricing on records &amp; facilities</li>
+          <li>Open API + payer/HIS integrations marketplace</li>
+          <li>Expansion beyond UAE: GCC regulator portals</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing" style="padding-top:0;">
+  <div class="wrap">
+    <div class="eyebrow">Illustrative pricing</div>
+    <h2 class="sec">Priced per facility. Scales with your group.</h2>
+    <p class="sub">Subscription pricing modeled on facility count and sync volume — predictable for clinics, economical for groups.</p>
+
+    <div class="price-grid">
+      <div class="glass plan">
+        <h3>Clinic</h3>
+        <div class="for">Single facility getting off spreadsheets</div>
+        <div class="price">AED 1,500<small>/mo</small></div>
+        <div class="per">per facility · billed annually</div>
+        <ul>
+          <li>1 facility, 5 users</li>
+          <li>DHA portal sync (nightly)</li>
+          <li>Claim summary reports</li>
+          <li>XML parsing workbench</li>
+          <li>Email support</li>
+        </ul>
+        <a class="btn btn-ghost" href="#cta">Start with Clinic</a>
+      </div>
+      <div class="glass plan hot">
+        <h3>Group</h3>
+        <div class="for">Multi-facility operators &amp; RCM teams</div>
+        <div class="price">AED 3,500<small>/mo</small></div>
+        <div class="per">per facility · volume discounts from 5+ facilities</div>
+        <ul>
+          <li>Unlimited users, role-based access</li>
+          <li>DHA + Riayati sync &amp; validation</li>
+          <li>Remittance reconciliation &amp; resubmission queue</li>
+          <li>Advanced reports &amp; scheduler</li>
+          <li>Mobile app access</li>
+          <li>Priority support, 99.5% uptime target</li>
+        </ul>
+        <a class="btn btn-primary" href="#cta">Book a Group demo</a>
+      </div>
+      <div class="glass plan">
+        <h3>Enterprise</h3>
+        <div class="for">Hospital networks &amp; outsourced RCM providers</div>
+        <div class="price">Custom</div>
+        <div class="per">platform license + per-facility metering</div>
+        <ul>
+          <li>Dedicated or on-prem deployment</li>
+          <li>Custom integrations (HIS, payers, API)</li>
+          <li>Data residency &amp; compliance reviews</li>
+          <li>SLA-backed support &amp; onboarding team</li>
+          <li>Multi-entity consolidated reporting</li>
+        </ul>
+        <a class="btn btn-ghost" href="#cta">Talk to sales</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROJECTION ============ -->
+<section id="projection" style="padding-top:0;">
+  <div class="wrap">
+    <div class="eyebrow">3-year model</div>
+    <h2 class="sec">The SaaS projection, in numbers.</h2>
+    <p class="sub">An illustrative bottom-up model: facility subscriptions at a blended AED 2,800/month, growing from today's 13 live facilities to a multi-tenant GCC footprint.</p>
+
+    <div class="proj-grid">
+      <div class="glass chart-card">
+        <div class="chart-head">
+          <h3>Projected ARR &amp; live facilities</h3>
+          <div class="legend">
+            <span><i style="background:linear-gradient(135deg,var(--navy),var(--teal));"></i>ARR (AED m)</span>
+            <span><i style="background:var(--sage);"></i>Facilities</span>
+          </div>
+        </div>
+        <svg id="projChart" viewBox="0 0 640 320" width="100%" height="auto" role="img" aria-label="Bar chart of projected annual recurring revenue and facility count over three years"></svg>
+        <div class="funnel">
+          <div class="f" style="background:linear-gradient(90deg,var(--navy),var(--teal));"><span>TAM — UAE private facilities billing insurers</span><span>~4,000 facilities</span></div>
+          <div class="f" style="background:linear-gradient(90deg,var(--teal),var(--teal2)); width:78%;"><span>SAM — multi-claim outpatient &amp; group operators</span><span>~1,200 facilities</span></div>
+          <div class="f" style="background:linear-gradient(90deg,var(--teal2),var(--sage)); width:56%;"><span>SOM (36 mo) — target share</span><span>~250 facilities</span></div>
+        </div>
+      </div>
+
+      <div class="assump">
+        <div class="glass row"><span class="k">Blended price / facility / month</span><span class="v">AED 2,800</span></div>
+        <div class="glass row"><span class="k">Year 1 — dedicated instances</span><span class="v">30 facilities · AED 1.0m ARR</span></div>
+        <div class="glass row"><span class="k">Year 2 — managed cloud</span><span class="v">100 facilities · AED 3.4m ARR</span></div>
+        <div class="glass row"><span class="k">Year 3 — multi-tenant SaaS</span><span class="v">250 facilities · AED 8.4m ARR</span></div>
+        <div class="glass row"><span class="k">Gross margin at scale (cloud pods)</span><span class="v">~78%</span></div>
+        <div class="glass row"><span class="k">Net revenue retention (group expansion)</span><span class="v">115%+</span></div>
+        <div class="glass row"><span class="k">CAC payback (founder-led → partner sales)</span><span class="v">&lt; 9 months</span></div>
+        <div class="disclaimer">Figures are an illustrative planning model for demonstration purposes, not audited forecasts. Blended ARR ≈ facilities × AED 2,800 × 12.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section id="cta" style="padding-top:0;">
+  <div class="wrap">
+    <div class="cta-band">
+      <h2>See your facilities in Ghaf BIX — with your own portal data.</h2>
+      <p>We'll connect a sandbox facility, run a live sync, and walk your team through claims, reconciliation and reporting in a 30-minute session.</p>
+      <a class="btn btn-ghost" style="background:#fff; color:var(--navy); border:none;" href="mailto:hello@ghafbix.example?subject=Ghaf%20BIX%20demo%20request">Request a demo →</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div class="brand">
+      <div class="logo-mark" style="width:32px;height:32px;font-size:10px;">BIX</div>
+      <div><b style="color:var(--navy);font-size:13px;">Ghaf BIX</b><small>Revenue-cycle intelligence</small></div>
+    </div>
+    <div>Demonstration website · SaaS model projection · © 2026 Ghaf Business Intelligence</div>
+  </div>
+</footer>
+
+<script>
+// Animated counters
+const fmt = n => n.toLocaleString('en-US');
+const animate = el => {
+  const target = +el.dataset.count, suffix = el.dataset.suffix || '';
+  const dur = 1400, t0 = performance.now();
+  const tick = t => {
+    const p = Math.min((t - t0) / dur, 1);
+    el.textContent = fmt(Math.round(target * (1 - Math.pow(1 - p, 3)))) + suffix;
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+};
+const seen = new WeakSet();
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !seen.has(e.target)) { seen.add(e.target); animate(e.target); }
+  });
+}, { threshold:.4 });
+document.querySelectorAll('[data-count]').forEach(el => io.observe(el));
+
+// Projection chart (ARR bars + facility line)
+(() => {
+  const svg = document.getElementById('projChart');
+  const data = [
+    { label:'Today', arr:0.44, fac:13 },
+    { label:'Year 1', arr:1.0,  fac:30 },
+    { label:'Year 2', arr:3.4,  fac:100 },
+    { label:'Year 3', arr:8.4,  fac:250 },
+  ];
+  const W=640, H=320, padL=52, padR=46, padT=24, padB=44;
+  const maxArr=9, maxFac=260;
+  const x = i => padL + i * ((W-padL-padR) / data.length) + ((W-padL-padR)/data.length)/2;
+  const yA = v => H-padB - (v/maxArr)*(H-padT-padB);
+  const yF = v => H-padB - (v/maxFac)*(H-padT-padB);
+  let s = `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#006884"/><stop offset="1" stop-color="#003B4D"/></linearGradient></defs>`;
+  // gridlines + left axis labels (ARR)
+  for (let v=0; v<=maxArr; v+=3) {
+    s += `<line x1="${padL}" x2="${W-padR}" y1="${yA(v)}" y2="${yA(v)}" stroke="rgba(0,104,132,.12)"/>`;
+    s += `<text x="${padL-8}" y="${yA(v)+4}" text-anchor="end" font-size="11" fill="#3d5e6c">${v}m</text>`;
+  }
+  // bars
+  data.forEach((d,i) => {
+    const bw=44, bx=x(i)-bw/2, by=yA(d.arr);
+    s += `<rect x="${bx}" y="${by}" width="${bw}" height="${H-padB-by}" rx="8" fill="url(#g)">
+            <animate attributeName="height" from="0" to="${H-padB-by}" dur="0.9s" fill="freeze"/>
+            <animate attributeName="y" from="${H-padB}" to="${by}" dur="0.9s" fill="freeze"/>
+          </rect>`;
+    s += `<text x="${x(i)}" y="${by-8}" text-anchor="middle" font-size="12" font-weight="700" fill="#003B4D">${d.arr}m</text>`;
+    s += `<text x="${x(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11.5" font-weight="600" fill="#3d5e6c">${d.label}</text>`;
+  });
+  // facility line
+  const pts = data.map((d,i)=>`${x(i)},${yF(d.fac)}`).join(' ');
+  s += `<polyline points="${pts}" fill="none" stroke="#66B2B2" stroke-width="3" stroke-linecap="round" stroke-dasharray="600" stroke-dashoffset="600">
+          <animate attributeName="stroke-dashoffset" from="600" to="0" dur="1.4s" fill="freeze"/>
+        </polyline>`;
+  data.forEach((d,i)=>{
+    s += `<circle cx="${x(i)}" cy="${yF(d.fac)}" r="5" fill="#fff" stroke="#66B2B2" stroke-width="3"/>`;
+    s += `<text x="${x(i)+10}" y="${yF(d.fac)-9}" font-size="11" font-weight="700" fill="#2f6b6b">${d.fac}</text>`;
+  });
+  // right axis label
+  s += `<text x="${W-padR+34}" y="${padT+4}" text-anchor="end" font-size="10" fill="#6b8790">facilities</text>`;
+  svg.innerHTML = s;
+})();
+</script>
+</body>
+</html>
