@@ -1,0 +1,20 @@
+@*
+    Canonical status chip. Usage:
+    @await Html.PartialAsync("_StatusBadge", new { Text="Completed", Tone="success", Icon="fa-check" })
+    Tone: success | warning | danger | info | muted
+*@
+@model dynamic
+@{
+    string text = (Model?.Text as string) ?? "";
+    string tone = (Model?.Tone as string) ?? "muted";
+    string icon = Model?.Icon as string;
+    string cls = tone switch
+    {
+        "success" => "app-chip-success",
+        "warning" => "app-chip-warning",
+        "danger"  => "app-chip-danger",
+        "info"    => "app-chip-info",
+        _          => "app-chip-muted"
+    };
+}
+<span class="app-chip @cls">@if (!string.IsNullOrEmpty(icon)) { <i class="fas @icon"></i> }@text</span>

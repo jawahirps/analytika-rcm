@@ -15,31 +15,19 @@
         </a>
     </div>
 
-    <!-- Top stats -->
+    <!-- Top stats (canonical _KpiCard partials) -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-label">Total Records</div>
-                <div class="stat-value">@Model.TotalTransactions.ToString("N0")</div>
-            </div>
+            @await Html.PartialAsync("_KpiCard", new { Label = "Total Records", Value = Model.TotalTransactions.ToString("N0"), Icon = "fa-database", Tone = "navy" })
         </div>
         <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-label">Files Downloaded</div>
-                <div class="stat-value" style="color:var(--mint);">@Model.TotalDownloaded.ToString("N0")</div>
-            </div>
+            @await Html.PartialAsync("_KpiCard", new { Label = "Files Downloaded", Value = Model.TotalDownloaded.ToString("N0"), Icon = "fa-file-arrow-down", Tone = "success" })
         </div>
         <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-label">Pending Download</div>
-                <div class="stat-value" style="color:@(Model.TotalPending > 0 ? "var(--gold)" : "var(--mint)");">@Model.TotalPending.ToString("N0")</div>
-            </div>
+            @await Html.PartialAsync("_KpiCard", new { Label = "Pending Download", Value = Model.TotalPending.ToString("N0"), Icon = "fa-clock", Tone = Model.TotalPending > 0 ? "warning" : "success" })
         </div>
         <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-label">Parsed Files</div>
-                <div class="stat-value" style="color:var(--classic-teal);">@Model.DistinctParsedFiles.ToString("N0")</div>
-            </div>
+            @await Html.PartialAsync("_KpiCard", new { Label = "Parsed Files", Value = Model.DistinctParsedFiles.ToString("N0"), Icon = "fa-file-code", Tone = "info" })
         </div>
     </div>
 

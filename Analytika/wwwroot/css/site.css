@@ -2646,3 +2646,81 @@ html[data-theme="dark"] .analytika-navbar {
 }
 .stat-card:hover::before,
 .ss-card:hover::before { opacity: 1; }
+
+/* ================================================================
+   Component library v1 — canonical, token-backed building blocks.
+   New class names so existing per-view styles keep working until the
+   per-view rollout adopts these. Each has a scoped dark-mode variant.
+   ================================================================ */
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--forest-teal), var(--classic-teal), var(--soft-white));
+  opacity: 0; transition: opacity var(--transition);
+}
+.kpi-card:hover::before { opacity: 1; }
+.kpi-ico {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center; font-size: .95rem;
+  background: var(--teal-12); color: var(--forest-teal);
+}
+.kpi-ico.is-navy   { background: var(--navy-06);  color: var(--deep-navy); }
+.kpi-ico.is-success{ background: var(--mint-12);  color: var(--mint); }
+.kpi-ico.is-warning{ background: var(--gold-12);  color: var(--gold); }
+.kpi-ico.is-danger { background: var(--coral-12); color: var(--coral); }
+.kpi-val { font-size: var(--fs-xl); font-weight: var(--fw-black); color: var(--text); line-height: var(--lh-tight); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.kpi-label { font-size: var(--fs-xs); font-weight: var(--fw-bold); text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin-top: var(--space-1); }
+
+.app-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+
+.app-empty { text-align: center; color: var(--text-muted); padding: var(--space-10) var(--space-5); }
+.app-empty i { font-size: 2.25rem; color: var(--classic-teal); opacity: .55; margin-bottom: var(--space-3); display: block; }
+
+.app-progress { height: 8px; background: var(--teal-12); border-radius: 999px; overflow: hidden; }
+.app-progress-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--forest-teal), var(--classic-teal)); transition: width .4s; }
+
+.app-chip { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-xs); font-weight: var(--fw-bold); padding: .2em .6em; border-radius: 999px; line-height: 1.4; }
+.app-chip-success { background: var(--mint-12);  color: var(--mint); }
+.app-chip-warning { background: var(--gold-12);  color: var(--gold); }
+.app-chip-danger  { background: var(--coral-12); color: var(--coral); }
+.app-chip-info    { background: var(--teal-12);  color: var(--forest-teal); }
+.app-chip-muted   { background: var(--navy-06);  color: var(--text-muted); }
+
+.page-header-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+.page-header-bar h1, .page-header-bar h4, .page-header-bar .ph-title { margin: 0; color: var(--text); font-weight: var(--fw-black); letter-spacing: -.02em; }
+.page-header-bar .ph-sub { color: var(--text-muted); font-size: var(--fs-sm); margin-top: 2px; }
+.page-breadcrumb { font-size: var(--fs-sm); color: var(--text-secondary); margin-bottom: var(--space-1); }
+.page-breadcrumb a { color: var(--text-secondary); text-decoration: none; }
+.page-breadcrumb a:hover { color: var(--classic-teal); }
+
+/* Scoped dark-mode variants (only affect the new component classes) */
+html[data-theme="dark"] .kpi-card,
+html[data-theme="dark"] .app-panel {
+  background: #0f1b2e;
+  border-color: rgba(167,235,242,.14);
+}
+html[data-theme="dark"] .kpi-val,
+html[data-theme="dark"] .page-header-bar h1,
+html[data-theme="dark"] .page-header-bar h4,
+html[data-theme="dark"] .page-header-bar .ph-title { color: #E6EDF3; }
+html[data-theme="dark"] .kpi-label,
+html[data-theme="dark"] .page-breadcrumb,
+html[data-theme="dark"] .page-breadcrumb a,
+html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
