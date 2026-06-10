@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <!-- Spline 3D web component (vanilla, no React needed) -->
+    <script type="module" src="https://unpkg.com/@@splinetool/viewer@@1.9.28/build/spline-viewer.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -302,20 +304,94 @@
             .login-right-inner { max-width: 100%; }
         }
 
-        /* Animated flowing background paths (FloatingPaths effect) */
-        .login-paths {
-            position: absolute; inset: 0; width: 100%; height: 100%;
-            pointer-events: none; opacity: .55; z-index: 0;
+        /* Spline 3D scene — fills the lower half of the left panel */
+        .spline-wrap {
+            position: absolute;
+            inset: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
         }
-        .login-paths path {
-            fill: none; stroke-width: 1; stroke-opacity: .5;
-            stroke-dasharray: 6 14;
-            animation: pathFlow 16s linear infinite;
+        spline-viewer {
+            width: 100%; height: 100%;
+            opacity: 0.72;
+            --progress-bar-color: transparent;
         }
-        .login-paths path:nth-child(even) { animation-duration: 22s; stroke-opacity: .32; }
-        .login-paths path:nth-child(3n)   { animation-duration: 28s; }
-        @@keyframes pathFlow { to { stroke-dashoffset: -300; } }
-        @@media (prefers-reduced-motion: reduce) { .login-paths path { animation: none; } }
+
+        /* Aceternity Spotlight — tracks mouse on the left panel */
+        .spotlight {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+            width: 480px; height: 480px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(84,172,191,0.18) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s;
+            opacity: 0;
+            filter: blur(2px);
+        }
+        .login-left:hover .spotlight { opacity: 1; }
+
+        /* framer-motion-style entrance for the right panel (CSS-only) */
+        @@keyframes slideUp {
+            from { opacity: 0; transform: translateY(22px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .login-right-inner { animation: slideUp 0.55s cubic-bezier(0.32,0.72,0,1) both; }
+
+        /* ── GooeyText loading overlay ── */
+        .gooey-loader {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+        .gooey-loader.hidden { opacity: 0; visibility: hidden; }
+
+        .gooey-container {
+            position: relative;
+            height: 80px;
+            width: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gooey-svg { position: absolute; width: 0; height: 0; }
+        .gooey-texts {
+            filter: url(#gooey-threshold);
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .gooey-text1,
+        .gooey-text2 {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.4rem, 4vw, 2.2rem);
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+            text-align: center;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .gooey-text1 { opacity: 0; }
+        .gooey-text2 { opacity: 1; }
+
+        @@media (prefers-reduced-motion: reduce) {
+            .login-right-inner { animation: none; }
+            spline-viewer { opacity: 0.5; }
+            .gooey-loader { display: none; }
+        }
 
         /* Footer courtesy Ghaf logo */
         .left-footer { display: flex; align-items: center; gap: 10px; }
@@ -327,15 +403,39 @@
     <div class="login-left">
         <div class="accent-ring"></div>
 
-        <!-- Animated flowing paths (FloatingPaths effect, pure SVG/CSS) -->
-        <svg class="login-paths" viewBox="0 0 900 316" fill="none" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-            <path d="M-50 30  C 150 0   300 120 480 60  S 760 10  950 90"  stroke="#54ACBF"/>
-            <path d="M-50 70  C 150 40  300 160 480 100 S 760 50  950 130" stroke="#A7EBF2"/>
-            <path d="M-50 110 C 150 80  300 200 480 140 S 760 90  950 170" stroke="#54ACBF"/>
-            <path d="M-50 150 C 150 120 300 240 480 180 S 760 130 950 210" stroke="#A7EBF2"/>
-            <path d="M-50 190 C 150 160 300 280 480 220 S 760 170 950 250" stroke="#54ACBF"/>
-            <path d="M-50 230 C 150 200 300 320 480 260 S 760 210 950 290" stroke="#A7EBF2"/>
-        </svg>
+        <!-- GooeyText loading overlay — visible until Spline scene is ready -->
+        <div class="gooey-loader" id="gooeyLoader" aria-live="polite" aria-label="Loading">
+            <!-- Hidden SVG filter -->
+            <svg class="gooey-svg" aria-hidden="true" focusable="false">
+                <defs>
+                    <filter id="gooey-threshold">
+                        <feColorMatrix in="SourceGraphic" type="matrix"
+                            values="1 0 0 0 0
+                                    0 1 0 0 0
+                                    0 0 1 0 0
+                                    0 0 0 255 -140" />
+                    </filter>
+                </defs>
+            </svg>
+            <div class="gooey-container">
+                <div class="gooey-texts">
+                    <span class="gooey-text1" id="gooeyText1"></span>
+                    <span class="gooey-text2" id="gooeyText2"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spotlight (tracks mouse) -->
+        <div class="spotlight" id="loginSpotlight"></div>
+
+        <!-- Spline 3D interactive scene -->
+        <div class="spline-wrap" aria-hidden="true">
+            <spline-viewer
+                id="splineViewer"
+                url="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                loading-anim-type="none">
+            </spline-viewer>
+        </div>
 
         <div class="brand-logo">
             <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -495,6 +595,115 @@
                 const saved = localStorage.getItem('analytika-lang');
                 if (saved === 'ar') applyLang('ar');
             } catch(e) {}
+        })();
+
+        /* ── GooeyText morph loader ── */
+        (function () {
+            const TEXTS = [
+                'Ghaf Bi Analytix',
+                'Connecting portals…',
+                'Loading workspace…',
+                'Syncing data…',
+                'Almost ready…'
+            ];
+            const MORPH_TIME    = 1.0;   // seconds per morph
+            const COOLDOWN_TIME = 0.25;  // seconds of hold between morphs
+
+            const el1    = document.getElementById('gooeyText1');
+            const el2    = document.getElementById('gooeyText2');
+            const loader = document.getElementById('gooeyLoader');
+            if (!el1 || !el2 || !loader) return;
+
+            let textIndex = TEXTS.length - 1;
+            let time      = Date.now();
+            let morph     = 0;
+            let cooldown  = COOLDOWN_TIME;
+            let rafId;
+
+            el1.textContent = TEXTS[textIndex % TEXTS.length];
+            el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+
+            function setMorph(fraction) {
+                el2.style.filter  = 'blur(' + Math.min(8 / fraction - 8, 100) + 'px)';
+                el2.style.opacity = Math.pow(fraction, 0.4);
+                const inv = 1 - fraction;
+                el1.style.filter  = 'blur(' + Math.min(8 / inv - 8, 100) + 'px)';
+                el1.style.opacity = Math.pow(inv, 0.4);
+            }
+
+            function doCooldown() {
+                morph = 0;
+                el2.style.filter  = '';
+                el2.style.opacity = '1';
+                el1.style.filter  = '';
+                el1.style.opacity = '0';
+            }
+
+            function doMorph() {
+                morph   -= cooldown;
+                cooldown = 0;
+                let fraction = morph / MORPH_TIME;
+                if (fraction > 1) {
+                    cooldown = COOLDOWN_TIME;
+                    fraction = 1;
+                }
+                setMorph(fraction);
+            }
+
+            function animate() {
+                rafId = requestAnimationFrame(animate);
+                const now = Date.now();
+                const dt  = (now - time) / 1000;
+                time = now;
+                const shouldIncrement = cooldown > 0;
+                cooldown -= dt;
+                if (cooldown <= 0) {
+                    if (shouldIncrement) {
+                        textIndex = (textIndex + 1) % TEXTS.length;
+                        el1.textContent = TEXTS[textIndex % TEXTS.length];
+                        el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+                    }
+                    doMorph();
+                } else {
+                    doCooldown();
+                }
+            }
+
+            animate();
+
+            // Dismiss loader when Spline scene fires its load event, with a 500ms min display
+            const splineEl = document.getElementById('splineViewer');
+            const MIN_MS   = 1800;
+            const startMs  = Date.now();
+
+            function dismissLoader() {
+                const elapsed = Date.now() - startMs;
+                const delay   = Math.max(0, MIN_MS - elapsed);
+                setTimeout(function () {
+                    cancelAnimationFrame(rafId);
+                    loader.classList.add('hidden');
+                }, delay);
+            }
+
+            if (splineEl) {
+                splineEl.addEventListener('load', dismissLoader, { once: true });
+                // Fallback: dismiss after 6s regardless
+                setTimeout(dismissLoader, 6000);
+            } else {
+                setTimeout(dismissLoader, 6000);
+            }
+        })();
+
+        /* ── Spotlight: follow mouse on the left panel ── */
+        (function () {
+            const panel = document.querySelector('.login-left');
+            const spot  = document.getElementById('loginSpotlight');
+            if (!panel || !spot) return;
+            panel.addEventListener('mousemove', function (e) {
+                const rect = panel.getBoundingClientRect();
+                spot.style.left = (e.clientX - rect.left) + 'px';
+                spot.style.top  = (e.clientY - rect.top)  + 'px';
+            });
         })();
     </script>
 </body>
