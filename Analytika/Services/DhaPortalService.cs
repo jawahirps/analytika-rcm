@@ -28,6 +28,7 @@ public class DhaPortalService : IDhaPortalService
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
+    private readonly ILogger<DhaPortalService> _logger;
 
     // Primary (active) endpoint
     private const string PrimaryUrl = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
@@ -64,10 +65,11 @@ public class DhaPortalService : IDhaPortalService
         _                  => "Other"
     };
 
-    public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache)
+    public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache, ILogger<DhaPortalService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _cache = cache;
+        _logger = logger;
     }
 
     // ── SOAP plumbing ──────────────────────────────────────────────
@@ -94,7 +96,12 @@ public class DhaPortalService : IDhaPortalService
             var body = await resp.Content.ReadAsStringAsync();
             return XDocument.Parse(body);
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            // Reached only after the resilience pipeline exhausted its retries
+            _logger.LogWarning(ex, "DHPO SOAP call {Action} to {Url} failed", action, url);
+            return null;
+        }
     }
 
     private static string CooldownKey(string login) => $"dha-auth-cooldown:{login.Trim().ToLowerInvariant()}";
@@ -146,7 +153,7 @@ public class DhaPortalService : IDhaPortalService
         // SPEC: output element is "xmlTransactions" (plural)
         var xml = FirstDescendantValue(doc, ns, "xmlTransactions");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var count);
         if (IsAuthThrottle(count, error))
         {
@@ -177,7 +184,7 @@ public class DhaPortalService : IDhaPortalService
         var error = FirstDescendantValue(doc, ns, "errorMessage");
         var xml = FirstDescendantValue(doc, ns, "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var count);
         if (IsAuthThrottle(count, error))
         {
@@ -238,7 +245,7 @@ public class DhaPortalService : IDhaPortalService
         // SPEC: output element is "foundTransactions"
         var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var result);
         if (IsAuthThrottle(result, error))
         {
@@ -289,7 +296,7 @@ public class DhaPortalService : IDhaPortalService
         var error = FirstDescendantValue(doc, ns, "errorMessage");
         var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var result);
         if (IsAuthThrottle(result, error))
         {
@@ -323,7 +330,7 @@ public class DhaPortalService : IDhaPortalService
         if (!string.IsNullOrWhiteSpace(fileB64))
         {
             try { fileBytes = Convert.FromBase64String(fileB64.Trim()); }
-            catch { /* malformed base64 */ }
+            catch (FormatException ex) { _logger.LogWarning(ex, "Malformed base64 file payload in DownloadTransactionFile response for fileId {FileId}", fileId); }
         }
 
         int.TryParse(resultStr, out var result);
@@ -357,7 +364,7 @@ public class DhaPortalService : IDhaPortalService
         if (!string.IsNullOrWhiteSpace(fileB64))
         {
             try { fileBytes = Convert.FromBase64String(fileB64.Trim()); }
-            catch { }
+            catch (FormatException ex) { _logger.LogWarning(ex, "Malformed base64 file payload in archive DownloadTransactionFile response for fileId {FileId}", fileId); }
         }
 
         int.TryParse(resultStr, out var result);
@@ -401,7 +408,7 @@ public class DhaPortalService : IDhaPortalService
     // format returned by both GetNewTransactions and SearchTransactions.
     // ALL data is in XML ATTRIBUTES (not child elements).
 
-    public static List<PortalFetchResultRow> ParseFilesXml(string? xmlStr)
+    public static List<PortalFetchResultRow> ParseFilesXml(string? xmlStr, ILogger? logger = null)
     {
         var rows = new List<PortalFetchResultRow>();
         if (string.IsNullOrWhiteSpace(xmlStr)) return rows;
@@ -439,7 +446,11 @@ public class DhaPortalService : IDhaPortalService
                 });
             }
         }
-        catch { /* return whatever was parsed */ }
+        catch (Exception ex)
+        {
+            // Return whatever was parsed so far
+            logger?.LogWarning(ex, "Failed to fully parse DHPO <Files> XML; returning {Count} partial row(s)", rows.Count);
+        }
 
         return rows;
     }
@@ -479,7 +490,7 @@ public class DhaPortalService : IDhaPortalService
     // The file is the original XML submitted to DHPO (e-claim format).
 
     public static (string contentXml, List<PortalFetchResultRow> innerRows) ParseDownloadedFile(
-        byte[] fileBytes, string? originalFileName = null)
+        byte[] fileBytes, string? originalFileName = null, ILogger? logger = null)
     {
         string contentXml;
         var innerRows = new List<PortalFetchResultRow>();
@@ -537,7 +548,11 @@ public class DhaPortalService : IDhaPortalService
                 });
             }
         }
-        catch { /* keep contentXml, return empty innerRows */ }
+        catch (Exception ex)
+        {
+            // Keep contentXml, return empty innerRows
+            logger?.LogWarning(ex, "Failed to parse downloaded file {FileName} as e-claim XML", originalFileName);
+        }
 
         return (contentXml, innerRows);
     }

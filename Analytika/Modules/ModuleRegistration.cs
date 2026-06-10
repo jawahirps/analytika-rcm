@@ -127,10 +127,32 @@ public static class ModuleRegistration
             options.Cookie.IsEssential = true;
         });
 
-        services.AddHttpClient("DHA").ConfigurePrimaryHttpMessageHandler(() =>
-            new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
-        services.AddHttpClient("RHA").ConfigurePrimaryHttpMessageHandler(() =>
-            new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator });
+        // Certificate validation is enforced by default; Portal:AllowInvalidCertificates=true is an
+        // explicit operator opt-out for portals with broken certificate chains.
+        var allowInvalidCerts = configuration.GetValue("Portal:AllowInvalidCertificates", false);
+
+        HttpClientHandler CreatePortalHandler() => allowInvalidCerts
+            ? new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator }
+            : new HttpClientHandler();
+
+        void AddPortalHttpClient(string name) =>
+            services.AddHttpClient(name, c => c.Timeout = Timeout.InfiniteTimeSpan) // resilience pipeline governs timeouts
+                .ConfigurePrimaryHttpMessageHandler(CreatePortalHandler)
+                .AddStandardResilienceHandler(o =>
+                {
+                    o.AttemptTimeout.Timeout = TimeSpan.FromSeconds(60);
+                    o.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(240);
+                    o.Retry.MaxRetryAttempts = 3;
+                    o.Retry.BackoffType = DelayBackoffType.Exponential;
+                    o.Retry.UseJitter = true;
+                    o.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120);
+                });
+
+        AddPortalHttpClient("DHA");
+        AddPortalHttpClient("RHA");
+
+        services.AddSingleton<ICredentialProtector, CredentialProtector>();
+        services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
 
         return services;
     }
@@ -188,6 +210,8 @@ public static class ModuleRegistration
 
         if (hangfireServerEnabled)
             services.AddHangfireServer();
+
+        services.AddScoped<DatabaseMaintenanceService>();
 
         if (pendingDownloadHostedServiceEnabled)
             services.AddHostedService<PendingDownloadService>();

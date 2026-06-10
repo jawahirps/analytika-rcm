@@ -34,5 +34,10 @@
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
     <PackageReference Include="ClosedXML" Version="0.102.2" />
     <PackageReference Include="itext7" Version="8.0.4" />
+    <!-- Direct pin: ClosedXML/itext7 pull System.IO.Packaging 6.0.0 which has two high-severity CVEs -->
+    <PackageReference Include="System.IO.Packaging" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.5" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
   </ItemGroup>
 </Project>

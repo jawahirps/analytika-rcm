@@ -1101,7 +1101,7 @@ public class AdminController : Controller
     }
 
     [HttpGet]
-    public IActionResult Database()
+    public async Task<IActionResult> Database()
     {
         // File-based backup/migration only applies to SQLite installs;
         // Postgres deployments are backed up by the managed database platform.
@@ -1112,6 +1112,43 @@ public class AdminController : Controller
         ViewBag.DbSizeMb = info != null ? Math.Round(info.Length / 1_048_576.0, 1) : 0;
         ViewBag.DbModified = info?.LastWriteTimeUtc.ToString("dd MMM yyyy HH:mm UTC");
         ViewBag.PendingExists = System.IO.File.Exists(dbPath + ".pending");
+
+        // Storage statistics for capacity planning
+        ViewBag.TxCount = await _db.PortalTransactions.CountAsync();
+        var xmlBytes = await _db.PortalTransactions
+            .Where(t => t.FileContentXml != null)
+            .SumAsync(t => (long?)t.FileContentXml!.Length) ?? 0;
+        ViewBag.XmlCount = await _db.PortalTransactions.CountAsync(t => t.FileContentXml != null);
+        ViewBag.XmlSizeMb = Math.Round(xmlBytes / 1_048_576.0, 1);
+        ViewBag.ParsedCount = await _db.XmlParsedRecords.CountAsync();
+        ViewBag.FetchLogCount = await _db.PortalFetchLogs.CountAsync();
+
+        // Backups folder summary
+        var backupDir = _configuration["Backup:Directory"]
+            ?? System.IO.Path.Combine(System.IO.Path.GetDirectoryName(dbPath)!, "backups");
+        var backups = Directory.Exists(backupDir)
+            ? Directory.GetFiles(backupDir, "analytika_*.db").OrderByDescending(f => f).ToList()
+            : new List<string>();
+        ViewBag.BackupCount = backups.Count;
+        ViewBag.LatestBackup = backups.Count > 0 ? System.IO.Path.GetFileName(backups[0]) : null;
+
+        // portal-downloads disk usage
+        var downloadsDir = System.IO.Path.Combine(AppContext.BaseDirectory, "wwwroot", "portal-downloads");
+        if (!Directory.Exists(downloadsDir))
+            downloadsDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "portal-downloads");
+        long downloadBytes = 0;
+        int downloadFiles = 0;
+        if (Directory.Exists(downloadsDir))
+        {
+            foreach (var f in Directory.EnumerateFiles(downloadsDir, "*", SearchOption.AllDirectories))
+            {
+                downloadBytes += new System.IO.FileInfo(f).Length;
+                downloadFiles++;
+            }
+        }
+        ViewBag.DownloadFiles = downloadFiles;
+        ViewBag.DownloadSizeMb = Math.Round(downloadBytes / 1_048_576.0, 1);
+
         return View();
     }
 

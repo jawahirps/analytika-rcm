@@ -109,9 +109,9 @@ public class PendingDownloadService : BackgroundService
                 var pwd = _credentials.Unprotect(cr.PasswordEncrypted);
                 credCache[cr.FacilityId] = (cr.Username, pwd);
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogWarning(ex, "[PendingDownload] Failed to decode password for facility {fid}", cr.FacilityId);
+                _logger.LogWarning("[PendingDownload] Failed to decode password for facility {fid}", cr.FacilityId);
             }
         }
 
@@ -137,7 +137,7 @@ public class PendingDownloadService : BackgroundService
 
                 if (dlErr == null && dlBytes?.Length > 0)
                 {
-                    var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
+                    var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
                     await db.PortalTransactions
                         .Where(t => t.Id == tx.Id)
                         .ExecuteUpdateAsync(s => s

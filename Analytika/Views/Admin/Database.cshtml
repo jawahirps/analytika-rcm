@@ -14,6 +14,43 @@
         </div>
     }
 
+    <!-- ── Storage statistics ───────────────────────────────────────────── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="fas fa-chart-pie me-2" style="color:#35577D;"></i>Storage Statistics</h6>
+            <div class="row g-3" style="font-size:.85rem;">
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Transactions</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.TxCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Stored XML</div>
+                    <div class="fw-semibold">@ViewBag.XmlSizeMb MB <span class="text-muted fw-normal" style="font-size:.75rem;">(@(((int?)ViewBag.XmlCount)?.ToString("N0")) files)</span></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Parsed Records</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.ParsedCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Fetch Logs</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.FetchLogCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Disk Downloads</div>
+                    <div class="fw-semibold">@ViewBag.DownloadSizeMb MB <span class="text-muted fw-normal" style="font-size:.75rem;">(@(((int?)ViewBag.DownloadFiles)?.ToString("N0")) files)</span></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted" style="font-size:.75rem;">Backups</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.BackupCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="text-muted" style="font-size:.75rem;">Latest Backup</div>
+                    <div class="fw-semibold">@(ViewBag.LatestBackup ?? "none yet")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Step 1: Download ──────────────────────────────────────────────── -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">

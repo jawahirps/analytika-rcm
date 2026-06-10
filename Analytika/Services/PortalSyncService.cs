@@ -228,7 +228,7 @@ public class PortalSyncService
                         var (_, dlFileName, dlBytes, _) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
                         if (dlBytes?.Length > 0)
                         {
-                            var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
+                            var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
                             results.Add((row, contentXml, dlBytes.Length, true));
 
                             // Save to disk (non-critical, fire and forget)
