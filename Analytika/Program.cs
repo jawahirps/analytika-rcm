@@ -29,6 +29,7 @@ if (System.IO.File.Exists(pendingDb))
     System.IO.File.Move(pendingDb, dbPath);
 }
 builder.Services.AddAnalytikaModules(
+    builder.Configuration,
     dbPath,
     hangfireServerEnabled,
     recurringJobsEnabled,
@@ -123,14 +124,19 @@ if (hangfireDashboardEnabled)
 
 if (recurringJobsEnabled)
 {
+    // Resolve via DI (not the static RecurringJob API) so Hangfire storage is
+    // initialized first — the static API throws when the dashboard is disabled.
+    using var jobScope = app.Services.CreateScope();
+    var recurringJobs = jobScope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
     // Daily cron: sync last 90 days of DHA transactions for all active credentials (2 AM)
-    RecurringJob.AddOrUpdate<PortalSyncService>(
+    recurringJobs.AddOrUpdate<PortalSyncService>(
         "dha-daily-sync",
         svc => svc.RunDailyDhaSyncAsync(),
         Cron.Daily(2));
 
     // Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
-    RecurringJob.AddOrUpdate<RemittanceParserService>(
+    recurringJobs.AddOrUpdate<RemittanceParserService>(
         "remittance-auto-parse",
         svc => svc.ParsePendingAsync(null),
         "0 */2 * * *");
@@ -145,11 +151,57 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
+// Liveness/readiness probe for hosting platforms (checks DB connectivity)
+app.MapHealthChecks("/healthz").AllowAnonymous();
+
+using (var startupScope = app.Services.CreateScope())
+{
+    var startupServices = startupScope.ServiceProvider;
+    var startupDb = startupServices.GetRequiredService<AppDbContext>();
+
+    if (startupDb.Database.IsNpgsql())
+    {
+        // Postgres schema is owned by EF migrations — always bring it current
+        startupDb.Database.Migrate();
+        if (app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
+            await SeedData.InitializeAsync(startupServices);
+    }
+
+    // One-time upgrade: legacy Base64-stored portal passwords → encrypted at rest
+    try
+    {
+        var protector = startupServices.GetRequiredService<Analytika.Security.ICredentialProtector>();
+        var creds = await startupDb.PortalCredentials.ToListAsync();
+        var upgraded = 0;
+        foreach (var c in creds)
+        {
+            if (protector.IsProtected(c.PasswordEncrypted)) continue;
+            try { c.PasswordEncrypted = protector.Protect(protector.Unprotect(c.PasswordEncrypted)); upgraded++; }
+            catch { /* unreadable legacy value — left as-is, surfaced by the credential test */ }
+        }
+        if (upgraded > 0)
+        {
+            await startupDb.SaveChangesAsync();
+            app.Logger.LogInformation("Upgraded {Count} portal credential(s) to encrypted-at-rest storage", upgraded);
+        }
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Credential encryption upgrade skipped (database not ready?)");
+    }
+}
+
 if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", false))
 {
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<AppDbContext>();
+    if (db.Database.IsNpgsql())
+    {
+        // Schema handled by Migrate() above; the raw SQL below is SQLite-specific
+    }
+    else
+    {
     db.Database.EnsureCreated();
     var createIndexesOnStartup = app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false);
     if (createIndexesOnStartup)
@@ -307,8 +359,9 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
     // Add ClaimCategory column if it doesn't exist yet
     if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
         db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
+    }
 
-    if (app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
+    if (!db.Database.IsNpgsql() && app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
         await SeedData.InitializeAsync(services);
 }
 

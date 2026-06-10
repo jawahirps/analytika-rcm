@@ -25,6 +25,7 @@ public class AdminController : Controller
     private readonly IRhaPortalService _rha;
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
+    private readonly Analytika.Security.ICredentialProtector _credentials;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
@@ -32,7 +33,8 @@ public class AdminController : Controller
     private static readonly string[] ProtectedRoles = { "Admin", "FacilityAdmin" };
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-        IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration)
+        IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
+        Analytika.Security.ICredentialProtector credentials)
     {
         _db = db;
         _userManager = userManager;
@@ -41,6 +43,7 @@ public class AdminController : Controller
         _rha = rha;
         _email = email;
         _configuration = configuration;
+        _credentials = credentials;
     }
 
     // ─── Roles ───────────────────────────────────────────────────────────────
@@ -406,7 +409,7 @@ public class AdminController : Controller
             }
         }
 
-        var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(vm.Password));
+        var enc = _credentials.Protect(vm.Password);
         if (vm.Id == 0)
         {
             _db.PortalCredentials.Add(new PortalCredential
@@ -462,7 +465,7 @@ public class AdminController : Controller
             return Json(new { ok = false, message = "Credential not found.", latencyMs = 0 });
 
         string pwd;
-        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
         catch { return Json(new { ok = false, message = "Stored password is corrupted.", latencyMs = 0 }); }
 
         var sw = Stopwatch.StartNew();
@@ -515,7 +518,7 @@ public class AdminController : Controller
         foreach (var cred in creds)
         {
             string pwd;
-            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+            try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
             catch { results.Add(new { id = cred.Id, portal = cred.Portal, facility = cred.Facility?.Name, ok = false, message = "Corrupted password", latencyMs = 0 }); continue; }
 
             var sw = Stopwatch.StartNew();
@@ -553,7 +556,7 @@ public class AdminController : Controller
         foreach (var c in creds)
         {
             string pwd;
-            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(c.PasswordEncrypted)); }
+            try { pwd = _credentials.Unprotect(c.PasswordEncrypted); }
             catch { pwd = ""; }
             sb.AppendLine($"{Csv(c.Portal)},{Csv(c.Facility?.Name ?? "")},{Csv(c.CredentialName ?? "")},{Csv(c.Username)},{Csv(pwd)},{Csv(c.ApiBaseUrl ?? "")},{Csv(c.LicenseCode ?? "")},{c.IsActive}");
         }
@@ -602,7 +605,7 @@ public class AdminController : Controller
                 facAdded++;
             }
 
-            var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
+            var enc = _credentials.Protect(password);
 
             var existing = await _db.PortalCredentials
                 .FirstOrDefaultAsync(c => c.Portal == portal && c.FacilityId == facility.Id && c.Username == username);
@@ -1100,6 +1103,9 @@ public class AdminController : Controller
     [HttpGet]
     public IActionResult Database()
     {
+        // File-based backup/migration only applies to SQLite installs;
+        // Postgres deployments are backed up by the managed database platform.
+        ViewBag.IsSqlite = _db.Database.IsSqlite();
         var dbPath = GetDbPath();
         var info = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
         ViewBag.DbPath = dbPath;
@@ -1112,6 +1118,9 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> ExportDatabase()
     {
+        if (!_db.Database.IsSqlite())
+            return BadRequest("Database export is only available on SQLite installs. Use your platform's Postgres backup (pg_dump) instead.");
+
         // Flush WAL into the main file so the download is self-contained
         await _db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(FULL)");
         var dbPath = GetDbPath();
@@ -1126,6 +1135,9 @@ public class AdminController : Controller
     [Microsoft.AspNetCore.Mvc.RequestFormLimits(MultipartBodyLengthLimit = 3L * 1024 * 1024 * 1024)]
     public async Task<IActionResult> ImportDatabase(IFormFile dbFile)
     {
+        if (!_db.Database.IsSqlite())
+            return Json(new { ok = false, message = "Database import is only available on SQLite installs. Use your platform's Postgres restore (pg_restore) instead." });
+
         if (dbFile == null || dbFile.Length == 0)
             return Json(new { ok = false, message = "No file selected." });
 

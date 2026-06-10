@@ -22,12 +22,14 @@ public class PendingDownloadService : BackgroundService
     private readonly IServiceProvider _services;
     private readonly IConfiguration _config;
     private readonly ILogger<PendingDownloadService> _logger;
+    private readonly Analytika.Security.ICredentialProtector _credentials;
 
-    public PendingDownloadService(IServiceProvider services, IConfiguration config, ILogger<PendingDownloadService> logger)
+    public PendingDownloadService(IServiceProvider services, IConfiguration config, ILogger<PendingDownloadService> logger, Analytika.Security.ICredentialProtector credentials)
     {
         _services = services;
         _config = config;
         _logger = logger;
+        _credentials = credentials;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -104,7 +106,7 @@ public class PendingDownloadService : BackgroundService
         {
             try
             {
-                var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cr.PasswordEncrypted));
+                var pwd = _credentials.Unprotect(cr.PasswordEncrypted);
                 credCache[cr.FacilityId] = (cr.Username, pwd);
             }
             catch (Exception ex)

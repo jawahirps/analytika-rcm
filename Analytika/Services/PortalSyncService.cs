@@ -15,12 +15,14 @@ public class PortalSyncService
     private readonly AppDbContext _db;
     private readonly IDhaPortalService _dha;
     private readonly ILogger<PortalSyncService> _logger;
+    private readonly Analytika.Security.ICredentialProtector _credentials;
 
-    public PortalSyncService(AppDbContext db, IDhaPortalService dha, ILogger<PortalSyncService> logger)
+    public PortalSyncService(AppDbContext db, IDhaPortalService dha, ILogger<PortalSyncService> logger, Analytika.Security.ICredentialProtector credentials)
     {
         _db = db;
         _dha = dha;
         _logger = logger;
+        _credentials = credentials;
     }
 
     // ── Daily cron entry point ─────────────────────────────────────
@@ -50,7 +52,7 @@ public class PortalSyncService
 
     private async Task SyncFacilityAsync(PortalCredential cred)
     {
-        var pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted));
+        var pwd = _credentials.Unprotect(cred.PasswordEncrypted);
         var dateFrom = DateTime.Today.AddDays(-90);
         var dateTo = DateTime.Today;
         var chunks = GetDateChunks(dateFrom, dateTo, 90);
