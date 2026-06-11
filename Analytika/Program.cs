@@ -10,6 +10,17 @@ using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Serilog: reads sinks/levels from the "Serilog" section of appsettings.
+builder.Services.AddSerilog((services, config) => config
+    .ReadFrom.Configuration(builder.Configuration)
+    .ReadFrom.Services(services));
+// UseSerilogRequestLogging() depends on DiagnosticContext — register it explicitly
+// (the AddSerilog overload above does not register it in Serilog.AspNetCore 10.0.0).
+builder.Services.AddSingleton<Serilog.Extensions.Hosting.DiagnosticContext>(
+    _ => new Serilog.Extensions.Hosting.DiagnosticContext(null));
+builder.Services.AddSingleton<Serilog.IDiagnosticContext>(
+    sp => sp.GetRequiredService<Serilog.Extensions.Hosting.DiagnosticContext>());
+
 // Structured JSON logs for cloud log aggregators (opt-in: Logging__JsonConsole=true)
 if (builder.Configuration.GetValue("Logging:JsonConsole", false))
 {
@@ -102,16 +113,29 @@ app.Use(async (context, next) =>
             headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
             headers["Pragma"] = "no-cache";
             headers["Expires"] = "0";
+
+            // The login page (unauthenticated, no PHI) embeds the Spline 3D viewer,
+            // whose WebGL runtime requires 'unsafe-eval'. Scope that relaxation to the
+            // login page only — every authenticated/PHI page keeps the strict policy.
+            var path = context.Request.Path.Value ?? string.Empty;
+            var isLogin = context.User.Identity?.IsAuthenticated != true
+                && (path == "/" || path.StartsWith("/Home/Index", StringComparison.OrdinalIgnoreCase));
+            var scriptEval = isLogin ? "'unsafe-eval' " : "";
+            var splineHosts = isLogin ? " https://unpkg.com" : "";
+
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "base-uri 'self'; " +
                 "frame-ancestors 'none'; " +
                 "form-action 'self'; " +
                 "object-src 'none'; " +
-                "img-src 'self' data: https:; " +
+                "img-src 'self' data: https: blob:; " +
+                "media-src 'self' data: blob:; " +
                 "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com; " +
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net; " +
+                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " + scriptEval +
+                    "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net" + splineHosts + "; " +
+                "worker-src 'self' blob:; " +
                 "connect-src 'self' https:; " +
                 "frame-src 'none'";
         }
