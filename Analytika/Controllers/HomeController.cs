@@ -5,6 +5,7 @@ using Analytika.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Analytika.Controllers;
 
@@ -13,17 +14,20 @@ public class HomeController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IDashboardService _dashboard;
+    private readonly AppDbContext _db;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         IDashboardService dashboard,
+        AppDbContext db,
         ILogger<HomeController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _dashboard = dashboard;
+        _db = db;
         _logger = logger;
     }
 
@@ -93,6 +97,49 @@ public class HomeController : Controller
         };
 
         return View(await _dashboard.BuildRcmDashboardAsync(tab, filters));
+    }
+
+    // ── Dashboard summary API (charts) ────────────────────────────
+
+    [Authorize]
+    [HttpGet("/api/dashboard/summary")]
+    public async Task<IActionResult> DashboardSummary()
+    {
+        var now         = DateTime.UtcNow;
+        var d30         = now.AddDays(-30);
+        var d60         = now.AddDays(-60);
+
+        // Daily transaction counts for sparkline
+        var daily = await _db.PortalTransactions
+            .Where(t => t.SyncedAt >= d30)
+            .GroupBy(t => t.SyncedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .OrderBy(x => x.Date)
+            .ToListAsync();
+
+        // Type breakdown for donut chart
+        var byType = await _db.PortalTransactions
+            .Where(t => t.SyncedAt >= d30)
+            .GroupBy(t => t.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+        // KPI trend
+        var currentCount  = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30);
+        var previousCount = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d60 && t.SyncedAt < d30);
+        var downloaded    = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30 && t.FileDownloaded);
+
+        double trend = previousCount > 0
+            ? Math.Round((currentCount - previousCount) / (double)previousCount * 100.0, 1)
+            : 0;
+
+        return Json(new
+        {
+            daily    = daily.Select(x => new { date = x.Date.ToString("MM/dd"), count = x.Count }),
+            byType   = byType.Select(x => new { type = x.Type, count = x.Count }),
+            kpi      = new { currentCount, previousCount, trend, downloaded }
+        });
     }
 
     [HttpPost]

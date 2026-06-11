@@ -33,3 +33,8 @@ deploy/linux/reports/
 
 # Data Protection keys (never commit)
 dp-keys/
+Analytika/dataprotection-keys/
+dataprotection-keys/
+
+# Logs
+logs/

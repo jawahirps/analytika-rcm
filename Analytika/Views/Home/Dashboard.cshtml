@@ -335,6 +335,30 @@
         </div>
     </div>
 
+    <!-- Analytics charts -->
+    <div class="dash-charts-row">
+        <div class="dash-chart-card">
+            <div class="dash-chart-header">
+                <div>
+                    <div class="dash-chart-title">Transaction Volume</div>
+                    <div class="dash-chart-sub">Last 30 days</div>
+                </div>
+                <div class="dash-kpi-badge" id="kpiBadge">—</div>
+            </div>
+            <div id="chartVolume" style="min-height:160px;"></div>
+        </div>
+        <div class="dash-chart-card">
+            <div class="dash-chart-header">
+                <div>
+                    <div class="dash-chart-title">Transaction Types</div>
+                    <div class="dash-chart-sub">Last 30 days breakdown</div>
+                </div>
+                <div class="dash-kpi-text" id="kpiTotal">—</div>
+            </div>
+            <div id="chartTypes" style="min-height:160px;"></div>
+        </div>
+    </div>
+
     <!-- Facility cards -->
     <div class="facility-grid">
         @foreach (var f in Model.Facilities)
@@ -429,3 +453,86 @@
         </div>
     }
 </div>
+
+@section Scripts {
+<style>
+.dash-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@@media (max-width: 900px) { .dash-charts-row { grid-template-columns: 1fr; } }
+.dash-chart-card {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    padding: 18px 20px;
+    backdrop-filter: var(--blur);
+}
+.dash-chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.dash-chart-title { font-weight: 700; font-size: var(--fs-sm); color: var(--text); }
+.dash-chart-sub   { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
+.dash-kpi-badge {
+    font-size: var(--fs-xs); font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; background: var(--emerald-light); color: var(--classic-teal);
+}
+.dash-kpi-text { font-size: 1.4rem; font-weight: 800; color: var(--deep-navy); }
+html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
+</style>
+<script>
+(function() {
+    var isDark = document.documentElement.dataset.theme === 'dark';
+    var textColor  = isDark ? '#EAF4FB' : '#011C40';
+    var mutedColor = isDark ? 'rgba(234,244,251,0.4)' : '#334E68';
+    var gridColor  = isDark ? 'rgba(84,172,191,0.10)' : 'rgba(1,28,64,0.07)';
+
+    fetch('/api/dashboard/summary')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            // KPI badge
+            var kpi = data.kpi;
+            var badge = document.getElementById('kpiBadge');
+            if (badge && kpi) {
+                var sign = kpi.trend >= 0 ? '+' : '';
+                badge.textContent = sign + kpi.trend + '% vs prev 30d';
+                badge.style.background = kpi.trend >= 0 ? 'rgba(47,143,114,0.15)' : 'rgba(185,74,63,0.15)';
+                badge.style.color      = kpi.trend >= 0 ? '#2F8F72' : '#B94A3F';
+            }
+            var totalEl = document.getElementById('kpiTotal');
+            if (totalEl && kpi) totalEl.textContent = (kpi.currentCount || 0).toLocaleString();
+
+            // Volume bar chart
+            var volEl = document.getElementById('chartVolume');
+            if (volEl && data.daily && data.daily.length > 0) {
+                var volChart = new ApexCharts(volEl, {
+                    series: [{ name: 'Transactions', data: data.daily.map(function(d) { return d.count; }) }],
+                    chart: { type: 'bar', height: 160, toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+                    colors: ['#54ACBF'],
+                    xaxis: { categories: data.daily.map(function(d) { return d.date; }), labels: { style: { colors: mutedColor, fontSize: '10px' }, rotate: -30 }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { labels: { style: { colors: mutedColor, fontSize: '10px' } } },
+                    grid: { borderColor: gridColor, strokeDashArray: 3 },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                volChart.render();
+            }
+
+            // Type donut chart
+            var typeEl = document.getElementById('chartTypes');
+            if (typeEl && data.byType && data.byType.length > 0) {
+                var typeChart = new ApexCharts(typeEl, {
+                    series: data.byType.map(function(x) { return x.count; }),
+                    labels: data.byType.map(function(x) { return x.type || 'Unknown'; }),
+                    chart: { type: 'donut', height: 160, background: 'transparent', toolbar: { show: false } },
+                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#2F8F72'],
+                    plotOptions: { pie: { donut: { size: '65%' } } },
+                    legend: { position: 'right', fontSize: '11px', labels: { colors: textColor } },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                typeChart.render();
+            }
+        })
+        .catch(function() { /* no data — charts simply don't render */ });
+})();
+</script>
+}
+

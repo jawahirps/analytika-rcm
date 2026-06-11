@@ -16,7 +16,7 @@ RUN dotnet publish ./Analytika/Analytika.csproj \
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 WORKDIR /app
-RUN mkdir -p /app/data /app/wwwroot/portal-downloads /app/wwwroot/reports \
+RUN mkdir -p /app/data /app/wwwroot/portal-downloads /app/wwwroot/reports /app/logs \
     && useradd --create-home --shell /usr/sbin/nologin analytika \
     && chown -R analytika:analytika /app
 COPY --from=build /app/publish .

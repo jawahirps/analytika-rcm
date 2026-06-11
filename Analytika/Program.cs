@@ -2,8 +2,10 @@ using Analytika.Models;
 using Analytika.Modules;
 using Analytika.Services;
 using Hangfire;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -41,6 +43,11 @@ if (System.IO.File.Exists(pendingDb))
     if (System.IO.File.Exists(dbPath)) System.IO.File.Delete(dbPath);
     System.IO.File.Move(pendingDb, dbPath);
 }
+// Persist Data Protection keys with the DB so encrypted credentials survive restarts/redeploys
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "dataprotection-keys")))
+    .SetApplicationName("Analytika");
+
 builder.Services.AddAnalytikaModules(
     builder.Configuration,
     dbPath,
@@ -54,6 +61,8 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -135,6 +144,9 @@ app.UseAuthorization();
 if (hangfireDashboardEnabled)
     app.UseHangfireDashboard("/hangfire");
 
+if (hangfireServerEnabled || recurringJobsEnabled)
+    GlobalJobFilters.Filters.Add(new JobFailureNotificationFilter(app.Services));
+
 if (recurringJobsEnabled)
 {
     // Resolve via DI (not the static RecurringJob API) so Hangfire storage is
@@ -153,6 +165,17 @@ if (recurringJobsEnabled)
         "remittance-auto-parse",
         svc => svc.ParsePendingAsync(null),
         "0 */2 * * *");
+
+    // Nightly DB backup (3 AM — after the 2 AM sync) and data retention (4 AM)
+    RecurringJob.AddOrUpdate<DatabaseMaintenanceService>(
+        "db-nightly-backup",
+        svc => svc.BackupDatabaseAsync(),
+        Cron.Daily(3));
+
+    RecurringJob.AddOrUpdate<DatabaseMaintenanceService>(
+        "data-retention",
+        svc => svc.RunRetentionAsync(),
+        Cron.Daily(4));
 }
 else
 {

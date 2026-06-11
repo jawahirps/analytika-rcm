@@ -64,6 +64,49 @@ public class EmailService : IEmailService
         }
     }
 
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        var smtp = await GetSmtpSettingsAsync();
+
+        if (string.IsNullOrWhiteSpace(smtp.Host))
+        {
+            _logger.LogWarning("SMTP host is not configured — skipping email '{Subject}'.", subject);
+            return;
+        }
+
+        var recipients = to.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (recipients.Length == 0) return;
+
+        try
+        {
+            using var message = new MailMessage
+            {
+                From = new MailAddress(smtp.FromAddress, smtp.FromName),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = false
+            };
+
+            foreach (var recipient in recipients)
+                message.To.Add(new MailAddress(recipient));
+
+            using var client = new SmtpClient(smtp.Host, smtp.Port)
+            {
+                EnableSsl = smtp.EnableSsl,
+                DeliveryMethod = SmtpDeliveryMethod.Network,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(smtp.UserName, smtp.Password)
+            };
+
+            await client.SendMailAsync(message);
+            _logger.LogInformation("Email '{Subject}' sent to {Recipients}.", subject, string.Join(", ", recipients));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email '{Subject}' to {To}.", subject, to);
+        }
+    }
+
     // ── Read SMTP config from DB → fallback to appsettings ────────
 
     public async Task<SmtpSettings> GetSmtpSettingsAsync()
