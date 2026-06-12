@@ -66,10 +66,33 @@ Open your Cloudflare hostname in a browser → login page should load.
 ```
 (50 GB on Backblaze B2 ≈ $0.30/mo; or Oracle Object Storage 20 GB free for partials.)
 
-## Updating later
+## Updating later — automatic (Watchtower)
+Updates are **hands-off**. Every merge to `main` rebuilds
+`ghcr.io/jawahirps/analytika-rcm:latest` (via `.github/workflows/release.yml`),
+and the **Watchtower** sidecar in `docker-compose.yml` pulls the new image and
+restarts the app within ~2 minutes — no `git pull`, no rebuild on the host.
+
+One-time prerequisite — the host must be able to read the GHCR package:
+- **Simplest:** make it public once — GitHub → repo **Packages** → `analytika-rcm`
+  → **Package settings** → **Change visibility** → **Public**.
+- **Keep it private instead:** create a token with `read:packages`, write a
+  `deploy/linux/watchtower-config.json`:
+  ```json
+  { "auths": { "ghcr.io": { "auth": "BASE64_OF_USERNAME:TOKEN" } } }
+  ```
+  (generate with `echo -n 'jawahirps:ghp_xxx' | base64`), then uncomment the
+  `./watchtower-config.json:/config.json:ro` mount in the `watchtower` service.
+
+Force an immediate update check (don't wait for the poll):
 ```bash
-cd ~/analytika-rcm && git pull origin main
-cd deploy/linux && docker compose up -d --build
+cd ~/analytika-rcm/deploy/linux && docker compose exec watchtower /watchtower --run-once
+```
+
+### Manual / testing an unmerged branch
+To build on the host instead of pulling (e.g. preview a branch before merge):
+```bash
+cd ~/analytika-rcm && git fetch origin <branch> && git checkout <branch>
+cd deploy/linux && docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build app
 ```
 
 ## Notes
