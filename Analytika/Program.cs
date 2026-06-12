@@ -94,6 +94,7 @@ if (previewCompat)
     {
         o.Cookie.SameSite = SameSiteMode.None;
         o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.SuppressXFrameOptionsHeader = true; // antiforgery injects SAMEORIGIN otherwise
     });
     builder.Services.PostConfigure<SessionOptions>(o =>
     {
