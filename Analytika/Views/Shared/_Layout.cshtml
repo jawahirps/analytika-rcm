@@ -8,7 +8,7 @@
         (function () {
             try {
                 var lang = localStorage.getItem('analytika-lang') || 'en';
-                var theme = localStorage.getItem('analytika-theme') || 'light';
+                var theme = localStorage.getItem('analytika-theme') || 'dark';
                 var collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
                 document.documentElement.lang = lang;
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -232,8 +232,8 @@
         </div>
 
         <!-- Theme toggle -->
-        <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle dark mode" aria-pressed="false">
-            <i class="fas fa-moon me-1" aria-hidden="true"></i><span id="themeToggleLabel">Dark</span>
+        <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle light mode" aria-pressed="true">
+            <i class="fas fa-sun me-1" aria-hidden="true"></i><span id="themeToggleLabel">Light</span>
         </button>
 
         <!-- Notifications -->
@@ -443,7 +443,7 @@ function clearNotifications() {
         }
     }
     var currentLang  = root.dataset.lang  || 'en';
-    var currentTheme = root.dataset.theme || 'light';
+    var currentTheme = root.dataset.theme || 'dark';
     applyLanguage(currentLang);
     applyTheme(currentTheme);
     Object.keys(langButtons).forEach(function(key) {
