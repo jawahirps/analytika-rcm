@@ -14,7 +14,7 @@ public sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
     // -16384 => 16 MB page cache per connection; 256 MB mmap window.
     private const string Pragmas =
         "PRAGMA journal_mode=WAL;" +
-        "PRAGMA busy_timeout=5000;" +
+        "PRAGMA busy_timeout=30000;" +
         "PRAGMA synchronous=NORMAL;" +
         "PRAGMA temp_store=MEMORY;" +
         "PRAGMA cache_size=-16384;" +

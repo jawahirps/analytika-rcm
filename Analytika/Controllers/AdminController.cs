@@ -979,7 +979,7 @@ public class AdminController : Controller
         {
             // Create a dummy temp file for the test
             var tmpFile = Path.Combine(Path.GetTempPath(), "test-report.txt");
-            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from GhafBI.");
+            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from Ghaf Business Intelligence.");
             await _email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
             System.IO.File.Delete(tmpFile);
             return Json(new { ok = true, message = $"Test email sent to {testTo}." });

@@ -36,8 +36,8 @@ public class EmailService : IEmailService
             using var message = new MailMessage
             {
                 From = new MailAddress(smtp.FromAddress, smtp.FromName),
-                Subject = $"[GhafBI] Report {reportId} — {reportType}",
-                Body = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached.\n\nThis is an automated message from GhafBI. Please do not reply.\n\nRegards,\nGhafBI Reports",
+                Subject = $"[Ghaf Business Intelligence] Report {reportId} — {reportType}",
+                Body = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached.\n\nThis is an automated message from Ghaf Business Intelligence. Please do not reply.\n\nRegards,\nGhaf Business Intelligence Reports",
                 IsBodyHtml = false
             };
 
@@ -136,7 +136,7 @@ public class EmailService : IEmailService
             UserName = Cfg("UserName", string.Empty),
             Password = Cfg("Password", string.Empty),
             FromAddress = Cfg("FromAddress", string.Empty),
-            FromName = Cfg("FromName", "GhafBI Reports")
+            FromName = Cfg("FromName", "Ghaf Business Intelligence Reports")
         };
     }
 }
@@ -149,5 +149,5 @@ public record SmtpSettings
     public string UserName { get; init; } = string.Empty;
     public string Password { get; init; } = string.Empty;
     public string FromAddress { get; init; } = string.Empty;
-    public string FromName { get; init; } = "GhafBI Reports";
+    public string FromName { get; init; } = "Ghaf Business Intelligence Reports";
 }
