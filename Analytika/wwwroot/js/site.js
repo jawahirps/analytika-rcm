@@ -210,6 +210,121 @@ $(document).ready(function() {
     }
 })();
 
+// ── Support chat panel ────────────────────────────────────────────────────────
+(function initSupportChat() {
+    var panel    = document.getElementById('supportChatPanel');
+    var backdrop = document.getElementById('supportBackdrop');
+    var openBtn  = document.getElementById('supportChatBtn');
+    var closeBtn = document.getElementById('supportCloseBtn');
+    var form     = document.getElementById('supportChatForm');
+    var input    = document.getElementById('supportInput');
+    var sendBtn  = document.getElementById('supportSendBtn');
+    var messages = document.getElementById('supportMessages');
+
+    if (!panel || !openBtn) return;
+
+    /* Conversation history sent to the server */
+    var history = [];
+
+    function open() {
+        panel.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        panel.setAttribute('aria-hidden', 'false');
+        input.focus();
+    }
+    function close() {
+        panel.classList.remove('is-open');
+        backdrop.classList.remove('is-open');
+        panel.setAttribute('aria-hidden', 'true');
+    }
+
+    openBtn.addEventListener('click', function(e) { e.preventDefault(); open(); });
+    closeBtn.addEventListener('click', close);
+    backdrop.addEventListener('click', close);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && panel.classList.contains('is-open')) close();
+    });
+
+    /* Auto-grow textarea */
+    input.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+    /* Send on Enter (Shift+Enter = newline) */
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+
+    form.addEventListener('submit', function(e) { e.preventDefault(); send(); });
+
+    function appendMsg(role, text) {
+        var div = document.createElement('div');
+        div.className = 'support-msg support-msg-' + role;
+        var bubble = document.createElement('div');
+        bubble.className = 'support-bubble';
+        bubble.textContent = text;
+        div.appendChild(bubble);
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+        return div;
+    }
+
+    function showTyping() {
+        var div = document.createElement('div');
+        div.className = 'support-msg support-msg-assistant support-typing';
+        div.id = 'supportTyping';
+        div.innerHTML = '<div class="support-bubble"><span class="support-dot"></span><span class="support-dot"></span><span class="support-dot"></span></div>';
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+    function hideTyping() {
+        var t = document.getElementById('supportTyping');
+        if (t) t.remove();
+    }
+
+    function send() {
+        var text = input.value.trim();
+        if (!text) return;
+
+        input.value = '';
+        input.style.height = 'auto';
+        sendBtn.disabled = true;
+
+        appendMsg('user', text);
+        history.push({ role: 'user', content: text });
+
+        showTyping();
+
+        /* Get CSRF token */
+        var token = form.querySelector('input[name="__RequestVerificationToken"]');
+        var csrf  = token ? token.value : '';
+
+        fetch('/Support/Chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': csrf
+            },
+            body: JSON.stringify({ messages: history })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            hideTyping();
+            var reply = data.reply || data.error || 'Something went wrong.';
+            appendMsg('assistant', reply);
+            history.push({ role: 'assistant', content: reply });
+        })
+        .catch(function() {
+            hideTyping();
+            appendMsg('assistant', 'Network error — please check your connection and try again.');
+        })
+        .finally(function() {
+            sendBtn.disabled = false;
+            input.focus();
+        });
+    }
+})();
+
 // ── Utility: format date as DD/MM/YYYY ───────────────────────────────────────
 function formatDateDDMMYYYY(dateStr) {
     var d = new Date(dateStr);
