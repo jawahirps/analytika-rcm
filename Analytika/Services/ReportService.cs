@@ -442,7 +442,13 @@ public class ReportService : IReportService
                 var unsettled = ra == null ? balanceAmount : Math.Max(0m, balanceAmount - approvedAmt);
                 var rejInitial = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
                 var rejResubmission = netResubmission > 0m && ra != null ? Math.Max(0m, netResubmission - approvedAmt) : 0m;
-                var payStatus = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < balanceAmount - 0.01m ? "Partial" : "Paid");
+                var hasResubmission = r.NetAmtResubmission > 0m
+                    || r.SubmissionLevel.Contains("Resubmit", StringComparison.OrdinalIgnoreCase)
+                    || r.SubmissionLevel.Contains("Recon", StringComparison.OrdinalIgnoreCase)
+                    || r.SubmissionLevel.Contains("awaiting RA", StringComparison.OrdinalIgnoreCase);
+                var payStatus = ra == null
+                    ? (hasResubmission ? "Pending - Resubmitted" : "Pending")
+                    : (approvedAmt <= 0 ? "Rejected" : approvedAmt < balanceAmount - 0.01m ? "Partial" : "Paid");
 
                 // TAT in days
                 var tatDays = "";
@@ -826,9 +832,11 @@ public class ReportService : IReportService
             var encType = MapEncounterType(encTypeRaw);
             var clinician = claim.Descendants("Activity")
                                      .FirstOrDefault()?.Element("Clinician")?.Value ?? "";
-            var principalDiag = claim.Elements("Diagnosis")
-                                     .FirstOrDefault(d => d.Element("Type")?.Value == "Principal")
-                                     ?.Element("Code")?.Value ?? "";
+            var principalDiag = string.Join(" | ",
+                                     claim.Elements("Diagnosis")
+                                          .Select(d => d.Element("Code")?.Value)
+                                          .Where(c => !string.IsNullOrWhiteSpace(c))
+                                          .Distinct(StringComparer.OrdinalIgnoreCase));
             var claimId = claim.Element("ID")?.Value ?? "";
             var receiverName = ResolveLookupName(receiverId, payerLookup);
             var payerId = claim.Element("PayerID")?.Value ?? "";
@@ -1064,7 +1072,19 @@ public class ReportService : IReportService
                 return "Resubmitted - Correction";
             if (type.Equals("internal complaint", StringComparison.OrdinalIgnoreCase))
                 return "Resubmitted - Internal Complaint";
+            if (type.Equals("reconciliation", StringComparison.OrdinalIgnoreCase) ||
+                type.Equals("reconciled", StringComparison.OrdinalIgnoreCase))
+                return "Resubmitted - Reconciliation";
+            if (type.Equals("recon pending", StringComparison.OrdinalIgnoreCase))
+                return "Recon Pending";
             return $"Resubmitted - {type}";
+        }
+
+        // No explicit type — infer from submission/RA count pattern
+        if (outboundCount > 2)
+        {
+            if (inboundCount == 0) return "Resubmitted - awaiting RA";
+            return "Recon Pending";
         }
 
         return "Resubmitted";
