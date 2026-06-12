@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytika RCM — Design Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Apply persisted theme/dir before React mounts (no flash of wrong theme).
+      (function () {
+        try {
+          var t = localStorage.getItem("preview-theme") || "light";
+          var d = localStorage.getItem("preview-dir") || "ltr";
+          var el = document.documentElement;
+          el.setAttribute("data-theme", t);
+          if (t === "dark") el.classList.add("dark");
+          el.setAttribute("dir", d);
+          el.setAttribute("lang", d === "rtl" ? "ar" : "en");
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

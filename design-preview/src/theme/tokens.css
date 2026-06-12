@@ -1,0 +1,50 @@
+/* Ghaf Business Intelligence brand tokens — copied from the production
+   Analytika/wwwroot/css/site.css so the preview matches the real palette.
+   Light values in :root, dark overrides under .dark (Tailwind darkMode:'class'). */
+
+:root {
+  --navy: #011c40;
+  --teal: #54acbf;
+  --forest: #26658c;
+  --gold: #b88924;
+  --coral: #b94a3f;
+  --mint: #2f8f72;
+
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-alt: #eaf4fb;
+  --border: rgba(1, 28, 64, 0.1);
+  --text: #011c40;
+  --text-muted: #35577d;
+
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+
+  /* tint helpers (alpha-on-hex not supported by Tailwind opacity modifiers) */
+  --navy-04: rgba(1, 28, 64, 0.04);
+  --navy-08: rgba(1, 28, 64, 0.08);
+  --navy-12: rgba(1, 28, 64, 0.12);
+
+  /* default BI accent (overridden per-tab at runtime) */
+  --accent: #14b8a6;
+  --accent2: #0ea5a0;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0d1117;
+  --surface: #0e1b2d;
+  --surface-alt: #11243b;
+  --border: rgba(167, 235, 242, 0.12);
+  --text: #eaf4fb;
+  --text-muted: rgba(234, 244, 251, 0.72);
+
+  --navy-04: rgba(167, 235, 242, 0.04);
+  --navy-08: rgba(167, 235, 242, 0.08);
+  --navy-12: rgba(167, 235, 242, 0.12);
+
+  color-scheme: dark;
+}
