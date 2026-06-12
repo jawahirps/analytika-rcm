@@ -45,15 +45,36 @@ public class ReportSchedulerController : Controller
         if (facilityId.HasValue)
             facilitiesQuery = facilitiesQuery.Where(f => f.Id == facilityId.Value);
 
+        // Scope filter dropdowns to codes that actually appear in this facility's parsed data
+        var parsedScope = _context.XmlParsedRecords.AsNoTracking();
+        if (facilityId.HasValue)
+            parsedScope = parsedScope.Where(r => r.FacilityId == facilityId.Value);
+
+        var payerCodes = await parsedScope
+            .Where(r => r.PayerId != null && r.PayerId != "")
+            .Select(r => r.PayerId!).Distinct().ToListAsync();
+        var receiverCodes = await parsedScope
+            .Where(r => r.ReceiverId != null && r.ReceiverId != "")
+            .Select(r => r.ReceiverId!).Distinct().ToListAsync();
+        var clinicianCodes = await parsedScope
+            .Where(r => r.Clinician != null && r.Clinician != "")
+            .Select(r => r.Clinician!).Distinct().ToListAsync();
+
         return new ReportSchedulerViewModel
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
             SearchCriteria = "EncounterStartDate",
             Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
-            Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
-            Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
-            Clinicians = new SelectList(await _context.Clinicians.Where(c => c.IsActive).ToListAsync(), "Id", "Name"),
+            Payers    = new SelectList(await _context.Payers
+                .Where(p => p.IsActive && payerCodes.Contains(p.Name))
+                .OrderBy(p => p.Name).ToListAsync(), "Id", "Name"),
+            Receivers = new SelectList(await _context.Receivers
+                .Where(r => r.IsActive && receiverCodes.Contains(r.Name))
+                .OrderBy(r => r.Name).ToListAsync(), "Id", "Name"),
+            Clinicians = new SelectList(await _context.Clinicians
+                .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
+                .OrderBy(c => c.Name).ToListAsync(), "Id", "Name"),
             Departments = new SelectList(await _context.Departments.Where(d => d.IsActive).ToListAsync(), "Id", "Name"),
             RecentReports = reports,
             TotalReports = total,

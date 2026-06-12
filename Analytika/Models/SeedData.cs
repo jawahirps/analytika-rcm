@@ -20,43 +20,8 @@ public static class SeedData
             );
         }
 
-        if (!context.Receivers.Any())
-        {
-            context.Receivers.AddRange(
-                new Receiver { Name = "Neuron LLC - Dha" },
-                new Receiver { Name = "Mednet UAE" },
-                new Receiver { Name = "Emirates Insurance" }
-            );
-        }
-
-        if (!context.Payers.Any())
-        {
-            context.Payers.AddRange(
-                new Payer { Name = "Dewa - Dha" },
-                new Payer { Name = "Dubai Health Authority" },
-                new Payer { Name = "ADNIC" },
-                new Payer { Name = "AXA Gulf" }
-            );
-        }
-
-        if (!context.Clinicians.Any())
-        {
-            context.Clinicians.AddRange(
-                new Clinician { Name = "Dr. Ahmed Al Mansoori" },
-                new Clinician { Name = "Dr. Sara Hassan" },
-                new Clinician { Name = "Dr. Mohammed Al Rashidi" }
-            );
-        }
-
-        if (!context.Departments.Any())
-        {
-            context.Departments.AddRange(
-                new Department { Name = "Emergency" },
-                new Department { Name = "Cardiology" },
-                new Department { Name = "Orthopedics" },
-                new Department { Name = "Radiology" }
-            );
-        }
+        // Intentionally no dummy Receivers/Payers/Clinicians/Departments seeds.
+        // These are synced from real XmlParsedRecords data below.
 
         await context.SaveChangesAsync();
 
@@ -128,6 +93,49 @@ public static class SeedData
             }
         }
         await context.SaveChangesAsync();
+
+        // Sync Payers/Receivers/Clinicians from real XmlParsedRecords codes.
+        // Runs once: detects stale dummy data and replaces it; no-ops on clean DB.
+        if (await context.XmlParsedRecords.AnyAsync())
+        {
+            bool stale =
+                await context.Payers.AnyAsync(p => p.Name == "Dewa - Dha" || p.Name == "Dubai Health Authority") ||
+                await context.Receivers.AnyAsync(r => r.Name == "Neuron LLC - Dha" || r.Name == "Mednet UAE") ||
+                await context.Clinicians.AnyAsync(c => c.Name == "Dr. Ahmed Al Mansoori") ||
+                await context.Departments.AnyAsync();
+
+            if (stale)
+            {
+                // NULL FK columns in ReportRequests first to avoid FK constraint violations
+                await context.ReportRequests.ExecuteUpdateAsync(r => r
+                    .SetProperty(x => x.PayerId,      (int?)null)
+                    .SetProperty(x => x.ReceiverId,   (int?)null)
+                    .SetProperty(x => x.ClinicianId,  (int?)null)
+                    .SetProperty(x => x.DepartmentId, (int?)null));
+
+                await context.Payers.ExecuteDeleteAsync();
+                await context.Receivers.ExecuteDeleteAsync();
+                await context.Clinicians.ExecuteDeleteAsync();
+                await context.Departments.ExecuteDeleteAsync();
+
+                var payerCodes = await context.XmlParsedRecords
+                    .Where(r => r.PayerId != null && r.PayerId != "")
+                    .Select(r => r.PayerId!).Distinct().OrderBy(x => x).ToListAsync();
+                context.Payers.AddRange(payerCodes.Select(c => new Payer { Name = c }));
+
+                var receiverCodes = await context.XmlParsedRecords
+                    .Where(r => r.ReceiverId != null && r.ReceiverId != "")
+                    .Select(r => r.ReceiverId!).Distinct().OrderBy(x => x).ToListAsync();
+                context.Receivers.AddRange(receiverCodes.Select(c => new Receiver { Name = c }));
+
+                var clinicianCodes = await context.XmlParsedRecords
+                    .Where(r => r.Clinician != null && r.Clinician != "")
+                    .Select(r => r.Clinician!).Distinct().OrderBy(x => x).ToListAsync();
+                context.Clinicians.AddRange(clinicianCodes.Select(c => new Clinician { Name = c }));
+
+                await context.SaveChangesAsync();
+            }
+        }
 
         // Seed demo report requests
         if (!context.ReportRequests.Any())
