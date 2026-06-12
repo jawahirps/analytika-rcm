@@ -29,11 +29,11 @@ public static class ReportGenerationState
         }
     }
 
-    public static void Update(string stage, int pct, int done = 0, int total = 0, string? message = null)
+    public static void Update(int reportRequestId, string stage, int pct, int done = 0, int total = 0, string? message = null)
     {
         lock (_lock)
         {
-            if (!_snap.IsRunning)
+            if (!_snap.IsRunning || _snap.ReportRequestId != reportRequestId)
                 return;
 
             _snap = _snap with
@@ -47,10 +47,13 @@ public static class ReportGenerationState
         }
     }
 
-    public static void Finish(string? message = null)
+    public static void Finish(int reportRequestId, string? message = null)
     {
         lock (_lock)
         {
+            if (_snap.ReportRequestId != reportRequestId)
+                return;
+
             _snap = _snap with
             {
                 IsRunning = false,
@@ -62,10 +65,13 @@ public static class ReportGenerationState
         }
     }
 
-    public static void Fail(string message)
+    public static void Fail(int reportRequestId, string message)
     {
         lock (_lock)
         {
+            if (_snap.ReportRequestId != reportRequestId)
+                return;
+
             _snap = _snap with
             {
                 IsRunning = false,

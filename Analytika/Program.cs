@@ -219,6 +219,15 @@ using (var startupScope = app.Services.CreateScope())
     var startupServices = startupScope.ServiceProvider;
     var startupDb = startupServices.GetRequiredService<AppDbContext>();
 
+    // WAL mode lets reads proceed concurrently with the background report writer;
+    // busy_timeout gives short transactions up to 5 s to acquire the lock instead
+    // of immediately returning SQLITE_BUSY while a report generation is running.
+    if (!startupDb.Database.IsNpgsql())
+    {
+        startupDb.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL");
+        startupDb.Database.ExecuteSqlRaw("PRAGMA busy_timeout=5000");
+    }
+
     if (startupDb.Database.IsNpgsql())
     {
         // Postgres schema is owned by EF migrations — always bring it current

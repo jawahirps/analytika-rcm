@@ -15,11 +15,13 @@ public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
+    private readonly IWebHostEnvironment _env;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService, IWebHostEnvironment env)
     {
         _context = context;
         _reportService = reportService;
+        _env = env;
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
@@ -210,15 +212,14 @@ public class ReportSchedulerController : Controller
         return RedirectToAction(GetActionName(reportType));
     }
 
-    private static string? ResolveReportFilePath(string? reportFilePath)
+    private string? ResolveReportFilePath(string? reportFilePath)
     {
         if (string.IsNullOrWhiteSpace(reportFilePath))
             return null;
 
-        var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+        var webRoot = Path.GetFullPath(_env.WebRootPath);
         var filePath = Path.GetFullPath(Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "wwwroot",
+            _env.WebRootPath,
             reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
 
         return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;

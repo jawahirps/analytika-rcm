@@ -107,7 +107,7 @@ public class ReportService : IReportService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Background report runner failed for {ReportId}", request.ReportId);
-                    ReportGenerationState.Fail($"Report {request.ReportId} could not start.");
+                    ReportGenerationState.Fail(request.Id, $"Report {request.ReportId} could not start.");
                 }
             });
         }
@@ -188,7 +188,7 @@ public class ReportService : IReportService
             var filePath = Path.Combine(reportsDir, fileName);
 
             void UpdateStage(string stage, int pct, int done = 0, int total = 0, string? message = null)
-                => ReportGenerationState.Update(stage, pct, done, total, message);
+                => ReportGenerationState.Update(report.Id, stage, pct, done, total, message);
 
             UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
             UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
@@ -560,13 +560,13 @@ public class ReportService : IReportService
                 }
             }
 
-            ReportGenerationState.Finish($"Report {report.ReportId} completed successfully.");
+            ReportGenerationState.Finish(report.Id, $"Report {report.ReportId} completed successfully.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate report {ReportId}", report.ReportId);
             report.Status = "Failed";
-            ReportGenerationState.Fail($"Report {report.ReportId} failed: {ex.Message}");
+            ReportGenerationState.Fail(report.Id, $"Report {report.ReportId} failed: {ex.Message}");
         }
 
         await _context.SaveChangesAsync();
