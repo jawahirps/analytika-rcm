@@ -190,6 +190,26 @@ $(document).ready(function() {
     }
 });
 
+// ── Aurora shader background — auto-loaded on Report Scheduler pages ──────────
+(function () {
+    /* Only on ReportScheduler routes */
+    if (!/\/ReportScheduler\//i.test(window.location.pathname)) return;
+
+    function runShader() {
+        /* shader-bg.js is self-contained (raw WebGL, no Three.js); guard against double-load */
+        if (document.querySelector('script[src*="shader-bg.js?v=4"]')) return;
+        var s = document.createElement('script');
+        s.src = '/js/shader-bg.js?v=4';
+        document.head.appendChild(s);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runShader);
+    } else {
+        runShader();
+    }
+})();
+
 // ── Utility: format date as DD/MM/YYYY ───────────────────────────────────────
 function formatDateDDMMYYYY(dateStr) {
     var d = new Date(dateStr);

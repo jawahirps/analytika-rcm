@@ -3691,3 +3691,98 @@ html[data-theme="dark"] .select2-container--default .select2-results__option--hi
 /* ── Utility animations ──────────────────────────────────────── */
 .fade-in { animation: fadeIn 0.25s ease both; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Report pages: aurora shader background ──────────────────── */
+/* Applied via JS (site.js) on /ReportScheduler/* routes         */
+.page-wrapper {
+  position: relative;
+  overflow: hidden;
+  background: #09090b;
+}
+.page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
+
+/* Cards become dark glass panels over the aurora */
+.page-wrapper .filter-card,
+.page-wrapper .table-card {
+  border: 1px solid rgba(255,255,255,.09) !important;
+  border-radius: 22px;
+  box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  background: rgba(9,9,11,.52) !important;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  overflow: hidden;
+}
+.page-wrapper .filter-card .card-header {
+  background: linear-gradient(135deg, rgba(8,20,35,.96), rgba(0,102,102,.9)) !important;
+  color: #fafafa !important;
+  border-bottom: 1px solid rgba(255,255,255,.08) !important;
+}
+.page-wrapper .table-card .card-header {
+  background: rgba(255,255,255,.04) !important;
+  color: #fafafa !important;
+  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+}
+.page-wrapper .table thead th {
+  background: rgba(255,255,255,.05) !important;
+  color: #a1a1aa !important;
+  border-bottom: 1px solid rgba(255,255,255,.07) !important;
+}
+.page-wrapper .table tbody td { color: #d4d4d8 !important; }
+.page-wrapper .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05) !important; }
+.page-wrapper .breadcrumb-item a { color: #818cf8 !important; }
+.page-wrapper .breadcrumb-item.active { color: #a1a1aa !important; }
+.page-wrapper .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
+.page-wrapper .form-control,
+.page-wrapper .form-select,
+.page-wrapper .input-group-text {
+  background: rgba(255,255,255,.06) !important;
+  color: #fafafa !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+.page-wrapper .form-control:focus,
+.page-wrapper .form-select:focus {
+  background: rgba(255,255,255,.09) !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99,102,241,.18) !important;
+}
+.page-wrapper .form-label,
+.page-wrapper label { color: #a1a1aa !important; }
+.page-wrapper .date-range-btn {
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.06);
+  color: #d4d4d8;
+}
+.page-wrapper .date-range-btn:hover { background: rgba(255,255,255,.10); color: #fafafa; }
+.page-wrapper .date-range-btn.active {
+  background: rgba(99,102,241,.22) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99,102,241,.40) !important;
+}
+.page-wrapper .btn-submit-report {
+  background: #6366f1 !important;
+  border-color: rgba(99,102,241,.50) !important;
+  box-shadow: 0 4px 20px rgba(99,102,241,.35) !important;
+}
+.page-wrapper .btn-reset-report {
+  background: rgba(255,255,255,.06) !important;
+  color: #d4d4d8 !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+.page-wrapper .text-muted { color: #71717a !important; }
+.page-wrapper .report-id-link { color: #818cf8 !important; }
+.page-wrapper .status-completed { color: #34d399 !important; }
+.page-wrapper .status-pending   { color: #fbbf24 !important; }
+.page-wrapper .status-processing { color: #818cf8 !important; }
+.page-wrapper .status-failed    { color: #f87171 !important; }
+.page-wrapper .btn-download {
+  background: rgba(99,102,241,.18) !important; color: #a5b4fc !important;
+  border-color: rgba(99,102,241,.30) !important;
+}
+.page-wrapper .btn-delete-report {
+  background: rgba(248,113,113,.10) !important; color: #fca5a5 !important;
+  border-color: rgba(248,113,113,.25) !important;
+}
+.page-wrapper .btn-clear-reports {
+  background: rgba(248,113,113,.08) !important; color: #fca5a5 !important;
+  border-color: rgba(248,113,113,.20) !important;
+}
