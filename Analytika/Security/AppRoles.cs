@@ -9,9 +9,10 @@ public static class AppRoles
     public const string Finance = "Finance";
     public const string Auditor = "Auditor";
     public const string Viewer = "Viewer";
+    public const string Reporter = "Reporter"; // facility-scoped, reports + support only
 
     public const string RcmAccess = $"{Admin},{FacilityAdmin},{Analyst},{Billing},{Finance},{Auditor}";
-    public const string ReportAccess = RcmAccess;
+    public const string ReportAccess = $"{RcmAccess},{Reporter}";
     public const string ResubmissionAccess = $"{Admin},{FacilityAdmin},{Analyst}";
     public const string AdminAccess = Admin;
 }

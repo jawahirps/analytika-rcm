@@ -72,6 +72,8 @@ public class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> Dashboard()
     {
+        if (User.IsInRole(AppRoles.Reporter))
+            return RedirectToAction("ClaimSummaryReport", "ReportScheduler");
         return View(await _dashboard.BuildFacilityStatusAsync());
     }
 

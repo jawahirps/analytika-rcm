@@ -138,7 +138,7 @@ public class ReportService : IReportService
         return $"{from:yyyyMMdd}-{to:yyyyMMdd}";
     }
 
-    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize)
+    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, int? facilityId = null)
     {
         var query = _context.ReportRequests
             .Include(r => r.Branch)
@@ -146,6 +146,7 @@ public class ReportService : IReportService
             .Include(r => r.Payer)
             .Include(r => r.Clinician)
             .Where(r => r.ReportType == reportType)
+            .Where(r => facilityId == null || r.BranchId == facilityId)
             .OrderByDescending(r => r.RequestedAt);
 
         var total = await query.CountAsync();

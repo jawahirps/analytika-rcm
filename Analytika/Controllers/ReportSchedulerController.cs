@@ -3,6 +3,7 @@ using Analytika.Models.ViewModels;
 using Analytika.Services;
 using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,22 +16,41 @@ public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _reportService = reportService;
+        _userManager = userManager;
+    }
+
+    // Returns the single facility ID for Facility-type users, null for Global users.
+    private async Task<int?> GetUserFacilityIdAsync()
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser?.UserType != "Facility") return null;
+        var uf = await _context.Set<UserFacility>()
+            .Where(x => x.UserId == appUser.Id)
+            .FirstOrDefaultAsync();
+        return uf?.FacilityId;
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityId);
+
+        var facilitiesQuery = _context.Facilities.Where(f => f.IsActive);
+        if (facilityId.HasValue)
+            facilitiesQuery = facilitiesQuery.Where(f => f.Id == facilityId.Value);
+
         return new ReportSchedulerViewModel
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
             SearchCriteria = "EncounterStartDate",
-            Facilities = new SelectList(await _context.Facilities.Where(f => f.IsActive).ToListAsync(), "Id", "Name"),
+            Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
             Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
             Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
             Clinicians = new SelectList(await _context.Clinicians.Where(c => c.IsActive).ToListAsync(), "Id", "Name"),
@@ -101,7 +121,8 @@ public class ReportSchedulerController : Controller
     [HttpGet]
     public async Task<IActionResult> GetReports(string reportType, int page = 1, int pageSize = 10)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityId);
         return Json(new
         {
             data = reports.Select(r => new

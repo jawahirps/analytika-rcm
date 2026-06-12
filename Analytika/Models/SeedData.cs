@@ -64,7 +64,7 @@ public static class SeedData
         var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        foreach (var role in new[] { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer" })
+        foreach (var role in new[] { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer", "Reporter" })
             if (!await roleManager.RoleExistsAsync(role))
                 await roleManager.CreateAsync(new IdentityRole(role));
 
@@ -80,6 +80,54 @@ public static class SeedData
             await userManager.CreateAsync(admin, "Admin@123");
             await userManager.AddToRoleAsync(admin, "Admin");
         }
+
+        // Facility Reporter accounts — one per facility, reports + support access only
+        var facilityAccounts = new[]
+        {
+            (Email: "alnoor.deira@ghafbi.ae",        Name: "Alnoor Deira"),
+            (Email: "alnoor.rashidiya@ghafbi.ae",     Name: "Alnoor Rashidiya"),
+            (Email: "alnoor.abudhabi@ghafbi.ae",      Name: "Alnoor Abu Dhabi"),
+            (Email: "alnoor.muhaisnah@ghafbi.ae",     Name: "Alnoor Muhaisnah"),
+            (Email: "alnoor.qusais@ghafbi.ae",        Name: "Alnoor Qusais"),
+            (Email: "apollo@ghafbi.ae",               Name: "Apollo"),
+            (Email: "axon.rashidiya@ghafbi.ae",       Name: "Axon -Rashidiya"),
+            (Email: "marinca.mc@ghafbi.ae",           Name: "Marinca MC"),
+            (Email: "nafeesa.mc@ghafbi.ae",           Name: "Nafeesa MC"),
+            (Email: "newlotus.mc@ghafbi.ae",          Name: "New Lotus MC"),
+            (Email: "sabah.alnoor.altaif@ghafbi.ae",  Name: "Sabah Alnoor Al Taif"),
+            (Email: "sabah.alnoor.mc@ghafbi.ae",      Name: "Sabah Alnoor MC"),
+            (Email: "sanlucas.mc@ghafbi.ae",          Name: "San Lucas MC"),
+            (Email: "wecare@ghafbi.ae",               Name: "wecare"),
+        };
+
+        foreach (var (email, facilityName) in facilityAccounts)
+        {
+            if (await userManager.FindByEmailAsync(email) != null) continue;
+
+            var facility = await context.Facilities
+                .FirstOrDefaultAsync(f => f.Name == facilityName);
+            if (facility == null) continue;
+
+            var reporter = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                FullName = facilityName,
+                EmailConfirmed = true,
+                UserType = "Facility"
+            };
+            var result = await userManager.CreateAsync(reporter, "ghafbi@1234");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(reporter, "Reporter");
+                context.Set<UserFacility>().Add(new UserFacility
+                {
+                    UserId = reporter.Id,
+                    FacilityId = facility.Id
+                });
+            }
+        }
+        await context.SaveChangesAsync();
 
         // Seed demo report requests
         if (!context.ReportRequests.Any())
