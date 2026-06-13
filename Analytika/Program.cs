@@ -71,7 +71,47 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
+// Preview compatibility (opt-in: Preview__Compat=true). Sandbox preview panes
+// reach the app through an HTTPS proxy and embed it in an iframe, so cookies
+// must be SameSite=None;Secure and frame-blocking headers must be relaxed.
+// Never enable in production — it weakens CSRF/clickjacking posture.
+var previewCompat = builder.Configuration.GetValue("Preview:Compat", false);
+if (previewCompat)
+{
+    builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>(o =>
+    {
+        o.ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
+                           | Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor;
+        o.KnownNetworks.Clear();
+        o.KnownProxies.Clear();
+    });
+    builder.Services.ConfigureApplicationCookie(o =>
+    {
+        o.Cookie.SameSite = SameSiteMode.None;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+    builder.Services.AddAntiforgery(o =>
+    {
+        o.Cookie.SameSite = SameSiteMode.None;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        o.SuppressXFrameOptionsHeader = true; // antiforgery injects SAMEORIGIN otherwise
+    });
+    builder.Services.PostConfigure<SessionOptions>(o =>
+    {
+        o.Cookie.SameSite = SameSiteMode.None;
+        o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    });
+}
+
 var app = builder.Build();
+
+if (previewCompat)
+{
+    app.UseForwardedHeaders();
+    // The preview proxy terminates TLS; treat every request as HTTPS so
+    // Secure cookies and the antiforgery SSL check behave correctly.
+    app.Use((ctx, next) => { ctx.Request.Scheme = "https"; return next(); });
+}
 
 app.UseSerilogRequestLogging();
 
@@ -100,7 +140,8 @@ app.Use(async (context, next) =>
     {
         var headers = context.Response.Headers;
         headers["X-Content-Type-Options"] = "nosniff";
-        headers["X-Frame-Options"] = "DENY";
+        if (!previewCompat)
+            headers["X-Frame-Options"] = "DENY";
         headers["Referrer-Policy"] = "same-origin";
         headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()";
         headers["X-Robots-Tag"] = "noindex, nofollow, noarchive";
@@ -126,7 +167,7 @@ app.Use(async (context, next) =>
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "base-uri 'self'; " +
-                "frame-ancestors 'none'; " +
+                (previewCompat ? "" : "frame-ancestors 'none'; ") +
                 "form-action 'self'; " +
                 "object-src 'none'; " +
                 "img-src 'self' data: https: blob:; " +
