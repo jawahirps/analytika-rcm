@@ -1,5 +1,9 @@
 Analytika/bin/
 Analytika/obj/
+analytika.db
+analytika.db.gz
+analytika.db-shm
+analytika.db-wal
 Analytika/analytika.db
 Analytika/publish/
 Analytika/wwwroot/portal-downloads/
