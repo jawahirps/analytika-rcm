@@ -8,7 +8,7 @@ const firebaseConfig = {
   projectId: "bi-intel",
   storageBucket: "bi-intel.firebasestorage.app",
   messagingSenderId: "672898743480",
-  appId: "1:672898743480:web:6c02be10dcd847082b084d",
+  appId: "1:672898743480:web:173ddd062587e0162b084d",
   measurementId: "G-9HPZH8KPJ1",
 };
 
