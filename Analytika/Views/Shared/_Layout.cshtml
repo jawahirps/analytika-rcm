@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Analytika RCM</title>
+    <title>@ViewData["Title"] - Ghaf Bi Analytix</title>
     <script>
         (function () {
             try {
@@ -51,23 +51,23 @@
 
 <a href="#main-content" class="visually-hidden-focusable skip-to-main">Skip to main content</a>
 
-<!-- ═══════════════════════════════════════════════ Sidebar ═══════════════════ -->
+<!-- ═══════════════════════════════════════════════ Sidebar ═════════════ -->
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
 
     <div class="sidebar-header">
         <a class="sidebar-brand" asp-controller="Home" asp-action="@brandAction">
             <svg class="sidebar-brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
+                <circle cx="22" cy="22" r="20" stroke="#66B2B2" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#003B4D"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#006884"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#008B8B"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#C6E2E9"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#003B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#003B4D"/>
             </svg>
             <div class="sidebar-brand-text">
-                <span class="sidebar-brand-name">Analytika</span>
-                <span class="sidebar-brand-sub">RCM Platform</span>
+                <span class="sidebar-brand-name">Ghaf Bi</span>
+                <span class="sidebar-brand-sub">Business Intelligence</span>
             </div>
         </a>
         <button class="sidebar-close-btn d-lg-none" id="sidebarClose" aria-label="Close navigation">
@@ -97,10 +97,10 @@
                     <i class="fas fa-sync-alt" aria-hidden="true"></i>Sync &amp; Fetch
                 </a>
                 <a class="sidebar-sublink @(ctrl == "Portal" && act == "SyncedData" ? "active" : "")" asp-controller="Portal" asp-action="SyncedData">
-                    <i class="fas fa-inbox" aria-hidden="true"></i>Portal Files
+                    <i class="fas fa-database" aria-hidden="true"></i>Synced Data
                 </a>
                 <a class="sidebar-sublink @(ctrl == "Portal" && act == "XmlParsing" ? "active" : "")" asp-controller="Portal" asp-action="XmlParsing">
-                    <i class="fas fa-file-medical-alt" aria-hidden="true"></i>Claim Extracts
+                    <i class="fas fa-file-code" aria-hidden="true"></i>XML Parsing
                 </a>
             </div>
         </div>
@@ -199,7 +199,7 @@
 
 <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
-<!-- ═══════════════════════════════════════════════ Topbar ════════════════════ -->
+<!-- ═══════════════════════════════════════════════ Topbar ════════════ -->
 <header class="topbar" id="topbar">
     <div class="topbar-left">
         <button class="topbar-hamburger d-lg-none" id="sidebarOpen" aria-label="Open navigation" aria-expanded="false">
@@ -295,12 +295,12 @@
     </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════ Main ══════════════════════ -->
+<!-- ═══════════════════════════════════════════════ Main ════════════ -->
 <main class="main-wrapper" id="main-content">
     @RenderBody()
 </main>
 
-<!-- ═══════════════════════════════════════════════ Toasts ════════════════════ -->
+<!-- ═══════════════════════════════════════════════ Toasts ════════════ -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
     @if (TempData["Success"] != null)
     {
@@ -343,7 +343,7 @@
     }
 </div>
 
-<!-- ═══════════════════════════════════════════════ Confirm modal ════════════ -->
+<!-- ═══════════════════════════════════════════════ Confirm modal ════════ -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
         <div class="modal-content">
@@ -362,7 +362,7 @@
     </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
+<!-- ═══════════════════════════════════════════════ Scripts ═══════════ -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
@@ -372,7 +372,6 @@
 <script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
