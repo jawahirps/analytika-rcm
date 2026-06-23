@@ -75,7 +75,8 @@
         overflow: hidden;
         border-radius: 22px;
         padding: 1.6rem 1.75rem;
-        margin-bottom: 1.1rem;
+        margin: 0 auto 1.1rem;
+        max-width: 1520px;
         color: #fff;
         background: linear-gradient(120deg, var(--accent2) 0%, var(--accent) 70%);
         box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 34%, transparent);
@@ -117,43 +118,39 @@
     }
     .rcm-icon-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.18); color: var(--accent2); }
 
-    /* ── Layout grid ────────────────────────────────────────── */
-    .rcm-grid { display: grid; grid-template-columns: 244px minmax(0,1fr); gap: 1.1rem; max-width: 1520px; margin: 0 auto; }
-    @@media (max-width: 1050px) { .rcm-grid { grid-template-columns: 1fr; } }
-
-    /* ── Tab rail ───────────────────────────────────────────── */
-    .rcm-aside { display: flex; flex-direction: column; gap: 1.1rem; position: sticky; top: 70px; align-self: start; }
-    @@media (max-width: 1050px) { .rcm-aside { position: static; } }
-    .rcm-tabs { display: flex; flex-direction: column; gap: .4rem; background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: .7rem; box-shadow: var(--shadow); }
-    @@media (max-width: 1050px) { .rcm-tabs { flex-direction: row; flex-wrap: wrap; } }
+    /* ── Tab rail (horizontal pills) ────────────────────────── */
+    .rcm-tabs { display: flex; flex-direction: row; flex-wrap: wrap; gap: .5rem; max-width: 1520px; margin: 0 auto 1.1rem; }
+    @@media (max-width: 760px) { .rcm-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .3rem; } }
     .rcm-tab {
-        display: flex; align-items: center; gap: .7rem; text-decoration: none;
-        padding: .6rem .7rem; border-radius: 12px; color: var(--ink-soft);
-        font-weight: 700; font-size: .86rem; transition: background .16s, color .16s, transform .16s;
-        border: 1px solid transparent;
+        display: inline-flex; align-items: center; gap: .55rem; text-decoration: none; white-space: nowrap;
+        padding: .5rem .85rem; border-radius: 999px; color: var(--t2);
+        font-weight: 700; font-size: .84rem; transition: background .16s, color .16s, box-shadow .16s, transform .16s;
+        background: color-mix(in srgb, var(--t) 12%, #fff);
+        border: 1px solid color-mix(in srgb, var(--t) 24%, transparent);
     }
     .rcm-tab .rcm-tab-ico {
-        width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px;
-        display: inline-flex; align-items: center; justify-content: center; font-size: .82rem;
-        background: color-mix(in srgb, var(--t) 14%, transparent); color: var(--t);
+        width: 26px; height: 26px; flex: 0 0 26px; border-radius: 8px;
+        display: inline-flex; align-items: center; justify-content: center; font-size: .78rem;
+        background: color-mix(in srgb, var(--t) 20%, transparent); color: var(--t);
         transition: background .16s, color .16s;
     }
-    .rcm-tab:hover { background: color-mix(in srgb, var(--t) 8%, transparent); color: var(--ink); transform: translateX(2px); }
-    .rcm-tab.active { color: #fff; background: linear-gradient(120deg, var(--t2), var(--t)); box-shadow: 0 10px 22px color-mix(in srgb, var(--t) 36%, transparent); }
+    .rcm-tab:hover { transform: translateY(-1px); color: var(--t2); box-shadow: 0 8px 18px color-mix(in srgb, var(--t) 22%, transparent); }
+    .rcm-tab.active { color: #fff; background: linear-gradient(120deg, var(--t2), var(--t)); border-color: transparent; box-shadow: 0 10px 22px color-mix(in srgb, var(--t) 36%, transparent); }
     .rcm-tab.active .rcm-tab-ico { background: rgba(255,255,255,.22); color: #fff; }
 
-    /* ── Filters ────────────────────────────────────────────── */
-    .rcm-filters { background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: 1rem; box-shadow: var(--shadow); }
-    .rcm-filters h3 { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 800; margin: 0 0 .8rem; display: flex; align-items: center; gap: .45rem; }
+    /* ── Filters (horizontal bar) ───────────────────────────── */
+    .rcm-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .8rem; background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: .9rem 1rem; box-shadow: var(--shadow); max-width: 1520px; margin: 0 auto 1.1rem; }
+    .rcm-filters h3 { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 800; margin: 0; display: flex; align-items: center; gap: .45rem; align-self: center; }
     .rcm-filters h3 i { color: var(--accent); }
-    .rcm-field { margin-bottom: .7rem; }
+    .rcm-field { margin-bottom: 0; flex: 1 1 170px; min-width: 150px; }
     .rcm-field label { display: block; font-size: .7rem; font-weight: 700; color: var(--ink-soft); margin-bottom: .25rem; }
     .rcm-field select {
         width: 100%; border: 1.5px solid var(--bd); border-radius: 10px; padding: .5rem .6rem;
         font-size: .82rem; color: var(--ink); background: #fff; transition: border-color .15s, box-shadow .15s;
     }
     .rcm-field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
-    .rcm-filter-actions { display: flex; gap: .5rem; margin-top: .9rem; }
+    .rcm-filter-actions { display: flex; gap: .5rem; margin: 0; flex: 0 0 auto; }
+    .rcm-active-pill { width: 100%; }
     .rcm-btn {
         flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
         border: none; border-radius: 11px; padding: .6rem .8rem; font-weight: 700; font-size: .82rem; cursor: pointer;
@@ -167,7 +164,7 @@
     .rcm-active-pill { display: inline-flex; align-items: center; gap: .35rem; margin-top: .75rem; font-size: .72rem; font-weight: 700; color: var(--accent2); }
 
     /* ── Content ────────────────────────────────────────────── */
-    .rcm-main { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; }
+    .rcm-main { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; max-width: 1520px; margin: 0 auto; width: 100%; }
 
     .rcm-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; }
     @@media (max-width: 880px) { .rcm-kpis { grid-template-columns: repeat(2, 1fr); } }
@@ -229,6 +226,28 @@
 }
 
 <div class="rcm">
+    <!-- ── Tab rail (horizontal pills) ──────────────────────── -->
+    <nav class="rcm-tabs" aria-label="Report categories">
+        @foreach (var tab in Model.Tabs)
+        {
+            var meta = tabMeta.TryGetValue(tab, out var tm) ? tm : tabMeta["Submissions"];
+            var isActive = tab.Equals(Model.ActiveTab, StringComparison.OrdinalIgnoreCase);
+            <a class="rcm-tab @(isActive ? "active" : "")"
+               style="--t:@meta.Accent;--t2:@meta.Accent2"
+               asp-controller="Home" asp-action="RCMDashboard"
+               asp-route-tab="@tab"
+               asp-route-facilityId="@Model.Filters.FacilityId"
+               asp-route-receiver="@Model.Filters.Receiver"
+               asp-route-payer="@Model.Filters.Payer"
+               asp-route-encounterType="@Model.Filters.EncounterType"
+               asp-route-dateFrom="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")"
+               asp-route-dateTo="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")">
+                <span class="rcm-tab-ico"><i class="fas @meta.Icon"></i></span>
+                <span>@tab</span>
+            </a>
+        }
+    </nav>
+
     <!-- ── Hero ─────────────────────────────────────────────── -->
     <header class="rcm-hero">
         <div class="rcm-hero-row">
@@ -257,31 +276,7 @@
         </div>
     </header>
 
-    <div class="rcm-grid">
-        <!-- ── Aside: tabs + filters ─────────────────────────── -->
-        <aside class="rcm-aside">
-            <nav class="rcm-tabs" aria-label="Report categories">
-                @foreach (var tab in Model.Tabs)
-                {
-                    var meta = tabMeta.TryGetValue(tab, out var tm) ? tm : tabMeta["Submissions"];
-                    var isActive = tab.Equals(Model.ActiveTab, StringComparison.OrdinalIgnoreCase);
-                    <a class="rcm-tab @(isActive ? "active" : "")"
-                       style="--t:@meta.Accent;--t2:@meta.Accent2"
-                       asp-controller="Home" asp-action="RCMDashboard"
-                       asp-route-tab="@tab"
-                       asp-route-facilityId="@Model.Filters.FacilityId"
-                       asp-route-receiver="@Model.Filters.Receiver"
-                       asp-route-payer="@Model.Filters.Payer"
-                       asp-route-encounterType="@Model.Filters.EncounterType"
-                       asp-route-dateFrom="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")"
-                       asp-route-dateTo="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")">
-                        <span class="rcm-tab-ico"><i class="fas @meta.Icon"></i></span>
-                        <span>@tab</span>
-                    </a>
-                }
-            </nav>
-
-            <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="rcm-filters">
+    <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="rcm-filters">
                 <h3><i class="fas fa-sliders"></i> Filters</h3>
                 <input type="hidden" name="tab" value="@Model.ActiveTab" />
                 <input type="hidden" name="dateFrom" value="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")" />
@@ -352,7 +347,6 @@
                     <span class="rcm-active-pill"><i class="fas fa-circle-dot"></i> Filters active</span>
                 }
             </form>
-        </aside>
 
         <!-- ── Main content ──────────────────────────────────── -->
         <main class="rcm-main">
@@ -434,7 +428,6 @@
                 <i class="fas fa-shield-halved"></i> Refreshed @Model.RefreshedAt.ToString("dd MMM yyyy · HH:mm")
             </div>
         </main>
-    </div>
 </div>
 
 @section Scripts {

@@ -2734,13 +2734,15 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
   --sidebar-w:           260px;
   --sidebar-w-collapsed: 60px;
   --topbar-h:            56px;
-  --sidebar-bg:          #011C40;
-  --sidebar-text:        rgba(234,244,251,0.82);
-  --sidebar-text-hover:  #EAF4FB;
-  --sidebar-active-bg:   rgba(84,172,191,0.18);
-  --sidebar-active-text: #54ACBF;
-  --sidebar-section-bg:  rgba(255,255,255,0.04);
-  --sidebar-border:      rgba(84,172,191,0.12);
+  /* Light, theme-aware sidebar (mirrors the React redesign preview):
+     surface-colored chrome in light mode, dark surface in dark mode. */
+  --sidebar-bg:          #ffffff;
+  --sidebar-text:        #35577D;
+  --sidebar-text-hover:  #011C40;
+  --sidebar-active-bg:   rgba(84,172,191,0.15);
+  --sidebar-active-text: #26658C;
+  --sidebar-section-bg:  rgba(1,28,64,0.05);
+  --sidebar-border:      rgba(1,28,64,0.10);
   --topbar-bg:           rgba(255,255,255,0.92);
   --topbar-border:       rgba(1,28,64,0.10);
 
@@ -2817,6 +2819,20 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
   flex-shrink: 0;
 }
 
+/* Gradient brand tile (preview-style) */
+.sidebar-brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--classic-teal), var(--forest-teal));
+}
+
 .sidebar-brand-text {
   display: flex;
   flex-direction: column;
@@ -2829,15 +2845,15 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
 
 .sidebar-brand-name {
   font-size: var(--fs-base);
-  font-weight: 700;
-  color: #EAF4FB;
+  font-weight: 800;
+  color: var(--sidebar-text-hover);
   letter-spacing: -.2px;
 }
 
 .sidebar-brand-sub {
   font-size: 0.65rem;
-  color: var(--classic-teal);
-  font-weight: 500;
+  color: var(--sidebar-text);
+  font-weight: 600;
   letter-spacing: .3px;
   text-transform: uppercase;
 }
@@ -2936,7 +2952,7 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.28s cubic-bezier(.4,0,.2,1);
-  background: rgba(0,0,0,0.12);
+  background: var(--sidebar-section-bg);
 }
 .sidebar-section.expanded .sidebar-section-items { max-height: 600px; }
 
@@ -3205,10 +3221,22 @@ html[data-theme="dark"] div.dt-container .dt-info { color: rgba(234,244,251,0.5)
 }
 
 /* ── Dark mode: sidebar & topbar ────────────────────────────── */
+/* Remap the sidebar tokens so the light chrome becomes a dark surface. */
+html[data-theme="dark"] {
+  --sidebar-bg:          #0E1B2D;
+  --sidebar-text:        rgba(234,244,251,0.72);
+  --sidebar-text-hover:  #EAF4FB;
+  --sidebar-active-bg:   rgba(84,172,191,0.18);
+  --sidebar-active-text: #54ACBF;
+  --sidebar-section-bg:  rgba(167,235,242,0.06);
+  --sidebar-border:      rgba(167,235,242,0.12);
+  --topbar-bg:           rgba(14,27,45,0.90);
+  --topbar-border:       rgba(167,235,242,0.12);
+}
 html[data-theme="dark"] .topbar {
-  background: rgba(1,28,64,0.90);
+  background: var(--topbar-bg);
   backdrop-filter: blur(18px) saturate(150%);
-  border-bottom-color: rgba(84,172,191,0.14);
+  border-bottom-color: var(--topbar-border);
 }
 html[data-theme="dark"] .topbar .bell-btn { border-color: rgba(84,172,191,0.18); color: rgba(234,244,251,0.7); }
 html[data-theme="dark"] .topbar .profile-btn { color: #EAF4FB; }
