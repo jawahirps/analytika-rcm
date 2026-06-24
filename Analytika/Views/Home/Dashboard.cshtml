@@ -193,7 +193,7 @@
         transition: width .3s ease;
     }
     .fac-status-counts { font-size: .65rem; color: #4B6B73; font-weight: 600; }
-    .fac-status-counts .downloaded { color: #059669; font-weight: 600; }
+    .fac-status-counts .downloaded { color: #1E3A8A; font-weight: 600; }
     .fac-status-counts .pending { color: #ca8a04; font-weight: 600; }
 
     .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(8,20,35,.10); }
@@ -492,8 +492,8 @@ html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
             if (badge && kpi) {
                 var sign = kpi.trend >= 0 ? '+' : '';
                 badge.textContent = sign + kpi.trend + '% vs prev 30d';
-                badge.style.background = kpi.trend >= 0 ? 'rgba(47,143,114,0.15)' : 'rgba(185,74,63,0.15)';
-                badge.style.color      = kpi.trend >= 0 ? '#2F8F72' : '#B94A3F';
+                badge.style.background = kpi.trend >= 0 ? 'rgba(30,58,138,0.15)' : 'rgba(185,74,63,0.15)';
+                badge.style.color      = kpi.trend >= 0 ? '#1E3A8A' : '#B94A3F';
             }
             var totalEl = document.getElementById('kpiTotal');
             if (totalEl && kpi) totalEl.textContent = (kpi.currentCount || 0).toLocaleString();
@@ -522,7 +522,7 @@ html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
                     series: data.byType.map(function(x) { return x.count; }),
                     labels: data.byType.map(function(x) { return x.type || 'Unknown'; }),
                     chart: { type: 'donut', height: 160, background: 'transparent', toolbar: { show: false } },
-                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#2F8F72'],
+                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#1E3A8A'],
                     plotOptions: { pie: { donut: { size: '65%' } } },
                     legend: { position: 'right', fontSize: '11px', labels: { colors: textColor } },
                     dataLabels: { enabled: false },

@@ -8,14 +8,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ghaf Bi Analytix — Login</title>
+    <title>Bix — Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <!-- Spline 3D web component (vanilla, no React needed) -->
-    <script type="module" src="https://unpkg.com/@@splinetool/viewer@@1.9.28/build/spline-viewer.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -496,39 +494,8 @@
     <div class="login-left">
         <div class="accent-ring"></div>
 
-        <!-- GooeyText loading overlay — visible until Spline scene is ready -->
-        <div class="gooey-loader" id="gooeyLoader" aria-live="polite" aria-label="Loading">
-            <!-- Hidden SVG filter -->
-            <svg class="gooey-svg" aria-hidden="true" focusable="false">
-                <defs>
-                    <filter id="gooey-threshold">
-                        <feColorMatrix in="SourceGraphic" type="matrix"
-                            values="1 0 0 0 0
-                                    0 1 0 0 0
-                                    0 0 1 0 0
-                                    0 0 0 255 -140" />
-                    </filter>
-                </defs>
-            </svg>
-            <div class="gooey-container">
-                <div class="gooey-texts">
-                    <span class="gooey-text1" id="gooeyText1"></span>
-                    <span class="gooey-text2" id="gooeyText2"></span>
-                </div>
-            </div>
-        </div>
-
         <!-- Spotlight (tracks mouse) -->
         <div class="spotlight" id="loginSpotlight"></div>
-
-        <!-- Spline 3D interactive scene -->
-        <div class="spline-wrap" aria-hidden="true">
-            <spline-viewer
-                id="splineViewer"
-                url="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-                loading-anim-type="none">
-            </spline-viewer>
-        </div>
 
         <div class="brand-logo">
             <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -547,7 +514,7 @@
                 <path d="M15 38 H29" stroke="#54ACBF" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <div>
-                <div class="brand-name">Ghaf Bi Analytix</div>
+                <div class="brand-name">Bix</div>
                 <div class="brand-sub">Business Intelligence</div>
             </div>
         </div>
@@ -580,7 +547,7 @@
 
         <div class="login-right-inner">
             <h1 data-i18n="welcome">Welcome back</h1>
-            <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Bi Analytix account</p>
+            <p class="subtitle" data-i18n="subtitle">Sign in to your Bix account</p>
 
             <form asp-controller="Home" asp-action="Index" method="post">
                 @Html.AntiForgeryToken()
@@ -674,7 +641,7 @@
         const I18N = {
             en: {
                 welcome:  'Welcome back',
-                subtitle: 'Sign in to your Ghaf Bi Analytix account',
+                subtitle: 'Sign in to your Bix account',
                 email:    'Email address',
                 password: 'Password',
                 forgot:   'Forgot password?',
@@ -684,7 +651,7 @@
             },
             ar: {
                 welcome:  'أهلاً بعودتك',
-                subtitle: 'سجّل دخولك إلى حساب Ghaf Bi Analytix',
+                subtitle: 'سجّل دخولك إلى حساب Bix',
                 email:    'البريد الإلكتروني',
                 password: 'كلمة المرور',
                 forgot:   'نسيت كلمة المرور؟',
@@ -736,7 +703,7 @@
         /* ── GooeyText morph loader ── */
         (function () {
             const TEXTS = [
-                'Ghaf Bi Analytix',
+                'Bix',
                 'Connecting portals…',
                 'Loading workspace…',
                 'Syncing data…',

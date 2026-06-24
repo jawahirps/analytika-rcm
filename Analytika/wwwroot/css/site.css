@@ -19,7 +19,7 @@
   --soft-white:    #EAF4FB;
   --gold:          #B88924;
   --coral:         #B94A3F;
-  --mint:          #2F8F72;
+  --mint:          #1E3A8A;
 
   /* Compatibility aliases used across existing views */
   --navy:          var(--deep-navy);
@@ -134,7 +134,7 @@
 
   --gold-12:  rgba(184,137,36,0.12);
   --coral-12: rgba(185,74,63,0.12);
-  --mint-12:  rgba(47,143,114,0.12);
+  --mint-12:  rgba(30,58,138,0.12);
 }
 
 /* ----------------------------------------------------------------
@@ -928,7 +928,7 @@ html[data-theme="dark"] .page-header h4 {
 .badge-warning  { background: rgba(53,87,125,0.12); color: #b45309; }
 .badge-danger   { background: rgba(239,68,68,0.12);  color: #b91c1c; }
 .badge-info     { background: rgba(59,130,246,0.12); color: #1d4ed8; }
-.badge-success  { background: rgba(16,185,129,0.12); color: #065f46; }
+.badge-success  { background: rgba(30,64,175,0.12); color: #0F2742; }
 .badge-muted    { background: var(--surface-alt);    color: var(--text-muted); }
 
 /* ----------------------------------------------------------------
@@ -955,9 +955,9 @@ html[data-theme="dark"] .page-header h4 {
   font-size: 0.72rem;
   font-weight: 600;
 }
-.status-pill.active   { background: rgba(16,185,129,0.1);   color: #065f46; }
+.status-pill.active   { background: rgba(30,64,175,0.1);   color: #0F2742; }
 .status-pill.inactive { background: rgba(38,101,140,0.12); color: #26658C; }
-.status-pill.success  { background: rgba(16,185,129,0.1);   color: #065f46; }
+.status-pill.success  { background: rgba(30,64,175,0.1);   color: #0F2742; }
 .status-pill.failed   { background: rgba(239,68,68,0.1);    color: #b91c1c; }
 .status-pill.warning  { background: rgba(53,87,125,0.1);   color: #b45309; }
 
@@ -1170,8 +1170,8 @@ label.portal-toggle span { pointer-events: none; }
 }
 
 .alert-success {
-  background: rgba(16,185,129,0.08);
-  color: #065f46;
+  background: rgba(30,64,175,0.08);
+  color: #0F2742;
   border-left: 3px solid var(--emerald);
 }
 
@@ -1248,7 +1248,7 @@ label.portal-toggle span { pointer-events: none; }
   outline: 0;
 }
 /* new-facility option highlight */
-.select2-results__option[aria-selected] .fa-plus-circle { color: #198754; }
+.select2-results__option[aria-selected] .fa-plus-circle { color: #1E40AF; }
 
 .select2-container--default .select2-selection--multiple {
   border: 1px solid rgba(8,20,35,0.14);
@@ -1306,7 +1306,7 @@ html[data-theme="dark"] .empty-state {
 }
 
 .sidebar-tab.active {
-  background: rgba(16,185,129,0.18);
+  background: rgba(30,64,175,0.18);
   border-left-color: var(--emerald) !important;
   color: var(--emerald) !important;
 }
@@ -1920,8 +1920,8 @@ html[data-theme="dark"] .brand-name-wrap .brand-sub {
   --theme-border: rgba(1,28,64,0.14);
   --theme-grid: rgba(1,28,64,0.035);
   --theme-focus: rgba(84,172,191,0.22);
-  --semantic-success: #2F8F72;
-  --semantic-success-bg: rgba(47,143,114,0.12);
+  --semantic-success: #1E3A8A;
+  --semantic-success-bg: rgba(30,58,138,0.12);
   --semantic-warning: #B88924;
   --semantic-warning-bg: rgba(184,137,36,0.14);
   --semantic-danger: #B94A3F;
@@ -2048,7 +2048,7 @@ html[data-theme="dark"] {
 
 .alert-success {
   background: var(--semantic-success-bg);
-  border-color: rgba(47,143,114,0.22);
+  border-color: rgba(30,58,138,0.22);
   color: var(--semantic-success);
 }
 
@@ -3132,7 +3132,7 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
 }
 
 /* ── Toast system ───────────────────────────────────────────── */
-.toast-success { background: #1a6b47; color: #fff; }
+.toast-success { background: #1E3A8A; color: #fff; }
 .toast-error   { background: #7a2828; color: #fff; }
 .toast-warning { background: #7a5c10; color: #fff; }
 .toast-info    { background: #1a4a6b; color: #fff; }
@@ -3140,7 +3140,7 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
 .toast-body { font-size: var(--fs-sm); font-weight: 500; }
 .toast-body i { font-size: 1rem; flex-shrink: 0; }
 
-html[data-theme="dark"] .toast-success { background: rgba(47,143,114,0.92); }
+html[data-theme="dark"] .toast-success { background: rgba(30,58,138,0.92); }
 html[data-theme="dark"] .toast-error   { background: rgba(185,74,63,0.92); }
 html[data-theme="dark"] .toast-warning { background: rgba(184,137,36,0.92); }
 html[data-theme="dark"] .toast-info    { background: rgba(38,101,140,0.92); }

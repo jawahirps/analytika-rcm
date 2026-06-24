@@ -9,7 +9,7 @@
     {
         ["Submissions"]   = ("fa-paper-plane",    "#14B8A6", "#0EA5A0", "Claim submission volumes, acceptance rates, and timelines"),
         ["Resubmissions"] = ("fa-rotate",         "#8B5CF6", "#7C3AED", "Resubmitted claims tracking and resolution outcomes"),
-        ["Remittance"]    = ("fa-money-bill-wave", "#10B981", "#059669", "Payment reconciliation and remittance analysis"),
+        ["Remittance"]    = ("fa-money-bill-wave", "#1E40AF", "#1E3A8A", "Payment reconciliation and remittance analysis"),
         ["Denials"]       = ("fa-ban",             "#F43F5E", "#E11D48", "Denial patterns, root causes, and trends"),
         ["Clinicians"]    = ("fa-user-doctor",     "#6366F1", "#4F46E5", "Clinician productivity and claim performance"),
         ["Operations"]    = ("fa-gears",           "#F59E0B", "#D97706", "Operational KPIs, TAT metrics, and SLA compliance"),
@@ -24,7 +24,7 @@
     {
         "teal"  => "#14B8A6",
         "gold"  => "#F59E0B",
-        "green" => "#22C55E",
+        "green" => "#1E40AF",
         "blue"  => "#3B82F6",
         _       => ActiveMeta.Accent
     };
@@ -33,13 +33,13 @@
     (string Bg, string Fg, string Icon) StatusStyle(string s) => s switch
     {
         "Action" => ("rgba(244,63,94,.12)",  "#E11D48", "fa-circle-exclamation"),
-        "Good"   => ("rgba(16,185,129,.12)", "#059669", "fa-circle-check"),
+        "Good"   => ("rgba(30,64,175,.12)", "#1E3A8A", "fa-circle-check"),
         "Watch"  => ("rgba(245,158,11,.14)", "#D97706", "fa-triangle-exclamation"),
         _        => ("rgba(99,102,241,.12)", "#4F46E5", "fa-circle-info"),
     };
 
     // Rotating palette for breakdown bars
-    var palette = new[] { "#14B8A6", "#8B5CF6", "#F59E0B", "#F43F5E", "#06B6D4", "#6366F1", "#22C55E", "#D946EF" };
+    var palette = new[] { "#14B8A6", "#8B5CF6", "#F59E0B", "#F43F5E", "#06B6D4", "#6366F1", "#1E3A8A", "#D946EF" };
 
     var maxBreakdown = Math.Max(1, Model.Breakdown.Count == 0 ? 1 : Model.Breakdown.Max(x => x.Value));
     var reportDateFrom = Model.Filters.DateFrom ?? new DateOnly(2023, 1, 1);
@@ -177,7 +177,7 @@
     .rcm-kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .55rem; }
     .rcm-kpi-ico { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; font-size: .95rem; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
     .rcm-kpi-delta { font-size: .72rem; font-weight: 800; padding: .2rem .45rem; border-radius: 999px; }
-    .rcm-kpi-delta.up { color: #059669; background: rgba(16,185,129,.12); }
+    .rcm-kpi-delta.up { color: #1E3A8A; background: rgba(30,64,175,.12); }
     .rcm-kpi-delta.down { color: #E11D48; background: rgba(244,63,94,.12); }
     .rcm-kpi-val { font-size: 1.7rem; font-weight: 800; color: var(--ink); letter-spacing: -.03em; line-height: 1.05; }
     .rcm-kpi-label { font-size: .78rem; font-weight: 600; color: var(--ink-soft); margin-top: .15rem; }

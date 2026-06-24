@@ -102,8 +102,8 @@
         </div>
         <div class="col-6 col-md-3">
             <div class="dd-card kpi text-center">
-                <div class="kpi-ico" style="background:@(overallPct > 30 ? "rgba(185,74,63,.11)" : overallPct > 15 ? "rgba(184,137,36,.12)" : "rgba(47,143,114,.12)");color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#2F8F72");"><i class="fas fa-percent"></i></div>
-                <div class="kpi-val" style="color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#2F8F72");">
+                <div class="kpi-ico" style="background:@(overallPct > 30 ? "rgba(185,74,63,.11)" : overallPct > 15 ? "rgba(184,137,36,.12)" : "rgba(30,58,138,.12)");color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#1E3A8A");"><i class="fas fa-percent"></i></div>
+                <div class="kpi-val" style="color:@(overallPct > 30 ? "#B94A3F" : overallPct > 15 ? "#B88924" : "#1E3A8A");">
                     @overallPct.ToString("N1")%
                 </div>
                 <div class="kpi-lbl">Overall Denial Rate</div>
@@ -188,7 +188,7 @@
                 </h6>
                 @foreach (var f in Model.OrderByDescending(x => x.RecoveryPct))
                 {
-                    string clr = f.RecoveryPct >= 80 ? "#16a34a" : f.RecoveryPct >= 60 ? "#ca8a04" : "#dc2626";
+                    string clr = f.RecoveryPct >= 80 ? "#1E40AF" : f.RecoveryPct >= 60 ? "#ca8a04" : "#dc2626";
                     <div class="mb-2">
                         <div class="d-flex justify-content-between mb-1">
                             <span style="font-size:.73rem; color:#374151; font-weight:500; max-width:150px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">@f.FacilityName</span>
@@ -228,8 +228,8 @@
                     @{ int i = 1; }
                     @foreach (var f in Model)
                     {
-                        string pctClr = f.DenialPct >= 50 ? "#dc2626" : f.DenialPct >= 30 ? "#54ACBF" : f.DenialPct >= 15 ? "#ca8a04" : "#16a34a";
-                        string pctBg  = f.DenialPct >= 50 ? "#fee2e2" : f.DenialPct >= 30 ? "#EAF4FB" : f.DenialPct >= 15 ? "#fef9c3" : "#dcfce7";
+                        string pctClr = f.DenialPct >= 50 ? "#dc2626" : f.DenialPct >= 30 ? "#54ACBF" : f.DenialPct >= 15 ? "#ca8a04" : "#1E40AF";
+                        string pctBg  = f.DenialPct >= 50 ? "#fee2e2" : f.DenialPct >= 30 ? "#EAF4FB" : f.DenialPct >= 15 ? "#fef9c3" : "#dbeafe";
                         <tr>
                             <td class="text-muted">@i</td>
                             <td class="fw-semibold" style="max-width:160px;">
@@ -265,8 +265,8 @@
                         <td class="text-end" style="color:#dc2626; font-size:.8rem;">@totalDenied.ToString("N0")</td>
                         <td class="text-center">
                             <span class="pct-badge"
-                                  style="background:@(overallPct>30?"#fee2e2":overallPct>15?"#fef9c3":"#dcfce7");
-                                         color:@(overallPct>30?"#dc2626":overallPct>15?"#ca8a04":"#16a34a");">
+                                  style="background:@(overallPct>30?"#fee2e2":overallPct>15?"#fef9c3":"#dbeafe");
+                                         color:@(overallPct>30?"#dc2626":overallPct>15?"#ca8a04":"#1E40AF");">
                                 @overallPct.ToString("N1")%
                             </span>
                         </td>
@@ -310,8 +310,8 @@ new Chart(document.getElementById('denialPctChart'), {
         datasets: [{
             label: 'Denial %',
             data: denPct,
-            backgroundColor: denPct.map(v => v >= 50 ? '#fca5a5' : v >= 30 ? '#fcd34d' : v >= 15 ? '#fde68a' : '#86efac'),
-            borderColor:     denPct.map(v => v >= 50 ? '#dc2626' : v >= 30 ? '#54ACBF' : v >= 15 ? '#ca8a04' : '#16a34a'),
+            backgroundColor: denPct.map(v => v >= 50 ? '#fca5a5' : v >= 30 ? '#fcd34d' : v >= 15 ? '#fde68a' : '#93C5FD'),
+            borderColor:     denPct.map(v => v >= 50 ? '#dc2626' : v >= 30 ? '#54ACBF' : v >= 15 ? '#ca8a04' : '#1E40AF'),
             borderWidth: 1.5, borderRadius: 4,
         }]
     },
@@ -357,8 +357,8 @@ new Chart(document.getElementById('outcomeChart'), {
     data: {
         labels: ['Fully Denied', 'Partially Paid', 'Fully Covered'],
         datasets: [{ data: [fd, pp, fc],
-            backgroundColor: ['#fca5a5','#fde68a','#86efac'],
-            borderColor: ['#dc2626','#54ACBF','#16a34a'],
+            backgroundColor: ['#fca5a5','#fde68a','#93C5FD'],
+            borderColor: ['#dc2626','#54ACBF','#1E40AF'],
             borderWidth: 1.5 }]
     },
     options: {
