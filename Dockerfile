@@ -16,6 +16,10 @@ RUN dotnet publish ./Analytika/Analytika.csproj \
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 WORKDIR /app
+# curl is needed for the container HEALTHCHECK below (not in the base image)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/data /app/wwwroot/portal-downloads /app/wwwroot/reports /app/logs \
     && useradd --create-home --shell /usr/sbin/nologin analytika \
     && chown -R analytika:analytika /app
@@ -37,4 +41,8 @@ ENV BackgroundJobs__PendingDownloads__HostedServiceEnabled=false
 USER analytika
 
 EXPOSE 8080
+# Report container health via the app's anonymous /healthz endpoint (DB + sync checks).
+# Applies to every deployment that runs this image (incl. the bix host, which pulls it).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -fsS http://localhost:8080/healthz || exit 1
 ENTRYPOINT ["dotnet", "Analytika.dll"]
