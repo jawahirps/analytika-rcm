@@ -20,10 +20,14 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-            min-height: 100vh;
-            display: flex;
             background: #f8fafc;
             -webkit-font-smoothing: antialiased;
+        }
+
+        /* Login viewport (hero) holds the two columns */
+        .login-shell {
+            min-height: 100vh;
+            display: flex;
         }
 
         /* ── Left panel ── */
@@ -396,9 +400,98 @@
         /* Footer courtesy Ghaf logo */
         .left-footer { display: flex; align-items: center; gap: 10px; }
         .courtesy-logo { height: 20px; width: auto; opacity: .9; }
+
+        /* ── Feature section (below the login hero) ── */
+        .feature-section {
+            background:
+                radial-gradient(900px 420px at 100% 0%, rgba(84,172,191,0.16), transparent 60%),
+                radial-gradient(700px 360px at 0% 100%, rgba(84,172,191,0.08), transparent 55%),
+                linear-gradient(160deg, #011C40 0%, #023859 100%);
+            border-top: 1px solid rgba(84,172,191,0.18);
+            padding: 88px 32px 96px;
+        }
+        .feature-inner { max-width: 1120px; margin: 0 auto; text-align: center; }
+        .feature-eyebrow {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #54ACBF;
+            margin-bottom: 14px;
+        }
+        .feature-title {
+            font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            margin-bottom: 12px;
+        }
+        .feature-sub {
+            font-size: 0.98rem;
+            color: rgba(255,255,255,0.55);
+            max-width: 620px;
+            margin: 0 auto 52px;
+            line-height: 1.65;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+            text-align: left;
+        }
+        .feature-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            border-radius: 18px;
+            padding: 26px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.20);
+            transition: transform 0.22s cubic-bezier(0.32,0.72,0,1), box-shadow 0.22s, border-color 0.22s, background 0.22s;
+        }
+        .feature-card:hover {
+            transform: translateY(-6px);
+            background: rgba(255,255,255,0.06);
+            box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+            border-color: rgba(84,172,191,0.55);
+        }
+        .feature-ico {
+            width: 48px; height: 48px;
+            border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.15rem;
+            color: #ffffff;
+            background: linear-gradient(135deg, #54ACBF 0%, #26658C 100%);
+            box-shadow: 0 8px 18px rgba(84,172,191,0.28);
+            margin-bottom: 18px;
+        }
+        .feature-card h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.01em;
+            margin-bottom: 8px;
+        }
+        .feature-card p {
+            font-size: 0.86rem;
+            color: rgba(255,255,255,0.55);
+            line-height: 1.6;
+        }
+        @@media (max-width: 900px) {
+            .feature-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @@media (max-width: 600px) {
+            .feature-section { padding: 56px 20px 64px; }
+            .feature-grid { grid-template-columns: 1fr; }
+        }
+        @@media (prefers-reduced-motion: reduce) {
+            .feature-card { transition: none; }
+            .feature-card:hover { transform: none; }
+        }
     </style>
 </head>
 <body>
+  <div class="login-shell">
     <!-- Left Brand Panel -->
     <div class="login-left">
         <div class="accent-ring"></div>
@@ -532,6 +625,49 @@
 
         <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
     </div>
+  </div><!-- /.login-shell -->
+
+  <!-- ── Feature section (stack-feature-section, ported to Razor) ── -->
+  <section class="feature-section" aria-label="Platform features">
+      <div class="feature-inner">
+          <span class="feature-eyebrow">The platform</span>
+          <h2 class="feature-title">Everything your revenue cycle needs</h2>
+          <p class="feature-sub">One workspace for portal sync, claim intelligence, and decision-ready analytics — built for UAE healthcare facilities.</p>
+
+          <div class="feature-grid">
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-cloud-arrow-down"></i></div>
+                  <h3>Portal Sync &amp; Fetch</h3>
+                  <p>Automated DHA &amp; RHA portal sync — pull claims, remittances and files on a schedule with resumable downloads.</p>
+              </article>
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-file-medical"></i></div>
+                  <h3>Claim Extracts</h3>
+                  <p>Parse claim &amp; remittance XML into clean, matched records — with clear flags for anything still unmatched.</p>
+              </article>
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-chart-column"></i></div>
+                  <h3>BI Reports</h3>
+                  <p>Eight accent-themed dashboards — submissions, resubmissions, remittance, denials, clinicians and more.</p>
+              </article>
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-shield-halved"></i></div>
+                  <h3>Denial Management</h3>
+                  <p>Facility-wise denial analysis with recovery tracking and an analyst resubmission workload queue.</p>
+              </article>
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-hospital"></i></div>
+                  <h3>Multi-facility</h3>
+                  <p>Run every facility from one place, with strict cross-facility isolation so data never mixes.</p>
+              </article>
+              <article class="feature-card">
+                  <div class="feature-ico"><i class="fas fa-lock"></i></div>
+                  <h3>Secure by design</h3>
+                  <p>Encrypted portal credentials, role-based access, and audit-ready data protection throughout.</p>
+              </article>
+          </div>
+      </div>
+  </section>
 
     <script>
         /* ── i18n strings ── */
