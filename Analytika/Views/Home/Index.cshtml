@@ -574,10 +574,8 @@
         </div>
     </div>
 
-    <!-- tsParticles slim (vanilla JS, no React needed) -->
-    <script src="https://cdn.jsdelivr.net/npm/tsparticles-slim@2.12.0/tsparticles.slim.bundle.min.js"></script>
     <script>
-        /* ── Guaranteed loader dismissal — fires whether CDN loads or not ── */
+        /* ── Guaranteed loader dismissal ── */
         var _loaderDismissed = false;
         function dismissLoader() {
             if (_loaderDismissed) return;
@@ -586,76 +584,101 @@
             var loader = document.getElementById('gooeyLoader');
             if (loader) loader.classList.add('hidden');
         }
-        // Always dismiss after 3s max — fallback if CDN or particles fail
-        setTimeout(dismissLoader, 3000);
+        setTimeout(dismissLoader, 2400);
 
-        /* ── Sparkles Particles ── */
+        /* ── Sparkles — self-contained canvas, no CDN ── */
         (function () {
-            if (typeof tsParticles === 'undefined') return;
-            tsParticles.load("sparkles-canvas", {
-                background: { color: { value: "transparent" } },
-                fullScreen: { enable: false },
-                fpsLimit: 60,
-                particles: {
-                    color: { value: "#00FF85" },
-                    number: {
-                        value: 120,
-                        density: { enable: true, area: 900 }
-                    },
-                    opacity: {
-                        value: { min: 0, max: 0.85 },
-                        animation: {
-                            enable: true,
-                            speed: 0.8,
-                            sync: false,
-                            startValue: "random"
-                        }
-                    },
-                    size: {
-                        value: { min: 0.8, max: 2.2 },
-                        animation: {
-                            enable: true,
-                            speed: 1.2,
-                            sync: false,
-                            startValue: "random"
-                        }
-                    },
-                    move: {
-                        enable: true,
-                        speed: { min: 0.05, max: 0.4 },
-                        direction: "none",
-                        random: true,
-                        straight: false,
-                        outModes: "out",
-                        attract: { enable: false }
-                    },
-                    shape: { type: "circle" }
-                },
-                interactivity: {
-                    events: {
-                        onHover: { enable: true, mode: "bubble" },
-                        resize: true
-                    },
-                    modes: {
-                        bubble: {
-                            distance: 120,
-                            size: 3.5,
-                            duration: 0.3,
-                            opacity: 1
-                        }
-                    }
-                },
-                detectRetina: true
-            }).then(function () {
-                // Dismiss loader once particles engine is ready
-                setTimeout(dismissLoader, 1400);
-                // Resize canvas to fill viewport
-                var canvas = document.getElementById('sparkles-canvas');
-                if (canvas) {
-                    canvas.style.width  = '100%';
-                    canvas.style.height = '100%';
-                }
+            var canvas  = document.getElementById('sparkles-canvas');
+            if (!canvas) return;
+            var ctx     = canvas.getContext('2d');
+            var mouse   = { x: -9999, y: -9999 };
+            var ACCENT  = '0,255,133';   /* #00FF85 */
+            var COUNT   = 130;
+            var dpr     = window.devicePixelRatio || 1;
+
+            function resize() {
+                canvas.width  = window.innerWidth  * dpr;
+                canvas.height = window.innerHeight * dpr;
+                canvas.style.width  = window.innerWidth  + 'px';
+                canvas.style.height = window.innerHeight + 'px';
+                ctx.scale(dpr, dpr);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            /* Track mouse for bubble effect */
+            window.addEventListener('mousemove', function (e) {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
             });
+
+            /* Spawn particles */
+            var particles = [];
+            function rand(min, max) { return min + Math.random() * (max - min); }
+            for (var i = 0; i < COUNT; i++) {
+                particles.push({
+                    x:       rand(0, window.innerWidth),
+                    y:       rand(0, window.innerHeight),
+                    r:       rand(0.6, 2.0),
+                    alpha:   rand(0, 0.9),
+                    dAlpha:  (Math.random() < 0.5 ? 1 : -1) * rand(0.003, 0.012),
+                    vx:      (Math.random() < 0.5 ? 1 : -1) * rand(0.04, 0.28),
+                    vy:      (Math.random() < 0.5 ? 1 : -1) * rand(0.04, 0.22),
+                });
+            }
+
+            var W = window.innerWidth, H = window.innerHeight;
+            window.addEventListener('resize', function () { W = window.innerWidth; H = window.innerHeight; });
+
+            function draw() {
+                ctx.clearRect(0, 0, W, H);
+                for (var i = 0; i < particles.length; i++) {
+                    var p = particles[i];
+
+                    /* Drift */
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    if (p.x < -4)  p.x = W + 4;
+                    if (p.x > W+4) p.x = -4;
+                    if (p.y < -4)  p.y = H + 4;
+                    if (p.y > H+4) p.y = -4;
+
+                    /* Opacity pulse */
+                    p.alpha += p.dAlpha;
+                    if (p.alpha >= 0.9 || p.alpha <= 0) p.dAlpha = -p.dAlpha;
+                    p.alpha = Math.max(0, Math.min(0.9, p.alpha));
+
+                    /* Bubble near mouse */
+                    var dx  = p.x - mouse.x;
+                    var dy  = p.y - mouse.y;
+                    var dist = Math.sqrt(dx*dx + dy*dy);
+                    var r   = dist < 110 ? p.r + (3.5 - p.r) * (1 - dist/110) : p.r;
+                    var a   = dist < 110 ? Math.min(p.alpha + 0.5, 1) : p.alpha;
+
+                    /* Glow */
+                    if (a > 0.1) {
+                        var grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3);
+                        grd.addColorStop(0,   'rgba(' + ACCENT + ',' + a + ')');
+                        grd.addColorStop(0.4, 'rgba(' + ACCENT + ',' + (a * 0.4) + ')');
+                        grd.addColorStop(1,   'rgba(' + ACCENT + ',0)');
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2);
+                        ctx.fillStyle = grd;
+                        ctx.fill();
+
+                        /* Core dot */
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(' + ACCENT + ',' + Math.min(a + 0.15, 1) + ')';
+                        ctx.fill();
+                    }
+                }
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+            /* Dismiss loader once canvas is painting */
+            setTimeout(dismissLoader, 800);
         })();
 
         /* ── i18n strings ── */
