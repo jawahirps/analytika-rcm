@@ -577,8 +577,21 @@
     <!-- tsParticles slim (vanilla JS, no React needed) -->
     <script src="https://cdn.jsdelivr.net/npm/tsparticles-slim@2.12.0/tsparticles.slim.bundle.min.js"></script>
     <script>
+        /* ── Guaranteed loader dismissal — fires whether CDN loads or not ── */
+        var _loaderDismissed = false;
+        function dismissLoader() {
+            if (_loaderDismissed) return;
+            _loaderDismissed = true;
+            cancelAnimationFrame(window._gooeyRaf);
+            var loader = document.getElementById('gooeyLoader');
+            if (loader) loader.classList.add('hidden');
+        }
+        // Always dismiss after 3s max — fallback if CDN or particles fail
+        setTimeout(dismissLoader, 3000);
+
         /* ── Sparkles Particles ── */
         (function () {
+            if (typeof tsParticles === 'undefined') return;
             tsParticles.load("sparkles-canvas", {
                 background: { color: { value: "transparent" } },
                 fullScreen: { enable: false },
@@ -635,13 +648,7 @@
                 detectRetina: true
             }).then(function () {
                 // Dismiss loader once particles engine is ready
-                var loader = document.getElementById('gooeyLoader');
-                if (loader) {
-                    setTimeout(function () {
-                        cancelAnimationFrame(window._gooeyRaf);
-                        loader.classList.add('hidden');
-                    }, 1600);
-                }
+                setTimeout(dismissLoader, 1400);
                 // Resize canvas to fill viewport
                 var canvas = document.getElementById('sparkles-canvas');
                 if (canvas) {
