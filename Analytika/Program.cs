@@ -7,8 +7,19 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Data;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Desktop app mode: the installed Windows/macOS build launches with BIX_DESKTOP=1
+// (or the --desktop arg). It can't write its SQLite DB / DataProtection keys into a
+// read-only install location (Program Files / .app), so default DB_DIR to a per-user
+// writable folder before anything reads it below.
+var isDesktop = Environment.GetEnvironmentVariable("BIX_DESKTOP") == "1"
+    || args.Contains("--desktop");
+if (isDesktop && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DB_DIR")))
+    Environment.SetEnvironmentVariable("DB_DIR",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bix"));
 
 // Serilog: reads sinks/levels from the "Serilog" section of appsettings.
 builder.Services.AddSerilog((services, config) => config
@@ -71,7 +82,32 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
+// Desktop app: bind to a fixed loopback port if the launcher didn't choose one.
+if (isDesktop
+    && string.IsNullOrEmpty(port)
+    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+    builder.WebHost.UseUrls("http://localhost:5097");
+
 var app = builder.Build();
+
+// Desktop app mode: open the default browser once the server is ready.
+if (isDesktop)
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        try
+        {
+            var url = (app.Urls.FirstOrDefault() ?? "http://localhost:5097")
+                .Replace("://+", "://localhost").Replace("://0.0.0.0", "://localhost");
+            ProcessStartInfo psi =
+                OperatingSystem.IsWindows() ? new ProcessStartInfo("cmd", $"/c start \"\" \"{url}\"") { CreateNoWindow = true }
+                : OperatingSystem.IsMacOS() ? new ProcessStartInfo("open", url)
+                : new ProcessStartInfo("xdg-open", url);
+            Process.Start(psi);
+        }
+        catch { /* best-effort browser launch */ }
+    });
+}
 
 app.UseSerilogRequestLogging();
 
