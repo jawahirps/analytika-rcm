@@ -114,15 +114,9 @@ app.Use(async (context, next) =>
             headers["Pragma"] = "no-cache";
             headers["Expires"] = "0";
 
-            // The login page (unauthenticated, no PHI) embeds the Spline 3D viewer,
-            // whose WebGL runtime requires 'unsafe-eval'. Scope that relaxation to the
-            // login page only — every authenticated/PHI page keeps the strict policy.
-            var path = context.Request.Path.Value ?? string.Empty;
-            var isLogin = context.User.Identity?.IsAuthenticated != true
-                && (path == "/" || path.StartsWith("/Home/Index", StringComparison.OrdinalIgnoreCase));
-            var scriptEval = isLogin ? "'unsafe-eval' " : "";
-            var splineHosts = isLogin ? " https://unpkg.com" : "";
-
+            // Strict CSP on every page, login included. The login uses a canvas
+            // particle background (tsParticles, no eval required), so no page needs
+            // 'unsafe-eval' or extra script hosts.
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "base-uri 'self'; " +
@@ -133,8 +127,8 @@ app.Use(async (context, next) =>
                 "media-src 'self' data: blob:; " +
                 "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net; " +
-                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " + scriptEval +
-                    "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net" + splineHosts + "; " +
+                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " +
+                    "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net; " +
                 "worker-src 'self' blob:; " +
                 "connect-src 'self' https:; " +
                 "frame-src 'none'";
