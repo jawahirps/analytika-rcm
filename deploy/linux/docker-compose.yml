@@ -3,17 +3,31 @@
 # Background jobs are ON here (nightly DHA/RHA sync + pending downloads).
 # Public access is via Cloudflare Tunnel — no inbound ports are opened.
 #
-#   cp .env.example .env   # then paste your Cloudflare tunnel token
-#   docker compose up -d --build
+# AUTO-DEPLOY: this stack PULLS the prebuilt image from GHCR and a Watchtower
+# sidecar auto-updates it. Every merge to main rebuilds
+# ghcr.io/jawahirps/analytika-rcm:latest via .github/workflows/release.yml;
+# Watchtower notices the new digest (poll interval below) and restarts the app
+# with it — no manual git pull / docker build on the host.
+#
+#   First time:
+#     cp .env.example .env          # paste your Cloudflare tunnel token
+#     docker compose up -d          # pulls image + starts app, cloudflared, watchtower
+#
+#   After that: nothing. Merges to main roll out on their own.
+#   To force an immediate check:  docker compose exec watchtower /watchtower --run-once
+#
+# NOTE: the GHCR package must be readable by the host. Either make the package
+# public (GitHub → repo → Packages → analytika-rcm → Package settings → Change
+# visibility → Public — simplest), OR provide a token (see watchtower section).
+#
+# To build locally instead of pulling (e.g. testing an unmerged branch), run:
+#     docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 #
 # See README.md in this folder for the full Oracle runbook.
 # ─────────────────────────────────────────────────────────────────────────────
 services:
   app:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    image: analytika-rcm:latest
+    image: ghcr.io/jawahirps/analytika-rcm:latest
     container_name: analytika
     restart: unless-stopped
     # Bound to localhost only; the public entry point is the cloudflared tunnel.
@@ -38,6 +52,9 @@ services:
       - ./data:/app/data                              # SQLite DB (persisted)
       - ./portal-downloads:/app/wwwroot/portal-downloads
       - ./reports:/app/wwwroot/reports
+    labels:
+      # Watchtower only touches containers carrying this label.
+      - "com.centurylinklabs.watchtower.enable=true"
 
   # Public HTTPS entry point — routes your domain to the app with no open ports.
   # Create a tunnel in Cloudflare Zero Trust, paste its token in .env, and set the
@@ -52,3 +69,26 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - app
+    labels:
+      # Keep cloudflared current too (it's a fast-moving image).
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Auto-updater: polls GHCR for a newer app image and restarts it in place.
+  # Only watches containers labelled watchtower.enable=true (label-enable mode).
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Private GHCR package? Drop a docker config.json with a read:packages
+      # token next to this file and uncomment the mount below (then you can keep
+      # the package private). If the package is Public, leave this commented.
+      # - ./watchtower-config.json:/config.json:ro
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"   # only update labelled containers
+      WATCHTOWER_CLEANUP: "true"        # prune old images after each update
+      WATCHTOWER_POLL_INTERVAL: "120"   # check every 2 minutes
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      TZ: "Asia/Dubai"

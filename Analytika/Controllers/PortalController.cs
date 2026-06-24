@@ -762,28 +762,23 @@ public class PortalController : Controller
 
         var period = parsedFrom.ToString("yyyy-MM");
 
+        // Honour the selected transaction types (multi-select); default to all
+        // standard types (Claim + Remittance + PA Request + PA Authorization).
+        var txTypes = vm.TransactionIds.Count > 0 ? vm.TransactionIds.ToArray() : DhaPortalService.DefaultTxTypes;
+
         // Auto-split into 90-day chunks (portal rejects > 100 days, error -5)
         var saveChunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
         var allSaveRows = new List<PortalFetchResultRow>();
-        string? searchErr = null;
         foreach (var (cs, ce) in saveChunks)
         {
             var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
             var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
-            var (_, chunkRows, err) = await _dha.SearchTransactionsAsync(
-                cred.Username, pwd, vm.Direction, dhpoFrom, dhpoTo,
-                vm.TransactionStatus, vm.TransactionId > 0 ? vm.TransactionId : 2,
-                freshVm.MinRecord, freshVm.MaxRecord);
+            // Searches every txType × both directions (1=sent claims, 2=received remittances)
+            // × both statuses — so remittance (received) is always included.
+            var chunkRows = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
             allSaveRows.AddRange(chunkRows);
-            searchErr ??= err;
         }
         var rows = allSaveRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
-
-        if (searchErr != null)
-        {
-            freshVm.IsError = true; freshVm.StatusMessage = $"Search failed: {searchErr}";
-            return View("Fetch", freshVm);
-        }
 
         freshVm.Results = rows;
         freshVm.TotalFetched = rows.Count;
@@ -833,27 +828,21 @@ public class PortalController : Controller
 
         var period = parsedFrom.ToString("yyyy-MM");
 
+        // Honour the selected transaction types (multi-select); default to all
+        // standard types (Claim + Remittance + PA Request + PA Authorization).
+        var txTypes = vm.TransactionIds.Count > 0 ? vm.TransactionIds.ToArray() : DhaPortalService.DefaultTxTypes;
+
         var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
         var allRows = new List<PortalFetchResultRow>();
-        string? fetchErr = null;
         foreach (var (cs, ce) in chunks)
         {
             var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
             var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
-            // Search both status=1 (new) and status=2 (already downloaded) to catch all records
-            foreach (var txStatus in new[] { 1, 2 })
-            {
-                var (_, chunkRows, err) = await _dha.SearchTransactionsAsync(
-                    cred.Username, pwd, vm.Direction, dhpoFrom, dhpoTo,
-                    txStatus, vm.TransactionId > 0 ? vm.TransactionId : 2,
-                    vm.MinRecord, vm.MaxRecord);
-                allRows.AddRange(chunkRows);
-                fetchErr ??= err;
-            }
+            // Every txType × both directions (1=sent claims, 2=received remittances)
+            // × both statuses (1=new, 2=downloaded) — remittance is always included.
+            var chunkRows = await _sync.SearchAllCombosAsync(cred.Username, pwd, dhpoFrom, dhpoTo, txTypes);
+            allRows.AddRange(chunkRows);
         }
-
-        if (fetchErr != null)
-            return Json(new { error = $"Search failed: {fetchErr}" });
 
         var rows = allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
         if (!rows.Any())
