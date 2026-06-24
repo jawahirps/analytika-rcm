@@ -96,9 +96,6 @@ html[data-theme="dark"] {
 }
 
 html[data-theme="dark"] body {
-  background:
-    radial-gradient(circle at top left, rgba(102,178,178,0.14), transparent 22%),
-    linear-gradient(145deg, #003B4D 0%, rgba(0,59,77,0.94) 42%, rgba(0,139,139,0.28) 74%, #002d3d 100%);
   color: #eaf6f8;
 }
 
@@ -186,7 +183,7 @@ html[data-theme="dark"] .sb-chip {
 
 body {
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  background: linear-gradient(140deg, #f7f9f9 0%, #eaf6f8 50%, #f7f9f9 100%);
+  background: linear-gradient(148deg, #f4f8f9 0%, #eef6f7 42%, #f7f9f9 100%);
   background-attachment: fixed;
   color: var(--text);
   margin: 0;
@@ -2417,9 +2414,6 @@ html[data-theme="dark"] .notification-icon-muted {
   --radius-2xl: 20px;
 }
 
-/* ── Light mode body background (landing page gradient) ──────── */
-body { background: linear-gradient(140deg, #f7f9f9 0%, #eaf6f8 50%, #f7f9f9 100%); }
-
 /* ── Skip-to-content ────────────────────────────────────────── */
 .skip-to-main {
   position: absolute;
@@ -2754,6 +2748,26 @@ html[data-theme="dark"] .table-responsive {
   --glass-strong:  rgba(255,255,255,0.96);
   --shadow-sm:     0 8px 28px rgba(0,59,77,0.10), 0 1px 0 rgba(255,255,255,0.82) inset;
   --shadow-md:     0 16px 40px rgba(0,59,77,0.14), 0 1px 0 rgba(255,255,255,0.82) inset;
+}
+
+/* ── GPU compositing hints for glass layers ─────────────────────── */
+.card,
+.stat-card,
+.info-card,
+.modal-content,
+.analytika-navbar,
+.topbar,
+.sidebar,
+.dropdown-menu,
+.react-shell-strip,
+.flatpickr-calendar,
+.select2-dropdown {
+  will-change: transform;
+}
+
+.card:hover,
+.stat-card:hover {
+  will-change: transform, box-shadow;
 }
 
 /* ── Light mode: page background (richer teal atmosphere) ────────── */
@@ -3274,8 +3288,3 @@ small,
   font-size: max(0.68rem, 0.68em);
 }
 
-/* ── Light mode: improved body background specificity ───────────── */
-body {
-  background: linear-gradient(148deg, #f4f8f9 0%, #eef6f7 42%, #f7f9f9 100%);
-  background-attachment: fixed;
-}
