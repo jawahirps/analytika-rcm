@@ -1,0 +1,399 @@
+@model Analytika.Models.ViewModels.GhafbiSitemapViewModel
+@using Analytika.Models.ViewModels
+@{
+    ViewData["Title"] = "Ghafbi Analytics Sitemap";
+}
+
+@functions {
+    private void RenderNode(SitemapNode node, int depth = 0)
+    {
+        var hasChildren = node.Children?.Count > 0;
+        <li class="gb-node gb-node-depth-@depth">
+            <div class="gb-node-row">
+                <span class="gb-node-dot"></span>
+                <span>@node.Title</span>
+            </div>
+            @if (hasChildren)
+            {
+                <ul class="gb-node-children">
+                    @foreach (var child in node.Children!)
+                    {
+                        RenderNode(child, depth + 1);
+                    }
+                </ul>
+            }
+        </li>
+    }
+}
+
+<div class="gb-shell">
+    <section class="gb-hero">
+        <div>
+            <div class="gb-kicker">BI 2.0 Information Architecture</div>
+            <h1>Ghafbi Analytics</h1>
+            <p>Product sitemap, application modules, navigation model, and core user flows for the next BI app branch.</p>
+        </div>
+        <div class="gb-hero-actions">
+            <a class="btn btn-primary" asp-controller="Ghafbi" asp-action="Workspace">
+                <i class="fas fa-gauge-high me-2"></i>Open BI 2.0 Workspace
+            </a>
+            <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Dashboard">
+                <i class="fas fa-gauge me-2"></i>Overview
+            </a>
+        </div>
+    </section>
+
+    <section class="gb-nav-map">
+        <div class="gb-nav-card">
+            <div class="gb-card-label">Primary Navigation</div>
+            <div class="gb-pill-row">
+                @foreach (var item in Model.PrimaryNavigation)
+                {
+                    <span class="gb-pill">@item</span>
+                }
+            </div>
+        </div>
+        <div class="gb-nav-card">
+            <div class="gb-card-label">Mobile Bottom Navigation</div>
+            <div class="gb-pill-row">
+                @foreach (var item in Model.MobileNavigation)
+                {
+                    <span class="gb-pill gb-pill-soft">@item</span>
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="gb-section-head">
+        <div>
+            <h2>Application Sitemap</h2>
+            <p>Every major product area from public website to admin operations.</p>
+        </div>
+        <span class="gb-count">@Model.Sections.Count sections</span>
+    </section>
+
+    <section class="gb-grid">
+        @foreach (var sitemapSection in Model.Sections)
+        {
+            <article class="gb-section-card">
+                <header>
+                    <span class="gb-section-icon"><i class="fas @sitemapSection.Icon"></i></span>
+                    <h3>@sitemapSection.Title</h3>
+                </header>
+                <ul class="gb-tree">
+                    @foreach (var item in sitemapSection.Items)
+                    {
+                        RenderNode(item);
+                    }
+                </ul>
+            </article>
+        }
+    </section>
+
+    <section class="gb-section-head">
+        <div>
+            <h2>Key User Flows</h2>
+            <p>Operational journeys that the BI 2.0 navigation must support without detours.</p>
+        </div>
+    </section>
+
+    <section class="gb-flow-grid">
+        @foreach (var flow in Model.UserFlows)
+        {
+            <article class="gb-flow-card">
+                <header>
+                    <i class="fas @flow.Icon"></i>
+                    <h3>@flow.Title</h3>
+                </header>
+                <ol>
+                    @foreach (var step in flow.Steps)
+                    {
+                        <li>@step</li>
+                    }
+                </ol>
+            </article>
+        }
+    </section>
+</div>
+
+@section Styles {
+    <style>
+        .gb-shell {
+            width: min(1540px, calc(100vw - 32px));
+            margin: 22px auto 42px;
+            display: grid;
+            gap: 18px;
+        }
+
+        .gb-hero {
+            min-height: 220px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+            padding: 28px;
+            color: #fff;
+            background:
+                linear-gradient(135deg, rgba(1, 28, 64, .96), rgba(38, 101, 140, .88)),
+                url("https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80") center/cover;
+            border: 1px solid rgba(1, 28, 64, .18);
+            border-radius: 8px;
+            box-shadow: 0 20px 52px rgba(1, 28, 64, .18);
+        }
+
+        .gb-kicker {
+            color: #A7EBF2;
+            font-size: .76rem;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+
+        .gb-hero h1 {
+            margin: 7px 0 8px;
+            color: #fff !important;
+            font-size: clamp(2rem, 4vw, 4rem);
+            font-weight: 800;
+            letter-spacing: 0;
+            line-height: 1;
+        }
+
+        .gb-hero p {
+            max-width: 740px;
+            margin: 0;
+            color: rgba(234, 244, 251, .82) !important;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .gb-hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .gb-nav-map,
+        .gb-flow-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .gb-nav-card,
+        .gb-section-card,
+        .gb-flow-card {
+            background: rgba(255, 255, 255, .96);
+            border: 1px solid rgba(1, 28, 64, .1);
+            border-radius: 8px;
+            box-shadow: 0 12px 34px rgba(1, 28, 64, .08);
+        }
+
+        .gb-nav-card {
+            padding: 16px;
+        }
+
+        .gb-card-label {
+            margin-bottom: 10px;
+            color: #334E68;
+            font-size: .78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+        }
+
+        .gb-pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .gb-pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 7px 11px;
+            border: 1px solid rgba(84, 172, 191, .24);
+            border-radius: 999px;
+            background: #EAF4FB;
+            color: #011C40;
+            font-size: .82rem;
+            font-weight: 700;
+        }
+
+        .gb-pill-soft {
+            background: #fff;
+        }
+
+        .gb-section-head {
+            display: flex;
+            align-items: end;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 6px 2px 0;
+        }
+
+        .gb-section-head h2 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 800;
+        }
+
+        .gb-section-head p {
+            margin: 2px 0 0;
+            color: #334E68;
+        }
+
+        .gb-count {
+            flex: 0 0 auto;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #fff;
+            border: 1px solid rgba(1, 28, 64, .1);
+            color: #334E68;
+            font-weight: 800;
+            font-size: .78rem;
+        }
+
+        .gb-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .gb-section-card {
+            min-height: 100%;
+            overflow: hidden;
+        }
+
+        .gb-section-card header,
+        .gb-flow-card header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 16px;
+            border-bottom: 1px solid rgba(1, 28, 64, .08);
+            background: #f8fafc;
+        }
+
+        .gb-section-card h3,
+        .gb-flow-card h3 {
+            margin: 0;
+            font-size: .98rem;
+            font-weight: 800;
+        }
+
+        .gb-section-icon,
+        .gb-flow-card header i {
+            width: 32px;
+            height: 32px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 8px;
+            background: #011C40;
+            color: #A7EBF2;
+        }
+
+        .gb-tree,
+        .gb-node-children {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .gb-tree {
+            padding: 12px 16px 16px;
+        }
+
+        .gb-node-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 28px;
+            color: #011C40;
+            font-size: .84rem;
+            font-weight: 700;
+        }
+
+        .gb-node-depth-1 .gb-node-row,
+        .gb-node-depth-2 .gb-node-row {
+            color: #334E68;
+            font-weight: 600;
+        }
+
+        .gb-node-children {
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid rgba(84, 172, 191, .24);
+        }
+
+        .gb-node-dot {
+            width: 7px;
+            height: 7px;
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: #54ACBF;
+        }
+
+        .gb-node-depth-1 .gb-node-dot {
+            width: 6px;
+            height: 6px;
+            background: #35577D;
+        }
+
+        .gb-flow-grid {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .gb-flow-card {
+            overflow: hidden;
+        }
+
+        .gb-flow-card ol {
+            margin: 0;
+            padding: 14px 18px 18px 38px;
+        }
+
+        .gb-flow-card li {
+            padding: 5px 0;
+            color: #334E68;
+            font-size: .84rem;
+            font-weight: 650;
+        }
+
+        @@media (max-width: 1180px) {
+            .gb-grid,
+            .gb-flow-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @@media (max-width: 760px) {
+            .gb-shell {
+                width: min(100vw - 20px, 760px);
+                margin-top: 12px;
+            }
+
+            .gb-hero {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 20px;
+            }
+
+            .gb-hero-actions {
+                justify-content: flex-start;
+            }
+
+            .gb-nav-map,
+            .gb-grid,
+            .gb-flow-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .gb-section-head {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+}

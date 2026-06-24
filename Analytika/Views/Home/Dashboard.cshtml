@@ -6,26 +6,7 @@
 
 @section Styles {
 <style>
-    .dash-section {
-        --dash-paper: #fbfaf7;
-        --dash-bg: #f2f1ee;
-        --dash-ink: #111111;
-        --dash-muted: #5f6260;
-        --dash-line: #d9d6cf;
-        --dash-indigo: #332985;
-        --dash-ochre: #c0863f;
-        --dash-red: #c61f32;
-        max-width: 1500px;
-        margin: 0 auto;
-        padding: 28px 24px 80px;
-        color: var(--dash-ink);
-    }
-    body {
-        background:
-            linear-gradient(115deg, transparent 0 22%, rgba(51,41,133,.055) 22.1% 22.7%, transparent 22.8% 100%),
-            radial-gradient(circle at 86% 8%, rgba(192,134,63,.14), transparent 28%),
-            linear-gradient(180deg, #fbfaf7 0%, var(--dash-bg) 100%) !important;
-    }
+    .dash-section { max-width: 1500px; margin: 0 auto; padding: 28px 24px 80px; }
 
     .dashboard-hero {
         display: flex;
@@ -35,25 +16,11 @@
         margin-bottom: 24px;
         padding: 22px 24px;
         border-radius: 24px;
-        border: 1px solid var(--dash-line);
+        border: 1px solid rgba(8,20,35,.10);
         background:
-            repeating-linear-gradient(0deg, transparent 0 13px, rgba(17,17,17,.035) 13px 14px),
-            radial-gradient(circle at top right, rgba(192,134,63,.16), transparent 24%),
-            linear-gradient(145deg, rgba(251,250,247,.94) 0%, rgba(242,241,238,.92) 100%);
-        box-shadow: 0 18px 46px rgba(17,17,17,.08);
-        position: relative;
-        overflow: hidden;
-    }
-    .dashboard-hero::after {
-        content: "";
-        position: absolute;
-        right: 24px;
-        bottom: 18px;
-        width: 108px;
-        height: 8px;
-        background: linear-gradient(90deg, var(--dash-indigo) 0 32%, var(--dash-ochre) 32% 64%, var(--dash-red) 64% 100%);
-        opacity: .85;
-        pointer-events: none;
+            radial-gradient(circle at top right, rgba(167,235,242,.20), transparent 24%),
+            linear-gradient(145deg, rgba(255,255,255,.88) 0%, rgba(244,248,252,.92) 100%);
+        box-shadow: 0 18px 46px rgba(8,20,35,.08);
     }
     .dashboard-hero-copy {
         display: grid;
@@ -67,16 +34,16 @@
         gap: 8px;
         padding: 7px 10px;
         border-radius: 999px;
-        background: rgba(51,41,133,.10);
-        color: var(--dash-indigo);
-        font-size: .625rem;
-        font-weight: 600;
+        background: rgba(167,235,242,.18);
+        color: #023859;
+        font-size: .7rem;
+        font-weight: 800;
         letter-spacing: .12em;
         text-transform: uppercase;
     }
     .dashboard-hero h4 {
         margin: 0;
-        color: var(--dash-ink);
+        color: #011C40;
         font-size: 1.6rem;
         font-weight: 800;
         letter-spacing: -.04em;
@@ -84,10 +51,9 @@
     }
     .dashboard-hero p {
         margin: 0;
-        color: var(--dash-muted);
+        color: #4B6B73;
         max-width: 66ch;
-        font-size: .625rem;
-        font-weight: 200;
+        font-size: .92rem;
         line-height: 1.7;
     }
     .dashboard-hero-actions {
@@ -100,9 +66,7 @@
         border-radius: 999px;
     }
     .dashboard-hero .btn-outline-secondary {
-        background: rgba(251,250,247,.78) !important;
-        border-color: var(--dash-line) !important;
-        color: var(--dash-ink) !important;
+        background: rgba(255,255,255,.78) !important;
     }
     .dashboard-hero-stats {
         display: flex;
@@ -116,13 +80,13 @@
         gap: 8px;
         padding: 6px 11px;
         border-radius: 999px;
-        background: rgba(251,250,247,.78);
-        border: 1px solid var(--dash-line);
-        color: var(--dash-ink);
-        font-size: .625rem;
-        font-weight: 500;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(8,20,35,.10);
+        color: #011C40;
+        font-size: .72rem;
+        font-weight: 700;
     }
-    .dashboard-stat-pill i { color: var(--dash-ochre); }
+    .dashboard-stat-pill i { color: #54ACBF; }
 
     /* Summary chips */
     .status-summary {
@@ -132,25 +96,25 @@
         margin-bottom: 28px;
     }
     .ss-card {
-        background: rgba(251,250,247,.90);
+        background: rgba(255,255,255,.88);
         border-radius: 20px;
         padding: 20px 18px 16px;
-        box-shadow: 0 18px 42px rgba(17,17,17,.08), inset 0 1px 0 rgba(255,255,255,.84);
+        box-shadow: 0 18px 42px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
         display: flex; align-items: center; gap: 14px;
-        border: 1px solid var(--dash-line);
+        border: 1px solid rgba(8,20,35,.10);
     }
     .ss-icon {
         width: 46px; height: 46px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.1rem; flex-shrink: 0;
     }
-    .ss-icon.green  { background: rgba(51,41,133,.10); color: var(--dash-indigo); }
-    .ss-icon.amber  { background: rgba(192,134,63,.15); color: #8a551b; }
-    .ss-icon.red    { background: rgba(198,31,50,.10); color: var(--dash-red); }
-    .ss-icon.blue   { background: rgba(17,17,17,.07); color: var(--dash-ink); }
-    .ss-icon.purple { background: rgba(51,41,133,.10); color: var(--dash-indigo); }
-    .ss-num  { font-size: 1.8rem; font-weight: 700; color: var(--dash-ink); line-height: 1; }
-    .ss-lbl  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--dash-muted); margin-top: 2px; }
+    .ss-icon.green  { background: #EAF4FB; color: #54ACBF; }
+    .ss-icon.amber  { background: rgba(216,232,243,.9); color: #011C40; }
+    .ss-icon.red    { background: #fee2e2; color: #b91c1c; }
+    .ss-icon.blue   { background: rgba(216,232,243,.92); color: #A7EBF2; }
+    .ss-icon.purple { background: rgba(216,232,243,.84); color: #011C40; }
+    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #011C40; line-height: 1; }
+    .ss-lbl  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #4B6B73; margin-top: 2px; }
 
     /* Facility grid */
     .facility-grid {
@@ -159,123 +123,83 @@
         gap: 16px;
     }
     .fac-status-card {
-        background: rgba(251,250,247,.90);
+        background: rgba(255,255,255,.88);
         border-radius: 20px;
         padding: 20px;
-        box-shadow: 0 18px 42px rgba(17,17,17,.08), inset 0 1px 0 rgba(255,255,255,.84);
-        border: 1px solid var(--dash-line);
-        border-left: 4px solid var(--dash-line);
+        box-shadow: 0 18px 42px rgba(8,20,35,.08), inset 0 1px 0 rgba(255,255,255,.84);
+        border: 1px solid rgba(8,20,35,.10);
+        border-left: 4px solid #EAF4FB;
         position: relative;
         transition: box-shadow .15s, transform .15s;
         cursor: pointer;
     }
     .fac-status-card:hover {
-        box-shadow: 0 18px 42px rgba(17,17,17,.12);
+        box-shadow: 0 18px 42px rgba(8,20,35,.12);
         transform: translateY(-2px);
     }
     .fac-status-card a { text-decoration: none; color: inherit; display: block; }
     .fac-status-card a:hover { text-decoration: none; }
-    .fac-status-card.connected    { border-left-color: var(--dash-indigo); }
-    .fac-status-card.degraded     { border-left-color: var(--dash-ochre); }
-    .fac-status-card.disconnected { border-left-color: var(--dash-red); }
+    .fac-status-card.connected    { border-left-color: #A7EBF2; }
+    .fac-status-card.degraded     { border-left-color: #f59e0b; }
+    .fac-status-card.disconnected { border-left-color: #ef4444; }
 
-    .fac-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-    .fac-title-wrap { min-width: 0; }
-    .fac-name   { font-size: .92rem; font-weight: 700; color: var(--dash-ink); line-height: 1.3; max-width: 190px; }
-    .fac-portal { font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: var(--dash-indigo); background: rgba(51,41,133,.10); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
-    .fac-status-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 4px;
-        min-width: 84px;
-        text-align: right;
-    }
+    .fac-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .fac-name   { font-size: .92rem; font-weight: 700; color: #011C40; line-height: 1.3; max-width: 190px; }
+    .fac-portal { font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: #011C40; background: rgba(216,232,243,.92); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
 
     .status-dot {
         width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
     }
-    .status-dot.connected    { background: var(--dash-indigo); box-shadow: 0 0 0 3px rgba(51,41,133,.10); }
-    .status-dot.degraded     { background: var(--dash-ochre); box-shadow: 0 0 0 3px rgba(192,134,63,.14); }
-    .status-dot.disconnected { background: var(--dash-red); box-shadow: 0 0 0 3px rgba(198,31,50,.10); }
+    .status-dot.connected    { background: #A7EBF2; box-shadow: 0 0 0 3px #EAF4FB; }
+    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #EAF4FB; }
+    .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
 
     .fac-meta { display: flex; flex-direction: column; gap: 6px; }
-    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--dash-muted); }
-    .fac-meta-row i { width: 14px; text-align: center; color: var(--dash-ochre); font-size: .7rem; }
-    .fac-meta-row .val { color: var(--dash-ink); font-weight: 600; }
+    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #4B6B73; }
+    .fac-meta-row i { width: 14px; text-align: center; color: #54ACBF; font-size: .7rem; }
+    .fac-meta-row .val { color: #011C40; font-weight: 600; }
 
     .fac-status-bar { margin-top: 12px; margin-bottom: 12px; }
-    .fac-status-label { font-size: .68rem; color: var(--dash-muted); font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .fac-status-label { font-size: .68rem; color: #4B6B73; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; }
     .fac-progress-container {
-        width: 100%; height: 8px; background: rgba(17,17,17,.08); border-radius: 4px; overflow: hidden;
+        width: 100%; height: 8px; background: rgba(216,232,243,.92); border-radius: 4px; overflow: hidden;
     }
     .fac-progress-bar {
-        height: 100%; background: linear-gradient(90deg, var(--dash-indigo) 0%, var(--dash-ochre) 100%); border-radius: 4px;
+        height: 100%; background: linear-gradient(90deg, #A7EBF2 0%, #26658C 100%); border-radius: 4px;
         transition: width .3s ease;
     }
-    .fac-status-counts { font-size: .65rem; color: var(--dash-muted); font-weight: 600; }
-    .fac-status-counts .downloaded { color: var(--dash-indigo); font-weight: 600; }
-    .fac-status-counts .pending { color: #8a551b; font-weight: 600; }
+    .fac-status-counts { font-size: .65rem; color: #4B6B73; font-weight: 600; }
+    .fac-status-counts .downloaded { color: #059669; font-weight: 600; }
+    .fac-status-counts .pending { color: #ca8a04; font-weight: 600; }
 
-    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--dash-line); }
+    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(8,20,35,.10); }
     .fac-stat  { text-align: center; flex: 1; }
-    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: var(--dash-ink); }
-    .fac-stat .l  { font-size: .65rem; color: var(--dash-muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
-    .fac-stat .meta-inline { font-size: .72rem; color: var(--dash-muted); font-weight: 600; margin-top: 2px; line-height: 1.2; }
+    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #011C40; }
+    .fac-stat .l  { font-size: .65rem; color: #4B6B73; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+    .fac-stat .meta-inline { font-size: .72rem; color: #4B6B73; font-weight: 600; margin-top: 2px; line-height: 1.2; }
 
     .status-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-    .status-label.connected    { color: var(--dash-indigo); }
-    .status-label.degraded     { color: #8a551b; }
-    .status-label.disconnected { color: var(--dash-red); }
+    .status-label.connected    { color: #047857; }
+    .status-label.degraded     { color: #54ACBF; }
+    .status-label.disconnected { color: #b91c1c; }
 
     @@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
     .dot-pulse { animation: pulse 2s infinite; }
 
-    @@media (max-width: 1100px) {
-        .dashboard-hero {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-        .dashboard-hero-actions {
-            justify-content: flex-start;
-            width: 100%;
-        }
-        .status-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-    @@media (max-width: 720px) {
-        .status-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .dashboard-hero-actions .btn { flex: 1 1 180px; justify-content: center; }
-        .dashboard-stat-pill { flex: 1 1 150px; justify-content: center; }
-    }
+    @@media (max-width: 900px) { .status-summary { grid-template-columns: repeat(3,1fr); } }
+    @@media (max-width: 600px) { .status-summary { grid-template-columns: repeat(2,1fr); } }
     @@media (max-width: 480px) {
-        .dash-section { padding: 14px 10px 72px; }
-        .dashboard-hero { padding: 16px 14px; border-radius: 12px; gap: 14px; }
-        .dashboard-kicker { font-size: .62rem; letter-spacing: .08em; max-width: 100%; white-space: normal; }
-        .dashboard-hero h4 { font-size: 1.18rem; line-height: 1.22; letter-spacing: -0.025em; }
-        .dashboard-hero p { font-size: .82rem; line-height: 1.55; }
+        .dash-section { padding: 18px 12px 72px; }
+        .dashboard-hero { padding: 18px 16px; border-radius: 18px; align-items: flex-start; }
+        .dashboard-hero h4 { font-size: 1.25rem; }
         .dashboard-hero-actions { justify-content: flex-start; }
-        .dashboard-hero-actions .btn { flex-basis: 100%; }
         .status-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px; }
-        .ss-card { padding: 14px 13px; border-radius: 12px; }
-        .ss-icon { width: 40px; height: 40px; border-radius: 8px; }
-        .ss-num { font-size: 1.45rem; }
+        .ss-card { padding: 16px 14px; border-radius: 14px; }
         .facility-grid { grid-template-columns: 1fr; gap: 12px; }
-        .fac-status-card { padding: 14px; border-radius: 12px; }
+        .fac-status-card { padding: 16px; border-radius: 14px; }
         .fac-name { max-width: 100%; font-size: .88rem; }
-        .fac-header { gap: 10px; flex-wrap: wrap; }
-        .fac-title-wrap { flex: 1 1 100%; }
-        .fac-status-wrap {
-            flex-direction: row;
-            align-items: center;
-            justify-content: flex-start;
-            min-width: 0;
-            width: 100%;
-            text-align: left;
-            order: 3;
-        }
-        .fac-portal { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .fac-header { gap: 10px; }
         .fac-stats { gap: 10px; }
-        .fac-stat { min-width: 0; }
         .fac-stat .n { font-size: 1rem; }
         .d-flex.align-items-center.justify-content-between.mb-4 {
             flex-direction: column;
@@ -289,315 +213,6 @@
             flex: 1 1 0;
             justify-content: center;
         }
-    }
-
-    /* Taskboard UI Kit final redesign layer */
-    body {
-        background:
-            radial-gradient(circle at 8% 10%, rgba(114, 103, 239, .14), transparent 26%),
-            radial-gradient(circle at 94% 8%, rgba(255, 185, 86, .16), transparent 24%),
-            linear-gradient(135deg, #f8f6ef 0%, #f1eee6 44%, #e8e4da 100%) !important;
-        color: #1e2430;
-    }
-
-    .dash-section {
-        --task-ink: #1e2430;
-        --task-muted: #7a817d;
-        --task-paper: #fffdf8;
-        --task-card: rgba(255, 253, 248, .88);
-        --task-line: rgba(31, 36, 48, .11);
-        --task-purple: #6d5df2;
-        --task-purple-dark: #342a84;
-        --task-yellow: #f2b84b;
-        --task-orange: #f08a4b;
-        --task-green: #2fbf8f;
-        --task-red: #ed5c6c;
-        --task-blue: #49a3f1;
-        max-width: 1520px;
-        padding: 24px;
-        color: var(--task-ink);
-    }
-
-    .dash-section::before {
-        content: "";
-        position: fixed;
-        inset: 76px 0 0 0;
-        z-index: -1;
-        pointer-events: none;
-        background:
-            linear-gradient(90deg, rgba(31, 36, 48, .035) 1px, transparent 1px),
-            linear-gradient(180deg, rgba(31, 36, 48, .035) 1px, transparent 1px);
-        background-size: 36px 36px;
-        mask-image: linear-gradient(180deg, rgba(0,0,0,.85), transparent 88%);
-    }
-
-    .dashboard-hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: center;
-        min-height: 164px;
-        border-radius: 28px;
-        border: 1px solid rgba(255,255,255,.66);
-        background:
-            linear-gradient(120deg, rgba(255,255,255,.92), rgba(255,250,238,.88)),
-            radial-gradient(circle at 92% 18%, rgba(242,184,75,.25), transparent 28%);
-        box-shadow: 0 24px 60px rgba(45, 39, 70, .12);
-        overflow: hidden;
-    }
-
-    .dashboard-hero::before {
-        content: "";
-        position: absolute;
-        right: -52px;
-        top: -72px;
-        width: 240px;
-        height: 240px;
-        border-radius: 42px;
-        transform: rotate(18deg);
-        background: linear-gradient(135deg, var(--task-purple), #9b8cff);
-        opacity: .12;
-    }
-
-    .dashboard-hero::after {
-        right: 26px;
-        bottom: 24px;
-        width: 136px;
-        height: 12px;
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--task-purple), var(--task-yellow), var(--task-red));
-    }
-
-    .dashboard-kicker {
-        background: rgba(109, 93, 242, .11);
-        color: var(--task-purple-dark);
-        border: 1px solid rgba(109, 93, 242, .16);
-        font-size: .68rem;
-        letter-spacing: .1em;
-    }
-
-    .dashboard-hero h4 {
-        max-width: 660px;
-        color: var(--task-ink);
-        font-size: clamp(1.8rem, 3vw, 3.25rem);
-        font-weight: 850;
-        letter-spacing: -.055em;
-    }
-
-    .dashboard-hero p {
-        max-width: 58ch;
-        color: var(--task-muted);
-        font-size: .92rem;
-        font-weight: 500;
-    }
-
-    .dashboard-stat-pill {
-        min-height: 34px;
-        background: rgba(255,255,255,.72);
-        border-color: rgba(31, 36, 48, .09);
-        color: var(--task-ink);
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
-    }
-
-    .dashboard-stat-pill:nth-child(1) i { color: var(--task-green); }
-    .dashboard-stat-pill:nth-child(2) i { color: var(--task-yellow); }
-    .dashboard-stat-pill:nth-child(3) i { color: var(--task-red); }
-
-    .dashboard-hero-actions .btn {
-        min-height: 42px;
-        padding: 0 16px;
-        border-radius: 14px;
-        border: 1px solid rgba(31, 36, 48, .1) !important;
-        background: #ffffff !important;
-        color: var(--task-ink) !important;
-        font-weight: 800;
-        box-shadow: 0 12px 28px rgba(45, 39, 70, .08);
-    }
-
-    .dashboard-hero-actions .btn:first-child {
-        background: linear-gradient(135deg, var(--task-purple), #8d7cff) !important;
-        border-color: transparent !important;
-        color: #ffffff !important;
-    }
-
-    .status-summary {
-        grid-template-columns: 1.1fr 1fr 1fr 1.35fr 1.25fr;
-        gap: 16px;
-        margin-bottom: 18px;
-    }
-
-    .ss-card,
-    .fac-status-card {
-        background: var(--task-card);
-        border: 1px solid rgba(255,255,255,.7);
-        border-radius: 26px;
-        box-shadow: 0 22px 48px rgba(45, 39, 70, .11);
-        backdrop-filter: blur(18px) saturate(150%);
-        -webkit-backdrop-filter: blur(18px) saturate(150%);
-    }
-
-    .ss-card {
-        min-height: 126px;
-        flex-direction: column;
-        align-items: flex-start;
-        justify-content: space-between;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .ss-card::after {
-        content: "";
-        position: absolute;
-        right: -24px;
-        bottom: -28px;
-        width: 96px;
-        height: 96px;
-        border-radius: 28px;
-        transform: rotate(16deg);
-        background: rgba(109, 93, 242, .08);
-    }
-
-    .ss-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 16px;
-    }
-
-    .ss-icon.green { background: rgba(47,191,143,.13); color: var(--task-green); }
-    .ss-icon.amber { background: rgba(242,184,75,.16); color: #b87516; }
-    .ss-icon.red { background: rgba(237,92,108,.14); color: var(--task-red); }
-    .ss-icon.blue { background: rgba(73,163,241,.14); color: var(--task-blue); }
-    .ss-icon.purple { background: rgba(109,93,242,.13); color: var(--task-purple); }
-
-    .ss-num {
-        color: var(--task-ink);
-        font-size: 2rem;
-        font-weight: 850;
-        letter-spacing: -.04em;
-    }
-
-    .ss-lbl,
-    .fac-stat .l,
-    .fac-status-label {
-        color: var(--task-muted);
-        letter-spacing: .04em;
-    }
-
-    .facility-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        align-items: start;
-        gap: 18px;
-        padding-top: 6px;
-    }
-
-    .fac-status-card {
-        min-height: 262px;
-        padding: 22px;
-        border-left: 0;
-        color: var(--task-ink);
-        overflow: hidden;
-    }
-
-    .fac-status-card::before {
-        content: "";
-        position: absolute;
-        inset: 0 0 auto 0;
-        height: 6px;
-        background: var(--task-purple);
-    }
-
-    .fac-status-card.connected::before { background: linear-gradient(90deg, var(--task-green), #82e2c1); }
-    .fac-status-card.degraded::before { background: linear-gradient(90deg, var(--task-yellow), var(--task-orange)); }
-    .fac-status-card.disconnected::before { background: linear-gradient(90deg, var(--task-red), #ff9aa6); }
-
-    .fac-status-card:hover {
-        box-shadow: 0 30px 64px rgba(45, 39, 70, .16);
-        transform: translateY(-4px);
-    }
-
-    .fac-name {
-        max-width: none;
-        color: var(--task-ink);
-        font-size: 1.02rem;
-        font-weight: 850;
-        letter-spacing: -.02em;
-    }
-
-    .fac-portal {
-        background: rgba(109, 93, 242, .1);
-        color: var(--task-purple-dark);
-        border: 1px solid rgba(109, 93, 242, .14);
-    }
-
-    .fac-status-wrap {
-        min-width: auto;
-        padding: 7px 10px;
-        border-radius: 999px;
-        background: rgba(255,255,255,.62);
-        border: 1px solid rgba(31,36,48,.08);
-    }
-
-    .status-dot.connected { background: var(--task-green); box-shadow: 0 0 0 4px rgba(47,191,143,.14); }
-    .status-dot.degraded { background: var(--task-yellow); box-shadow: 0 0 0 4px rgba(242,184,75,.16); }
-    .status-dot.disconnected { background: var(--task-red); box-shadow: 0 0 0 4px rgba(237,92,108,.14); }
-
-    .status-label.connected { color: #178262; }
-    .status-label.degraded { color: #a86d0f; }
-    .status-label.disconnected { color: #bd3346; }
-
-    .fac-meta {
-        margin-top: 16px;
-        padding: 14px;
-        border-radius: 18px;
-        background: rgba(255,255,255,.58);
-        border: 1px solid rgba(31,36,48,.07);
-    }
-
-    .fac-meta-row {
-        color: var(--task-muted);
-        font-weight: 650;
-    }
-
-    .fac-meta-row i { color: var(--task-purple); }
-    .fac-meta-row .val,
-    .fac-stat .n {
-        color: var(--task-ink);
-    }
-
-    .fac-progress-container {
-        height: 10px;
-        background: rgba(31,36,48,.08);
-        border-radius: 999px;
-    }
-
-    .fac-progress-bar {
-        background: linear-gradient(90deg, var(--task-purple), var(--task-blue), var(--task-green));
-        border-radius: 999px;
-    }
-
-    .fac-stats {
-        border-top: 1px solid rgba(31,36,48,.08);
-    }
-
-    .fac-stat {
-        padding: 10px;
-        border-radius: 16px;
-        background: rgba(255,255,255,.5);
-    }
-
-    @@media (max-width: 1180px) {
-        .facility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .status-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-
-    @@media (max-width: 760px) {
-        .dash-section { padding: 14px 10px 72px; }
-        .dashboard-hero { grid-template-columns: 1fr; border-radius: 22px; }
-        .dashboard-hero-actions { justify-content: flex-start; }
-        .status-summary,
-        .facility-grid { grid-template-columns: 1fr; }
-        .ss-card { min-height: 104px; }
-        .fac-status-card { min-height: 0; }
     }
 </style>
 }
@@ -677,18 +292,18 @@
             var statusLabel = f.Status switch {
                 Analytika.Models.ViewModels.FacilityConnectionStatus.Connected    => "Connected",
                 Analytika.Models.ViewModels.FacilityConnectionStatus.Degraded     => "Degraded",
-                _                                                                  => f.HasCredential ? "Not Synced" : "No Credential"
+                _                                                                  => "No Credential"
             };
-            <a href="/Portal/SyncedData?facilityId=@f.FacilityId@(f.Portal != null ? $"&portal={f.Portal}" : "")" class="fac-status-card @statusClass">
+            <a href="/Portal/SyncedData?facilityId=@f.FacilityId" class="fac-status-card @statusClass">
                 <div class="fac-header">
-                    <div class="fac-title-wrap">
+                    <div>
                         <div class="fac-name">@f.FacilityName</div>
                         @if (f.Portal != null)
                         {
                             <span class="fac-portal mt-1 d-inline-block">@f.Portal</span>
                         }
                     </div>
-                    <div class="fac-status-wrap"
+                    <div class="d-flex flex-column align-items-end gap-1"
                          title="@f.StatusReason" data-bs-toggle="tooltip" data-bs-placement="left">
                         <div class="status-dot @statusClass @(statusClass == "connected" ? "dot-pulse" : "")"></div>
                         <span class="status-label @statusClass">@statusLabel</span>

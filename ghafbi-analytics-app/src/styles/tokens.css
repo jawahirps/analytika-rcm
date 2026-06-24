@@ -1,0 +1,140 @@
+/* Ghafbi — Pearl Meridian theme (light + dark) */
+
+:root {
+  color-scheme: light;
+
+  /* Brand core */
+  --ink: #0e1a24;
+  --ink-soft: #1f3342;
+  --meridian: #3d7a8c;
+  --meridian-deep: #2a5f6e;
+  --meridian-light: #6fa3b3;
+  --pearl: #f4f0e8;
+  --pearl-bright: #fcfaf6;
+  --mist: #e3ebe6;
+  --brass: #c4a052;
+  --brass-deep: #9a7b38;
+  --brass-glow: rgba(196, 160, 82, 0.28);
+
+  /* Legacy aliases (components still reference some) */
+  --ghaf-navy: var(--ink);
+  --ghaf-navy-soft: var(--ink-soft);
+  --ghaf-teal: var(--meridian);
+  --ghaf-aqua: #b8d9e2;
+  --ghaf-sea: var(--meridian-deep);
+  --ghaf-sage: #5a7d8a;
+  --ghaf-ice: var(--ink-soft);
+  --ghaf-cloud: var(--mist);
+  --ghaf-coral: #c45c52;
+
+  /* Surfaces */
+  --bg: var(--pearl);
+  --bg-accent: rgba(61, 122, 140, 0.14);
+  --bg-accent-warm: rgba(196, 160, 82, 0.12);
+  --surface: rgba(252, 250, 246, 0.94);
+  --surface-strong: var(--pearl-bright);
+  --surface-soft: rgba(244, 240, 232, 0.88);
+  --surface-sidebar: #0e1a24;
+  --surface-sidebar-hover: rgba(184, 217, 226, 0.1);
+  --line: rgba(14, 26, 36, 0.09);
+  --line-strong: rgba(61, 122, 140, 0.26);
+
+  /* Text */
+  --muted: #5c6f78;
+  --muted-soft: rgba(92, 111, 120, 0.72);
+  --text-invert: #f2f6f4;
+  --text-sidebar: rgba(242, 246, 244, 0.72);
+  --text-sidebar-active: #ffffff;
+
+  /* Charts */
+  --chart-line: var(--meridian);
+  --chart-line-muted: #9eb5bc;
+  --chart-fill-start: rgba(61, 122, 140, 0.38);
+  --chart-fill-end: rgba(61, 122, 140, 0);
+  --chart-grid: rgba(61, 122, 140, 0.16);
+  --chart-dot-fill: var(--pearl-bright);
+  --chart-dot-stroke: var(--meridian-deep);
+  --chart-surface: linear-gradient(180deg, rgba(252, 250, 246, 0.98), rgba(227, 235, 230, 0.65));
+
+  /* Brand mark (sidebar logo bars) */
+  --brand-mark-from: #f0e6d4;
+  --brand-mark-to: #b8d4dc;
+  --brand-mark-bar: var(--ink);
+
+  /* Status */
+  --good: #2a7a5a;
+  --good-bg: rgba(42, 122, 90, 0.12);
+  --warn: #a67c32;
+  --warn-bg: rgba(166, 124, 50, 0.14);
+  --bad: #c45c52;
+  --bad-bg: rgba(196, 92, 82, 0.12);
+  --info: var(--meridian-deep);
+  --info-bg: rgba(61, 122, 140, 0.12);
+
+  /* Buttons */
+  --btn-primary-bg: linear-gradient(165deg, #d4b76a 0%, var(--brass) 42%, var(--brass-deep) 100%);
+  --btn-primary-border: var(--brass-deep);
+  --btn-primary-shadow: 0 10px 24px rgba(154, 123, 56, 0.28);
+  --btn-primary-text: #1a1408;
+  --btn-ghost-border: var(--line);
+  --btn-ghost-bg: var(--surface-strong);
+  --btn-selected-bg: rgba(61, 122, 140, 0.14);
+  --btn-selected-border: rgba(61, 122, 140, 0.38);
+  --btn-selected-text: var(--meridian-deep);
+
+  /* Focus / selection */
+  --focus-ring: rgba(196, 160, 82, 0.45);
+
+  /* Layout */
+  --sidebar-width: 248px;
+  --sidebar-collapsed: 76px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --shadow-sm: 0 8px 22px rgba(14, 26, 36, 0.06);
+  --shadow-md: 0 16px 38px rgba(14, 26, 36, 0.09);
+  --shadow-lg: 0 24px 52px rgba(14, 26, 36, 0.12);
+  --shadow-sidebar: inset 3px 0 0 var(--brass);
+  --blur: blur(20px) saturate(155%);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration: 220ms;
+  --duration-slow: 420ms;
+
+  /* Type */
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  --ink: #e8f0ec;
+  --ink-soft: #c5d4ce;
+  --pearl: #0a1218;
+  --pearl-bright: #121e28;
+  --mist: #1a2832;
+
+  --bg: #0a1218;
+  --bg-accent: rgba(111, 163, 179, 0.12);
+  --bg-accent-warm: rgba(196, 160, 82, 0.08);
+  --surface: rgba(18, 30, 40, 0.92);
+  --surface-strong: #121e28;
+  --surface-soft: rgba(14, 26, 36, 0.78);
+  --surface-sidebar: #060d12;
+  --line: rgba(184, 217, 226, 0.1);
+  --line-strong: rgba(111, 163, 179, 0.22);
+
+  --muted: rgba(184, 204, 196, 0.72);
+  --chart-surface: linear-gradient(180deg, rgba(18, 30, 40, 0.96), rgba(10, 18, 24, 0.88));
+  --chart-dot-fill: var(--pearl-bright);
+  --btn-primary-text: #1a1408;
+  --btn-ghost-bg: rgba(18, 30, 40, 0.9);
+
+  --shadow-sm: 0 8px 22px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 16px 38px rgba(0, 0, 0, 0.34);
+  --shadow-lg: 0 24px 52px rgba(0, 0, 0, 0.4);
+}
