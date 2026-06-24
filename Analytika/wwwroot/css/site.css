@@ -2741,3 +2741,541 @@ html[data-theme="dark"] .table-responsive {
 
 /* ── Legacy navbar hidden ───────────────────────────────────── */
 .analytika-navbar { display: none !important; }
+
+/* ================================================================
+   Glass Design System v7 — Light & Dark Theme Polish
+   Fixes dark mode glass override bug + improves legibility
+   ================================================================ */
+
+/* ── Strengthen blur + glass variables ──────────────────────────── */
+:root {
+  --blur:          blur(22px) saturate(185%);
+  --glass:         rgba(255,255,255,0.84);
+  --glass-strong:  rgba(255,255,255,0.96);
+  --shadow-sm:     0 8px 28px rgba(0,59,77,0.10), 0 1px 0 rgba(255,255,255,0.82) inset;
+  --shadow-md:     0 16px 40px rgba(0,59,77,0.14), 0 1px 0 rgba(255,255,255,0.82) inset;
+}
+
+/* ── Light mode: page background (richer teal atmosphere) ────────── */
+.bi-shell,
+.dashboard-wrapper,
+.container-fluid.py-3,
+.container-fluid.py-4,
+.page-wrapper {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(0,104,132,0.13) 0%, transparent 32%),
+    radial-gradient(circle at 92% 6%, rgba(102,178,178,0.10) 0%, transparent 28%),
+    radial-gradient(circle at 50% 95%, rgba(0,59,77,0.05) 0%, transparent 40%),
+    linear-gradient(155deg, rgba(234,246,248,0.97) 0%, rgba(247,249,249,0.99) 55%, rgba(234,246,248,0.98) 100%) !important;
+}
+
+/* ── Light mode: tighter card glass ─────────────────────────────── */
+.card,
+.stat-card,
+.info-card {
+  background: rgba(255,255,255,0.84) !important;
+  border: 1px solid rgba(0,59,77,0.09) !important;
+}
+
+.card:hover,
+.stat-card:hover {
+  border-color: rgba(0,104,132,0.26) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── Light mode: table row hover (uses accent tint) ─────────────── */
+.table-hover tbody tr:hover,
+.data-table tbody tr:hover {
+  background: rgba(0,104,132,0.05) !important;
+}
+
+/* ── Dark mode: body background ─────────────────────────────────── */
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(ellipse at 8% 10%, rgba(0,104,132,0.32) 0%, transparent 36%),
+    radial-gradient(ellipse at 94% 8%, rgba(0,139,139,0.18) 0%, transparent 32%),
+    radial-gradient(ellipse at 50% 96%, rgba(0,59,77,0.40) 0%, transparent 44%),
+    linear-gradient(160deg, #001825 0%, #00283a 45%, #001422 100%);
+  background-attachment: fixed;
+  color: #eaf6f8;
+}
+
+/* ── CRITICAL FIX: Dark mode glass card override ─────────────────
+   The global glass pass (~line 1799) sets rgba(255,255,255,0.78)
+   !important on all cards.  This block has higher specificity
+   (html[data-theme="dark"] .card vs .card) so it wins even with
+   matching !important weight.  Must stay AFTER the glass pass.
+   ──────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .metric-card,
+html[data-theme="dark"] .dd-card,
+html[data-theme="dark"] .filter-card,
+html[data-theme="dark"] .table-card,
+html[data-theme="dark"] .info-card,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .filter-bar,
+html[data-theme="dark"] .cs-card,
+html[data-theme="dark"] .rsb-card,
+html[data-theme="dark"] .wl-card,
+html[data-theme="dark"] .detail-card,
+html[data-theme="dark"] .xp-shell,
+html[data-theme="dark"] .xp-stat,
+html[data-theme="dark"] .xp-progress,
+html[data-theme="dark"] .upload-zone,
+html[data-theme="dark"] .list-group-item,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .dropdown-menu,
+html[data-theme="dark"] .select2-dropdown,
+html[data-theme="dark"] .flatpickr-calendar,
+html[data-theme="dark"] .toast,
+html[data-theme="dark"] .alert,
+html[data-theme="dark"] .react-shell-strip {
+  background: rgba(0,28,45,0.84) !important;
+  border-color: rgba(198,226,233,0.11) !important;
+  backdrop-filter: blur(22px) saturate(155%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(155%) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+
+/* ── Dark mode: card hover ──────────────────────────────────────── */
+html[data-theme="dark"] .card:hover,
+html[data-theme="dark"] .stat-card:hover {
+  border-color: rgba(0,104,132,0.36) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+/* ── Dark mode: card header ─────────────────────────────────────── */
+html[data-theme="dark"] .card-header,
+html[data-theme="dark"] .table-card .card-header,
+html[data-theme="dark"] .filter-card .card-header {
+  background: rgba(0,18,30,0.64) !important;
+  border-color: rgba(198,226,233,0.09) !important;
+}
+
+html[data-theme="dark"] .filter-card .card-header,
+html[data-theme="dark"] .modal-header[style*="background"],
+html[data-theme="dark"] .card-header[style*="linear-gradient"] {
+  background: linear-gradient(135deg, rgba(0,59,77,0.94), rgba(0,104,132,0.88)) !important;
+}
+
+/* ── Dark mode: modal ───────────────────────────────────────────── */
+html[data-theme="dark"] .modal-header {
+  border-bottom-color: rgba(198,226,233,0.09) !important;
+}
+
+html[data-theme="dark"] .modal-footer {
+  border-top-color: rgba(198,226,233,0.09) !important;
+}
+
+html[data-theme="dark"] .modal-title {
+  color: #EAF4FB;
+}
+
+/* ── Dark mode: form controls ───────────────────────────────────── */
+html[data-theme="dark"] .form-control,
+html[data-theme="dark"] .form-select,
+html[data-theme="dark"] .input-group-text {
+  background: rgba(0,18,30,0.82) !important;
+  color: #EAF4FB !important;
+  border-color: rgba(198,226,233,0.13) !important;
+}
+
+html[data-theme="dark"] .form-control::placeholder {
+  color: rgba(198,226,233,0.38);
+}
+
+html[data-theme="dark"] .form-control:focus,
+html[data-theme="dark"] .form-select:focus {
+  border-color: var(--classic-teal) !important;
+  box-shadow: 0 0 0 3px rgba(0,104,132,0.24) !important;
+  background: rgba(0,22,36,0.90) !important;
+}
+
+/* ── Dark mode: form labels ─────────────────────────────────────── */
+html[data-theme="dark"] .form-label {
+  color: rgba(198,226,233,0.78);
+}
+
+/* ── Dark mode: dropdown items ──────────────────────────────────── */
+html[data-theme="dark"] .dropdown-item {
+  color: rgba(234,246,248,0.82) !important;
+}
+
+html[data-theme="dark"] .dropdown-item:hover {
+  background: rgba(0,104,132,0.22) !important;
+  color: #eaf6f8 !important;
+}
+
+html[data-theme="dark"] .dropdown-divider {
+  border-color: rgba(198,226,233,0.10);
+}
+
+/* ── Dark mode: filter tabs ─────────────────────────────────────── */
+html[data-theme="dark"] .filter-tabs {
+  background: rgba(0,18,30,0.74) !important;
+  border-color: rgba(198,226,233,0.13) !important;
+}
+
+html[data-theme="dark"] .filter-tab {
+  color: rgba(234,246,248,0.56);
+}
+
+html[data-theme="dark"] .filter-tab:hover {
+  color: rgba(234,246,248,0.88);
+}
+
+html[data-theme="dark"] .filter-tab.active {
+  background: rgba(0,104,132,0.38) !important;
+  color: #eaf6f8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+}
+
+/* ── Dark mode: access chips ────────────────────────────────────── */
+html[data-theme="dark"] .access-chip {
+  background: rgba(0,18,30,0.68);
+  border-color: rgba(198,226,233,0.14);
+  color: rgba(234,246,248,0.68);
+}
+
+html[data-theme="dark"] .access-chip.selected {
+  background: rgba(0,104,132,0.28);
+  border-color: var(--classic-teal);
+  color: #eaf6f8;
+}
+
+/* ── Dark mode: portal toggles ──────────────────────────────────── */
+html[data-theme="dark"] .portal-toggle {
+  background: rgba(0,18,30,0.72);
+  border-color: rgba(198,226,233,0.13);
+}
+
+html[data-theme="dark"] .portal-toggle-btn {
+  color: rgba(234,246,248,0.58);
+}
+
+html[data-theme="dark"] .portal-toggle-btn:hover:not(.active) {
+  background: rgba(0,104,132,0.18);
+  color: #eaf6f8;
+}
+
+/* ── Dark mode: tables ──────────────────────────────────────────── */
+html[data-theme="dark"] .table tbody td,
+html[data-theme="dark"] .data-table tbody td {
+  border-color: rgba(198,226,233,0.05) !important;
+  color: rgba(234,246,248,0.88);
+}
+
+html[data-theme="dark"] .table-hover tbody tr:hover,
+html[data-theme="dark"] .data-table tbody tr:hover {
+  background: rgba(0,104,132,0.13) !important;
+}
+
+html[data-theme="dark"] .table-responsive {
+  background:
+    linear-gradient(to right, rgba(0,28,45,0.96) 30%, transparent) left center / 40px 100% no-repeat,
+    linear-gradient(to left, rgba(0,28,45,0.96) 30%, transparent) right center / 40px 100% no-repeat;
+  background-attachment: local, local;
+}
+
+/* ── Dark mode: alerts ──────────────────────────────────────────── */
+html[data-theme="dark"] .alert-success {
+  background: rgba(47,143,114,0.13) !important;
+  color: rgba(102,200,160,0.92) !important;
+  border-color: rgba(47,143,114,0.22) !important;
+}
+
+html[data-theme="dark"] .alert-danger {
+  background: rgba(185,74,63,0.13) !important;
+  color: rgba(230,130,120,0.92) !important;
+  border-color: rgba(185,74,63,0.22) !important;
+}
+
+html[data-theme="dark"] .alert-warning {
+  background: rgba(184,137,36,0.13) !important;
+  color: rgba(230,185,85,0.92) !important;
+  border-color: rgba(184,137,36,0.22) !important;
+}
+
+html[data-theme="dark"] .alert-info {
+  background: rgba(0,104,132,0.18) !important;
+  color: rgba(102,178,178,0.92) !important;
+  border-color: rgba(0,104,132,0.26) !important;
+}
+
+/* ── Dark mode: badges ──────────────────────────────────────────── */
+html[data-theme="dark"] .badge-navy,
+html[data-theme="dark"] .react-shell-chip,
+html[data-theme="dark"] .sb-chip {
+  background: rgba(0,104,132,0.22);
+  color: rgba(234,246,248,0.88);
+  border-color: rgba(198,226,233,0.13);
+}
+
+html[data-theme="dark"] .badge-info {
+  background: rgba(38,101,140,0.20);
+  color: rgba(102,178,178,0.90);
+}
+
+html[data-theme="dark"] .badge-warning {
+  background: rgba(184,137,36,0.18);
+  color: rgba(230,185,85,0.90);
+}
+
+/* ── Dark mode: status pills ────────────────────────────────────── */
+html[data-theme="dark"] .status-pill.active,
+html[data-theme="dark"] .status-pill.success {
+  background: rgba(47,143,114,0.16);
+  color: rgba(102,200,160,0.92);
+}
+
+html[data-theme="dark"] .status-pill.failed {
+  background: rgba(185,74,63,0.16);
+  color: rgba(230,130,120,0.92);
+}
+
+html[data-theme="dark"] .status-pill.warning {
+  background: rgba(184,137,36,0.16);
+  color: rgba(230,185,85,0.92);
+}
+
+html[data-theme="dark"] .status-pill.inactive {
+  background: rgba(38,101,140,0.16);
+  color: rgba(102,178,178,0.78);
+}
+
+/* ── Dark mode: page header ─────────────────────────────────────── */
+html[data-theme="dark"] .page-header {
+  background:
+    radial-gradient(circle at top right, rgba(0,104,132,0.18) 0%, transparent 44%),
+    rgba(0,22,36,0.76) !important;
+  border-color: rgba(198,226,233,0.11) !important;
+}
+
+/* ── Dark mode: select2 ─────────────────────────────────────────── */
+html[data-theme="dark"] .select2-dropdown {
+  background: rgba(0,22,36,0.94) !important;
+  border-color: rgba(198,226,233,0.13) !important;
+}
+
+html[data-theme="dark"] .select2-results__option {
+  color: rgba(234,246,248,0.82);
+}
+
+html[data-theme="dark"] .select2-results__option--highlighted,
+html[data-theme="dark"] .select2-results__option[aria-selected="true"] {
+  background: rgba(0,104,132,0.30) !important;
+  color: #eaf6f8 !important;
+}
+
+html[data-theme="dark"] .select2-container--default .select2-selection--single {
+  background: rgba(0,18,30,0.82);
+  border-color: rgba(198,226,233,0.13);
+}
+
+html[data-theme="dark"] .select2-container--default .select2-selection--single .select2-selection__rendered {
+  color: #EAF4FB;
+}
+
+html[data-theme="dark"] .select2-search__field {
+  background: rgba(0,22,36,0.90) !important;
+  color: #EAF4FB !important;
+  border-color: rgba(198,226,233,0.13) !important;
+}
+
+/* ── Dark mode: flatpickr ───────────────────────────────────────── */
+html[data-theme="dark"] .flatpickr-calendar {
+  background: rgba(0,22,36,0.96) !important;
+  color: rgba(234,246,248,0.88) !important;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.44) !important;
+}
+
+html[data-theme="dark"] .flatpickr-day {
+  color: rgba(234,246,248,0.78);
+}
+
+html[data-theme="dark"] .flatpickr-day:hover,
+html[data-theme="dark"] .flatpickr-day.prevMonthDay:hover,
+html[data-theme="dark"] .flatpickr-day.nextMonthDay:hover {
+  background: rgba(0,104,132,0.26);
+  border-color: transparent;
+  color: #eaf6f8;
+}
+
+html[data-theme="dark"] .flatpickr-day.selected,
+html[data-theme="dark"] .flatpickr-day.startRange,
+html[data-theme="dark"] .flatpickr-day.endRange,
+html[data-theme="dark"] .flatpickr-day.inRange {
+  background: rgba(0,104,132,0.60) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .flatpickr-day.today {
+  border-color: var(--classic-teal) !important;
+}
+
+html[data-theme="dark"] .flatpickr-months .flatpickr-month,
+html[data-theme="dark"] .flatpickr-current-month,
+html[data-theme="dark"] .flatpickr-weekday {
+  color: rgba(234,246,248,0.88) !important;
+  fill: rgba(234,246,248,0.88) !important;
+}
+
+html[data-theme="dark"] .flatpickr-prev-month,
+html[data-theme="dark"] .flatpickr-next-month {
+  color: rgba(234,246,248,0.72) !important;
+  fill: rgba(234,246,248,0.72) !important;
+}
+
+html[data-theme="dark"] .flatpickr-prev-month:hover,
+html[data-theme="dark"] .flatpickr-next-month:hover {
+  color: #eaf6f8 !important;
+  fill: #eaf6f8 !important;
+}
+
+html[data-theme="dark"] .flatpickr-prev-month svg,
+html[data-theme="dark"] .flatpickr-next-month svg {
+  fill: rgba(234,246,248,0.72) !important;
+}
+
+html[data-theme="dark"] .flatpickr-months .flatpickr-month:hover {
+  background: transparent;
+}
+
+html[data-theme="dark"] .numInputWrapper span.arrowUp,
+html[data-theme="dark"] .numInputWrapper span.arrowDown {
+  border-color: rgba(198,226,233,0.13);
+}
+
+html[data-theme="dark"] .flatpickr-current-month input.cur-year {
+  color: rgba(234,246,248,0.88);
+}
+
+/* ── Dark mode: DataTables ──────────────────────────────────────── */
+html[data-theme="dark"] div.dt-container select.dt-input {
+  background: rgba(0,18,30,0.80);
+  color: #eaf6f8;
+  border-color: rgba(198,226,233,0.14);
+}
+
+html[data-theme="dark"] .dt-search input[type="search"] {
+  background: rgba(0,18,30,0.80) !important;
+  color: #eaf6f8 !important;
+  border-color: rgba(198,226,233,0.16) !important;
+}
+
+/* ── Dark mode: scrollbar ───────────────────────────────────────── */
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(198,226,233,0.16);
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(198,226,233,0.28);
+}
+
+/* ── Dark mode: stat card values (max contrast) ─────────────────── */
+html[data-theme="dark"] .stat-card .stat-value,
+html[data-theme="dark"] .stat-card .stat-label {
+  color: rgba(234,246,248,0.92);
+}
+
+html[data-theme="dark"] .stat-card .stat-label {
+  color: rgba(198,226,233,0.62);
+}
+
+/* ── Dark mode: react-shell / page strip ────────────────────────── */
+html[data-theme="dark"] .react-shell-title {
+  color: #EAF4FB;
+}
+
+html[data-theme="dark"] .react-shell-sub,
+html[data-theme="dark"] .react-shell-eyebrow {
+  color: rgba(198,226,233,0.62);
+}
+
+html[data-theme="dark"] .react-shell-btn-ghost {
+  background: rgba(0,18,30,0.68) !important;
+  border-color: rgba(198,226,233,0.14) !important;
+  color: rgba(234,246,248,0.82) !important;
+}
+
+/* ── Dark mode: empty state ─────────────────────────────────────── */
+html[data-theme="dark"] .empty-state {
+  color: rgba(198,226,233,0.56);
+}
+
+/* ── Dark mode: button ghost ────────────────────────────────────── */
+html[data-theme="dark"] .btn-ghost {
+  background: rgba(0,18,30,0.62) !important;
+  border-color: rgba(198,226,233,0.14) !important;
+  color: rgba(234,246,248,0.78) !important;
+}
+
+html[data-theme="dark"] .btn-ghost:hover {
+  background: rgba(0,18,30,0.84) !important;
+  color: #eaf6f8 !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary {
+  border-color: rgba(198,226,233,0.20) !important;
+  color: rgba(234,246,248,0.72) !important;
+}
+
+html[data-theme="dark"] .btn-outline-secondary:hover {
+  background: rgba(198,226,233,0.10) !important;
+  color: #eaf6f8 !important;
+}
+
+/* ── Dark mode: dividers and borders ────────────────────────────── */
+html[data-theme="dark"] .divider,
+html[data-theme="dark"] .divider-text::before,
+html[data-theme="dark"] .divider-text::after {
+  background: rgba(198,226,233,0.09);
+}
+
+html[data-theme="dark"] .border,
+html[data-theme="dark"] .border-bottom,
+html[data-theme="dark"] .border-top {
+  border-color: rgba(198,226,233,0.10) !important;
+}
+
+/* ── Dark mode: footer ──────────────────────────────────────────── */
+html[data-theme="dark"] .analytika-footer {
+  background: rgba(0,18,30,0.72);
+  border-top-color: rgba(198,226,233,0.09);
+  color: rgba(198,226,233,0.52);
+}
+
+/* ── Dark mode: notification items ─────────────────────────────── */
+html[data-theme="dark"] .notification-item:hover {
+  background: rgba(0,104,132,0.14);
+}
+
+/* ── Light mode: subtle text contrast boost ─────────────────────── */
+.text-muted,
+.text-body-secondary {
+  color: var(--text-muted) !important;
+}
+
+.stat-card .stat-label {
+  color: #4a7080;
+}
+
+/* ── Typography: minimum legible size floor ─────────────────────── */
+small,
+.small,
+.text-muted,
+.form-text {
+  font-size: max(0.75rem, 0.75em);
+}
+
+.badge {
+  font-size: max(0.68rem, 0.68em);
+}
+
+/* ── Light mode: improved body background specificity ───────────── */
+body {
+  background: linear-gradient(148deg, #f4f8f9 0%, #eef6f7 42%, #f7f9f9 100%);
+  background-attachment: fixed;
+}

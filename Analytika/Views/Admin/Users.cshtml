@@ -10,15 +10,14 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#011C40;">User Management</h4>
-            <small class="text-muted">Manage global and facility-level users, roles, and access</small>
+            <h4 class="mb-0 fw-bold page-title">User Management</h4>
+            <small class="text-muted page-subtitle">Manage global and facility-level users, roles, and access</small>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-sm px-3 py-2 btn-outline-success" style="border-radius:8px;"
-               asp-action="ExportUsers">
+            <a class="btn btn-sm px-3 py-2 btn-outline-success" asp-action="ExportUsers">
                 <i class="fas fa-file-export me-1"></i> Export CSV
             </a>
-            <button class="btn btn-sm px-3 py-2 btn-outline-info" style="border-radius:8px;"
+            <button class="btn btn-sm px-3 py-2 btn-outline-info"
                     onclick="document.getElementById('importUserFile').click()">
                 <i class="fas fa-file-import me-1"></i> Import CSV
             </button>
@@ -27,7 +26,7 @@
                 <input type="file" id="importUserFile" name="file" accept=".csv" class="d-none"
                        onchange="this.form.submit()" />
             </form>
-            <a asp-action="CreateUser" class="btn btn-sm px-3 py-2" style="background:#011C40;color:#fff;border-radius:8px;">
+            <a asp-action="CreateUser" class="btn btn-sm btn-primary px-3 py-2">
                 <i class="fas fa-plus me-1"></i> Create User
             </a>
         </div>
@@ -36,61 +35,53 @@
     <!-- Stats Cards -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm" style="border-radius:10px;">
-                <div class="card-body py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:#e8f4ff;">
-                            <i class="fas fa-users" style="color:#011C40;font-size:1rem;"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold fs-5" style="color:#011C40;">@Model.TotalUsers</div>
-                            <div class="text-muted" style="font-size:.75rem;">Total Users</div>
-                        </div>
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background:var(--emerald-light);">
+                        <i class="fas fa-users text-emerald" style="font-size:1rem;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.TotalUsers</div>
+                        <div class="stat-label">Total Users</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm" style="border-radius:10px;">
-                <div class="card-body py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:#e8fff7;">
-                            <i class="fas fa-globe" style="color:#011C40;font-size:1rem;"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold fs-5" style="color:#011C40;">@globalCount</div>
-                            <div class="text-muted" style="font-size:.75rem;">Global Users</div>
-                        </div>
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background:var(--emerald-pale);">
+                        <i class="fas fa-globe text-emerald" style="font-size:1rem;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@globalCount</div>
+                        <div class="stat-label">Global Users</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm" style="border-radius:10px;">
-                <div class="card-body py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:#fff8e8;">
-                            <i class="fas fa-hospital" style="color:#b8860b;font-size:1rem;"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold fs-5" style="color:#011C40;">@facilityCount</div>
-                            <div class="text-muted" style="font-size:.75rem;">Facility Users</div>
-                        </div>
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background:var(--semantic-warning-bg);">
+                        <i class="fas fa-hospital" style="color:var(--semantic-warning);font-size:1rem;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@facilityCount</div>
+                        <div class="stat-label">Facility Users</div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm" style="border-radius:10px;">
-                <div class="card-body py-3">
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:40px;height:40px;background:#e8ffe8;">
-                            <i class="fas fa-check-circle" style="color:#28a745;font-size:1rem;"></i>
-                        </div>
-                        <div>
-                            <div class="fw-bold fs-5" style="color:#011C40;">@activeCount</div>
-                            <div class="text-muted" style="font-size:.75rem;">Active</div>
-                        </div>
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background:var(--semantic-success-bg);">
+                        <i class="fas fa-check-circle" style="color:var(--semantic-success);font-size:1rem;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@activeCount</div>
+                        <div class="stat-label">Active</div>
                     </div>
                 </div>
             </div>
@@ -98,31 +89,29 @@
     </div>
 
     <!-- Filter Tabs -->
-    <div class="d-flex gap-2 mb-3 flex-wrap">
+    <div class="filter-tabs mb-3">
         @foreach (var f in new[] { "All", "Global", "Facility", "Active", "Inactive" })
         {
-            <a asp-action="Users" asp-route-filter="@f"
-               class="btn btn-sm @(Model.Filter == f ? "btn-primary-custom" : "btn-outline-secondary")"
-               style="border-radius:20px;font-size:.82rem;@(Model.Filter == f ? "background:#011C40;color:#fff;border-color:#011C40;" : "")">
+            <a asp-action="Users" asp-route-filter="@f" class="filter-tab @(Model.Filter == f ? "active" : "")">
                 @f
             </a>
         }
     </div>
 
     <!-- Users Table -->
-    <div class="card border-0 shadow-sm" style="border-radius:12px;">
+    <div class="table-card card">
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover data-table mb-0" style="font-size:.85rem;">
-                    <thead style="background:#EAF4FB;">
+                <table class="table table-hover data-table mb-0">
+                    <thead>
                         <tr>
-                            <th class="ps-4 py-3 fw-semibold text-muted border-0">User</th>
-                            <th class="py-3 fw-semibold text-muted border-0">Type</th>
-                            <th class="py-3 fw-semibold text-muted border-0">Role</th>
-                            <th class="py-3 fw-semibold text-muted border-0">Facilities</th>
-                            <th class="py-3 fw-semibold text-muted border-0">Status</th>
-                            <th class="py-3 fw-semibold text-muted border-0">Created</th>
-                            <th class="pe-4 py-3 fw-semibold text-muted border-0 text-end">Actions</th>
+                            <th class="ps-4 py-3">User</th>
+                            <th class="py-3">Type</th>
+                            <th class="py-3">Role</th>
+                            <th class="py-3">Facilities</th>
+                            <th class="py-3">Status</th>
+                            <th class="py-3">Created</th>
+                            <th class="pe-4 py-3 text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -131,23 +120,22 @@
                             <tr>
                                 <td class="ps-4 py-3 align-middle">
                                     <div class="d-flex align-items-center gap-2">
-                                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
-                                             style="width:34px;height:34px;background:#011C40;font-size:.8rem;flex-shrink:0;">
+                                        <div class="user-avatar avatar-admin">
                                             @(user.FullName.Length > 0 ? user.FullName[0].ToString().ToUpper() : "U")
                                         </div>
                                         <div>
-                                            <div class="fw-semibold" style="color:#011C40;">@user.FullName</div>
+                                            <div class="fw-semibold text-navy">@user.FullName</div>
                                             <div class="text-muted" style="font-size:.75rem;">@user.Email</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="py-3 align-middle">
-                                    <span class="badge rounded-pill" style="font-size:.72rem;@(user.UserType == "Global" ? "background:#e3f2fd;color:#1565c0;" : "background:#fff8e1;color:#b8860b;")">
+                                    <span class="badge @(user.UserType == "Global" ? "badge-info" : "badge-warning")">
                                         @user.UserType
                                     </span>
                                 </td>
                                 <td class="py-3 align-middle">
-                                    <span class="badge rounded-pill" style="font-size:.72rem;background:#EAF4FB;color:#011C40;">@user.Role</span>
+                                    <span class="badge badge-navy">@user.Role</span>
                                 </td>
                                 <td class="py-3 align-middle" style="max-width:180px;">
                                     @if (user.Facilities.Any())
@@ -160,22 +148,23 @@
                                     }
                                 </td>
                                 <td class="py-3 align-middle">
-                                    <span class="badge rounded-pill @(user.IsActive ? "bg-success-subtle text-success" : "bg-danger-subtle text-danger")" style="font-size:.72rem;">
+                                    <span class="status-pill @(user.IsActive ? "active" : "failed")">
+                                        <span class="status-dot @(user.IsActive ? "active" : "danger")"></span>
                                         @(user.IsActive ? "Active" : "Inactive")
                                     </span>
                                 </td>
                                 <td class="py-3 align-middle text-muted">@user.CreatedAt.ToString("dd MMM yyyy")</td>
                                 <td class="pe-4 py-3 align-middle text-end">
-                                    <a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-sm btn-outline-secondary me-1" style="border-radius:6px;font-size:.78rem;">
+                                    <a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-sm btn-outline-secondary me-1">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
                                     <form asp-action="ToggleUser" asp-route-id="@user.Id" method="post" class="d-inline">
                                         @Html.AntiForgeryToken()
-                                        <button type="submit" class="btn btn-sm me-1 @(user.IsActive ? "btn-outline-warning" : "btn-outline-success")" style="border-radius:6px;font-size:.78rem;">
+                                        <button type="submit" class="btn btn-sm me-1 @(user.IsActive ? "btn-outline-warning" : "btn-outline-success")">
                                             <i class="fas @(user.IsActive ? "fa-ban" : "fa-check")"></i>
                                         </button>
                                     </form>
-                                    <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:6px;font-size:.78rem;"
+                                    <button type="button" class="btn btn-sm btn-outline-info"
                                             data-bs-toggle="modal" data-bs-target="#resetModal" data-userid="@user.Id" data-email="@user.Email">
                                         <i class="fas fa-key"></i>
                                     </button>
@@ -213,7 +202,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm" style="background:#011C40;color:#fff;">Reset</button>
+                    <button type="submit" class="btn btn-sm btn-primary">Reset</button>
                 </div>
             </form>
         </div>
