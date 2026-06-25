@@ -96,9 +96,9 @@ public static class ModuleRegistration
 
         services.ConfigureApplicationCookie(options =>
         {
-            options.LoginPath = "/Home/Index";
+            options.LoginPath = "/login";
             options.LogoutPath = "/Home/LogOut";
-            options.AccessDeniedPath = "/Home/Index";
+            options.AccessDeniedPath = "/login";
             options.ExpireTimeSpan = TimeSpan.FromDays(30);
             options.SlidingExpiration = true;
             options.Cookie.MaxAge = TimeSpan.FromDays(30);

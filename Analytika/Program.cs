@@ -116,10 +116,12 @@ app.Use(async (context, next) =>
 
             // The login page (unauthenticated, no PHI) embeds the Spline 3D viewer,
             // whose WebGL runtime requires 'unsafe-eval'. Scope that relaxation to the
-            // login page only — every authenticated/PHI page keeps the strict policy.
+            // login page only — the public landing page ("/") and every
+            // authenticated/PHI page keep the strict policy.
             var path = context.Request.Path.Value ?? string.Empty;
             var isLogin = context.User.Identity?.IsAuthenticated != true
-                && (path == "/" || path.StartsWith("/Home/Index", StringComparison.OrdinalIgnoreCase));
+                && (path.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("/Home/Login", StringComparison.OrdinalIgnoreCase));
             var scriptEval = isLogin ? "'unsafe-eval' " : "";
             var splineHosts = isLogin ? " https://unpkg.com" : "";
 
@@ -156,7 +158,7 @@ app.Use(async (context, next) =>
         if (user == null || !user.IsActive)
         {
             await signInManager.SignOutAsync();
-            context.Response.Redirect("/Home/Index");
+            context.Response.Redirect("/login");
             return;
         }
     }

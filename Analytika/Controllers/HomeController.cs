@@ -31,18 +31,32 @@ public class HomeController : Controller
         _logger = logger;
     }
 
+    // ── Public marketing landing page ─────────────────────────────
+
     [HttpGet("/")]
     [HttpGet("/Home/Index")]
     public IActionResult Index()
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Dashboard");
+        return View("Landing");
+    }
+
+    // ── Login ─────────────────────────────────────────────────────
+
+    [HttpGet("/login")]
+    [HttpGet("/Home/Login")]
+    public IActionResult Login()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectToAction("Dashboard");
         return View(new LoginViewModel());
     }
 
-    [HttpPost("/Home/Index")]
+    [HttpPost("/login")]
+    [HttpPost("/Home/Login")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(LoginViewModel model)
+    public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid) return View(model);
 
