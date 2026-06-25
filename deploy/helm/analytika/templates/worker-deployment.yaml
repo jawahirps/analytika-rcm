@@ -1,0 +1,95 @@
+{{- if .Values.worker.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "analytika.fullname" . }}-worker
+  labels:
+    {{- include "analytika.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  # Single replica: the recurring-job registrar and pending-downloads hosted
+  # service are not meant to run concurrently. Recreate avoids two live workers
+  # during a rollout.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "analytika.worker.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "analytika.worker.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "analytika.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: worker
+          image: {{ include "analytika.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: {{ include "analytika.fullname" . }}-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "analytika.databaseSecretName" . }}
+                  key: {{ include "analytika.databaseSecretKey" . }}
+            # Background jobs ON for the worker (override the ConfigMap defaults).
+            - name: BackgroundJobs__HangfireServerEnabled
+              value: "true"
+            - name: BackgroundJobs__RecurringJobsEnabled
+              value: "true"
+            - name: BackgroundJobs__PendingDownloads__HostedServiceEnabled
+              value: "true"
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.path }}
+              port: http
+            {{- toYaml .Values.probes.liveness | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.path }}
+              port: http
+            {{- toYaml .Values.probes.readiness | nindent 12 }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+          {{- if .Values.sharedStorage.enabled }}
+          volumeMounts:
+            {{- include "analytika.sharedVolumeMounts" . | nindent 12 }}
+          {{- end }}
+      {{- if .Values.sharedStorage.enabled }}
+      volumes:
+        - name: shared
+          persistentVolumeClaim:
+            claimName: {{ include "analytika.sharedClaimName" . }}
+      {{- end }}
+      {{- with .Values.worker.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.worker.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end -}}

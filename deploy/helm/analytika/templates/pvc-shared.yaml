@@ -1,0 +1,17 @@
+{{- if and .Values.sharedStorage.enabled (not .Values.sharedStorage.existingClaim) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "analytika.sharedClaimName" . }}
+  labels:
+    {{- include "analytika.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.sharedStorage.accessMode }}
+  {{- if .Values.sharedStorage.storageClassName }}
+  storageClassName: {{ .Values.sharedStorage.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.sharedStorage.size }}
+{{- end -}}

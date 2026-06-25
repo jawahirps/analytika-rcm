@@ -1,0 +1,43 @@
+# Example production overrides — copy, edit, and deploy with:
+#   helm upgrade --install analytika deploy/helm/analytika \
+#     -n analytika --create-namespace -f my-prod-values.yaml
+
+image:
+  repository: ghcr.io/jawahirps/analytika-rcm
+  tag: "1.0.0"
+
+database:
+  # Pre-create this secret (key DATABASE_URL) via SealedSecrets/SOPS/cloud secret store:
+  #   kubectl -n analytika create secret generic analytika-db \
+  #     --from-literal=DATABASE_URL='postgres://user:pass@my-managed-host:5432/analytika'
+  existingSecret: analytika-db
+  existingSecretKey: DATABASE_URL
+
+sharedStorage:
+  # Pick the RWX class for your cloud:
+  #   AKS -> azurefile-csi    EKS -> efs-sc    GKE -> standard-rwx (Filestore)
+  storageClassName: azurefile-csi
+  size: 20Gi
+
+web:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "3072m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: bix.ghafservices.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: analytika-tls
+      hosts:
+        - bix.ghafservices.com

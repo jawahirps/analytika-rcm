@@ -1,0 +1,63 @@
+{{- if .Values.migration.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "analytika.fullname" . }}-migrate
+  labels:
+    {{- include "analytika.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migrate
+  annotations:
+    # Run once before the web/worker pods, on every install and upgrade.
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.migration.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.migration.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "analytika.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "analytika.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: {{ include "analytika.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          # Appends to the image entrypoint: `dotnet Analytika.dll --migrate`
+          args: ["--migrate"]
+          # Self-contained env (does not depend on the ConfigMap, which is a
+          # non-hook resource not yet present when this pre-install hook runs).
+          env:
+            - name: RUN_MODE
+              value: migrate
+            - name: ASPNETCORE_ENVIRONMENT
+              value: {{ .Values.config.aspnetcoreEnvironment | quote }}
+            - name: Database__Provider
+              value: "postgres"
+            - name: StartupMaintenance__SeedDataOnStartup
+              value: {{ .Values.config.startupMaintenance.seedDataOnStartup | quote }}
+            {{- if .Values.database.existingSecret }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.existingSecretKey }}
+            {{- else }}
+            - name: DATABASE_URL
+              value: {{ required "database.url or database.existingSecret is required" .Values.database.url | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+{{- end -}}

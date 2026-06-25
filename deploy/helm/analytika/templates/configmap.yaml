@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "analytika.fullname" . }}-config
+  labels:
+    {{- include "analytika.labels" . | nindent 4 }}
+data:
+  ASPNETCORE_ENVIRONMENT: {{ .Values.config.aspnetcoreEnvironment | quote }}
+  ASPNETCORE_URLS: "http://+:8080"
+  DB_DIR: {{ .Values.config.dbDir | quote }}
+  Database__Provider: "postgres"
+  Logging__JsonConsole: {{ .Values.config.jsonConsoleLogs | quote }}
+  StartupMaintenance__MigrateOnStartup: {{ .Values.config.startupMaintenance.migrateOnStartup | quote }}
+  StartupMaintenance__RunDatabaseSetupOnStartup: {{ .Values.config.startupMaintenance.runDatabaseSetupOnStartup | quote }}
+  StartupMaintenance__CreateIndexesOnStartup: {{ .Values.config.startupMaintenance.createIndexesOnStartup | quote }}
+  StartupMaintenance__SeedDataOnStartup: {{ .Values.config.startupMaintenance.seedDataOnStartup | quote }}
+  # Background jobs default OFF (web tier). The worker overrides these to "true".
+  BackgroundJobs__HangfireServerEnabled: "false"
+  BackgroundJobs__HangfireDashboardEnabled: "false"
+  BackgroundJobs__RecurringJobsEnabled: "false"
+  BackgroundJobs__PendingDownloads__HostedServiceEnabled: "false"
+  {{- range $k, $v := .Values.config.extraEnv }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

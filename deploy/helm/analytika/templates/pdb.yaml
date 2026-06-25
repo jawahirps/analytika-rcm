@@ -1,0 +1,14 @@
+{{- if .Values.web.podDisruptionBudget.enabled -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "analytika.fullname" . }}-web
+  labels:
+    {{- include "analytika.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  minAvailable: {{ .Values.web.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "analytika.web.selectorLabels" . | nindent 6 }}
+{{- end -}}

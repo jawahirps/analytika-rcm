@@ -73,6 +73,30 @@ if (!string.IsNullOrEmpty(port))
 
 var app = builder.Build();
 
+// Migrate-and-exit mode: `dotnet Analytika.dll --migrate` (or RUN_MODE=migrate)
+// brings the Postgres schema current, then exits. Used by the Kubernetes
+// pre-deploy migration job — the runtime image has no EF CLI, so this is how
+// migrations run once, out-of-band from the web/worker pods.
+var migrateOnly = args.Contains("--migrate")
+    || string.Equals(Environment.GetEnvironmentVariable("RUN_MODE"), "migrate", StringComparison.OrdinalIgnoreCase);
+if (migrateOnly)
+{
+    using var migrateScope = app.Services.CreateScope();
+    var migrateDb = migrateScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (migrateDb.Database.IsNpgsql())
+    {
+        migrateDb.Database.Migrate();
+        app.Logger.LogInformation("Database migration complete (migrate-only mode).");
+        if (app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
+            await SeedData.InitializeAsync(migrateScope.ServiceProvider);
+    }
+    else
+    {
+        app.Logger.LogWarning("Migrate-only mode requested but the provider is not Postgres; nothing to do.");
+    }
+    return;
+}
+
 app.UseSerilogRequestLogging();
 
 if (!app.Environment.IsDevelopment())
@@ -232,8 +256,12 @@ using (var startupScope = app.Services.CreateScope())
 
     if (startupDb.Database.IsNpgsql())
     {
-        // Postgres schema is owned by EF migrations — always bring it current
-        startupDb.Database.Migrate();
+        // Postgres schema is owned by EF migrations. Single-container deploys
+        // (render/railway/compose) migrate on startup by default; on Kubernetes
+        // a dedicated migration job owns this, so pods set MigrateOnStartup=false
+        // to avoid replica races.
+        if (app.Configuration.GetValue("StartupMaintenance:MigrateOnStartup", true))
+            startupDb.Database.Migrate();
         if (app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
             await SeedData.InitializeAsync(startupServices);
     }

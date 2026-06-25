@@ -1,0 +1,36 @@
+Analytika RCM has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Image:     {{ include "analytika.image" . }}
+
+1. Schema migration ran as a pre-install/pre-upgrade hook job:
+     kubectl -n {{ .Release.Namespace }} get job {{ include "analytika.fullname" . }}-migrate
+
+2. Watch the rollout:
+     kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "analytika.fullname" . }}-web
+{{- if .Values.worker.enabled }}
+     kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "analytika.fullname" . }}-worker
+{{- end }}
+
+3. Reach the app:
+{{- if .Values.ingress.enabled }}
+{{- range .Values.ingress.hosts }}
+     https://{{ .host }}
+{{- end }}
+{{- else }}
+     kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "analytika.fullname" . }}-web {{ .Values.service.port }}:{{ .Values.service.port }}
+     # then open http://localhost:{{ .Values.service.port }}/healthz
+{{- end }}
+
+{{- if not .Values.database.existingSecret }}
+
+WARNING: a chart-managed DB Secret was created from database.url. For production,
+prefer database.existingSecret (SealedSecrets/SOPS/cloud secret store) and leave
+database.url empty.
+{{- end }}
+{{- if not .Values.sharedStorage.storageClassName }}
+
+WARNING: sharedStorage.storageClassName is empty. The shared volume must be
+ReadWriteMany (azurefile-csi / efs-sc / filestore RWX). Set it for your cluster.
+{{- end }}
