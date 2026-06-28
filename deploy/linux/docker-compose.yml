@@ -61,17 +61,27 @@ services:
   # tunnel's public hostname to service  http://app:8080.
   # Omit this service if you prefer to expose port 8080 behind your own nginx.
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    # Pinned: production tunnel — `latest` + auto-update can swap in a regression
+    # mid-shift. Bump deliberately. Watchtower is intentionally NOT enabled on
+    # this container so app releases never bounce the tunnel.
+    image: cloudflare/cloudflared:2025.5.0
     container_name: cloudflared
     restart: unless-stopped
-    command: tunnel --no-autoupdate run
+    # `--metrics 0.0.0.0:2000` exposes /ready so the healthcheck below can probe
+    # actual tunnel connectivity (not just process liveness).
+    command: tunnel --no-autoupdate --metrics 0.0.0.0:2000 run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN is missing — copy .env.example to .env and paste your Zero Trust tunnel token}
     depends_on:
       - app
-    labels:
-      # Keep cloudflared current too (it's a fast-moving image).
-      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      # /ready returns 200 only when at least one tunnel connection is up.
+      # Goes UNHEALTHY when the tunnel drops — visible immediately in `docker compose ps`.
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:2000/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   # Auto-updater: polls GHCR for a newer app image and restarts it in place.
   # Only watches containers labelled watchtower.enable=true (label-enable mode).

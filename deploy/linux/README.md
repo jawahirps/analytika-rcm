@@ -95,6 +95,31 @@ cd ~/analytika-rcm && git fetch origin <branch> && git checkout <branch>
 cd deploy/linux && docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build app
 ```
 
+## Cloudflare tunnel — recovery & operations
+
+The public hostname is served by the `cloudflared` container; if it goes down,
+the domain returns Cloudflare **error 530 / 1033** (origin unreachable). Diagnose
+in this order:
+
+```bash
+cd ~/analytika-rcm/deploy/linux
+docker compose ps                       # is cloudflared "running" and "healthy"?
+docker compose logs --tail=80 cloudflared
+```
+
+| Symptom | Fix |
+|---|---|
+| `unhealthy` / `exited` | `docker compose up -d cloudflared` |
+| Logs: `Unauthorized` / `Couldn't get tunnel` / token error | Token is bad/expired — paste a fresh one into `.env` (`CLOUDFLARE_TUNNEL_TOKEN=…`), then `docker compose up -d cloudflared` |
+| Compose error: `CLOUDFLARE_TUNNEL_TOKEN is missing…` | `.env` isn't loaded — run from `deploy/linux/` and confirm `.env` exists |
+| cloudflared healthy but site still 530 | In Cloudflare Zero Trust → your tunnel → **Public Hostname**, confirm `bix.ghafservices.com` → `http://app:8080` |
+| Whole host unreachable | VM down — restart the VM, then `docker compose up -d` |
+
+The cloudflared container's healthcheck probes `:2000/ready`, so a tunnel
+disconnect is visible in `docker compose ps` within seconds. `cloudflared` is
+**pinned** (intentionally — bump it manually in `docker-compose.yml`) and is
+**not** Watchtower-enabled, so app releases never bounce the tunnel.
+
 ## Notes
 - The image is now architecture-portable (no pinned RID), so it builds natively on A1/ARM.
 - Resource use is light (~150–300 MB RAM idle); A1's 24 GB is ample headroom for sync + reports.
