@@ -14,7 +14,6 @@
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.dataset.lang = lang;
                 document.documentElement.dataset.theme = theme;
-                if (collapsed) document.documentElement.classList.add('sidebar-collapsed');
             } catch (_) {}
         })();
     </script>
@@ -53,28 +52,25 @@
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var act  = ViewContext.RouteData.Values["action"]?.ToString()     ?? "";
 
-    bool isDashboard   = ctrl == "Home"           && (act is "Dashboard" or "RCMDashboard");
-    bool isPortal      = ctrl == "Portal";
-    bool isReports     = ctrl is "ReportScheduler" or "AdvancedReports";
-    bool isResubmission= ctrl == "Resubmission";
-    bool isAdmin       = ctrl == "Admin";
+    var isDashboard     = act is "Dashboard" or "RCMDashboard";
+    var isPortal        = ctrl == "Portal";
+    var isReports       = ctrl == "ReportScheduler" || ctrl == "AdvancedReports";
+    var isResubmission  = ctrl == "Resubmission";
+    var isAdmin         = ctrl == "Admin";
 }
-
-<a href="#main-content" class="visually-hidden-focusable skip-to-main">Skip to main content</a>
 
 <!-- ═══════════════════════════════════════════════ Sidebar ═══════════════════ -->
 <aside class="sidebar" id="sidebar" aria-label="Main navigation">
-
     <div class="sidebar-header">
-        <a class="sidebar-brand" asp-controller="Home" asp-action="@brandAction">
+        <a class="sidebar-brand" asp-controller="Home" asp-action="@brandAction" aria-label="Ghaf BI home">
             <svg class="sidebar-brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#54ACBF" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#011C40"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#26658C"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#54ACBF"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#A7EBF2"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#011C40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
+                <circle cx="22" cy="22" r="20" stroke="#66B2B2" stroke-width="2.5"/>
+                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#003B4D"/>
+                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#006884"/>
+                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#008B8B"/>
+                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#C6E2E9"/>
+                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#003B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="35,7 31,9 33.5,13" fill="#003B4D"/>
             </svg>
             <div class="sidebar-brand-text">
                 <span class="sidebar-brand-name">Ghaf BI</span>
@@ -236,42 +232,46 @@
             <i class="fas fa-sun me-1" aria-hidden="true"></i><span id="themeToggleLabel">Light</span>
         </button>
 
-        <!-- Notifications -->
+        <!-- Bell -->
         <div class="dropdown">
-            <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                    aria-expanded="false" aria-label="Notifications" aria-haspopup="true" id="notificationsBtn">
-                <i class="fas fa-bell" aria-hidden="true"></i>
-                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge" aria-label="3 notifications">3</span>
+            <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="fas fa-bell"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
             </button>
-            <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu" aria-labelledby="notificationsBtn">
+            <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu">
                 <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
-                    <span class="fw-semibold text-white" style="font-size:var(--fs-sm);" data-i18n="notifications">Notifications</span>
-                    <button class="btn btn-link btn-sm text-white p-0 text-decoration-none" onclick="clearNotifications()"
-                            style="font-size:var(--fs-xs);" data-i18n="mark_all_read">Mark all read</button>
+                    <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
+                    <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
                 </div>
                 <div id="notificationList">
                     <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
-                        <div class="notif-icon flex-shrink-0 notification-icon-muted"><i class="fas fa-file-download" aria-hidden="true"></i></div>
-                        <div style="font-size:var(--fs-xs);">
-                            <div class="fw-semibold">New transactions available</div>
+                        <div class="notif-icon flex-shrink-0 notification-icon-muted">
+                            <i class="fas fa-file-download"></i>
+                        </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">New transactions available</div>
                             <div class="text-muted">DHA portal has undownloaded files</div>
-                            <div class="text-muted" style="font-size:0.7rem;">Just now</div>
+                            <div class="text-muted" style="font-size:.7rem;">Just now</div>
                         </div>
                     </a>
                     <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
-                        <div class="notif-icon flex-shrink-0 notification-icon-accent"><i class="fas fa-file-code" aria-hidden="true"></i></div>
-                        <div style="font-size:var(--fs-xs);">
-                            <div class="fw-semibold">XML Parsing summary</div>
+                        <div class="notif-icon flex-shrink-0 notification-icon-accent">
+                            <i class="fas fa-file-code"></i>
+                        </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">XML Parsing summary</div>
                             <div class="text-muted">Some claims have no remittance match</div>
-                            <div class="text-muted" style="font-size:0.7rem;">Today</div>
+                            <div class="text-muted" style="font-size:.7rem;">Today</div>
                         </div>
                     </a>
                     <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
-                        <div class="notif-icon flex-shrink-0 notification-icon-primary"><i class="fas fa-sync" aria-hidden="true"></i></div>
-                        <div style="font-size:var(--fs-xs);">
-                            <div class="fw-semibold">Daily sync complete</div>
+                        <div class="notif-icon flex-shrink-0 notification-icon-primary">
+                            <i class="fas fa-sync"></i>
+                        </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">Daily sync complete</div>
                             <div class="text-muted">Last cron run finished successfully</div>
-                            <div class="text-muted" style="font-size:0.7rem;">2 hours ago</div>
+                            <div class="text-muted" style="font-size:.7rem;">2 hours ago</div>
                         </div>
                     </a>
                 </div>
@@ -283,27 +283,22 @@
 
         <!-- Profile -->
         <div class="dropdown">
-            <a class="profile-btn dropdown-toggle text-decoration-none d-flex align-items-center gap-2"
-               href="#" role="button" data-bs-toggle="dropdown" aria-label="User menu" aria-expanded="false">
+            <a class="nav-link profile-btn dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                 <div class="profile-avatar-circle">
                     @(User.Identity?.Name?.Length > 0 ? User.Identity.Name[0].ToString().ToUpper() : "U")
                 </div>
-                <span class="d-none d-lg-inline text-truncate" style="max-width:120px; font-size:var(--fs-sm);">
+                <span class="d-none d-lg-inline text-truncate" style="max-width:120px;">
                     @User.Identity?.Name?.Split('@')[0]
                 </span>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                    <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
-                        <i class="fas fa-user me-2 text-muted" aria-hidden="true"></i><span data-i18n="profile">Profile</span>
-                    </a>
-                </li>
+                <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i><span data-i18n="profile">Profile</span></a></li>
                 <li><hr class="dropdown-divider my-1"></li>
                 <li>
                     <form asp-controller="Home" asp-action="LogOut" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="dropdown-item text-danger">
-                            <i class="fas fa-sign-out-alt me-2" aria-hidden="true"></i><span data-i18n="sign_out">Sign Out</span>
+                            <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
                         </button>
                     </form>
                 </li>
@@ -312,52 +307,25 @@
     </div>
 </header>
 
-<!-- ═══════════════════════════════════════════════ Main ══════════════════════ -->
-<main class="main-wrapper" id="main-content">
-    @RenderBody()
-</main>
-
-<!-- ═══════════════════════════════════════════════ Toasts ════════════════════ -->
-<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
-    @if (TempData["Success"] != null)
-    {
-        <div class="toast align-items-center border-0 toast-success" role="alert" aria-live="assertive" aria-atomic="true"
-             data-bs-autohide="true" data-bs-delay="4500">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fas fa-check-circle" aria-hidden="true"></i>
-                    <span>@TempData["Success"]</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+<!-- ═══════════════════════════════════════════════ Main content ══════════════ -->
+<div class="main-wrapper" id="mainWrapper">
+    <main>
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
+                <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-        </div>
-    }
-    @if (TempData["Error"] != null)
-    {
-        <div class="toast align-items-center border-0 toast-error" role="alert" aria-live="assertive" aria-atomic="true"
-             data-bs-autohide="true" data-bs-delay="6000">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
-                    <span>@TempData["Error"]</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-        </div>
-    }
-    @if (TempData["Warning"] != null)
-    {
-        <div class="toast align-items-center border-0 toast-warning" role="alert" aria-live="assertive" aria-atomic="true"
-             data-bs-autohide="true" data-bs-delay="5000">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                    <span>@TempData["Warning"]</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    }
+        }
+        @RenderBody()
+    </main>
 </div>
 
 <!-- ═══════════════════════════════════════════════ Confirm modal ════════════ -->
@@ -419,77 +387,119 @@
 <!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
 <!-- Bootstrap must be synchronous — it initialises immediately on DOMContentLoaded -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<!-- All other scripts deferred — parse in parallel, execute after HTML is parsed -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js" defer></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js" defer></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js" defer></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js" defer></script>
+<!-- jQuery and plugins must be synchronous: MVC @section Scripts runs inline and depends on $ being defined -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
-<script src="~/js/site.js" asp-append-version="true" defer></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
-// Show server-rendered toasts
-document.querySelectorAll('.toast').forEach(function(t) {
-    bootstrap.Toast.getOrCreateInstance(t).show();
-});
-
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:var(--fs-sm);"><i class="fas fa-check-circle me-1 text-primary" aria-hidden="true"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
-    var badge = document.getElementById('bellBadge');
+        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+    const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
 
 (function initThemeLanguageControls() {
-    var root = document.documentElement;
-    var langButtons = { en: document.getElementById('langToggleEn'), ar: document.getElementById('langToggleAr') };
-    var themeButton = document.getElementById('themeToggleBtn');
-    var dict = {
-        en: { support:'Support', notifications:'Notifications', mark_all_read:'Mark all read', view_all_activity:'View all activity', profile:'Profile', sign_out:'Sign Out', all_caught_up:'All caught up!' },
-        ar: { support:'الدعم', notifications:'الإشعارات', mark_all_read:'تعليم الكل كمقروء', view_all_activity:'عرض كل النشاط', profile:'الملف الشخصي', sign_out:'تسجيل الخروج', all_caught_up:'تمت المزامنة!' }
+    const root = document.documentElement;
+    const langButtons = {
+        en: document.getElementById('langToggleEn'),
+        ar: document.getElementById('langToggleAr')
     };
+    const themeButton = document.getElementById('themeToggleBtn');
+
+    const dict = {
+        en: {
+            support: 'Support',
+            notifications: 'Notifications',
+            mark_all_read: 'Mark all read',
+            view_all_activity: 'View all activity',
+            profile: 'Profile',
+            sign_out: 'Sign Out',
+            theme: 'Dark',
+            all_caught_up: 'All caught up!'
+        },
+        ar: {
+            support: 'الدعم',
+            notifications: 'الإشعارات',
+            mark_all_read: 'تعليم الكل كمقروء',
+            view_all_activity: 'عرض كل النشاط',
+            profile: 'الملف الشخصي',
+            sign_out: 'تسجيل الخروج',
+            theme: 'داكن',
+            all_caught_up: 'تمت المزامنة!'
+        }
+    };
+
     function applyLanguage(lang) {
-        root.lang = lang; root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.dataset.lang = lang;
+        root.lang = lang;
+        root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        root.dataset.lang = lang;
         try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
-        document.querySelectorAll('[data-i18n]').forEach(function(node) {
+
+        document.querySelectorAll('[data-i18n]').forEach(function (node) {
             var key = node.getAttribute('data-i18n');
-            if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
+            if (dict[lang] && dict[lang][key]) {
+                node.textContent = dict[lang][key];
+            }
         });
-        Object.keys(langButtons).forEach(function(key) {
-            var btn = langButtons[key]; if (!btn) return;
+
+        Object.keys(langButtons).forEach(function (key) {
+            var btn = langButtons[key];
+            if (!btn) return;
             btn.classList.toggle('active', key === lang);
             btn.setAttribute('aria-pressed', key === lang ? 'true' : 'false');
         });
     }
+
     function applyTheme(theme) {
         root.dataset.theme = theme;
         try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
         if (themeButton) {
             var icon = themeButton.querySelector('i');
-            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
             var label = document.getElementById('themeToggleLabel');
-            if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+            }
+            if (label) {
+                var lang = root.dataset.lang || 'en';
+                var labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
+                label.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
+            }
             themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     }
+
     var currentLang  = root.dataset.lang  || 'en';
     var currentTheme = root.dataset.theme || 'dark';
+
     applyLanguage(currentLang);
     applyTheme(currentTheme);
-    Object.keys(langButtons).forEach(function(key) {
-        var btn = langButtons[key]; if (!btn) return;
-        btn.addEventListener('click', function() { applyLanguage(key); });
+
+    Object.keys(langButtons).forEach(function (key) {
+        var btn = langButtons[key];
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            applyLanguage(key);
+        });
     });
-    if (themeButton) themeButton.addEventListener('click', function() {
-        applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
-    });
+
+    if (themeButton) {
+        themeButton.addEventListener('click', function () {
+            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+        });
+    }
 })();
 </script>
 </body>

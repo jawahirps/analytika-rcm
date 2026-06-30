@@ -16,49 +16,97 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
+
+        :root {
+            --dt-bg:          #08090D;
+            --dt-surface:     #0D1017;
+            --dt-surface-2:   #111520;
+            --dt-surface-3:   #161B28;
+            --dt-border:      rgba(255,255,255,0.07);
+            --dt-border-glow: rgba(0,255,133,0.18);
+            --dt-accent:      #00FF85;
+            --dt-accent-dim:  rgba(0,255,133,0.12);
+            --dt-text:        #FFFFFF;
+            --dt-text-2:      rgba(255,255,255,0.75);
+            --dt-text-3:      rgba(255,255,255,0.45);
+        }
+
+        html, body {
+            height: 100%;
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: var(--dt-bg);
+            color: var(--dt-text);
+            overflow: hidden;
+        }
+
+        /* ── Particles canvas ── */
+        #sparkles-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* ── Full-page flex container ── */
+        .login-wrap {
+            position: relative;
+            z-index: 1;
             min-height: 100vh;
             display: flex;
-            background: #f8fafc;
-            -webkit-font-smoothing: antialiased;
         }
 
         /* ── Left panel ── */
         .login-left {
-            width: 40%;
-            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
+            width: 42%;
+            background: linear-gradient(160deg, rgba(0,255,133,0.04) 0%, rgba(8,9,13,0.72) 100%);
+            border-right: 1px solid var(--dt-border-glow);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             padding: 44px 48px;
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(20px) saturate(140%);
         }
-        /* Subtle geometric accents */
+
+        /* Neon glow rings */
         .login-left::before {
             content: '';
             position: absolute;
-            width: 380px; height: 380px;
+            width: 420px; height: 420px;
             border-radius: 50%;
-            border: 1px solid rgba(84,172,191,0.12);
-            bottom: -140px; right: -120px;
+            border: 1px solid rgba(0,255,133,0.08);
+            bottom: -160px; right: -130px;
+            pointer-events: none;
         }
         .login-left::after {
             content: '';
             position: absolute;
-            width: 220px; height: 220px;
+            width: 240px; height: 240px;
             border-radius: 50%;
-            border: 1px solid rgba(84,172,191,0.08);
+            border: 1px solid rgba(0,255,133,0.05);
             top: 40px; right: 40px;
+            pointer-events: none;
         }
         .accent-ring {
             position: absolute;
             width: 160px; height: 160px;
             border-radius: 50%;
-            border: 1px solid rgba(84,172,191,0.06);
+            border: 1px solid rgba(0,255,133,0.04);
             bottom: 120px; left: -50px;
+            pointer-events: none;
         }
+
+        /* Neon top edge line */
+        .login-left-neon-top {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, var(--dt-accent) 50%, transparent 100%);
+            opacity: 0.35;
+        }
+
         .brand-logo {
             display: flex;
             align-items: center;
@@ -70,13 +118,13 @@
         .brand-name {
             font-size: 1.1rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--dt-text);
             letter-spacing: -0.2px;
             line-height: 1.2;
         }
         .brand-sub {
             font-size: 0.62rem;
-            color: #54ACBF;
+            color: var(--dt-accent);
             font-weight: 600;
             letter-spacing: 1.6px;
             text-transform: uppercase;
@@ -88,17 +136,18 @@
         .left-tagline h2 {
             font-size: 1.9rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--dt-text);
             line-height: 1.25;
             margin-bottom: 14px;
             letter-spacing: -0.5px;
         }
-        .left-tagline h2 span { color: #54ACBF; }
+        .left-tagline h2 span { color: var(--dt-accent); }
         .left-tagline p {
             font-size: 0.875rem;
-            color: rgba(255,255,255,0.45);
+            color: var(--dt-text-3);
             line-height: 1.65;
         }
+
         /* Feature pills */
         .feature-pills {
             display: flex;
@@ -110,149 +159,186 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,255,133,0.05);
+            border: 1px solid rgba(0,255,133,0.14);
             border-radius: 100px;
             padding: 5px 12px;
             font-size: 0.72rem;
-            color: rgba(255,255,255,0.6);
+            color: var(--dt-text-2);
         }
-        .feature-pill i { color: #54ACBF; font-size: 0.65rem; }
+        .feature-pill i { color: var(--dt-accent); font-size: 0.65rem; }
+
         .left-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 0.72rem;
-            color: rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.2);
             position: relative;
             z-index: 1;
         }
+        .courtesy-logo { height: 20px; width: auto; opacity: .6; }
+
+        /* Spotlight */
+        .spotlight {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+            width: 480px; height: 480px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(84,172,191,0.18) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s;
+            opacity: 0;
+            filter: blur(2px);
+        }
+        .login-left:hover .spotlight { opacity: 1; }
 
         /* ── Right panel ── */
         .login-right {
             flex: 1;
-            background: #ffffff;
+            background: rgba(13,16,23,0.80);
+            backdrop-filter: blur(28px) saturate(160%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             padding: 60px 64px;
             position: relative;
         }
-        .login-right-inner { max-width: 380px; }
+        .login-right-inner {
+            max-width: 380px;
+            animation: slideUp 0.55s cubic-bezier(0.32,0.72,0,1) both;
+        }
 
         .login-right h1 {
             font-size: 1.55rem;
             font-weight: 700;
-            color: #011C40;
+            color: var(--dt-text);
             margin-bottom: 6px;
             letter-spacing: -0.4px;
         }
         .login-right .subtitle {
             font-size: 0.85rem;
-            color: #94a3b8;
+            color: var(--dt-text-3);
             margin-bottom: 32px;
         }
 
         .form-label {
             font-size: 0.73rem;
             font-weight: 600;
-            color: #475569;
+            color: var(--dt-text-2);
             margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .form-control {
             font-family: 'Inter', system-ui, sans-serif;
-            border: 1.5px solid #e2e8f0;
+            border: 1.5px solid rgba(255,255,255,0.09);
             border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
-            color: #011C40;
-            background: #f8fafc;
-            transition: border-color 0.18s, box-shadow 0.18s;
+            color: var(--dt-text);
+            background: rgba(255,255,255,0.04);
+            transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
         }
         .form-control:focus {
-            border-color: #54ACBF;
-            box-shadow: 0 0 0 3px rgba(84,172,191,0.12);
-            background: #fff;
+            border-color: var(--dt-accent);
+            box-shadow: 0 0 0 3px rgba(0,255,133,0.10), 0 0 16px rgba(0,255,133,0.08);
+            background: rgba(0,255,133,0.03);
             outline: none;
+            color: var(--dt-text);
         }
-        .form-control::placeholder { color: #cbd5e1; }
+        .form-control::placeholder { color: rgba(255,255,255,0.22); }
         .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            background: rgba(255,255,255,0.04);
+            border: 1.5px solid rgba(255,255,255,0.09);
             border-left: none;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.3);
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: border-color 0.18s;
+            transition: border-color 0.18s, color 0.18s;
         }
-        .input-group:focus-within .input-group-text { border-color: #54ACBF; }
+        .input-group:focus-within .input-group-text {
+            border-color: var(--dt-accent);
+            color: var(--dt-accent);
+        }
         .input-icon {
-            background: #f8fafc;
-            border: 1.5px solid #e2e8f0;
+            background: rgba(255,255,255,0.04);
+            border: 1.5px solid rgba(255,255,255,0.09);
             border-right: none;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.3);
             border-radius: 9px 0 0 9px;
             padding: 10px 12px;
             font-size: 0.8rem;
             display: flex;
             align-items: center;
-            transition: border-color 0.18s;
+            transition: border-color 0.18s, color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: #54ACBF; }
+        .input-group:focus-within .input-icon {
+            border-color: var(--dt-accent);
+            color: var(--dt-accent);
+        }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
-            background: linear-gradient(135deg, #011C40 0%, #54ACBF 100%);
-            color: #fff;
+            background: var(--dt-accent);
+            color: #000;
             border: none;
             border-radius: 11px;
             padding: 12px 24px;
             font-size: 0.875rem;
-            font-weight: 600;
+            font-weight: 700;
             width: 100%;
             letter-spacing: 0.1px;
-            box-shadow: 0 6px 16px rgba(1,28,64,0.18);
+            box-shadow: 0 0 20px rgba(0,255,133,0.28), 0 0 40px rgba(0,255,133,0.12), 0 6px 20px rgba(0,0,0,0.4);
             transition: filter 0.2s, transform 0.18s cubic-bezier(0.32,0.72,0,1), box-shadow 0.2s;
             cursor: pointer;
         }
         .btn-signin:hover {
-            filter: brightness(1.06);
+            filter: brightness(1.08);
             transform: translateY(-1px);
-            box-shadow: 0 10px 24px rgba(1,28,64,0.24);
+            box-shadow: 0 0 28px rgba(0,255,133,0.40), 0 0 56px rgba(0,255,133,0.18), 0 10px 28px rgba(0,0,0,0.5);
         }
         .btn-signin:active { transform: translateY(0); }
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #54ACBF;
+            color: var(--dt-accent);
             text-decoration: none;
             font-weight: 500;
+            opacity: 0.8;
         }
-        .forgot-link:hover { text-decoration: underline; }
+        .forgot-link:hover { opacity: 1; text-decoration: underline; }
 
-        .form-check-input:checked {
-            background-color: #54ACBF;
-            border-color: #54ACBF;
+        .form-check-input {
+            background-color: rgba(255,255,255,0.06);
+            border: 1.5px solid rgba(255,255,255,0.15);
         }
-        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(84,172,191,0.15); }
+        .form-check-input:checked {
+            background-color: var(--dt-accent);
+            border-color: var(--dt-accent);
+        }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(0,255,133,0.15); }
 
         .alert-danger {
             font-size: 0.82rem;
             border-radius: 9px;
-            background: rgba(239,68,68,0.07);
+            background: rgba(239,68,68,0.10);
             border: none;
             border-left: 3px solid #ef4444;
-            color: #b91c1c;
+            color: #fca5a5;
             padding: 10px 14px;
         }
+
         .right-footer {
             position: absolute;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.72rem;
-            color: #cbd5e1;
+            color: rgba(255,255,255,0.18);
             white-space: nowrap;
         }
 
@@ -269,177 +355,306 @@
         .lang-btn {
             padding: 4px 12px;
             border-radius: 999px;
-            border: 1.5px solid #e2e8f0;
-            background: #f8fafc;
+            border: 1.5px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.04);
             font-size: 0.72rem;
             font-weight: 600;
-            color: #94a3b8;
+            color: rgba(255,255,255,0.45);
             cursor: pointer;
             transition: all 0.16s;
             font-family: 'Inter', system-ui, sans-serif;
         }
         .lang-btn.active {
-            background: #011C40;
-            border-color: #011C40;
-            color: #fff;
+            background: var(--dt-accent);
+            border-color: var(--dt-accent);
+            color: #000;
+            font-weight: 700;
         }
-        .lang-btn:hover:not(.active) { border-color: #54ACBF; color: #011C40; }
+        .lang-btn:hover:not(.active) {
+            border-color: rgba(0,255,133,0.4);
+            color: var(--dt-accent);
+        }
 
         /* AR overrides */
         html[dir="rtl"] body { font-family: 'Segoe UI', 'Noto Sans Arabic', system-ui, sans-serif; }
         html[dir="rtl"] .login-left { order: 2; }
         html[dir="rtl"] .login-right { order: 1; }
-        html[dir="rtl"] .input-icon { border-radius: 0 9px 9px 0; border-right: none; border-left: 1.5px solid #e2e8f0; }
-        html[dir="rtl"] .input-group .form-control { border-radius: 9px 0 0 9px; border-right: 1.5px solid #e2e8f0; border-left: none; }
-        html[dir="rtl"] .input-group-text { border-radius: 9px 0 0 9px; border-right: none; border-left: 1.5px solid #e2e8f0; }
+        html[dir="rtl"] .input-icon { border-radius: 0 9px 9px 0; border-right: none; border-left: 1.5px solid rgba(255,255,255,0.09); }
+        html[dir="rtl"] .input-group .form-control { border-radius: 9px 0 0 9px; border-right: 1.5px solid rgba(255,255,255,0.09); border-left: none; }
+        html[dir="rtl"] .input-group-text { border-radius: 9px 0 0 9px; border-right: none; border-left: 1.5px solid rgba(255,255,255,0.09); }
 
         @@media (max-width: 900px) {
             .login-left { width: 44%; padding: 40px 36px; }
         }
         @@media (max-width: 768px) {
             .login-left { display: none; }
-            .login-right { padding: 40px 28px; }
+            .login-right { padding: 40px 28px; backdrop-filter: none; background: var(--dt-bg); }
             .login-right-inner { max-width: 100%; }
         }
-
-        /* Aceternity Spotlight — tracks mouse on the left panel */
-        .spotlight {
-            position: absolute;
-            pointer-events: none;
-            z-index: 1;
-            width: 480px; height: 480px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(84,172,191,0.18) 0%, transparent 70%);
-            transform: translate(-50%, -50%);
-            transition: opacity 0.3s;
-            opacity: 0;
-            filter: blur(2px);
-        }
-        .login-left:hover .spotlight { opacity: 1; }
 
         /* framer-motion-style entrance for the right panel (CSS-only) */
         @@keyframes slideUp {
             from { opacity: 0; transform: translateY(22px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-        .login-right-inner { animation: slideUp 0.55s cubic-bezier(0.32,0.72,0,1) both; }
+
+        /* ── GooeyText loading overlay ── */
+        .gooey-loader {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--dt-bg);
+            transition: opacity 0.7s ease, visibility 0.7s ease;
+        }
+        .gooey-loader.hidden { opacity: 0; visibility: hidden; }
+        .gooey-container {
+            position: relative;
+            height: 80px;
+            width: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gooey-svg { position: absolute; width: 0; height: 0; }
+        .gooey-texts {
+            filter: url(#gooey-threshold);
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .gooey-text1,
+        .gooey-text2 {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.4rem, 4vw, 2.2rem);
+            font-weight: 700;
+            color: var(--dt-accent);
+            letter-spacing: -0.5px;
+            text-align: center;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .gooey-text1 { opacity: 0; }
+        .gooey-text2 { opacity: 1; }
 
         @@media (prefers-reduced-motion: reduce) {
             .login-right-inner { animation: none; }
+            .gooey-loader { display: none; }
         }
-
-        /* Footer courtesy Ghaf logo */
-        .left-footer { display: flex; align-items: center; gap: 10px; }
-        .courtesy-logo { height: 20px; width: auto; opacity: .9; }
     </style>
 </head>
 <body>
-    <!-- Left Brand Panel -->
-    <div class="login-left">
-        <div class="accent-ring"></div>
+    <!-- Sparkles canvas — full-page particles background -->
+    <canvas id="sparkles-canvas" aria-hidden="true"></canvas>
 
-        <!-- Spotlight (tracks mouse) -->
-        <div class="spotlight" id="loginSpotlight"></div>
+    <div class="login-wrap">
+        <!-- Left Brand Panel -->
+        <div class="login-left">
+            <div class="login-left-neon-top"></div>
+            <div class="accent-ring"></div>
+            <div class="spotlight" id="loginSpotlight"></div>
 
-        <div class="brand-logo">
-            <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Ghaf tree + data (light, for the dark brand panel) -->
-                <path d="M22 21 C22 14 17 10 11 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 12 28 8 34 10" stroke="#A7EBF2" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
-                <circle cx="11" cy="10" r="2"   fill="#54ACBF"/>
-                <circle cx="34" cy="10" r="2"   fill="#A7EBF2"/>
-                <circle cx="14" cy="15" r="1.5" fill="#A7EBF2"/>
-                <circle cx="30" cy="15" r="1.5" fill="#54ACBF"/>
-                <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
-                <path d="M15 38 H29" stroke="#54ACBF" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <div>
-                <div class="brand-name">Ghaf Business Intelligence</div>
-                <div class="brand-sub">Business Intelligence</div>
+            <!-- GooeyText loading overlay -->
+            <div class="gooey-loader" id="gooeyLoader" aria-live="polite" aria-label="Loading">
+                <svg class="gooey-svg" aria-hidden="true" focusable="false">
+                    <defs>
+                        <filter id="gooey-threshold">
+                            <feColorMatrix in="SourceGraphic" type="matrix"
+                                values="1 0 0 0 0
+                                        0 1 0 0 0
+                                        0 0 1 0 0
+                                        0 0 0 255 -140" />
+                        </filter>
+                    </defs>
+                </svg>
+                <div class="gooey-container">
+                    <div class="gooey-texts">
+                        <span class="gooey-text1" id="gooeyText1"></span>
+                        <span class="gooey-text2" id="gooeyText2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="brand-logo">
+                <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 21 C22 14 17 10 11 10" stroke="#00FF85" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M22 21 C22 12 28 8 34 10" stroke="rgba(0,255,133,0.55)" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M22 21 C22 16 18 14 14 15" stroke="#00FF85" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M22 21 C22 15 26 13 30 15" stroke="rgba(0,255,133,0.55)" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
+                    <circle cx="11" cy="10" r="2"   fill="#00FF85"/>
+                    <circle cx="34" cy="10" r="2"   fill="rgba(0,255,133,0.55)"/>
+                    <circle cx="14" cy="15" r="1.5" fill="rgba(0,255,133,0.55)"/>
+                    <circle cx="30" cy="15" r="1.5" fill="#00FF85"/>
+                    <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+                    <path d="M15 38 H29" stroke="#00FF85" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div>
+                    <div class="brand-name">Ghaf Bi Analytix</div>
+                    <div class="brand-sub">Business Intelligence</div>
+                </div>
+            </div>
+
+            <div class="left-tagline">
+                <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
+                <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
+                <div class="feature-pills">
+                    <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
+                    <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
+                    <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
+                    <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+                </div>
+            </div>
+
+            <div class="left-footer">
+                <img src="~/images/ghaf-logo-soft-78C2C2.png" alt="Ghaf" class="courtesy-logo" />
+                <span>&copy; 2026 Ghaf Bi Solutions. All rights reserved.</span>
             </div>
         </div>
 
-        <div class="left-tagline">
-            <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
-            <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
-            <div class="feature-pills">
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+        <!-- Right Login Form -->
+        <div class="login-right">
+            <!-- Language toggle -->
+            <div class="lang-toggle-wrap">
+                <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
             </div>
-        </div>
 
-        <div class="left-footer">
-            <img src="~/images/ghaf-logo-soft-78C2C2.png" alt="Ghaf" class="courtesy-logo" />
-            <span>&copy; 2026 Ghaf Bi Solutions. All rights reserved.</span>
+            <div class="login-right-inner">
+                <h1 data-i18n="welcome">Welcome back</h1>
+                <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Bi Analytix account</p>
+
+                <form asp-controller="Home" asp-action="Index" method="post">
+                    @Html.AntiForgeryToken()
+
+                    @if (!ViewData.ModelState.IsValid)
+                    {
+                        <div class="alert alert-danger mb-4" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid email or password.</span>
+                        </div>
+                    }
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label" data-i18n="email">Email address</label>
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                            <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
+                            <a href="#" class="forgot-link" data-i18n="forgot">Forgot password?</a>
+                        </div>
+                        <div class="input-group">
+                            <span class="input-icon"><i class="fas fa-lock"></i></span>
+                            <input asp-for="Password" class="form-control" placeholder="••••••••" autocomplete="current-password" id="pwdInput" />
+                            <span class="input-group-text" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 d-flex align-items-center gap-2">
+                        <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
+                        <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:rgba(255,255,255,0.40);text-transform:none;letter-spacing:0;" data-i18n="remember">Keep me signed in</label>
+                    </div>
+
+                    <button type="submit" class="btn-signin" data-i18n="signin">
+                        Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
+                    </button>
+                </form>
+            </div>
+
+            <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
         </div>
     </div>
 
-    <!-- Right Login Form -->
-    <div class="login-right">
-
-        <!-- Language toggle -->
-        <div class="lang-toggle-wrap">
-            <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
-            <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
-        </div>
-
-        <div class="login-right-inner">
-            <h1 data-i18n="welcome">Welcome back</h1>
-            <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Business Intelligence account</p>
-
-            <form asp-controller="Home" asp-action="Index" method="post">
-                @Html.AntiForgeryToken()
-
-                @if (!ViewData.ModelState.IsValid)
-                {
-                    <div class="alert alert-danger mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid email or password.</span>
-                    </div>
-                }
-
-                <div class="mb-3">
-                    <label asp-for="Email" class="form-label" data-i18n="email">Email address</label>
-                    <div class="input-group">
-                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
-                        <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
-                    </div>
-                </div>
-
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
-                        <a href="#" class="forgot-link" data-i18n="forgot">Forgot password?</a>
-                    </div>
-                    <div class="input-group">
-                        <span class="input-icon"><i class="fas fa-lock"></i></span>
-                        <input asp-for="Password" class="form-control" placeholder="••••••••" autocomplete="current-password" id="pwdInput" />
-                        <span class="input-group-text" onclick="togglePwd()"><i class="fas fa-eye" id="pwdIcon"></i></span>
-                    </div>
-                </div>
-
-                <div class="mb-4 d-flex align-items-center gap-2">
-                    <input asp-for="RememberMe" class="form-check-input mt-0" style="width:16px;height:16px;" />
-                    <label asp-for="RememberMe" class="form-label mb-0" style="font-weight:400;font-size:.82rem;color:#94a3b8;text-transform:none;letter-spacing:0;" data-i18n="remember">Keep me signed in</label>
-                </div>
-
-                <button type="submit" class="btn-signin" data-i18n="signin">
-                    Sign In &nbsp;<i class="fas fa-arrow-right" style="font-size:.75rem;opacity:.8;"></i>
-                </button>
-            </form>
-        </div>
-
-        <div class="right-footer">&copy; Copyright. All Rights Reserved. Ghaf Bi Solutions</div>
-    </div>
-
+    <!-- tsParticles slim (vanilla JS, no React needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/tsparticles-slim@2.12.0/tsparticles.slim.bundle.min.js"></script>
     <script>
+        /* ── Sparkles Particles ── */
+        (function () {
+            tsParticles.load("sparkles-canvas", {
+                background: { color: { value: "transparent" } },
+                fullScreen: { enable: false },
+                fpsLimit: 60,
+                particles: {
+                    color: { value: "#00FF85" },
+                    number: {
+                        value: 120,
+                        density: { enable: true, area: 900 }
+                    },
+                    opacity: {
+                        value: { min: 0, max: 0.85 },
+                        animation: {
+                            enable: true,
+                            speed: 0.8,
+                            sync: false,
+                            startValue: "random"
+                        }
+                    },
+                    size: {
+                        value: { min: 0.8, max: 2.2 },
+                        animation: {
+                            enable: true,
+                            speed: 1.2,
+                            sync: false,
+                            startValue: "random"
+                        }
+                    },
+                    move: {
+                        enable: true,
+                        speed: { min: 0.05, max: 0.4 },
+                        direction: "none",
+                        random: true,
+                        straight: false,
+                        outModes: "out",
+                        attract: { enable: false }
+                    },
+                    shape: { type: "circle" }
+                },
+                interactivity: {
+                    events: {
+                        onHover: { enable: true, mode: "bubble" },
+                        resize: true
+                    },
+                    modes: {
+                        bubble: {
+                            distance: 120,
+                            size: 3.5,
+                            duration: 0.3,
+                            opacity: 1
+                        }
+                    }
+                },
+                detectRetina: true
+            }).then(function () {
+                // Dismiss loader once particles engine is ready
+                var loader = document.getElementById('gooeyLoader');
+                if (loader) {
+                    setTimeout(function () {
+                        cancelAnimationFrame(window._gooeyRaf);
+                        loader.classList.add('hidden');
+                    }, 1600);
+                }
+                // Resize canvas to fill viewport
+                var canvas = document.getElementById('sparkles-canvas');
+                if (canvas) {
+                    canvas.style.width  = '100%';
+                    canvas.style.height = '100%';
+                }
+            });
+        })();
+
         /* ── i18n strings ── */
-        const I18N = {
+        var I18N = {
             en: {
                 welcome:  'Welcome back',
                 subtitle: 'Sign in to your Ghaf Business Intelligence account',
@@ -447,7 +662,7 @@
                 password: 'Password',
                 forgot:   'Forgot password?',
                 remember: 'Keep me signed in',
-                signin:   'Sign In  →',
+                signin:   'Sign In  →',
                 error:    'Invalid email or password.'
             },
             ar: {
@@ -463,31 +678,29 @@
         };
 
         function applyLang(lang) {
-            const html = document.documentElement;
+            var html = document.documentElement;
             html.lang = lang;
             html.dir  = lang === 'ar' ? 'rtl' : 'ltr';
-            const t = I18N[lang] || I18N.en;
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
+            var t = I18N[lang] || I18N.en;
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                var key = el.getAttribute('data-i18n');
                 if (!t[key]) return;
-                // For button: keep the arrow icon, only replace the text node
                 if (el.tagName === 'BUTTON') {
-                    el.childNodes[0].textContent = t[key] + ' ';
+                    el.childNodes[0].textContent = t[key] + ' ';
                 } else {
                     el.textContent = t[key];
                 }
             });
             document.getElementById('btnEN').classList.toggle('active', lang === 'en');
             document.getElementById('btnAR').classList.toggle('active', lang === 'ar');
-            // Persist so _Layout.cshtml picks it up after login
             try { localStorage.setItem('analytika-lang', lang); } catch(e) {}
         }
 
         function setLang(lang) { applyLang(lang); }
 
         function togglePwd() {
-            const input = document.getElementById('pwdInput');
-            const icon  = document.getElementById('pwdIcon');
+            var input = document.getElementById('pwdInput');
+            var icon  = document.getElementById('pwdIcon');
             input.type = input.type === 'password' ? 'text' : 'password';
             icon.classList.toggle('fa-eye');
             icon.classList.toggle('fa-eye-slash');
@@ -496,18 +709,91 @@
         /* ── On load: restore saved locale ── */
         (function () {
             try {
-                const saved = localStorage.getItem('analytika-lang');
+                var saved = localStorage.getItem('analytika-lang');
                 if (saved === 'ar') applyLang('ar');
             } catch(e) {}
         })();
 
+        /* ── GooeyText morph loader ── */
+        (function () {
+            var TEXTS = [
+                'Ghaf Bi Analytix',
+                'Connecting portals…',
+                'Loading workspace…',
+                'Syncing data…',
+                'Almost ready…'
+            ];
+            var MORPH_TIME    = 1.0;
+            var COOLDOWN_TIME = 0.25;
+
+            var el1    = document.getElementById('gooeyText1');
+            var el2    = document.getElementById('gooeyText2');
+            if (!el1 || !el2) return;
+
+            var textIndex = TEXTS.length - 1;
+            var time      = Date.now();
+            var morph     = 0;
+            var cooldown  = COOLDOWN_TIME;
+
+            el1.textContent = TEXTS[textIndex % TEXTS.length];
+            el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+
+            function setMorph(fraction) {
+                el2.style.filter  = 'blur(' + Math.min(8 / fraction - 8, 100) + 'px)';
+                el2.style.opacity = Math.pow(fraction, 0.4);
+                var inv = 1 - fraction;
+                el1.style.filter  = 'blur(' + Math.min(8 / inv - 8, 100) + 'px)';
+                el1.style.opacity = Math.pow(inv, 0.4);
+            }
+
+            function doCooldown() {
+                morph = 0;
+                el2.style.filter  = '';
+                el2.style.opacity = '1';
+                el1.style.filter  = '';
+                el1.style.opacity = '0';
+            }
+
+            function doMorph() {
+                morph   -= cooldown;
+                cooldown = 0;
+                var fraction = morph / MORPH_TIME;
+                if (fraction > 1) {
+                    cooldown = COOLDOWN_TIME;
+                    fraction = 1;
+                }
+                setMorph(fraction);
+            }
+
+            function animate() {
+                window._gooeyRaf = requestAnimationFrame(animate);
+                var now = Date.now();
+                var dt  = (now - time) / 1000;
+                time = now;
+                var shouldIncrement = cooldown > 0;
+                cooldown -= dt;
+                if (cooldown <= 0) {
+                    if (shouldIncrement) {
+                        textIndex = (textIndex + 1) % TEXTS.length;
+                        el1.textContent = TEXTS[textIndex % TEXTS.length];
+                        el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+                    }
+                    doMorph();
+                } else {
+                    doCooldown();
+                }
+            }
+
+            animate();
+        })();
+
         /* ── Spotlight: follow mouse on the left panel ── */
         (function () {
-            const panel = document.querySelector('.login-left');
-            const spot  = document.getElementById('loginSpotlight');
+            var panel = document.querySelector('.login-left');
+            var spot  = document.getElementById('loginSpotlight');
             if (!panel || !spot) return;
             panel.addEventListener('mousemove', function (e) {
-                const rect = panel.getBoundingClientRect();
+                var rect = panel.getBoundingClientRect();
                 spot.style.left = (e.clientX - rect.left) + 'px';
                 spot.style.top  = (e.clientY - rect.top)  + 'px';
             });

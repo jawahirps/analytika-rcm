@@ -202,6 +202,16 @@ public class PortalSyncService
         }
 
         if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded, filesByType);
+
+        // Per-facility, per-type fetch summary (claims vs remittances vs prior-auth, etc.)
+        // so an on-demand run shows exactly what each facility returned.
+        _logger.LogInformation(
+            "[PortalSync] Facility {FacilityId} {Portal}: {New} new, {Dup} dup, {Files} downloaded — by type: {ByType}",
+            facilityId, portal, newCount, dupCount, filesDownloaded,
+            filesByType.Count > 0
+                ? string.Join(", ", filesByType.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}={kv.Value}"))
+                : "none");
+
         return (newCount, dupCount, filesDownloaded);
     }
 

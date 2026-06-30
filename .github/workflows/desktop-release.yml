@@ -1,0 +1,113 @@
+name: Desktop Installers
+
+# Build native desktop installers for Windows (.msi) and macOS (.pkg/.dmg).
+# Trigger by pushing a tag like `desktop-v1.0.0`, or run manually with a version.
+on:
+  push:
+    tags: ['desktop-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version, e.g. 1.0.0'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Windows .msi ────────────────────────────────────────────────────────────
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "v=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "v=${GITHUB_REF_NAME#desktop-v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish (self-contained win-x64)
+        run: >
+          dotnet publish Analytika/Analytika.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=false -p:DebugType=none -p:DebugSymbols=false
+          -o publish-win
+
+      - name: Install WiX
+        run: dotnet tool install --global wix
+
+      - name: Build MSI
+        run: >
+          wix build desktop/windows/Bix.wxs
+          -arch x64
+          -d PublishDir=publish-win
+          -d Version=${{ steps.ver.outputs.v }}
+          -o "Bix-${{ steps.ver.outputs.v }}-win-x64.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bix-win-x64-msi
+          path: "Bix-*.msi"
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "Bix-*.msi"
+
+  # ── macOS .pkg + .dmg (Apple Silicon + Intel) ───────────────────────────────
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [osx-arm64, osx-x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "v=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "v=${GITHUB_REF_NAME#desktop-v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish (self-contained ${{ matrix.arch }})
+        run: >
+          dotnet publish Analytika/Analytika.csproj
+          -c Release -r ${{ matrix.arch }} --self-contained true
+          -p:PublishSingleFile=false -p:DebugType=none -p:DebugSymbols=false
+          -o "publish-${{ matrix.arch }}"
+
+      - name: Build .pkg + .dmg
+        run: |
+          chmod +x desktop/macos/build-pkg.sh
+          desktop/macos/build-pkg.sh "${{ matrix.arch }}" "${{ steps.ver.outputs.v }}" "publish-${{ matrix.arch }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bix-${{ matrix.arch }}
+          path: |
+            Bix-*.pkg
+            Bix-*.dmg
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Bix-*.pkg
+            Bix-*.dmg
