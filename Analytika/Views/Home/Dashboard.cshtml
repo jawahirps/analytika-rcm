@@ -269,6 +269,84 @@
             justify-content: center;
         }
     }
+
+    /* ── Dark mode ─────────────────────────────────────────── */
+    html[data-theme="dark"] .dashboard-hero {
+        background: linear-gradient(135deg, #111520 0%, #0f1923 100%) !important;
+        border-color: rgba(0,255,133,.10);
+    }
+    html[data-theme="dark"] .dashboard-hero::after {
+        background: radial-gradient(circle, rgba(0,255,133,.08), transparent 70%);
+    }
+    html[data-theme="dark"] .dashboard-hero h4 { color: #EAF4FB; }
+    html[data-theme="dark"] .dashboard-hero p { color: rgba(234,244,251,.55); }
+    html[data-theme="dark"] .dashboard-kicker {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .dashboard-stat-pill {
+        background: rgba(255,255,255,.06);
+        border-color: rgba(255,255,255,.08);
+        color: #EAF4FB;
+    }
+    html[data-theme="dark"] .dashboard-hero .btn-outline-secondary {
+        background: rgba(255,255,255,.06) !important;
+        border-color: rgba(255,255,255,.12) !important;
+        color: #EAF4FB !important;
+    }
+
+    html[data-theme="dark"] .ss-card {
+        background: #111520 !important;
+        border-color: rgba(0,255,133,.10);
+    }
+    html[data-theme="dark"] .ss-num { color: #EAF4FB; }
+    html[data-theme="dark"] .ss-lbl { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .ss-icon.green  { background: rgba(0,255,133,.10); color: #00FF85; }
+    html[data-theme="dark"] .ss-icon.amber  { background: rgba(245,158,11,.12); color: #f59e0b; }
+    html[data-theme="dark"] .ss-icon.red    { background: rgba(239,68,68,.12); color: #ef4444; }
+    html[data-theme="dark"] .ss-icon.blue   { background: rgba(84,172,191,.12); color: #54ACBF; }
+    html[data-theme="dark"] .ss-icon.purple { background: rgba(139,92,246,.12); color: #a78bfa; }
+
+    html[data-theme="dark"] .dash-chart-card {
+        background: #111520 !important;
+        border-color: rgba(0,255,133,.08) !important;
+    }
+    html[data-theme="dark"] .dash-chart-title { color: #EAF4FB; }
+    html[data-theme="dark"] .dash-chart-sub { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .dash-kpi-badge {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
+
+    html[data-theme="dark"] .fac-status-card {
+        background: linear-gradient(180deg, #111520 0%, #0d1219 100%) !important;
+        border-color: rgba(255,255,255,.06);
+    }
+    html[data-theme="dark"] .fac-status-card:hover {
+        border-color: rgba(0,255,133,.25);
+    }
+    html[data-theme="dark"] .fac-name { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-portal {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .fac-meta-row { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .fac-meta-row .val { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-status-label { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .fac-status-counts { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .fac-progress-container { background: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-stats { border-top-color: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-stat .n { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-stat .l { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .fac-stat .meta-inline { color: rgba(234,244,251,.40); }
+
+    html[data-theme="dark"] .status-dot.connected    { box-shadow: 0 0 0 3px rgba(0,255,133,.15); }
+    html[data-theme="dark"] .status-dot.degraded     { box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+    html[data-theme="dark"] .status-dot.disconnected { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+    html[data-theme="dark"] .status-label.connected  { color: #00FF85; }
+    html[data-theme="dark"] .status-label.degraded   { color: #f59e0b; }
+    html[data-theme="dark"] .status-label.disconnected { color: #ef4444; }
 </style>
 }
 
