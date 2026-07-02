@@ -23,6 +23,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ReportSchedule> ReportSchedules { get; set; }
     public DbSet<RemittanceClaim> RemittanceClaims { get; set; }
     public DbSet<XmlParsedRecord> XmlParsedRecords { get; set; }
+    public DbSet<XmlParsedActivity> XmlParsedActivities { get; set; }
     public DbSet<ResubmissionTask> ResubmissionTasks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -106,6 +107,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.ReadyForReport);
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.PortalTransaction).WithMany().HasForeignKey(e => e.PortalTransactionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<XmlParsedActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.XmlParsedRecordId);
+            entity.HasOne(e => e.XmlParsedRecord).WithMany(r => r.Activities).HasForeignKey(e => e.XmlParsedRecordId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ResubmissionTask>(entity =>
