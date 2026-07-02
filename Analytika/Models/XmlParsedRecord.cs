@@ -37,6 +37,7 @@ public class XmlParsedRecord
     public string? ServiceYear { get; set; }
     public string? ServiceMonth { get; set; }
 
+    public decimal GrossAmount { get; set; }
     public decimal NetAmount { get; set; }
     public decimal PaidAmount { get; set; }
     public int ActivityCount { get; set; }
@@ -48,6 +49,13 @@ public class XmlParsedRecord
     public string? IdPayer { get; set; }
     public string? ResubmissionType { get; set; }
     public string? PrincipalDiagnosis { get; set; }
+    public string? DiagnosesJson { get; set; }
+
+    public string? PatientGender { get; set; }
+    public string? PatientDob { get; set; }
+    public string? PatientNationalId { get; set; }
+
+    public string? ClaimCategory { get; set; }
 
     public bool IsMatched { get; set; }
     public bool ReadyForReport { get; set; } = true;
@@ -55,4 +63,6 @@ public class XmlParsedRecord
 
     public DateTime ParsedAt { get; set; } = DateTime.UtcNow;
     public DateTime? MatchedAt { get; set; }
+
+    public List<XmlParsedActivity> Activities { get; set; } = new();
 }

@@ -1,33 +1,34 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# GhafBI – Step 3: Cloudflare Tunnel Config
+# GhafBI – Cloudflare Tunnel Config
+# Domain: bi.ghafservices.com
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# SETUP INSTRUCTIONS (run in PowerShell on the office server):
+# SETUP INSTRUCTIONS (run in PowerShell on your Windows machine):
 #
 #   1. Install cloudflared
 #        winget install Cloudflare.cloudflared
 #
-#   2. Login to Cloudflare (opens browser)
+#   2. Login to Cloudflare (opens browser — use jawahirps@gmail.com)
 #        cloudflared tunnel login
 #
 #   3. Create the tunnel
 #        cloudflared tunnel create ghafbi
-#      → Note the Tunnel ID printed (looks like: a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+#      → Note the Tunnel ID printed (e.g. a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
 #
 #   4. Edit this file:
 #        - Replace YOUR_TUNNEL_ID with the ID from step 3
-#        - Replace rcm.yourdomain.com with your actual domain
+#        - Replace YOUR_USERNAME with your Windows username
 #        - Save as:  C:\Users\<you>\.cloudflared\config.yml
 #
 #   5. Create a DNS record pointing to your tunnel
-#        cloudflared tunnel route dns ghafbi rcm.yourdomain.com
+#        cloudflared tunnel route dns ghafbi bi.ghafservices.com
 #
 #   6. Install cloudflared as a Windows Service (auto-starts on boot)
 #        cloudflared service install
 #        net start cloudflared
 #
 #   7. Verify
-#        Open https://rcm.yourdomain.com in any browser
+#        Open https://bi.ghafservices.com in any browser
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ ingress:
       connectTimeout: 30s
       noTLSVerify: false
 
-  # Catch-all (required)
+  # Catch-all (required by cloudflared)
   - service: http_status:404
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,10 +51,10 @@ ingress:
 # In the Cloudflare dashboard (zero-cost for up to 50 users):
 #
 #   Zero Trust → Access → Applications → Add an Application → Self-hosted
-#     Application name : GhafBI RCM
-#     Subdomain        : rcm.yourdomain.com
+#     Application name : GhafBI Analytika RCM
+#     Subdomain        : bi.ghafservices.com
 #     Policy name      : Company email only
-#     Rule             : Emails ending in   @yourcompany.com
+#     Rule             : Emails ending in   @ghafservices.com
 #
 # Users will receive an email OTP before reaching the app login page.
 # ─────────────────────────────────────────────────────────────────────────────
