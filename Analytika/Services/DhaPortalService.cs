@@ -306,6 +306,82 @@ public class DhaPortalService : IDhaPortalService
         return (result, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
+    // ── SearchTransactions with auto date-range splitting ──────────
+    // DHA caps SearchTransactions at 500 files per call. When a date range
+    // legitimately holds >500 files the excess is silently dropped. This helper
+    // subdivides the [fromDate, toDate] range whenever a call saturates,
+    // recursing until either every sub-range is under-cap or the range is a
+    // single second (adaptive bisection). The returned `result` count is
+    // aggregated across all sub-calls. Errors from any sub-call short-circuit.
+
+    public async Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsWithSplittingAsync(
+        string login, string pwd, int direction, string? fromDate, string? toDate,
+        int transactionStatus, int transactionId = 2, int maxRecord = 500)
+    {
+        // Parse the DHA date format ("dd/MM/yyyy HH:mm:ss")
+        static bool TryParseDha(string? s, out DateTime dt)
+        {
+            dt = default;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            return DateTime.TryParseExact(s, "dd/MM/yyyy HH:mm:ss",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out dt);
+        }
+
+        if (!TryParseDha(fromDate, out var from) || !TryParseDha(toDate, out var to))
+        {
+            // If either bound is missing / malformed, fall back to a single call —
+            // splitting requires a parseable range.
+            return await SearchTransactionsAsync(login, pwd, direction, fromDate, toDate,
+                transactionStatus, transactionId, -1, maxRecord);
+        }
+
+        var allRows = new List<PortalFetchResultRow>();
+        int totalCount = 0;
+        string? firstError = null;
+
+        // Recursive helper — depth guard keeps runaway splits bounded
+        async Task WalkAsync(DateTime a, DateTime b, int depth)
+        {
+            if (firstError != null || a > b) return;
+
+            var aStr = a.ToString("dd/MM/yyyy HH:mm:ss");
+            var bStr = b.ToString("dd/MM/yyyy HH:mm:ss");
+            var (result, rows, error) = await SearchTransactionsAsync(login, pwd, direction,
+                aStr, bStr, transactionStatus, transactionId, -1, maxRecord);
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                // Transient / cooldown errors bubble up immediately.
+                firstError = error;
+                return;
+            }
+
+            // Saturation guard: portal returned exactly maxRecord — there is
+            // very likely more data in this window. Split unless we've bottomed
+            // out (single-second range or 20 levels deep, which permits ~1M rows).
+            if (rows.Count >= maxRecord && a < b && depth < 20)
+            {
+                var midTicks = a.Ticks + (b.Ticks - a.Ticks) / 2;
+                var mid = new DateTime(midTicks, a.Kind);
+                var midPlusOne = mid.AddSeconds(1);
+                if (midPlusOne > b) midPlusOne = b; // Safety: never advance past b
+                _logger.LogInformation(
+                    "[SearchTransactions] Saturation at depth {Depth} ({From} → {To}): {Count} rows, splitting",
+                    depth, aStr, bStr, rows.Count);
+                await WalkAsync(a, mid, depth + 1);
+                await WalkAsync(midPlusOne, b, depth + 1);
+                return;
+            }
+
+            allRows.AddRange(rows);
+            totalCount += result > 0 ? result : rows.Count;
+        }
+
+        await WalkAsync(from, to, 0);
+        return (totalCount, allRows, firstError);
+    }
+
     // ── DownloadTransactionFile ────────────────────────────────────
     // Downloads the raw file bytes using the FileID from <File FileID=''> attribute.
     // Response: file = byte[] (raw XML file content)
@@ -513,12 +589,14 @@ public class DhaPortalService : IDhaPortalService
             var root = doc.Root;
             if (root == null) return (contentXml, innerRows);
 
-            // DHA e-claim XML typically has <Claim> or <Transaction> child elements
+            // DHA e-claim XML typically has <Claim> or <Transaction> child elements.
+            // No Take() cap — a single remittance file can bundle 5k+ claims and
+            // any hard cap silently drops rows. The whole XML is already in memory
+            // as `contentXml`, so materializing every descendant is cheap.
             var claimElements = root
                 .Descendants()
                 .Where(e => e.Name.LocalName is "Claim" or "Transaction" or "PriorRequest"
                                               or "PriorAuthorization" or "Remittance" or "Encounter")
-                .Take(1000)
                 .ToList();
 
             foreach (var el in claimElements)
