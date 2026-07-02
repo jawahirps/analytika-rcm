@@ -1146,8 +1146,8 @@ public class PortalController : Controller
             foreach (var txStatus in txStatuses)
                 foreach (var txType in txTypes)
                 {
-                    var (_, rSent, eSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rSent, eSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
                     allRows.AddRange(rSent);
                     allRows.AddRange(rRecv);
                     fetchErr ??= eSent ?? eRecv;
@@ -1327,8 +1327,8 @@ public class PortalController : Controller
                         foreach (var txStatus in txStatuses)
                         foreach (var txType in txTypes)
                         {
-                            var (_, sent, errSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, df, dt, txStatus, txType);
-                            var (_, recv, errRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, df, dt, txStatus, txType);
+                            var (_, sent, errSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, df, dt, txStatus, txType);
+                            var (_, recv, errRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, df, dt, txStatus, txType);
                             allRows.AddRange(sent);
                             allRows.AddRange(recv);
                             fetchErr ??= errSent ?? errRecv;

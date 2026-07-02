@@ -359,6 +359,134 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Users));
     }
 
+    // ─── Guest user provisioning ─────────────────────────────────────────────
+    // One guest user per active facility: guest@<slug>, password Ghafbix@2026,
+    // Viewer role, restricted to report-view + generate on that facility only.
+    // Result downloaded as Excel.
+
+    private const string GuestPassword = "Ghafbix@2026";
+    private const string GuestRole = "Viewer";
+
+    private static string FacilitySlug(string name)
+    {
+        var sb = new StringBuilder(name.Length);
+        foreach (var ch in name.ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            else if (ch == ' ' || ch == '-' || ch == '_') sb.Append('-');
+        }
+        var slug = sb.ToString().Trim('-');
+        while (slug.Contains("--")) slug = slug.Replace("--", "-");
+        return slug;
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ProvisionGuestUsers()
+    {
+        if (!await _roleManager.RoleExistsAsync(GuestRole))
+            await _roleManager.CreateAsync(new IdentityRole(GuestRole));
+
+        var facilities = await _db.Facilities.Where(f => f.IsActive).OrderBy(f => f.Name).ToListAsync();
+        var report = new List<(string Facility, string Username, string Password, string Status)>();
+
+        foreach (var fac in facilities)
+        {
+            var username = $"guest@{FacilitySlug(fac.Name)}";
+            var existing = await _userManager.FindByNameAsync(username);
+            string status;
+
+            if (existing == null)
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = username,
+                    Email = username,
+                    FullName = $"Guest – {fac.Name}",
+                    UserType = "Facility",
+                    IsActive = true,
+                    EmailConfirmed = true
+                };
+                var create = await _userManager.CreateAsync(user, GuestPassword);
+                if (!create.Succeeded)
+                {
+                    report.Add((fac.Name, username, GuestPassword, "FAILED: " + string.Join("; ", create.Errors.Select(e => e.Description))));
+                    continue;
+                }
+                await _userManager.AddToRoleAsync(user, GuestRole);
+                existing = user;
+                status = "Created";
+            }
+            else
+            {
+                // Reset password to the canonical guest password
+                var token = await _userManager.GeneratePasswordResetTokenAsync(existing);
+                await _userManager.ResetPasswordAsync(existing, token, GuestPassword);
+                existing.IsActive = true;
+                await _userManager.UpdateAsync(existing);
+
+                var currentRoles = await _userManager.GetRolesAsync(existing);
+                if (!currentRoles.Contains(GuestRole))
+                {
+                    await _userManager.RemoveFromRolesAsync(existing, currentRoles);
+                    await _userManager.AddToRoleAsync(existing, GuestRole);
+                }
+                status = "Refreshed";
+            }
+
+            // Wipe & rewrite facility scope (single facility only)
+            var oldFacs = await _db.UserFacilities.Where(uf => uf.UserId == existing.Id).ToListAsync();
+            _db.UserFacilities.RemoveRange(oldFacs);
+            _db.UserFacilities.Add(new UserFacility { UserId = existing.Id, FacilityId = fac.Id });
+
+            // Wipe & rewrite report access — Dashboard tabs + Reports (view+generate only).
+            // No Admin, no Sync, no Credentials — read-only on the report surface.
+            var oldAcc = await _db.UserReportAccesses.Where(a => a.UserId == existing.Id).ToListAsync();
+            _db.UserReportAccesses.RemoveRange(oldAcc);
+            foreach (var tab in DashboardTabs)
+                _db.UserReportAccesses.Add(new UserReportAccess { UserId = existing.Id, ResourceType = "Dashboard", ResourceKey = tab });
+            foreach (var rpt in ReportTypes)
+                _db.UserReportAccesses.Add(new UserReportAccess { UserId = existing.Id, ResourceType = "Report", ResourceKey = rpt });
+
+            report.Add((fac.Name, username, GuestPassword, status));
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Build .xlsx
+        using var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Guest Users");
+        ws.Cell(1, 1).Value = "Facility";
+        ws.Cell(1, 2).Value = "Username";
+        ws.Cell(1, 3).Value = "Password";
+        ws.Cell(1, 4).Value = "Status";
+        ws.Cell(1, 5).Value = "Generated";
+        var header = ws.Range(1, 1, 1, 5);
+        header.Style.Font.Bold = true;
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml("#011C40");
+        header.Style.Font.FontColor = XLColor.White;
+
+        var nowUtc = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'");
+        var row = 2;
+        foreach (var r in report)
+        {
+            ws.Cell(row, 1).Value = r.Facility;
+            ws.Cell(row, 2).Value = r.Username;
+            ws.Cell(row, 3).Value = r.Password;
+            ws.Cell(row, 4).Value = r.Status;
+            ws.Cell(row, 5).Value = nowUtc;
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        var bytes = ms.ToArray();
+
+        var filename = $"guest-users-{DateTime.UtcNow:yyyyMMdd-HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ─── Credentials ─────────────────────────────────────────────────────────
 
     [HttpGet]

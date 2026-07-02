@@ -77,6 +77,14 @@ builder.Services.AddAnalytikaModules(
     recurringJobsEnabled,
     builder.Configuration.GetValue("BackgroundJobs:PendingDownloads:HostedServiceEnabled", false));
 
+// Bix keepalive — internal /healthz heartbeat keeps Cloudflare tunnel & request pipeline warm.
+// Disable by setting Keepalive:Enabled=false in appsettings.
+if (builder.Configuration.GetValue("Keepalive:Enabled", true))
+{
+    builder.Services.AddHttpClient("bix-keepalive");
+    builder.Services.AddHostedService<Analytika.Services.BixKeepaliveService>();
+}
+
 // Respect PORT env variable (set by preview/hosting environment)
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
@@ -463,6 +471,42 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
     if (!db.Database.IsNpgsql() && app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
         await SeedData.InitializeAsync(services);
 }
+
+// Pre-warm dashboard facility status so the first user lands on hot data.
+// Runs after ApplicationStarted so it never blocks request acceptance.
+// Uses a long timeout because the initial aggregation on a large SQLite DB
+// can take 30-60 s cold; once it completes the cache has a 10-min TTL with
+// stale-while-revalidate so no user ever sees the cold path.
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var dashboard = scope.ServiceProvider.GetRequiredService<Analytika.Services.IDashboardService>();
+            // WarmAsync forces the full aggregation and seeds the cache — subsequent
+            // requests hit the cache. BuildFacilityStatusAsync would just return
+            // an empty placeholder here.
+            await dashboard.WarmAsync();
+
+            // The RCM dashboard's receiver/payer/encounter-type dropdown options are
+            // full-table Distinct() scans (~11s cold on a large DB), cached for 15 min.
+            // One call here seeds that cache so the first real user never pays it.
+            await dashboard.BuildRcmDashboardAsync("Submissions", new Analytika.Models.ViewModels.RcmDashboardFilters());
+
+            sw.Stop();
+            app.Logger.LogInformation("Pre-warmed dashboard caches in {Ms} ms", sw.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            app.Logger.LogWarning(ex, "Dashboard pre-warm failed after {Ms} ms — first user will see cold path",
+                sw.ElapsedMilliseconds);
+        }
+    });
+});
 
 app.Run();
 

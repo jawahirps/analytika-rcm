@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Analytika.Controllers;
 
@@ -15,6 +16,7 @@ public class HomeController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IDashboardService _dashboard;
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<HomeController> _logger;
 
     public HomeController(
@@ -22,12 +24,14 @@ public class HomeController : Controller
         UserManager<ApplicationUser> userManager,
         IDashboardService dashboard,
         AppDbContext db,
+        IMemoryCache cache,
         ILogger<HomeController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _dashboard = dashboard;
         _db = db;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -107,11 +111,23 @@ public class HomeController : Controller
     [HttpGet("/api/dashboard/summary")]
     public async Task<IActionResult> DashboardSummary()
     {
-        var now         = DateTime.UtcNow;
-        var d30         = now.AddDays(-30);
-        var d60         = now.AddDays(-60);
+        // 5-minute cache — the 5 aggregations on a 45GB SQLite DB cost ~1s on cold path.
+        // Invalidate on portal sync via _cache.Remove("dashboard:summary:v1") if real-time freshness needed.
+        var payload = await _cache.GetOrCreateAsync("dashboard:summary:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            return await ComputeDashboardSummaryAsync();
+        });
 
-        // Daily transaction counts for sparkline
+        return Json(payload);
+    }
+
+    private async Task<object> ComputeDashboardSummaryAsync()
+    {
+        var now = DateTime.UtcNow;
+        var d30 = now.AddDays(-30);
+        var d60 = now.AddDays(-60);
+
         var daily = await _db.PortalTransactions
             .Where(t => t.SyncedAt >= d30)
             .GroupBy(t => t.SyncedAt.Date)
@@ -119,7 +135,6 @@ public class HomeController : Controller
             .OrderBy(x => x.Date)
             .ToListAsync();
 
-        // Type breakdown for donut chart
         var byType = await _db.PortalTransactions
             .Where(t => t.SyncedAt >= d30)
             .GroupBy(t => t.Type)
@@ -127,7 +142,6 @@ public class HomeController : Controller
             .OrderByDescending(x => x.Count)
             .ToListAsync();
 
-        // KPI trend
         var currentCount  = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30);
         var previousCount = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d60 && t.SyncedAt < d30);
         var downloaded    = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30 && t.FileDownloaded);
@@ -136,12 +150,12 @@ public class HomeController : Controller
             ? Math.Round((currentCount - previousCount) / (double)previousCount * 100.0, 1)
             : 0;
 
-        return Json(new
+        return new
         {
-            daily    = daily.Select(x => new { date = x.Date.ToString("MM/dd"), count = x.Count }),
-            byType   = byType.Select(x => new { type = x.Type, count = x.Count }),
-            kpi      = new { currentCount, previousCount, trend, downloaded }
-        });
+            daily  = daily.Select(x => new { date = x.Date.ToString("MM/dd"), count = x.Count }).ToList(),
+            byType = byType.Select(x => new { type = x.Type, count = x.Count }).ToList(),
+            kpi    = new { currentCount, previousCount, trend, downloaded }
+        };
     }
 
     [HttpPost]

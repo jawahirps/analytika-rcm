@@ -10,32 +10,118 @@ public class DashboardService : IDashboardService
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<DashboardService> _logger;
 
-    public DashboardService(AppDbContext db, IMemoryCache cache)
+    private const string CacheKey = "dashboard:facilitystatus:v1";
+    private const string CacheKeyRefreshingFlag = "dashboard:facilitystatus:refreshing";
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan SoftTtl  = TimeSpan.FromMinutes(2);
+
+    public DashboardService(AppDbContext db, IMemoryCache cache,
+                            IServiceScopeFactory scopeFactory,
+                            ILogger<DashboardService> logger)
     {
         _db = db;
         _cache = cache;
+        _scopeFactory = scopeFactory;
+        _logger = logger;
     }
 
+    /// <summary>
+    /// Stale-while-revalidate: if we have ANY cached value (fresh or stale) we
+    /// return it immediately and only refresh in the background. The dashboard
+    /// aggregation over millions of rows can take 20-60s on a large SQLite DB
+    /// and must never block the UI. Only the very first request ever waits;
+    /// after startup pre-warm completes, no user sees the cold path.
+    /// </summary>
     public Task<FacilityStatusViewModel> BuildFacilityStatusAsync()
-        => _cache.GetOrCreateAsync("dashboard:facilitystatus:v1", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30);
-            return await BuildFacilityStatusCoreAsync();
-        })!;
-
-    private async Task<FacilityStatusViewModel> BuildFacilityStatusCoreAsync()
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        if (_cache.TryGetValue<CachedFacilityStatus>(CacheKey, out var entry) && entry != null)
+        {
+            // Stale? Kick off a background refresh, but return the stale value now.
+            if (DateTime.UtcNow - entry.CachedAt > SoftTtl)
+                _ = Task.Run(() => RefreshInBackgroundAsync());
+            return Task.FromResult(entry.Model);
+        }
+
+        // No cache at all — likely pre-warm hasn't completed yet. Kick it off if
+        // no one else is already computing, then return an empty placeholder
+        // model so the user gets an instant response. They can refresh in a
+        // few seconds once the aggregation finishes.
+        _ = Task.Run(() => RefreshInBackgroundAsync());
+        return Task.FromResult(new FacilityStatusViewModel
+        {
+            Facilities = new List<FacilityStatusRow>(),
+            TotalRecords = 0,
+            TotalClaimCount = 0,
+            TotalFiles = 0,
+            LastSyncTime = null
+        });
+    }
+
+    public async Task WarmAsync(CancellationToken ct = default)
+    {
+        // Skip if a recent value is already cached.
+        if (_cache.TryGetValue<CachedFacilityStatus>(CacheKey, out var entry) &&
+            entry != null && DateTime.UtcNow - entry.CachedAt < SoftTtl)
+            return;
+
+        var fresh = await BuildFacilityStatusCoreAsync();
+        _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+    }
+
+    private async Task RefreshInBackgroundAsync()
+    {
+        // Single-flight guard — only one background refresh at a time.
+        if (!_cache.TryGetValue<bool>(CacheKeyRefreshingFlag, out _))
+        {
+            _cache.Set(CacheKeyRefreshingFlag, true, TimeSpan.FromMinutes(5));
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var svc = scope.ServiceProvider.GetRequiredService<IDashboardService>();
+                if (svc is DashboardService concrete)
+                {
+                    var fresh = await concrete.BuildFacilityStatusCoreAsync();
+                    _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+                    _logger.LogInformation("Refreshed dashboard facility status in background");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Background dashboard refresh failed — stale cache retained");
+            }
+            finally
+            {
+                _cache.Remove(CacheKeyRefreshingFlag);
+            }
+        }
+    }
+
+    private sealed record CachedFacilityStatus(FacilityStatusViewModel Model, DateTime CachedAt);
+
+    internal async Task<FacilityStatusViewModel> BuildFacilityStatusCoreAsync()
+    {
+        // AsNoTracking — this is read-only display data; EF change tracking overhead
+        // (snapshotting every entity for change detection) is pure waste here.
+        var facilities = await _db.Facilities.AsNoTracking().Where(f => f.IsActive).ToListAsync();
 
         var credentials = await _db.PortalCredentials
+            .AsNoTracking()
             .Where(c => c.IsActive)
             .Select(c => new { c.FacilityId, c.Portal })
             .ToListAsync();
 
         var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
+
+        // Push a date cutoff into SQL so we don't pull every log row ever recorded.
+        // 90-day window is more than enough to derive "latest sync" and "recent success"
+        // status for every facility; older rows are irrelevant to the dashboard.
+        var logCutoff = DateTime.UtcNow.AddDays(-90);
         var logProjection = await _db.PortalFetchLogs
             .AsNoTracking()
+            .Where(l => l.FetchedAt >= logCutoff)
             .Select(l => new { l.FacilityId, l.Portal, l.Status, l.Operation, l.FetchedAt })
             .ToListAsync();
 
@@ -127,6 +213,7 @@ public class DashboardService : IDashboardService
                 };
             });
         })
+        .Where(r => r.HasCredential || r.RecordCount > 0 || r.FileCount > 0 || r.TotalFilesWithStatus > 0)
         .OrderBy(r => r.Status)
         .ThenBy(r => r.FacilityName)
         .ToList();
@@ -154,37 +241,50 @@ public class DashboardService : IDashboardService
             .Select(f => new DashboardFilterOption { Value = f.Id.ToString(), Label = f.Name })
             .ToListAsync();
 
-        var receiverOptions = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Select(r => r.ReceiverName ?? r.ReceiverId)
-            .Where(v => v != null && v != "")
-            .Select(v => v!)
-            .Distinct()
-            .OrderBy(v => v)
-            .Take(80)
-            .Select(v => new DashboardFilterOption { Value = v, Label = v })
-            .ToListAsync();
+        // These 3 dropdown-option lists are full-table Distinct() scans over
+        // XmlParsedRecords. They were re-run on every tab click / filter change
+        // with no caching — reference data that changes rarely (only when a new
+        // receiver/payer/encounter type shows up). Cache for 15 minutes.
+        var (receiverOptions, payerOptions, encounterTypeOptions) = await _cache.GetOrCreateAsync(
+            "dashboard:rcm:filteroptions:v1",
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
 
-        var payerOptions = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Select(r => r.PayerName ?? r.PayerId)
-            .Where(v => v != null && v != "")
-            .Select(v => v!)
-            .Distinct()
-            .OrderBy(v => v)
-            .Take(80)
-            .Select(v => new DashboardFilterOption { Value = v, Label = v })
-            .ToListAsync();
+                var receivers = await _db.XmlParsedRecords
+                    .AsNoTracking()
+                    .Select(r => r.ReceiverName ?? r.ReceiverId)
+                    .Where(v => v != null && v != "")
+                    .Select(v => v!)
+                    .Distinct()
+                    .OrderBy(v => v)
+                    .Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
+                    .ToListAsync();
 
-        var encounterTypeOptions = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Where(r => r.EncounterType != null && r.EncounterType != "")
-            .Select(r => r.EncounterType!)
-            .Distinct()
-            .OrderBy(v => v)
-            .Take(80)
-            .Select(v => new DashboardFilterOption { Value = v, Label = v })
-            .ToListAsync();
+                var payers = await _db.XmlParsedRecords
+                    .AsNoTracking()
+                    .Select(r => r.PayerName ?? r.PayerId)
+                    .Where(v => v != null && v != "")
+                    .Select(v => v!)
+                    .Distinct()
+                    .OrderBy(v => v)
+                    .Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
+                    .ToListAsync();
+
+                var encounterTypes = await _db.XmlParsedRecords
+                    .AsNoTracking()
+                    .Where(r => r.EncounterType != null && r.EncounterType != "")
+                    .Select(r => r.EncounterType!)
+                    .Distinct()
+                    .OrderBy(v => v)
+                    .Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
+                    .ToListAsync();
+
+                return (receivers, payers, encounterTypes);
+            });
 
         var tabs = new List<string> { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
         var activeTab = tabs.Contains(tab, StringComparer.OrdinalIgnoreCase)

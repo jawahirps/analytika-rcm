@@ -2,22 +2,25 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "Analytika (Codex version)",
+      "name": "Analytika (ASP.NET)",
       "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "J:/GhafAnalytika/analytika-rcm/.claude/worktrees/eager-grothendieck-f01499/Analytika/Analytika.csproj", "--launch-profile", "Analytika"],
-      "port": 5000
+      "runtimeArgs": ["run", "--project", "Analytika/Analytika.csproj", "--no-launch-profile"],
+      "port": 5000,
+      "env": {
+        "DB_DIR": "J:/GhafAnalytika/Analytika"
+      }
     },
     {
-      "name": "Analytika ASP.NET (dotnet run)",
-      "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "Analytika/Analytika.csproj", "--environment", "Development"],
-      "port": 5000
-    },
-    {
-      "name": "Analytika Mobile (Expo Web)",
+      "name": "Mobile (Expo Web)",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "mobile", "run", "web"],
       "port": 8081
+    },
+    {
+      "name": "Docker Compose",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up"],
+      "port": 80
     }
   ]
 }
