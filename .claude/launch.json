@@ -6,8 +6,10 @@
       "runtimeExecutable": "dotnet",
       "runtimeArgs": ["run", "--project", "Analytika/Analytika.csproj", "--no-launch-profile"],
       "port": 5000,
+      "autoPort": true,
       "env": {
-        "DB_DIR": "J:/GhafAnalytika/Analytika"
+        "DB_DIR": "J:/GhafAnalytika/Analytika",
+        "ASPNETCORE_URLS": "http://localhost:${PORT}"
       }
     },
     {

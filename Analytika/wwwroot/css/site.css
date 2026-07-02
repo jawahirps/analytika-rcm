@@ -161,8 +161,7 @@ html[data-theme="dark"] .page-subtitle,
 html[data-theme="dark"] .bi-desc,
 html[data-theme="dark"] .summary,
 html[data-theme="dark"] .trend-label,
-html[data-theme="dark"] .brand-name-wrap .brand-sub {
-  color: #a1a1aa !important;
+html[data-theme="dark"] .brand-name-wrap .brand-sub,
 html[data-theme="dark"] .breakdown-detail,
 html[data-theme="dark"] .insight-detail,
 html[data-theme="dark"] .ss-lbl,
@@ -170,7 +169,7 @@ html[data-theme="dark"] .ss-subline,
 html[data-theme="dark"] .fac-meta-row,
 html[data-theme="dark"] .fac-stat .l,
 html[data-theme="dark"] .fac-stat .meta-inline {
-  color: rgba(234,244,251,0.78) !important;
+  color: #a1a1aa !important;
 }
 
 html[data-theme="dark"] .text-muted,
@@ -2504,32 +2503,6 @@ html[data-theme="dark"] .notification-icon-muted {
 .sidebar-brand-name { font-size: var(--fs-base); font-weight: 700; color: #eaf6f8; letter-spacing: -.2px; }
 .sidebar-brand-sub  { font-size: 0.65rem; color: #66B2B2; font-weight: 500; letter-spacing: .3px; text-transform: uppercase; }
 .sidebar-close-btn  { background: none; border: none; color: var(--sidebar-text); padding: 6px; cursor: pointer; line-height: 1; font-size: 1rem; }
-
-.sidebar-brand-name {
-  font-size: 32px;
-  font-weight: 700;
-  color: #EAF4FB;
-  letter-spacing: 0;
-  line-height: 0.9;
-}
-
-.sidebar-brand-sub {
-  font-size: 0.65rem;
-  color: var(--classic-teal);
-  font-weight: 500;
-  letter-spacing: .3px;
-  text-transform: uppercase;
-}
-
-.sidebar-close-btn {
-  background: none;
-  border: none;
-  color: var(--sidebar-text);
-  padding: 6px;
-  cursor: pointer;
-  line-height: 1;
-  font-size: 1rem;
-}
 .sidebar-close-btn:hover { color: #fff; }
 
 /* ── Sidebar nav ────────────────────────────────────────────── */
@@ -4083,7 +4056,6 @@ html[data-theme="dark"] body {
 }
 
 /* ── Page wrapper / main content area ──────────────────────────── */
-=======
 /* ── Deprecated navbar (kept to avoid breaking any stray ref) ─ */
 .analytika-navbar { display: none !important; }
 
@@ -4669,6 +4641,8 @@ html[data-theme="dark"] .table tbody td,
 html[data-theme="dark"] .data-table tbody td {
   border-color: var(--dt-border) !important;
   color: var(--dt-text-2);  /* 10.5:1 — body text */
+}
+
 html[data-theme="dark"] .kpi-card,
 html[data-theme="dark"] .app-panel,
 html[data-theme="dark"] .modal-content,
@@ -6217,8 +6191,6 @@ html[data-theme="dark"] :focus-visible {
   outline-color: var(--dt-accent) !important;
 }
 
-  background: color-mix(in srgb, #38BDF8 10%, var(--surface)) !important;
-}
 
 html[data-theme="dark"] .status-pill.active,
 html[data-theme="dark"] .status-pill.success,
