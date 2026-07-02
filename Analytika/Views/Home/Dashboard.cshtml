@@ -76,7 +76,7 @@ body { background: #080810 !important; }
    Hero — highest elevation glass
    ─────────────────────────────────────────────────────────────── */
 .dashboard-hero {
-    display: flex; justify-content: space-between; align-items: flex-end;
+    display: flex; justify-content: space-between; align-items: center;
     gap: 20px; margin-bottom: 24px; padding: 26px 28px;
     border-radius: var(--r-card);
     border: 1px solid var(--glass-bdr-hi);
@@ -105,10 +105,25 @@ body { background: #080810 !important; }
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
 }
 
-.dashboard-hero-copy { display: grid; gap: 10px; max-width: 760px; }
+.dashboard-hero-copy {
+    display: grid;
+    gap: 10px;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+}
+
+.dashboard-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+}
 
 .dashboard-kicker {
     display: inline-flex; width: fit-content; align-items: center; gap: 7px;
+    flex: 0 0 auto;
     padding: 4px 12px; border-radius: 6px;
     background: rgba(29,140,248,.12);
     border: 1px solid rgba(29,140,248,.25);
@@ -124,7 +139,7 @@ body { background: #080810 !important; }
     max-width: 62ch; font-size: .9rem; line-height: 1.75;
 }
 
-.dashboard-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: flex-start; }
+.dashboard-hero-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
 .dashboard-hero .btn { border-radius: 999px; font-size: .8rem; }
 .dashboard-hero .btn-outline-secondary {
     color: rgba(255,255,255,.7) !important;
@@ -209,6 +224,7 @@ body { background: #080810 !important; }
 
 .ss-num { font-size: clamp(1.55rem, 2.2vw, 1.9rem); font-weight: 800; color: #fff; line-height: 1; letter-spacing: -.02em; overflow-wrap: anywhere; }
 .ss-lbl { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .45px; color: rgba(255,255,255,.4); margin-top: 5px; line-height: 1.25; }
+.ss-subline { margin-top: 4px; max-width: 18ch; color: rgba(255,255,255,.58); font-size: .66rem; font-weight: 600; line-height: 1.25; }
 .ss-card .text-muted { color: rgba(255,255,255,.3) !important; font-size: .7rem; }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -397,6 +413,7 @@ body { background: #080810 !important; }
 @@media (max-width: 1100px) {
     .dashboard-hero { align-items: flex-start; flex-direction: column; }
     .dashboard-hero-actions { justify-content: flex-start; width: 100%; }
+    .dashboard-title-row { width: 100%; }
     .status-summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
 @@media (max-width: 720px) {
@@ -407,6 +424,7 @@ body { background: #080810 !important; }
 @@media (max-width: 480px) {
     .dash-section { padding: 14px 12px 72px; }
     .dashboard-hero { padding: 18px 16px; gap: 14px; }
+    .dashboard-title-row { align-items: flex-start; flex-direction: column-reverse; gap: 10px; }
     .dashboard-hero h4 { font-size: 1.25rem; }
     .dashboard-hero p { font-size: .84rem; }
     .status-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 18px; }
@@ -434,13 +452,9 @@ body { background: #080810 !important; }
     <!-- Page hero -->
     <div class="dashboard-hero">
         <div class="dashboard-hero-copy">
-            <div class="dashboard-kicker">Operations overview</div>
-            <h4>Facility Status</h4>
-            <p>Live connectivity and sync health across registered facilities, with quick access into portal sync and credential management.</p>
-            <div class="dashboard-hero-stats">
-                <span class="dashboard-stat-pill"><i class="fas fa-check-circle"></i>@Model.ConnectedCount connected</span>
-                <span class="dashboard-stat-pill"><i class="fas fa-exclamation-circle"></i>@Model.DegradedCount degraded</span>
-                <span class="dashboard-stat-pill"><i class="fas fa-times-circle"></i>@Model.DisconnectedCount disconnected</span>
+            <div class="dashboard-title-row">
+                <h4>Facility Status</h4>
+                <div class="dashboard-kicker">Operations overview</div>
             </div>
         </div>
         <div class="dashboard-hero-actions">
@@ -470,6 +484,7 @@ body { background: #080810 !important; }
             <div>
                 <div class="ss-num">@Model.ConnectedCount</div>
                 <div class="ss-lbl">Connected</div>
+                <div class="ss-subline">Credential active; latest sync succeeded.</div>
             </div>
         </div>
         <div class="ss-card moving-border moving-border-hover orange" title="Degraded: credential exists, but the latest meaningful sync did not succeed." data-bs-toggle="tooltip">
@@ -477,6 +492,7 @@ body { background: #080810 !important; }
             <div>
                 <div class="ss-num">@Model.DegradedCount</div>
                 <div class="ss-lbl">Degraded</div>
+                <div class="ss-subline">Credential exists; last sync needs review.</div>
             </div>
         </div>
         <div class="ss-card moving-border moving-border-hover pink" title="Disconnected: credential exists but never synced, or no active credential with data." data-bs-toggle="tooltip">
@@ -484,6 +500,7 @@ body { background: #080810 !important; }
             <div>
                 <div class="ss-num">@Model.DisconnectedCount</div>
                 <div class="ss-lbl">Disconnected</div>
+                <div class="ss-subline">Not synced yet, or missing usable data.</div>
             </div>
         </div>
         <div class="ss-card moving-border moving-border-hover blue" title="Total Records: portal transaction records stored in the database across visible facilities." data-bs-toggle="tooltip">
@@ -491,7 +508,7 @@ body { background: #080810 !important; }
             <div>
                 <div class="ss-num">@Model.TotalRecords.ToString("N0")</div>
                 <div class="ss-lbl">Total Records</div>
-                <div class="text-muted small mt-1">Claims @Model.TotalClaimCount.ToString("N0")</div>
+                <div class="ss-subline">Stored portal rows; claims @Model.TotalClaimCount.ToString("N0").</div>
             </div>
         </div>
         <div class="ss-card moving-border moving-border-hover purple" title="Files Downloaded: transactions where the XML file has been downloaded." data-bs-toggle="tooltip">
@@ -499,6 +516,7 @@ body { background: #080810 !important; }
             <div>
                 <div class="ss-num">@Model.TotalFiles.ToString("N0")</div>
                 <div class="ss-lbl">Files Downloaded</div>
+                <div class="ss-subline">XML files downloaded and ready locally.</div>
             </div>
         </div>
     </div>

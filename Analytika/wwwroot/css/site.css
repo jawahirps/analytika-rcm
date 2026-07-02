@@ -194,6 +194,7 @@ html[data-theme="dark"] .trend-label,
 html[data-theme="dark"] .breakdown-detail,
 html[data-theme="dark"] .insight-detail,
 html[data-theme="dark"] .ss-lbl,
+html[data-theme="dark"] .ss-subline,
 html[data-theme="dark"] .fac-meta-row,
 html[data-theme="dark"] .fac-stat .l,
 html[data-theme="dark"] .fac-stat .meta-inline {
@@ -2828,10 +2829,11 @@ html[data-theme="dark"] .page-header-bar .ph-sub { color: #A7C0D6; }
 .sidebar-collapsed .sidebar-brand-text { opacity: 0; }
 
 .sidebar-brand-name {
-  font-size: var(--fs-base);
+  font-size: 32px;
   font-weight: 700;
   color: #EAF4FB;
-  letter-spacing: -.2px;
+  letter-spacing: 0;
+  line-height: 0.9;
 }
 
 .sidebar-brand-sub {
@@ -4194,6 +4196,54 @@ html[data-theme="dark"] body.bix-canvas {
     .moving-border::before { animation: none; }
 }
 
+/* Keep cards static: remove animated background/border rings. */
+.moving-border::before,
+.moving-border-hover::before,
+.moving-border-hover:hover::before {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+.card,
+.stat-card,
+.info-card,
+.metric-card,
+.kpi-card,
+.dd-card,
+.filter-card,
+.table-card,
+.ss-card,
+.fac-status-card {
+  animation: none !important;
+  transition: none !important;
+}
+
+.card:hover,
+.stat-card:hover,
+.info-card:hover,
+.metric-card:hover,
+.kpi-card:hover,
+.dd-card:hover,
+.filter-card:hover,
+.table-card:hover,
+.ss-card:hover,
+.fac-status-card:hover {
+  transform: none !important;
+}
+
+.card::before,
+.stat-card::before,
+.info-card::before,
+.metric-card::before,
+.kpi-card::before,
+.dd-card::before,
+.filter-card::before,
+.table-card::before,
+.ss-card::before,
+.fac-status-card::before {
+  animation: none !important;
+}
+
 /* ────────────────────────────────────────────────────────────────
    END Design System v6
    ──────────────────────────────────────────────────────────────── */
@@ -4669,6 +4719,7 @@ body.bix-canvas .dashboard-stat-pill {
 }
 
 body.bix-canvas .ss-lbl,
+body.bix-canvas .ss-subline,
 body.bix-canvas .fac-meta-row,
 body.bix-canvas .fac-stat .l,
 body.bix-canvas .activity-meta {
@@ -4746,6 +4797,7 @@ html:not([data-theme="dark"]) body.bix-canvas .activity-title {
 
 html:not([data-theme="dark"]) body.bix-canvas .dashboard-hero p,
 html:not([data-theme="dark"]) body.bix-canvas .ss-lbl,
+html:not([data-theme="dark"]) body.bix-canvas .ss-subline,
 html:not([data-theme="dark"]) body.bix-canvas .fac-meta-row,
 html:not([data-theme="dark"]) body.bix-canvas .fac-stat .l,
 html:not([data-theme="dark"]) body.bix-canvas .activity-meta {
@@ -4825,9 +4877,9 @@ html:not([data-theme="dark"]) body.bix-canvas .dash-grid-heading::after {
   }
 
   html:not(.sidebar-collapsed) .sidebar-header {
-    width: 220px !important;
+    width: 232px !important;
     height: 64px !important;
-    flex: 0 0 220px !important;
+    flex: 0 0 232px !important;
     border-bottom: 0 !important;
     padding: 0 18px !important;
   }
@@ -4959,8 +5011,8 @@ html:not([data-theme="dark"]) body.bix-canvas .dash-grid-heading::after {
   }
 
   html:not(.sidebar-collapsed) .sidebar-nav {
-    max-width: calc(100vw - 610px) !important;
-    flex: 0 1 calc(100vw - 610px) !important;
+    max-width: calc(100vw - 622px) !important;
+    flex: 0 1 calc(100vw - 622px) !important;
     overflow-x: hidden !important;
   }
 }
@@ -4985,9 +5037,9 @@ html:not([data-theme="dark"]) body.bix-canvas .dash-grid-heading::after {
 
   html .sidebar-header,
   html.sidebar-collapsed .sidebar-header {
-    width: 220px !important;
+    width: 232px !important;
     height: 64px !important;
-    flex: 0 0 220px !important;
+    flex: 0 0 232px !important;
     padding: 0 18px !important;
     border-bottom: 0 !important;
   }
