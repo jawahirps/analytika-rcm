@@ -251,7 +251,8 @@ public class ReportService : IReportService
                     DenialCodesJson = r.DenialCodesJson,
                     Comments = r.Comments,
                     FileName = r.FileName,
-                    TransactionDate = r.TransactionDate
+                    TransactionDate = r.TransactionDate,
+                    ClaimCategory = r.ClaimCategory
                 })
                 .ToListAsync();
             UpdateStage("Loading parsed remittances", 48, remittanceClaims.Count, remittanceClaims.Count, $"Loaded {remittanceClaims.Count:N0} parsed remittance claim row(s).");
@@ -352,6 +353,7 @@ public class ReportService : IReportService
                 {
                     row.RaFile = ra.RaFile;
                     row.RaDate = ra.RaDate;
+                    row.ClaimCategory = ra.ClaimCategory;
                 }
                 rows.Add(row);
 
@@ -404,12 +406,15 @@ public class ReportService : IReportService
                 "Payer", "Payer Name", "Patient ID", "Member Id",
                 "Treatment Date", "Date Of Admission", "Submission Date",
                 "Encounter Type", "Clinician", "Service Year", "Service Month",
-                "Record Count", "Submission Level", "Net Amt - Initial Sub", "RA Received Amt",
+                "Record Count", "Submission Level",
+                "Gross Amt", "Net Amt - Initial Sub", "RA Received Amt",
                 "Net Amt - Resubmission", "Approved Amt",
                 "Initial Sub Rejected Amt", "Rejected Amt - Resubmission",
-                "Unsettled Amt", "Payment Status", "Denial Code",
+                "Unsettled Amt", "Payment Status", "Claim Category", "Denial Code",
                 "Denial Description", "Payment Ref", "Settlement Date",
-                "ID Payer", "Submission File", "RA File", "RA Date", "TAT", "Diagnosis"
+                "ID Payer", "Submission File", "RA File", "RA Date", "TAT",
+                "Principal Diagnosis", "All Diagnoses",
+                "Patient Gender", "Patient DOB", "National ID"
             };
 
             ApplyGhafReportHeader(ws, headers.Length, report, exportRows.Count, unmatchedRemittances.Count);
@@ -478,31 +483,37 @@ public class ReportService : IReportService
                 ws.Cell(rn, 15).Value = r.ServiceMonth;
                 ws.Cell(rn, 16).Value = r.RecordCount;
                 ws.Cell(rn, 17).Value = r.SubmissionLevel;
-                ws.Cell(rn, 18).Value = netInitial;
-                ws.Cell(rn, 19).Value = receivedAmt;
-                ws.Cell(rn, 20).Value = netResubmission;
-                ws.Cell(rn, 21).Value = approvedAmt;
-                ws.Cell(rn, 22).Value = rejInitial;
-                ws.Cell(rn, 23).Value = rejResubmission;
-                ws.Cell(rn, 24).Value = unsettled;
-                ws.Cell(rn, 25).Value = payStatus;
-                ws.Cell(rn, 26).Value = ra?.DenialCode ?? "";
-                ws.Cell(rn, 27).Value = ra?.DenialDescription ?? "";
-                ws.Cell(rn, 28).Value = ra?.PaymentRef ?? "";
-                ws.Cell(rn, 29).Value = ra?.SettlementDate ?? "";
-                ws.Cell(rn, 30).Value = r.IdPayer;
-                ws.Cell(rn, 31).Value = r.SubmissionFile;
-                ws.Cell(rn, 32).Value = r.RaFile;
-                ws.Cell(rn, 33).Value = r.RaDate;
-                ws.Cell(rn, 34).Value = tatDays;
-                ws.Cell(rn, 35).Value = r.PrincipalDiagnosis;
+                ws.Cell(rn, 18).Value = r.GrossAmtInitial;
+                ws.Cell(rn, 19).Value = netInitial;
+                ws.Cell(rn, 20).Value = receivedAmt;
+                ws.Cell(rn, 21).Value = netResubmission;
+                ws.Cell(rn, 22).Value = approvedAmt;
+                ws.Cell(rn, 23).Value = rejInitial;
+                ws.Cell(rn, 24).Value = rejResubmission;
+                ws.Cell(rn, 25).Value = unsettled;
+                ws.Cell(rn, 26).Value = payStatus;
+                ws.Cell(rn, 27).Value = r.ClaimCategory;
+                ws.Cell(rn, 28).Value = ra?.DenialCode ?? "";
+                ws.Cell(rn, 29).Value = ra?.DenialDescription ?? "";
+                ws.Cell(rn, 30).Value = ra?.PaymentRef ?? "";
+                ws.Cell(rn, 31).Value = ra?.SettlementDate ?? "";
+                ws.Cell(rn, 32).Value = r.IdPayer;
+                ws.Cell(rn, 33).Value = r.SubmissionFile;
+                ws.Cell(rn, 34).Value = r.RaFile;
+                ws.Cell(rn, 35).Value = r.RaDate;
+                ws.Cell(rn, 36).Value = tatDays;
+                ws.Cell(rn, 37).Value = r.PrincipalDiagnosis;
+                ws.Cell(rn, 38).Value = r.DiagnosesDisplay;
+                ws.Cell(rn, 39).Value = r.PatientGender;
+                ws.Cell(rn, 40).Value = r.PatientDob;
+                ws.Cell(rn, 41).Value = r.PatientNationalId;
 
                 // Zebra stripe
                 if (i % 2 == 1)
                     ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
 
                 // Amount columns format
-                foreach (var col in new[] { 18, 19, 20, 21, 22, 23, 24 })
+                foreach (var col in new[] { 18, 19, 20, 21, 22, 23, 24, 25 })
                     ws.Cell(rn, col).Style.NumberFormat.Format = "#,##0.00";
 
                 ws.Row(rn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
@@ -675,11 +686,11 @@ public class ReportService : IReportService
         ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorderColor = XLColor.FromHtml(GhafBorder);
 
         ws.Columns(1, lastColumn).Style.Alignment.WrapText = false;
-        ws.Columns(31, 35).Style.Alignment.WrapText = true;
+        ws.Columns(33, 41).Style.Alignment.WrapText = true;
         ws.Column(2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
         ws.Column(2).Style.Font.Bold = true;
         ws.Column(16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-        ws.Column(25).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        ws.Column(26).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
         ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
         ws.PageSetup.FitToPages(1, 0);
@@ -700,10 +711,12 @@ public class ReportService : IReportService
 
         ws.Column(2).Width = 26;
         ws.Column(6).Width = 28;
-        ws.Column(27).Width = 30;
-        ws.Column(31).Width = 36;
-        ws.Column(32).Width = 36;
-        ws.Column(35).Width = 32;
+        ws.Column(29).Width = 30;
+        ws.Column(33).Width = 36;
+        ws.Column(34).Width = 36;
+        ws.Column(37).Width = 20;
+        ws.Column(38).Width = 32;
+        ws.Column(41).Width = 20;
     }
 
     private string? ResolveReportLogoPath()
@@ -776,6 +789,19 @@ public class ReportService : IReportService
         var receiverId = record.ReceiverId ?? "";
         var payerId = record.PayerId ?? "";
 
+        var diagDisplay = "";
+        if (!string.IsNullOrWhiteSpace(record.DiagnosesJson))
+        {
+            try
+            {
+                var diags = JsonSerializer.Deserialize<List<DiagnosisEntry>>(record.DiagnosesJson);
+                if (diags?.Count > 0)
+                    diagDisplay = string.Join(", ", diags.Select(d =>
+                        string.IsNullOrWhiteSpace(d.Type) ? d.Code : $"{d.Code} ({d.Type})"));
+            }
+            catch { /* ignore malformed JSON */ }
+        }
+
         return new ClaimRow
         {
             Facility = facilityName,
@@ -799,12 +825,23 @@ public class ReportService : IReportService
             ServiceYear = record.ServiceYear ?? "",
             ServiceMonth = record.ServiceMonth ?? "",
             SubmissionLevel = "Initial",
+            GrossAmtInitial = record.GrossAmount,
             NetAmtInitial = record.NetAmount,
             IdPayer = record.IdPayer ?? "",
             SubmissionFile = record.FileName ?? record.FileId ?? "",
             ResubmissionType = record.ResubmissionType ?? "",
-            PrincipalDiagnosis = record.PrincipalDiagnosis ?? ""
+            PrincipalDiagnosis = record.PrincipalDiagnosis ?? "",
+            DiagnosesDisplay = diagDisplay,
+            PatientGender = record.PatientGender ?? "",
+            PatientDob = record.PatientDob ?? "",
+            PatientNationalId = record.PatientNationalId ?? ""
         };
+    }
+
+    private class DiagnosisEntry
+    {
+        public string Type { get; set; } = "";
+        public string Code { get; set; } = "";
     }
 
     private static IEnumerable<ClaimRow> ParseClaimXml(
@@ -1144,6 +1181,11 @@ public class ReportService : IReportService
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
+                    var categories = g.Select(x => x.ClaimCategory ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s) && s != "None")
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
                     return new RaEntry
                     {
                         ClaimId = g.Key,
@@ -1156,7 +1198,13 @@ public class ReportService : IReportService
                         PaymentRef = string.Join(" | ", paymentRefs),
                         DenialCode = string.Join(" | ", denialCodes),
                         DenialDescription = string.Join(" | ", denialDescriptions),
-                        Status = paid <= 0 ? "Rejected" : "Paid"
+                        Status = paid <= 0 ? "Rejected" : "Paid",
+                        ClaimCategory = categories.Count switch
+                        {
+                            0 => denialCodes.Count > 0 ? "Technical" : "",
+                            1 => categories[0],
+                            _ => "Mixed"
+                        }
                     };
                 },
                 StringComparer.OrdinalIgnoreCase);
@@ -1186,6 +1234,7 @@ public class ReportService : IReportService
         public int OutboundCount { get; set; }
         public int InboundCount { get; set; }
         public int RecordCount { get; set; }
+        public decimal GrossAmtInitial { get; set; }
         public decimal NetAmtInitial { get; set; }
         public decimal NetAmtResubmission { get; set; }
         public string IdPayer { get; set; } = "";
@@ -1195,6 +1244,11 @@ public class ReportService : IReportService
         public string RaDate { get; set; } = "";
         public string ResubmissionType { get; set; } = "";
         public string PrincipalDiagnosis { get; set; } = "";
+        public string DiagnosesDisplay { get; set; } = "";
+        public string PatientGender { get; set; } = "";
+        public string PatientDob { get; set; } = "";
+        public string PatientNationalId { get; set; } = "";
+        public string ClaimCategory { get; set; } = "";
         public RaEntry? Ra { get; set; }
     }
 
@@ -1218,6 +1272,7 @@ public class ReportService : IReportService
         public string? Comments { get; set; }
         public string? FileName { get; set; }
         public string? TransactionDate { get; set; }
+        public string? ClaimCategory { get; set; }
     }
 
     private class UnmatchedRemittanceRow
@@ -1239,5 +1294,6 @@ public class ReportService : IReportService
         public string DenialCode { get; set; } = "";
         public string DenialDescription { get; set; } = "";
         public string Status { get; set; } = "";
+        public string ClaimCategory { get; set; } = "";
     }
 }

@@ -22,8 +22,6 @@ public class XmlParsingService
 
     public async Task EnsureSchemaAsync(CancellationToken ct = default)
     {
-        // On Postgres the schema is owned by EF migrations; this safety net is for
-        // legacy SQLite databases created before XmlParsedRecords existed.
         if (!_db.Database.IsSqlite()) return;
 
         await _db.Database.ExecuteSqlRawAsync(@"
@@ -51,6 +49,7 @@ public class XmlParsingService
                 ""Clinician""           TEXT NULL,
                 ""ServiceYear""         TEXT NULL,
                 ""ServiceMonth""        TEXT NULL,
+                ""GrossAmount""         REAL NOT NULL DEFAULT 0,
                 ""NetAmount""           REAL NOT NULL DEFAULT 0,
                 ""PaidAmount""          REAL NOT NULL DEFAULT 0,
                 ""ActivityCount""       INTEGER NOT NULL DEFAULT 0,
@@ -61,6 +60,11 @@ public class XmlParsingService
                 ""IdPayer""             TEXT NULL,
                 ""ResubmissionType""    TEXT NULL,
                 ""PrincipalDiagnosis""  TEXT NULL,
+                ""DiagnosesJson""       TEXT NULL,
+                ""PatientGender""       TEXT NULL,
+                ""PatientDob""          TEXT NULL,
+                ""PatientNationalId""   TEXT NULL,
+                ""ClaimCategory""       TEXT NULL,
                 ""IsMatched""           INTEGER NOT NULL DEFAULT 0,
                 ""ReadyForReport""      INTEGER NOT NULL DEFAULT 1,
                 ""Notes""               TEXT NULL,
@@ -75,7 +79,40 @@ public class XmlParsingService
                 ON ""XmlParsedRecords""(""ClaimId"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport""
                 ON ""XmlParsedRecords""(""ReadyForReport"");
+
+            CREATE TABLE IF NOT EXISTS ""XmlParsedActivities"" (
+                ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                ""XmlParsedRecordId""   INTEGER NOT NULL REFERENCES ""XmlParsedRecords""(""Id"") ON DELETE CASCADE,
+                ""ActivityCode""        TEXT NULL,
+                ""ActivityType""        TEXT NULL,
+                ""Quantity""            REAL NOT NULL DEFAULT 0,
+                ""Net""                 REAL NOT NULL DEFAULT 0,
+                ""Gross""               REAL NOT NULL DEFAULT 0,
+                ""PaymentAmount""       REAL NOT NULL DEFAULT 0,
+                ""DenialCode""          TEXT NULL,
+                ""Clinician""           TEXT NULL,
+                ""Start""               TEXT NULL,
+                ""OrderingClinician""   TEXT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedActivities_RecordId""
+                ON ""XmlParsedActivities""(""XmlParsedRecordId"");
         ", ct);
+
+        // Add new columns to existing SQLite tables (safe to run repeatedly — SQLite ignores duplicates)
+        var newColumns = new[]
+        {
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""GrossAmount"" REAL NOT NULL DEFAULT 0",
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""DiagnosesJson"" TEXT NULL",
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientGender"" TEXT NULL",
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientDob"" TEXT NULL",
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientNationalId"" TEXT NULL",
+            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""ClaimCategory"" TEXT NULL",
+        };
+        foreach (var sql in newColumns)
+        {
+            try { await _db.Database.ExecuteSqlRawAsync(sql, ct); }
+            catch { /* column already exists */ }
+        }
     }
 
     public async Task<XmlParsingRunResult> ParseDownloadedXmlAsync(
@@ -527,10 +564,29 @@ public class XmlParsingService
             var encTypeRaw = ChildValue(enc, "Type") ?? "";
             var clinician = claim.Descendants().FirstOrDefault(e => e.Name.LocalName == "Activity")
                 ?.Elements().FirstOrDefault(e => e.Name.LocalName == "Clinician")?.Value ?? "";
-            var principalDiag = claim.Elements()
+
+            // All diagnoses (principal + secondary)
+            var diagnoses = claim.Elements()
                 .Where(e => e.Name.LocalName == "Diagnosis")
-                .FirstOrDefault(d => ChildValue(d, "Type") == "Principal")
-                ?.Elements().FirstOrDefault(e => e.Name.LocalName == "Code")?.Value ?? "";
+                .Select(d => new
+                {
+                    Type = ChildValue(d, "Type") ?? "",
+                    Code = d.Elements().FirstOrDefault(e => e.Name.LocalName == "Code")?.Value ?? ""
+                })
+                .Where(d => !string.IsNullOrWhiteSpace(d.Code))
+                .ToList();
+
+            var principalDiag = diagnoses.FirstOrDefault(d => d.Type == "Principal")?.Code ?? "";
+            string? diagnosesJson = diagnoses.Count > 0
+                ? JsonSerializer.Serialize(diagnoses.Select(d => new { d.Type, d.Code }))
+                : null;
+
+            // Patient demographics
+            var patient = claim.Elements().FirstOrDefault(e => e.Name.LocalName == "Patient");
+            var patientGender = ChildValue(patient, "Gender") ?? "";
+            var patientDob = ChildValue(patient, "DateOfBirth") ?? ChildValue(patient, "DOB") ?? "";
+            var patientNationalId = ChildValue(patient, "NationalID") ?? ChildValue(patient, "EmiratesID") ?? "";
+
             var payerId = ChildValue(claim, "PayerID") ?? "";
             var resubmission = claim.Elements().FirstOrDefault(e => e.Name.LocalName == "Resubmission")
                             ?? claim.Descendants().FirstOrDefault(e => e.Name.LocalName == "Resubmission");
@@ -547,7 +603,29 @@ public class XmlParsingService
                     admissionDate = treatStart;
             }
 
+            decimal.TryParse(ChildValue(claim, "Gross"), NumberStyles.Any, CultureInfo.InvariantCulture, out var gross);
             decimal.TryParse(ChildValue(claim, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var net);
+
+            // Activity-level detail
+            var activities = new List<XmlParsedActivity>();
+            foreach (var act in claim.Descendants().Where(e => e.Name.LocalName == "Activity"))
+            {
+                decimal.TryParse(ChildValue(act, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var actNet);
+                decimal.TryParse(ChildValue(act, "Gross"), NumberStyles.Any, CultureInfo.InvariantCulture, out var actGross);
+                decimal.TryParse(ChildValue(act, "Quantity"), NumberStyles.Any, CultureInfo.InvariantCulture, out var qty);
+
+                activities.Add(new XmlParsedActivity
+                {
+                    ActivityCode = ChildValue(act, "Code") ?? "",
+                    ActivityType = ChildValue(act, "Type") ?? "",
+                    Quantity = qty,
+                    Net = actNet,
+                    Gross = actGross,
+                    Clinician = ChildValue(act, "Clinician") ?? "",
+                    Start = ChildValue(act, "Start") ?? "",
+                    OrderingClinician = ChildValue(act, "OrderingClinician") ?? ""
+                });
+            }
 
             yield return new XmlParsedRecord
             {
@@ -573,11 +651,17 @@ public class XmlParsingService
                 Clinician = clinician,
                 ServiceYear = serviceYear,
                 ServiceMonth = serviceMonth,
+                GrossAmount = gross,
                 NetAmount = net,
-                ActivityCount = claim.Descendants().Count(e => e.Name.LocalName == "Activity"),
+                ActivityCount = activities.Count,
                 IdPayer = ChildValue(claim, "IDPayer") ?? "",
                 ResubmissionType = resubmissionType,
                 PrincipalDiagnosis = principalDiag,
+                DiagnosesJson = diagnosesJson,
+                PatientGender = patientGender,
+                PatientDob = patientDob,
+                PatientNationalId = patientNationalId,
+                Activities = activities,
                 ReadyForReport = true,
                 ParsedAt = DateTime.UtcNow
             };
@@ -602,19 +686,34 @@ public class XmlParsingService
             decimal paid = 0m;
             var denialCodes = new List<string>();
             var denialDescriptions = new List<string>();
-            var activityCount = 0;
+            var activities = new List<XmlParsedActivity>();
 
             foreach (var activity in claim.Descendants().Where(e => e.Name.LocalName == "Activity"))
             {
-                activityCount++;
-                if (decimal.TryParse(ChildValue(activity, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var net))
-                    received += net;
-                if (decimal.TryParse(ChildValue(activity, "PaymentAmount"), NumberStyles.Any, CultureInfo.InvariantCulture, out var payment))
-                    paid += payment;
+                decimal.TryParse(ChildValue(activity, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var net);
+                decimal.TryParse(ChildValue(activity, "PaymentAmount"), NumberStyles.Any, CultureInfo.InvariantCulture, out var payment);
+                decimal.TryParse(ChildValue(activity, "Gross"), NumberStyles.Any, CultureInfo.InvariantCulture, out var actGross);
+                decimal.TryParse(ChildValue(activity, "Quantity"), NumberStyles.Any, CultureInfo.InvariantCulture, out var qty);
+                received += net;
+                paid += payment;
 
                 var activityDenial = ChildValue(activity, "DenialCode");
                 if (!string.IsNullOrWhiteSpace(activityDenial) && !denialCodes.Contains(activityDenial, StringComparer.OrdinalIgnoreCase))
                     denialCodes.Add(activityDenial);
+
+                activities.Add(new XmlParsedActivity
+                {
+                    ActivityCode = ChildValue(activity, "Code") ?? "",
+                    ActivityType = ChildValue(activity, "Type") ?? "",
+                    Quantity = qty,
+                    Net = net,
+                    Gross = actGross,
+                    PaymentAmount = payment,
+                    DenialCode = activityDenial ?? "",
+                    Clinician = ChildValue(activity, "Clinician") ?? "",
+                    Start = ChildValue(activity, "Start") ?? "",
+                    OrderingClinician = ChildValue(activity, "OrderingClinician") ?? ""
+                });
             }
 
             foreach (var denial in claim.Descendants().Where(e => e.Name.LocalName == "Denial"))
@@ -645,16 +744,65 @@ public class XmlParsingService
                 ReceiverId = receiverId,
                 NetAmount = received,
                 PaidAmount = paid,
-                ActivityCount = activityCount,
+                ActivityCount = activities.Count,
                 PaymentReference = ChildValue(claim, "PaymentReference") ?? headerPayRef,
                 SettlementDate = ChildValue(claim, "DateSettlement") ?? raDate,
                 DenialCodesJson = denialCodes.Count == 0 ? null : JsonSerializer.Serialize(denialCodes),
                 Comments = string.Join(" | ", denialDescriptions.Distinct(StringComparer.OrdinalIgnoreCase)),
                 IdPayer = ChildValue(claim, "IDPayer") ?? "",
+                ClaimCategory = CategorizeFromDenialCodes(denialCodes),
+                Activities = activities,
                 ReadyForReport = true,
                 ParsedAt = DateTime.UtcNow
             };
         }
+    }
+
+    private static string CategorizeFromDenialCodes(List<string> denialCodes)
+    {
+        if (denialCodes.Count == 0) return "None";
+
+        var hasTechnical = false;
+        var hasMedical = false;
+
+        foreach (var code in denialCodes)
+        {
+            if (string.IsNullOrWhiteSpace(code)) continue;
+            var upper = code.Trim().ToUpperInvariant();
+
+            // DHA denial code patterns:
+            // Technical/Administrative: eligibility, duplicate, billing format, missing info
+            if (upper.StartsWith("INE", StringComparison.Ordinal) ||   // Ineligible
+                upper.StartsWith("DUP", StringComparison.Ordinal) ||   // Duplicate
+                upper.StartsWith("ADM", StringComparison.Ordinal) ||   // Administrative
+                upper.StartsWith("BIL", StringComparison.Ordinal) ||   // Billing
+                upper.StartsWith("ELG", StringComparison.Ordinal) ||   // Eligibility
+                upper.StartsWith("MIS", StringComparison.Ordinal) ||   // Missing info
+                upper.StartsWith("FRM", StringComparison.Ordinal) ||   // Format
+                upper.StartsWith("AUT", StringComparison.Ordinal) ||   // Authorization
+                upper.StartsWith("PRE", StringComparison.Ordinal) ||   // Pre-authorization
+                upper.StartsWith("COV", StringComparison.Ordinal) ||   // Coverage
+                upper.StartsWith("REF", StringComparison.Ordinal) ||   // Referral
+                upper.StartsWith("TIM", StringComparison.Ordinal))     // Timeliness
+                hasTechnical = true;
+            // Medical: clinical necessity, medical review, procedure-related
+            else if (upper.StartsWith("MED", StringComparison.Ordinal) ||  // Medical necessity
+                     upper.StartsWith("CLI", StringComparison.Ordinal) ||  // Clinical
+                     upper.StartsWith("PRO", StringComparison.Ordinal) ||  // Procedure
+                     upper.StartsWith("DRG", StringComparison.Ordinal) ||  // DRG
+                     upper.StartsWith("BUN", StringComparison.Ordinal) ||  // Bundling
+                     upper.StartsWith("INC", StringComparison.Ordinal) ||  // Inclusive
+                     upper.StartsWith("FRQ", StringComparison.Ordinal) ||  // Frequency
+                     upper.StartsWith("AGE", StringComparison.Ordinal) ||  // Age-related
+                     upper.StartsWith("GEN", StringComparison.Ordinal))    // Gender-related
+                hasMedical = true;
+            else
+                hasTechnical = true; // default unknown codes to Technical
+        }
+
+        if (hasTechnical && hasMedical) return "Mixed";
+        if (hasMedical) return "Medical";
+        return "Technical";
     }
 
     private static string? ChildValue(XElement? element, string localName)
