@@ -27,6 +27,13 @@
                 <input type="file" id="importUserFile" name="file" accept=".csv" class="d-none"
                        onchange="this.form.submit()" />
             </form>
+            <form asp-action="ProvisionGuestUsers" method="post" class="d-inline"
+                  onsubmit="return confirm('Create/refresh one guest user per active facility (guest@slug / Ghafbix@2026, Viewer role) and download the credentials Excel?');">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm px-3 py-2 btn-outline-warning" style="border-radius:8px;">
+                    <i class="fas fa-user-friends me-1"></i> Provision Guests
+                </button>
+            </form>
             <a asp-action="CreateUser" class="btn btn-sm px-3 py-2" style="background:#011C40;color:#fff;border-radius:8px;">
                 <i class="fas fa-plus me-1"></i> Create User
             </a>

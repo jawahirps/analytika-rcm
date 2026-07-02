@@ -274,8 +274,9 @@ public class PortalSyncService
             await sem.WaitAsync();
             try
             {
-                var (_, sent, _) = await _dha.SearchTransactionsAsync(login, pwd, 1, dhpoFrom, dhpoTo, combo.s, combo.t);
-                var (_, recv, _) = await _dha.SearchTransactionsAsync(login, pwd, 2, dhpoFrom, dhpoTo, combo.s, combo.t);
+                // Use splitting variant — DHA caps SearchTransactions at 500 rows per call.
+                var (_, sent, _) = await _dha.SearchTransactionsWithSplittingAsync(login, pwd, 1, dhpoFrom, dhpoTo, combo.s, combo.t);
+                var (_, recv, _) = await _dha.SearchTransactionsWithSplittingAsync(login, pwd, 2, dhpoFrom, dhpoTo, combo.s, combo.t);
                 // Tag with the searched transaction type — authoritative (the search was
                 // scoped to combo.t), so Submitted vs Remittance counts are exact.
                 var typeName = DhaPortalService.TxTypeName(combo.t);

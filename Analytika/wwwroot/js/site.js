@@ -1,5 +1,77 @@
 // Analytika RCM — Global JavaScript
 
+// ── App-wide loading indicator ───────────────────────────────────────────────
+(function initAppLoadingIndicator() {
+    var overlay = document.getElementById('appLoadingOverlay');
+    var activeCount = 0;
+    var showTimer = null;
+
+    function setVisible(visible) {
+        if (!overlay) return;
+        overlay.classList.toggle('is-active', visible);
+        overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    }
+
+    window.showAppLoader = function() {
+        activeCount += 1;
+        if (showTimer) window.clearTimeout(showTimer);
+        showTimer = window.setTimeout(function() { setVisible(activeCount > 0); }, 120);
+    };
+
+    window.hideAppLoader = function() {
+        activeCount = Math.max(0, activeCount - 1);
+        if (activeCount === 0) {
+            if (showTimer) window.clearTimeout(showTimer);
+            showTimer = null;
+            setVisible(false);
+        }
+    };
+
+    window.bixSpinnerMarkup = function(sizeClass) {
+        return '<span class="bix-spinner ' + (sizeClass || 'bix-spinner-sm') + ' me-1" aria-hidden="true"></span>';
+    };
+
+    document.addEventListener('click', function(e) {
+        var link = e.target.closest('a[href]');
+        if (!link || link.target || link.hasAttribute('download') || link.dataset.noLoader === 'true') return;
+        var href = link.getAttribute('href') || '';
+        if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0 || href.indexOf('mailto:') === 0) return;
+        try {
+            var next = new URL(href, window.location.href);
+            if (next.origin === window.location.origin && next.pathname !== window.location.pathname + window.location.search) {
+                window.showAppLoader();
+            }
+        } catch (_) {}
+    });
+
+    window.addEventListener('beforeunload', function() {
+        setVisible(true);
+    });
+
+    if (window.fetch) {
+        var originalFetch = window.fetch.bind(window);
+        window.fetch = function(input, init) {
+            var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+            var shouldShow = method !== 'GET' && !(init && init.headers && init.headers['X-No-Loader']);
+            if (shouldShow) window.showAppLoader();
+            return originalFetch(input, init).finally(function() {
+                if (shouldShow) window.hideAppLoader();
+            });
+        };
+    }
+
+    if (window.jQuery) {
+        $(document).ajaxSend(function(_event, _xhr, settings) {
+            var method = ((settings && settings.type) || 'GET').toUpperCase();
+            if (method !== 'GET') window.showAppLoader();
+        });
+        $(document).ajaxComplete(function(_event, _xhr, settings) {
+            var method = ((settings && settings.type) || 'GET').toUpperCase();
+            if (method !== 'GET') window.hideAppLoader();
+        });
+    }
+})();
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 (function initSidebar() {
     var root    = document.documentElement;
@@ -137,11 +209,13 @@ function showToast(message, type) {
     document.querySelectorAll('form').forEach(function(form) {
         form.addEventListener('submit', function() {
             var btn = form.querySelector('[data-loading-text]');
-            if (!btn || btn.disabled) return;
-            var originalHtml = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>' + btn.dataset.loadingText;
-            setTimeout(function() { btn.disabled = false; btn.innerHTML = originalHtml; }, 15000);
+            if (btn && !btn.disabled) {
+                var originalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = window.bixSpinnerMarkup('bix-spinner-sm') + btn.dataset.loadingText;
+                setTimeout(function() { btn.disabled = false; btn.innerHTML = originalHtml; }, 15000);
+            }
+            window.showAppLoader();
         });
     });
 })();
@@ -156,6 +230,14 @@ function showToast(message, type) {
             }
             form.classList.add('was-validated');
         });
+    });
+})();
+
+// ── Bootstrap tooltips ───────────────────────────────────────────────────────
+(function initTooltips() {
+    if (!window.bootstrap || !bootstrap.Tooltip) return;
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        bootstrap.Tooltip.getOrCreateInstance(el);
     });
 })();
 

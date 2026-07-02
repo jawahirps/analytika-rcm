@@ -466,7 +466,9 @@ public class ReconciliationService
         XDocument doc;
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — XML is already fully loaded; iterating every <Claim>
+        // is cheap and any hard cap silently drops rows for large submission files.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             // DHA Claim.Submission format uses child elements, not attributes
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
@@ -506,7 +508,8 @@ public class ReconciliationService
         var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
                      ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — see ParseClaimXml note.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
             if (string.IsNullOrWhiteSpace(claimId)) continue;
