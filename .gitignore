@@ -42,3 +42,8 @@ dataprotection-keys/
 
 # Logs
 logs/
+
+# Node (Playwright test tooling)
+node_modules/
+package.json
+package-lock.json
