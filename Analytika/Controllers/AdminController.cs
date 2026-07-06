@@ -684,8 +684,12 @@ public class AdminController : Controller
         foreach (var c in creds)
         {
             string pwd;
-            try { pwd = _credentials.Unprotect(c.PasswordEncrypted); }
-            catch { pwd = ""; }
+            try
+            {
+                var raw = _credentials.Unprotect(c.PasswordEncrypted);
+                pwd = raw.Length > 2 ? raw[0] + new string('*', raw.Length - 2) + raw[^1] : "***";
+            }
+            catch { pwd = "***"; }
             sb.AppendLine($"{Csv(c.Portal)},{Csv(c.Facility?.Name ?? "")},{Csv(c.CredentialName ?? "")},{Csv(c.Username)},{Csv(pwd)},{Csv(c.ApiBaseUrl ?? "")},{Csv(c.LicenseCode ?? "")},{c.IsActive}");
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());

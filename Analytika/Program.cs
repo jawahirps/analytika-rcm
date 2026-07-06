@@ -2,6 +2,7 @@ using Analytika.Models;
 using Analytika.Modules;
 using Analytika.Services;
 using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -174,7 +175,10 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 if (hangfireDashboardEnabled)
-    app.UseHangfireDashboard("/hangfire");
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new HangfireAuthorizationFilter() }
+    });
 
 if (hangfireServerEnabled || recurringJobsEnabled)
     GlobalJobFilters.Filters.Add(new JobFailureNotificationFilter(app.Services));
