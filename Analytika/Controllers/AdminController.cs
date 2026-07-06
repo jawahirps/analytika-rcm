@@ -26,6 +26,7 @@ public class AdminController : Controller
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IReportService _reportService;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
@@ -34,7 +35,7 @@ public class AdminController : Controller
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
         IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
-        Analytika.Security.ICredentialProtector credentials)
+        Analytika.Security.ICredentialProtector credentials, IReportService reportService)
     {
         _db = db;
         _userManager = userManager;
@@ -44,6 +45,7 @@ public class AdminController : Controller
         _email = email;
         _configuration = configuration;
         _credentials = credentials;
+        _reportService = reportService;
     }
 
     // ─── Roles ───────────────────────────────────────────────────────────────
@@ -1208,18 +1210,37 @@ public class AdminController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult RunScheduleNow(int id)
+    public async Task<IActionResult> RunScheduleNow(int id)
     {
-        Hangfire.BackgroundJob.Enqueue<PortalSyncService>(svc => svc.RunDailyDhaSyncAsync());
-        return Json(new { ok = true, message = "Schedule enqueued for immediate execution." });
+        var s = await _db.ReportSchedules.FindAsync(id);
+        if (s == null) return NotFound();
+
+        var facilityIds = string.IsNullOrWhiteSpace(s.FacilityIdsJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<List<int>>(s.FacilityIdsJson);
+
+        var request = new ReportRequest
+        {
+            ReportType = s.ReportType,
+            BranchId = facilityIds?.FirstOrDefault(),
+            DateFrom = DateTime.UtcNow.AddMonths(-1),
+            DateTo = DateTime.UtcNow,
+            EmailTo = s.Recipients
+        };
+
+        var reportId = await _reportService.QueueReportAsync(request);
+        s.LastRunAt = DateTime.UtcNow;
+        s.LastRunStatus = "OK";
+        await _db.SaveChangesAsync();
+
+        return Json(new { ok = true, message = $"Report {reportId} enqueued for immediate generation." });
     }
 
     private static void RegisterHangfireJob(Models.ReportSchedule s)
     {
-        // Use a no-op placeholder — real report generation wired via PortalSyncService
-        Hangfire.RecurringJob.AddOrUpdate<PortalSyncService>(
+        Hangfire.RecurringJob.AddOrUpdate<IReportService>(
             $"schedule-{s.Id}",
-            svc => svc.RunDailyDhaSyncAsync(),
+            svc => svc.RunScheduledReportAsync(s.Id),
             s.CronExpression);
     }
 
