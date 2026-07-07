@@ -88,8 +88,13 @@ public static class ModuleRegistration
         {
             options.SignIn.RequireConfirmedAccount = false;
             options.Password.RequireDigit = true;
-            options.Password.RequiredLength = 6;
-            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 8;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireLowercase = true;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
@@ -99,9 +104,9 @@ public static class ModuleRegistration
             options.LoginPath = "/Home/Index";
             options.LogoutPath = "/Home/LogOut";
             options.AccessDeniedPath = "/Home/Index";
-            options.ExpireTimeSpan = TimeSpan.FromDays(30);
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
-            options.Cookie.MaxAge = TimeSpan.FromDays(30);
+            options.Cookie.MaxAge = TimeSpan.FromHours(8);
         });
 
         services.AddMemoryCache();

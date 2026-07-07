@@ -312,40 +312,40 @@ public class XmlParsingService
 
         if (facilityId.HasValue)
         {
-            var fid = facilityId.Value; // int — safe to inline
-            await _db.Database.ExecuteSqlRawAsync($@"
+            var fid = facilityId.Value;
+            await _db.Database.ExecuteSqlRawAsync(@"
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = {unmatched}, ""MatchedAt"" = NULL
-                WHERE ""FacilityId"" = {fid};
+                SET ""IsMatched"" = " + unmatched + @", ""MatchedAt"" = NULL
+                WHERE ""FacilityId"" = {0};
 
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = {matched}, ""MatchedAt"" = {now}
-                WHERE ""FacilityId"" = {fid}
+                SET ""IsMatched"" = " + matched + @", ""MatchedAt"" = " + now + @"
+                WHERE ""FacilityId"" = {0}
                   AND EXISTS (
                     SELECT 1
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND {matchClaimId}
-                    GROUP BY m.""FacilityId"", {groupByClaimId}
+                      AND " + matchClaimId + @"
+                    GROUP BY m.""FacilityId"", " + groupByClaimId + @"
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                   );
-            ", ct);
+            ", new object[] { fid }, ct);
         }
         else
         {
-            await _db.Database.ExecuteSqlRawAsync($@"
+            await _db.Database.ExecuteSqlRawAsync(@"
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = {unmatched}, ""MatchedAt"" = NULL;
+                SET ""IsMatched"" = " + unmatched + @", ""MatchedAt"" = NULL;
 
                 UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = {matched}, ""MatchedAt"" = {now}
+                SET ""IsMatched"" = " + matched + @", ""MatchedAt"" = " + now + @"
                 WHERE EXISTS (
                     SELECT 1
                     FROM ""XmlParsedRecords"" m
                     WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND {matchClaimId}
-                    GROUP BY m.""FacilityId"", {groupByClaimId}
+                      AND " + matchClaimId + @"
+                    GROUP BY m.""FacilityId"", " + groupByClaimId + @"
                     HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                        AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
                 );

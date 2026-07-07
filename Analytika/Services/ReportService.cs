@@ -163,6 +163,40 @@ public class ReportService : IReportService
             .FirstOrDefaultAsync(r => r.Id == id);
     }
 
+    public async Task RunScheduledReportAsync(int scheduleId)
+    {
+        var schedule = await _context.ReportSchedules.FindAsync(scheduleId);
+        if (schedule == null || !schedule.IsActive) return;
+
+        var facilityIds = string.IsNullOrWhiteSpace(schedule.FacilityIdsJson)
+            ? null
+            : JsonSerializer.Deserialize<List<int>>(schedule.FacilityIdsJson);
+
+        var request = new ReportRequest
+        {
+            ReportType = schedule.ReportType,
+            BranchId = facilityIds?.FirstOrDefault(),
+            DateFrom = DateTime.UtcNow.AddMonths(-1),
+            DateTo = DateTime.UtcNow,
+            FileFormat = schedule.FileFormat,
+            EmailTo = schedule.Recipients
+        };
+
+        try
+        {
+            await QueueReportAsync(request);
+            schedule.LastRunAt = DateTime.UtcNow;
+            schedule.LastRunStatus = "OK";
+        }
+        catch (Exception ex)
+        {
+            schedule.LastRunAt = DateTime.UtcNow;
+            schedule.LastRunStatus = $"Error: {ex.Message}";
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
     // ── Report Generation ──────────────────────────────────────────────
 
     public async Task GenerateReportAsync(int reportRequestId)
