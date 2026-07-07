@@ -413,7 +413,7 @@
 <script>
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:.8rem;"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+        '<div class="text-center text-muted py-4 fs-80"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
     const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }

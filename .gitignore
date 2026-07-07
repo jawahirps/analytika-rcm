@@ -1,5 +1,7 @@
 Analytika/bin/
 Analytika/obj/
+Analytika.Tests/bin/
+Analytika.Tests/obj/
 analytika.db
 analytika.db.gz
 analytika.db-shm

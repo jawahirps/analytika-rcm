@@ -6011,3 +6011,105 @@ html[data-theme="dark"] :focus-visible {
   outline-color: var(--dt-accent) !important;
 }
 
+/* ================================================================
+   Utility Classes — replaces common inline styles
+   ================================================================ */
+
+/* ── Font-size scale ──────────────────────────────────────────────
+   Naming: .fs-XX where XX = rem × 100  (e.g. .fs-75 = 0.75rem)   */
+.fs-65  { font-size: .65rem !important; }
+.fs-68  { font-size: .68rem !important; }
+.fs-70  { font-size: .70rem !important; }
+.fs-71  { font-size: .71rem !important; }
+.fs-72  { font-size: .72rem !important; }
+.fs-73  { font-size: .73rem !important; }
+.fs-75  { font-size: .75rem !important; }
+.fs-78  { font-size: .78rem !important; }
+.fs-80  { font-size: .80rem !important; }
+.fs-82  { font-size: .82rem !important; }
+.fs-85  { font-size: .85rem !important; }
+.fs-88  { font-size: .88rem !important; }
+.fs-90  { font-size: .90rem !important; }
+.fs-92  { font-size: .92rem !important; }
+.fs-95  { font-size: .95rem !important; }
+
+/* ── Theme-aware color utilities ──────────────────────────────── */
+:root {
+  --c-navy:       #011C40;
+  --c-sky-wash:   #EAF4FB;
+  --c-slate:      #35577D;
+  --c-teal-mid:   #54ACBF;
+  --c-cyan-light: #A7EBF2;
+  --c-blue-mid:   #26658C;
+  --c-gray-700:   #374151;
+  --c-slate-700:  #334155;
+}
+
+html[data-theme="dark"] {
+  --c-navy:       var(--dt-text);
+  --c-sky-wash:   var(--dt-surface-3);
+  --c-slate:      var(--dt-text-2);
+  --c-teal-mid:   var(--dt-accent);
+  --c-cyan-light: var(--dt-accent-dim);
+  --c-blue-mid:   var(--dt-text-2);
+  --c-gray-700:   var(--dt-text-2);
+  --c-slate-700:  var(--dt-text-2);
+}
+
+.text-navy       { color: var(--c-navy) !important; }
+.text-slate      { color: var(--c-slate) !important; }
+.text-teal       { color: var(--c-teal-mid) !important; }
+.text-cyan-light { color: var(--c-cyan-light) !important; }
+.text-blue-mid   { color: var(--c-blue-mid) !important; }
+.text-gray-700   { color: var(--c-gray-700) !important; }
+.text-slate-700  { color: var(--c-slate-700) !important; }
+
+.bg-sky-wash     { background-color: var(--c-sky-wash) !important; }
+.bg-navy         { background-color: var(--c-navy) !important; }
+
+/* ── Border-radius utilities (matches design token scale) ─────── */
+.rounded-sm  { border-radius: var(--radius-sm) !important; }  /* 6px */
+.rounded-md  { border-radius: var(--radius) !important; }     /* 8px */
+.rounded-lg  { border-radius: var(--radius-lg) !important; }  /* 10px */
+.rounded-xl  { border-radius: var(--radius-xl) !important; }  /* 12px */
+.rounded-2xl { border-radius: 16px !important; }
+
+/* ── Button: navy solid (replaces inline background:#011C40) ──── */
+.btn-navy {
+  background: var(--c-navy);
+  color: #fff;
+  border: 1px solid var(--c-navy);
+  border-radius: var(--radius);
+}
+.btn-navy:hover {
+  background: #01254f;
+  border-color: #01254f;
+  color: #fff;
+}
+html[data-theme="dark"] .btn-navy {
+  background: var(--dt-accent) !important;
+  color: #000 !important;
+  border-color: var(--dt-accent) !important;
+}
+html[data-theme="dark"] .btn-navy:hover {
+  background: #00cc6a !important;
+  border-color: #00cc6a !important;
+}
+
+/* ── Badge utilities ──────────────────────────────────────────── */
+.badge-sky {
+  background: var(--c-sky-wash);
+  color: var(--c-navy);
+  font-size: .72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+html[data-theme="dark"] .badge-sky {
+  background: var(--dt-surface-3) !important;
+  color: var(--dt-text-2) !important;
+}
+
+/* ── Word-break utility ───────────────────────────────────────── */
+.break-all { word-break: break-all; }
+
