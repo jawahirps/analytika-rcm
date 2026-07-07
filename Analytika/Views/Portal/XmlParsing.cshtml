@@ -157,7 +157,7 @@
 
     <div class="xp-shell mb-3">
         <div class="xp-toolbar">
-            <strong style="color:#011C40;font-size:.9rem;"><i class="fas fa-hospital me-2 text-muted"></i>Facility Readiness</strong>
+            <strong class="text-navy fs-90"><i class="fas fa-hospital me-2 text-muted"></i>Facility Readiness</strong>
             <span class="text-muted small">@Model.FacilityRows.Count.ToString("N0") facilities</span>
         </div>
         <div class="table-responsive">
@@ -203,7 +203,7 @@
 
     <div class="xp-shell mb-3">
         <div class="xp-toolbar">
-            <strong style="color:#011C40;font-size:.9rem;">
+            <strong class="text-navy fs-90">
                 <i class="fas fa-list-check me-2 text-muted"></i>
                 @(Model.Kind == "Remittance" ? "Parsed RA Records" : Model.Kind == "Submission" ? "Parsed Submission Records" : "Parsed XML Records")
             </strong>
@@ -299,7 +299,7 @@
 
     <div class="xp-shell">
         <div class="xp-toolbar">
-            <strong style="color:#011C40;font-size:.9rem;"><i class="fas fa-database me-2 text-muted"></i>Downloaded Records</strong>
+            <strong class="text-navy fs-90"><i class="fas fa-database me-2 text-muted"></i>Downloaded Records</strong>
             <span class="text-muted small">Showing @Model.Records.Count.ToString("N0") newest records</span>
         </div>
         <div class="table-responsive">

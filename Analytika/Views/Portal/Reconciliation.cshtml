@@ -168,7 +168,7 @@
                                     <td class="py-2 align-middle text-end">
                                         @if (r.PaidAmount.HasValue)
                                         {
-                                            <span class="fw-semibold" style="color:#011C40;">@r.PaidAmount.Value.ToString("N2")</span>
+                                            <span class="fw-semibold text-navy">@r.PaidAmount.Value.ToString("N2")</span>
                                         }
                                         else { <span class="text-muted">—</span> }
                                     </td>
@@ -182,7 +182,7 @@
                                         else { <span class="text-muted">—</span> }
                                     </td>
                                     <td class="pe-4 py-2 align-middle">
-                                        <span class="badge rounded-pill px-2" style="@Badge(r.PaymentStatus);font-size:.7rem;">
+                                        <span class="badge rounded-pill px-2 fs-70" style="@Badge(r.PaymentStatus)">
                                             @r.PaymentStatus
                                         </span>
                                     </td>
@@ -196,12 +196,12 @@
     }
     else
     {
-        <div class="card border-0 shadow-sm d-flex align-items-center justify-content-center" style="border-radius:12px;min-height:300px;">
+        <div class="card border-0 shadow-sm d-flex align-items-center justify-content-center rounded-xl" style="min-height:300px;">
             <div class="text-center text-muted py-5">
                 <i class="fas fa-balance-scale fa-3x mb-3" style="color:#EAF4FB;"></i>
                 <p class="mb-1 fw-semibold">No reconciliation data found</p>
                 <small>Run a DHA Sync first to download Claim and Remittance files, then return here.</small><br/>
-                <a asp-action="Sync" class="btn btn-sm mt-3" style="background:#011C40;color:#fff;border-radius:8px;">
+                <a asp-action="Sync" class="btn btn-sm mt-3 btn-navy">
                     <i class="fas fa-sync me-1"></i> Go to Sync
                 </a>
             </div>

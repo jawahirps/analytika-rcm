@@ -147,8 +147,8 @@
                         <div class="d-flex gap-2 mb-2 flex-wrap">
                             @foreach (var p in cronPresets)
                             {
-                                <button type="button" class="btn btn-ghost btn-xs"
-                                        onclick="setCron('@p.Value')" class="btn btn-ghost btn-xs fs-72">
+                                <button type="button" class="btn btn-ghost btn-xs fs-72"
+                                        onclick="setCron('@p.Value')">
                                     @p.Key
                                 </button>
                             }
