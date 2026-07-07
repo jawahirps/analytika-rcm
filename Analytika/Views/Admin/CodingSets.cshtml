@@ -77,7 +77,7 @@
 <div class="cs-section">
     <div class="d-flex align-items-center mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:#011C40;">
+            <h4 class="mb-0 fw-bold text-navy">
                 <i class="fas fa-table me-2 text-primary"></i>DHPO Coding Sets
             </h4>
             <p class="text-muted small mb-0">Import Excel files from <strong>eclaimlink.ae/CodingSets.aspx</strong> to resolve IDs to names across all reports.</p>
@@ -137,7 +137,7 @@
         <div class="col-md-4">
             <div class="cs-card">
                 <div class="cs-card-header">
-                    <h6><i class="fas fa-user-md me-2" style="color:#35577D;"></i>Clinicians</h6>
+                    <h6><i class="fas fa-user-md me-2 text-slate"></i>Clinicians</h6>
                 </div>
                 <div class="cs-card-body">
                     <div class="cs-meta">
@@ -175,7 +175,7 @@
         <div class="col-md-4">
             <div class="cs-card">
                 <div class="cs-card-header">
-                    <h6><i class="fas fa-shield-alt me-2" style="color:#A7EBF2;"></i>Payers &amp; TPAs</h6>
+                    <h6><i class="fas fa-shield-alt me-2 text-cyan-light"></i>Payers &amp; TPAs</h6>
                 </div>
                 <div class="cs-card-body">
                     <div class="cs-meta">
@@ -269,7 +269,7 @@ function search(category, q, resultId) {
             <tbody>${data.rows.map(r =>
                 `<tr><td><code>${r.code}</code></td><td>${r.name}</td><td>${r.subType ?? '—'}</td></tr>`
             ).join('')}</tbody>
-        </table><p class="text-muted mb-0 mt-1" style="font-size:.7rem;">${data.total} total — showing first 50</p>`;
+        </table><p class="text-muted mb-0 mt-1 fs-70">${data.total} total — showing first 50</p>`;
     }, 300);
 }
 </script>
