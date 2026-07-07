@@ -272,6 +272,17 @@ $(document).ready(function() {
     }
 });
 
+// ── Select2 auto-init ────────────────────────────────────────────────────────
+$(document).ready(function() {
+    if ($.fn.select2) {
+        $('.select2-multi').not('.select2-hidden-accessible').select2({
+            placeholder: '-- All --',
+            allowClear: true,
+            width: '100%'
+        });
+    }
+});
+
 // ── Utility: format date as DD/MM/YYYY ───────────────────────────────────────
 function formatDateDDMMYYYY(dateStr) {
     var d = new Date(dateStr);
