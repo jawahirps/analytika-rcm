@@ -42,6 +42,24 @@ public static class SqliteSchemaService
 
         if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "GrossAmount"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""GrossAmount"" REAL NOT NULL DEFAULT 0");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "DiagnosesJson"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""DiagnosesJson"" TEXT NULL");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "PatientGender"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientGender"" TEXT NULL");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "PatientDob"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientDob"" TEXT NULL");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "PatientNationalId"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientNationalId"" TEXT NULL");
+
+        if (!ColumnExists(db, "XmlParsedRecords", "ClaimCategory"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""ClaimCategory"" TEXT NULL");
     }
 
     private static void CreateTables(AppDbContext db)
@@ -129,6 +147,7 @@ public static class SqliteSchemaService
                 ""Clinician""           TEXT NULL,
                 ""ServiceYear""         TEXT NULL,
                 ""ServiceMonth""        TEXT NULL,
+                ""GrossAmount""         REAL NOT NULL DEFAULT 0,
                 ""NetAmount""           REAL NOT NULL DEFAULT 0,
                 ""PaidAmount""          REAL NOT NULL DEFAULT 0,
                 ""ActivityCount""       INTEGER NOT NULL DEFAULT 0,
@@ -139,11 +158,30 @@ public static class SqliteSchemaService
                 ""IdPayer""             TEXT NULL,
                 ""ResubmissionType""    TEXT NULL,
                 ""PrincipalDiagnosis""  TEXT NULL,
+                ""DiagnosesJson""       TEXT NULL,
+                ""PatientGender""       TEXT NULL,
+                ""PatientDob""          TEXT NULL,
+                ""PatientNationalId""   TEXT NULL,
+                ""ClaimCategory""       TEXT NULL,
                 ""IsMatched""           INTEGER NOT NULL DEFAULT 0,
                 ""ReadyForReport""      INTEGER NOT NULL DEFAULT 1,
                 ""Notes""               TEXT NULL,
                 ""ParsedAt""            TEXT NOT NULL,
                 ""MatchedAt""           TEXT NULL
+            );
+            CREATE TABLE IF NOT EXISTS ""XmlParsedActivities"" (
+                ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                ""XmlParsedRecordId""   INTEGER NOT NULL REFERENCES ""XmlParsedRecords""(""Id"") ON DELETE CASCADE,
+                ""ActivityCode""        TEXT NULL,
+                ""ActivityType""        TEXT NULL,
+                ""Quantity""            REAL NOT NULL DEFAULT 0,
+                ""Net""                 REAL NOT NULL DEFAULT 0,
+                ""Gross""               REAL NOT NULL DEFAULT 0,
+                ""PaymentAmount""       REAL NOT NULL DEFAULT 0,
+                ""DenialCode""          TEXT NULL,
+                ""Clinician""           TEXT NULL,
+                ""Start""               TEXT NULL,
+                ""OrderingClinician""   TEXT NULL
             );
             CREATE TABLE IF NOT EXISTS ""ResubmissionTasks"" (
                 ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -174,6 +212,7 @@ public static class SqliteSchemaService
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Facility_Kind"" ON ""XmlParsedRecords""(""FacilityId"", ""RecordKind"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ClaimId"" ON ""XmlParsedRecords""(""ClaimId"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport"" ON ""XmlParsedRecords""(""ReadyForReport"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedActivities_RecordId"" ON ""XmlParsedActivities""(""XmlParsedRecordId"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
         ");
