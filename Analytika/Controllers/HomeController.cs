@@ -164,6 +164,7 @@ public class HomeController : Controller
 
     [HttpPost]
     [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> LogOut()
     {
         await _signInManager.SignOutAsync();

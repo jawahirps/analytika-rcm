@@ -366,8 +366,8 @@ public class AdminController : Controller
     // Viewer role, restricted to report-view + generate on that facility only.
     // Result downloaded as Excel.
 
-    private const string GuestPassword = "Ghafbix@2026";
     private const string GuestRole = "Viewer";
+    private string GuestPassword => _configuration.GetValue("Security:GuestPassword", "Guest@Change1!");
 
     private static string FacilitySlug(string name)
     {

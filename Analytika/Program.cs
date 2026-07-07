@@ -286,6 +286,29 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
         await SeedData.InitializeAsync(services);
 }
 
+// ── Startup config validation ─────────────────────────────────────────
+{
+    var smtpHost = app.Configuration["Smtp:Host"];
+    if (string.IsNullOrEmpty(smtpHost) || smtpHost == "smtp.example.com")
+        app.Logger.LogWarning("SMTP host is not configured — email delivery will be disabled. Set Smtp:Host in appsettings or environment.");
+
+    var smtpPwd = app.Configuration["Smtp:Password"];
+    if (smtpPwd == "YOUR_SMTP_PASSWORD")
+        app.Logger.LogWarning("SMTP password is still the placeholder value — email delivery will fail. Set Smtp:Password via environment variable.");
+
+    var adminEmails = app.Configuration["Alerting:AdminEmails"];
+    if (string.IsNullOrEmpty(adminEmails))
+        app.Logger.LogWarning("Alerting:AdminEmails is empty — job failure notifications will not be sent.");
+
+    var backupRetention = app.Configuration.GetValue("Backup:RetentionCount", 14);
+    if (backupRetention < 1)
+        app.Logger.LogWarning("Backup:RetentionCount is {Count} — this may delete all backups. Set to at least 1.", backupRetention);
+
+    var guestPwd = app.Configuration["Security:GuestPassword"];
+    if (string.IsNullOrEmpty(guestPwd))
+        app.Logger.LogWarning("Security:GuestPassword is not configured — guest provisioning will use a default password.");
+}
+
 // Pre-warm dashboard facility status so the first user lands on hot data.
 // Runs after ApplicationStarted so it never blocks request acceptance.
 // Uses a long timeout because the initial aggregation on a large SQLite DB
