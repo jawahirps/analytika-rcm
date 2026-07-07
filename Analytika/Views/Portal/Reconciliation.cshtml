@@ -14,12 +14,12 @@
     <!-- Header -->
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Claim Reconciliation</h4>
+            <h4 class="mb-0 fw-bold text-navy">Claim Reconciliation</h4>
             <small class="text-muted">Remittance advice matched against claim submissions · DHA portal step 4</small>
         </div>
         <div class="d-flex gap-2">
             <a asp-action="Sync" class="btn btn-ghost btn-sm"><i class="fas fa-sync me-1"></i> Run Sync</a>
-            <button onclick="exportCsv()" class="btn btn-sm btn-outline-secondary" style="border-radius:6px;font-size:.8rem;">
+            <button onclick="exportCsv()" class="btn btn-sm btn-outline-secondary rounded-sm fs-80">
                 <i class="fas fa-file-csv me-1"></i> Export CSV
             </button>
         </div>
@@ -79,13 +79,13 @@
         <!-- Summary Cards -->
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-3">
-                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                <div class="card border-0 shadow-sm rounded-xl">
                     <div class="card-body p-3 text-center">
-                        <div class="fw-bold" style="font-size:1.5rem;color:#011C40;">@Model.TotalClaims</div>
+                        <div class="fw-bold text-navy" style="font-size:1.5rem;">@Model.TotalClaims</div>
                         <div class="text-muted small">Total Claims</div>
-                        <div class="mt-2 d-flex justify-content-center gap-1 flex-wrap" style="font-size:.68rem;">
-                            <span class="badge rounded-pill" style="background:#EAF4FB;color:#011C40;">@Model.PaidCount Paid</span>
-                            <span class="badge rounded-pill" style="background:#EAF4FB;color:#54ACBF;">@Model.PartialCount Partial</span>
+                        <div class="mt-2 d-flex justify-content-center gap-1 flex-wrap fs-68">
+                            <span class="badge rounded-pill bg-sky-wash text-navy">@Model.PaidCount Paid</span>
+                            <span class="badge rounded-pill bg-sky-wash text-teal">@Model.PartialCount Partial</span>
                             <span class="badge rounded-pill" style="background:#ffe8e8;color:#dc3545;">@Model.RejectedCount Rejected</span>
                             <span class="badge rounded-pill" style="background:#f0f0f0;color:#6c757d;">@Model.PendingCount Pending</span>
                         </div>
@@ -93,23 +93,23 @@
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                <div class="card border-0 shadow-sm rounded-xl">
                     <div class="card-body p-3 text-center">
-                        <div class="fw-bold" style="font-size:1.5rem;color:#011C40;">@Model.TotalSubmitted.ToString("N2")</div>
+                        <div class="fw-bold text-navy" style="font-size:1.5rem;">@Model.TotalSubmitted.ToString("N2")</div>
                         <div class="text-muted small">Total Submitted (AED)</div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                <div class="card border-0 shadow-sm rounded-xl">
                     <div class="card-body p-3 text-center">
-                        <div class="fw-bold" style="font-size:1.5rem;color:#011C40;">@Model.TotalPaid.ToString("N2")</div>
+                        <div class="fw-bold text-navy" style="font-size:1.5rem;">@Model.TotalPaid.ToString("N2")</div>
                         <div class="text-muted small">Total Paid (AED)</div>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-md-3">
-                <div class="card border-0 shadow-sm" style="border-radius:12px;border-left:3px solid #dc3545;">
+                <div class="card border-0 shadow-sm rounded-xl" style="border-left:3px solid #dc3545;">
                     <div class="card-body p-3 text-center">
                         <div class="fw-bold" style="font-size:1.5rem;color:#dc3545;">@Model.TotalOutstanding.ToString("N2")</div>
                         <div class="text-muted small">Outstanding (AED)</div>
@@ -123,7 +123,7 @@
         {
             var pct = (int)(Model.TotalPaid / Model.TotalSubmitted * 100);
             <div class="mb-4">
-                <div class="d-flex justify-content-between mb-1" style="font-size:.75rem;">
+                <div class="d-flex justify-content-between mb-1 fs-75">
                     <span class="text-muted">Recovery rate</span>
                     <span class="fw-semibold">@pct%</span>
                 </div>
@@ -134,11 +134,11 @@
         }
 
         <!-- Table -->
-        <div class="card border-0 shadow-sm" style="border-radius:12px;">
+        <div class="card border-0 shadow-sm rounded-xl">
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover data-table mb-0" style="font-size:.82rem;" id="reconTable">
-                        <thead style="background:#EAF4FB;position:sticky;top:0;">
+                    <table class="table table-hover data-table mb-0 fs-82" id="reconTable">
+                        <thead class="bg-sky-wash" style="position:sticky;top:0;">
                             <tr>
                                 <th class="ps-4 py-2 fw-semibold text-muted border-0">Claim ID</th>
                                 <th class="py-2 fw-semibold text-muted border-0">Payer</th>
@@ -154,7 +154,7 @@
                             @foreach (var r in Model.Rows)
                             {
                                 <tr>
-                                    <td class="ps-4 py-2 align-middle fw-semibold" style="color:#011C40;font-size:.78rem;">@r.ClaimId</td>
+                                    <td class="ps-4 py-2 align-middle fw-semibold text-navy fs-78">@r.ClaimId</td>
                                     <td class="py-2 align-middle text-muted">@(r.Payer ?? "—")</td>
                                     <td class="py-2 align-middle text-muted">@(r.ServiceDate ?? "—")</td>
                                     <td class="py-2 align-middle text-end">
