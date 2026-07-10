@@ -30,6 +30,7 @@ New-Item -ItemType Directory -Force "$OutputPath\wwwroot\portal-downloads" | Out
 # Copy deploy scripts so the server has everything in one folder
 Copy-Item "$PSScriptRoot\2_install_service.ps1" $OutputPath
 Copy-Item "$PSScriptRoot\3_cloudflared_config.yml" $OutputPath
+Copy-Item "$PSScriptRoot\3b_install_tunnel_service.ps1" $OutputPath
 Copy-Item "$PSScriptRoot\4_uninstall.ps1" $OutputPath
 
 Write-Host "`n=== Done ===" -ForegroundColor Green
