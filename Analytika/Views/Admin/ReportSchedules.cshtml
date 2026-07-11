@@ -185,9 +185,9 @@
     </div>
 </div>
 
+<form class="d-none" aria-hidden="true">@Html.AntiForgeryToken()</form>
 @section Scripts {
 <script>
-@Html.AntiForgeryToken()
 function getToken() { return document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''; }
 
 // Cron human-readable hint
