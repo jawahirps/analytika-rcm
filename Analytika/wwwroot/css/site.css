@@ -4079,17 +4079,19 @@ html[data-theme="dark"] .stat-card .stat-label  { color: #6b7385; }
   line-height: 1.15;
 }
 .menubar-brand-name {
-  color: #eaf4fb;
-  font-weight: 700;
-  font-size: 0.98rem;
-  letter-spacing: -0.2px;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 1.28rem;
+  letter-spacing: -0.4px;
+  line-height: 1;
 }
 .menubar-brand-sub {
-  color: #818cf8;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.35px;
+  color: #54ACBF;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  margin-top: 2px;
 }
 
 .menubar-nav {

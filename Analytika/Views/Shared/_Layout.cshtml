@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Ghaf Business Intelligence</title>
+    <title>@ViewData["Title"] - BiX Business Intelligence</title>
     <link rel="icon" href="~/favicon.svg" type="image/svg+xml" asp-append-version="true" />
     <script>
         (function () {
@@ -42,7 +42,8 @@
     var canAccessAdmin = User.IsInRole(AppRoles.Admin);
     var isReporter = User.IsInRole(AppRoles.Reporter);
     var canAccessReports = canAccessRcm || isReporter;
-    var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
+    // Office host (bix.ghafservices.com) lands on Facility Status at /Home/Dashboard.
+    var brandAction = "Dashboard";
 
     var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
     var act  = ViewContext.RouteData.Values["action"]?.ToString()     ?? "";
@@ -70,7 +71,7 @@
                 <polygon points="35,7 31,9 33.5,13" fill="#011C40"/>
             </svg>
             <span class="menubar-brand-text">
-                <span class="menubar-brand-name">Ghaf BI</span>
+                <span class="menubar-brand-name">BiX</span>
                 <span class="menubar-brand-sub">Business Intelligence</span>
             </span>
         </a>
@@ -79,7 +80,7 @@
             @if (!isReporter)
             {
             <a class="menubar-link @(isDashboard ? "active" : "")" asp-controller="Home" asp-action="@brandAction">
-                <i class="fas fa-chart-line" aria-hidden="true"></i><span>Dashboard</span>
+                <i class="fas fa-th-large" aria-hidden="true"></i><span>Dashboard</span>
             </a>
             }
 
@@ -250,7 +251,7 @@
         @if (!isReporter)
         {
         <a class="menubar-mobile-link @(isDashboard ? "active" : "")" asp-controller="Home" asp-action="@brandAction">
-            <i class="fas fa-chart-line" aria-hidden="true"></i>Dashboard
+            <i class="fas fa-th-large" aria-hidden="true"></i>Dashboard
         </a>
         }
         @if (canAccessRcm)
