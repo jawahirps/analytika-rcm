@@ -59,9 +59,28 @@
     return s;
   }
 
+  /* Detect headless / automated environment — bail before touching WebGL.
+     SwiftShader (software GL in headless Chrome) blocks on getContext. */
+  var _headless = (function () {
+    try {
+      if (navigator.webdriver) return true;
+      if (/Headless|HeadlessChrome/.test(navigator.userAgent)) return true;
+      // Playwright/CDP sets this to 0 or omits plugins entirely
+      if (navigator.plugins && navigator.plugins.length === 0 &&
+          /Chrome/.test(navigator.userAgent) && !/Electron/.test(navigator.userAgent)) return true;
+      // Permission API probe: automation contexts deny 'notifications' synchronously
+      if (window.Notification && window.Notification.permission === 'denied') return false; // real user too
+      return false;
+    } catch (e) { return false; }
+  }());
+
   function initShaderBg(host) {
     if (host._shaderBgInit) return;
     host._shaderBgInit = true;
+
+    // Skip shader entirely in headless / automated browsers, or if page
+    // loaded while hidden (preview tools, background tabs on first paint).
+    if (_headless || document.hidden) return;
 
     var canvas = document.createElement('canvas');
     canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:inherit;';
@@ -99,16 +118,27 @@
       gl.uniform2f(uRes, w, h);
     }
 
-    function frame() {
-      if (stopped) return;
+    var FRAME_MS = 32; // ~30 fps cap — keeps event loop free for CDP/Playwright
+    var lastFrame = 0;
+
+    function frame(now) {
+      if (stopped || document.hidden) { rafId = null; return; }
+      if (now - lastFrame < FRAME_MS) { rafId = requestAnimationFrame(frame); return; }
+      lastFrame = now;
       t += 0.016;
       gl.uniform1f(uTime, t);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       rafId = requestAnimationFrame(frame);
     }
 
+    function onVisibility() {
+      if (!document.hidden && !rafId && !stopped) requestAnimationFrame(frame);
+    }
+
     resize();
-    frame();
+    requestAnimationFrame(frame);
+
+    document.addEventListener('visibilitychange', onVisibility);
 
     var ro = new ResizeObserver(resize);
     ro.observe(host);
@@ -125,6 +155,7 @@
     host._shaderBgDestroy = function () {
       stopped = true;
       cancelAnimationFrame(rafId);
+      document.removeEventListener('visibilitychange', onVisibility);
       ro.disconnect();
       gl.deleteProgram(prog);
       gl.deleteBuffer(buf);

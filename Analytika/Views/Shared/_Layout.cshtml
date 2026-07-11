@@ -7,8 +7,8 @@
     <script>
         (function () {
             try {
-                var lang = localStorage.getItem('analytika-lang') || 'en';
-                var theme = localStorage.getItem('analytika-theme') || 'dark';
+                var lang = localStorage.getItem('bix-lang') || 'en';
+                var theme = localStorage.getItem('bix-theme') || 'dark';
                 var collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
                 document.documentElement.lang = lang;
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -18,19 +18,14 @@
             } catch (_) {}
         })();
     </script>
-    <!-- DNS prefetch / preconnect for CDN resources -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="dns-prefetch" href="https://cdn.datatables.net" />
-    <!-- Inter font — swap prevents FOIT, only render-blocking for 100ms -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <!-- Bootstrap + FA served locally (no CDN dependency) -->
+    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/vendor/fa/css/all.min.css" />
+    <!-- Inter font — async, non-blocking (falls back to system-ui) -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
-    <!-- Critical: Bootstrap + FA (layout-defining) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
     <!-- Non-critical: widget CSS loaded after paint via JS swap -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" media="print" onload="this.media='all'" />
@@ -385,7 +380,7 @@
         <div class="d-flex align-items-center gap-2">
             <div class="support-avatar"><i class="fas fa-robot" aria-hidden="true"></i></div>
             <div>
-                <div class="support-title">Analytika Support</div>
+                <div class="support-title">Bix Support</div>
                 <div class="support-subtitle">Powered by Claude AI</div>
             </div>
         </div>
@@ -396,7 +391,7 @@
     <div class="support-messages" id="supportMessages">
         <div class="support-msg support-msg-assistant">
             <div class="support-bubble">
-                Hi! I'm your Analytika support assistant. Describe a bug, ask a question, or request a feature — I'll help you right away.
+                Hi! I'm your Bix support assistant. Describe a bug, ask a question, or request a feature — I'll help you right away.
             </div>
         </div>
     </div>
@@ -418,7 +413,7 @@
 
 <!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
 <!-- Bootstrap must be synchronous — it initialises immediately on DOMContentLoaded -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/vendor/bootstrap.bundle.min.js"></script>
 <!-- All other scripts deferred — parse in parallel, execute after HTML is parsed -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
@@ -457,7 +452,7 @@ function clearNotifications() {
     };
     function applyLanguage(lang) {
         root.lang = lang; root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.dataset.lang = lang;
-        try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
+        try { localStorage.setItem('bix-lang', lang); } catch (_) {}
         document.querySelectorAll('[data-i18n]').forEach(function(node) {
             var key = node.getAttribute('data-i18n');
             if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
@@ -470,7 +465,7 @@ function clearNotifications() {
     }
     function applyTheme(theme) {
         root.dataset.theme = theme;
-        try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
+        try { localStorage.setItem('bix-theme', theme); } catch (_) {}
         if (themeButton) {
             var icon = themeButton.querySelector('i');
             if (icon) icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';

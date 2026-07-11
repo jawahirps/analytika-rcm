@@ -1,0 +1,10 @@
+name = "analytika-cloudflare-proxy"
+main = "src/index.js"
+compatibility_date = "2026-05-30"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+ANALYTIKA_TUNNEL_ORIGIN = "https://codexwinpcwrk.jawahirps.workers.dev/"
