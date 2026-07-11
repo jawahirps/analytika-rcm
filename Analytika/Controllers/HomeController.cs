@@ -58,12 +58,18 @@ public class HomeController : Controller
         }
 
         var result = await _signInManager.PasswordSignInAsync(
-            model.Email, model.Password, isPersistent: true, lockoutOnFailure: false);
+            model.Email, model.Password, isPersistent: true, lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
             _logger.LogInformation("User {Email} logged in.", model.Email);
             return RedirectToAction("Dashboard");
+        }
+
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty, "Account locked due to multiple failed attempts. Try again in 15 minutes.");
+            return View(model);
         }
 
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
@@ -76,6 +82,8 @@ public class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> Dashboard()
     {
+        if (User.IsInRole(AppRoles.Reporter))
+            return RedirectToAction("ClaimSummaryReport", "ReportScheduler");
         return View(await _dashboard.BuildFacilityStatusAsync());
     }
 
@@ -158,6 +166,7 @@ public class HomeController : Controller
 
     [HttpPost]
     [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> LogOut()
     {
         await _signInManager.SignOutAsync();

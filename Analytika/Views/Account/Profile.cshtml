@@ -6,17 +6,17 @@
 <div class="container-fluid py-4 px-4">
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">My Profile</h4>
+            <h4 class="mb-0 fw-bold text-navy">My Profile</h4>
             <small class="text-muted">Personal details and assigned access for your account</small>
         </div>
-        <a asp-controller="Home" asp-action="Dashboard" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;">
+        <a asp-controller="Home" asp-action="Dashboard" class="btn btn-sm btn-outline-secondary rounded-md">
             <i class="fas fa-arrow-left me-1"></i>Back
         </a>
     </div>
 
     @if (TempData["Success"] is string success)
     {
-        <div class="alert alert-success border-0 shadow-sm" style="border-radius:8px;">
+        <div class="alert alert-success border-0 shadow-sm rounded-md">
             <i class="fas fa-check-circle me-1"></i>@success
         </div>
     }
@@ -27,12 +27,12 @@
                 @Html.AntiForgeryToken()
                 <div class="card-body p-4">
                     <div class="d-flex align-items-center gap-3 mb-4">
-                        <div style="width:56px;height:56px;border-radius:50%;background:#011C40;color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.25rem;">
+                        <div class="bg-navy" style="width:56px;height:56px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.25rem;">
                             @(Model.FullName.Length > 0 ? Model.FullName[0].ToString().ToUpper() : "U")
                         </div>
                         <div>
-                            <div class="fw-bold" style="color:var(--navy);">@(!string.IsNullOrWhiteSpace(Model.FullName) ? Model.FullName : Model.Email)</div>
-                            <div class="text-muted" style="font-size:.8rem;">@Model.Email</div>
+                            <div class="fw-bold text-navy">@(!string.IsNullOrWhiteSpace(Model.FullName) ? Model.FullName : Model.Email)</div>
+                            <div class="text-muted fs-80">@Model.Email</div>
                         </div>
                     </div>
 
@@ -60,7 +60,7 @@
                         <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" />
                     </div>
 
-                    <button type="submit" class="btn px-4" style="background:#011C40;color:#fff;border-radius:8px;">
+                    <button type="submit" class="btn px-4 btn-navy">
                         <i class="fas fa-save me-1"></i>Save Profile
                     </button>
                 </div>
@@ -70,24 +70,24 @@
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:var(--navy);">Account Isolation</h6>
+                    <h6 class="fw-bold mb-3 text-navy">Account Isolation</h6>
                     <div class="row g-3">
                         <div class="col-md-4">
-                            <div class="p-3 rounded" style="background:#EAF4FB;border:1px solid #EAF4FB;">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
                                 <div class="text-muted small">Status</div>
                                 <div class="fw-bold @(Model.IsActive ? "text-success" : "text-danger")">@(Model.IsActive ? "Active" : "Inactive")</div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="p-3 rounded" style="background:#EAF4FB;border:1px solid #EAF4FB;">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
                                 <div class="text-muted small">User Type</div>
-                                <div class="fw-bold" style="color:var(--navy);">@Model.UserType</div>
+                                <div class="fw-bold text-navy">@Model.UserType</div>
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="p-3 rounded" style="background:#EAF4FB;border:1px solid #EAF4FB;">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
                                 <div class="text-muted small">Roles</div>
-                                <div class="fw-bold" style="color:var(--navy);">@(Model.Roles.Any() ? string.Join(", ", Model.Roles) : "None")</div>
+                                <div class="fw-bold text-navy">@(Model.Roles.Any() ? string.Join(", ", Model.Roles) : "None")</div>
                             </div>
                         </div>
                     </div>
@@ -101,7 +101,7 @@
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body p-4">
-                            <h6 class="fw-bold mb-3" style="color:var(--navy);">Facilities</h6>
+                            <h6 class="fw-bold mb-3 text-navy">Facilities</h6>
                             @if (Model.Facilities.Any())
                             {
                                 foreach (var facility in Model.Facilities)
@@ -123,12 +123,12 @@
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-body p-4">
-                            <h6 class="fw-bold mb-3" style="color:var(--navy);">Report Access</h6>
+                            <h6 class="fw-bold mb-3 text-navy">Report Access</h6>
                             @if (Model.ReportAccess.Any())
                             {
                                 foreach (var report in Model.ReportAccess)
                                 {
-                                    <span class="badge me-1 mb-2" style="background:#EAF4FB;color:#334155;">@report</span>
+                                    <span class="badge me-1 mb-2 bg-sky-wash text-slate-700">@report</span>
                                 }
                             }
                             else
@@ -138,10 +138,10 @@
 
                             @if (Model.DashboardAccess.Any())
                             {
-                                <h6 class="fw-bold mt-4 mb-2" style="color:var(--navy);font-size:.82rem;">Dashboards</h6>
+                                <h6 class="fw-bold mt-4 mb-2 text-navy fs-82">Dashboards</h6>
                                 foreach (var dashboard in Model.DashboardAccess)
                                 {
-                                    <span class="badge me-1 mb-2" style="background:rgba(0,139,139,.1);color:#A7EBF2;">@dashboard</span>
+                                    <span class="badge me-1 mb-2 text-cyan-light" style="background:rgba(0,139,139,.1);">@dashboard</span>
                                 }
                             }
                         </div>

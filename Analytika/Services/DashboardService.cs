@@ -311,20 +311,180 @@ public class DashboardService : IDashboardService
             _ => "Used to keep reporting aligned across dashboards."
         };
 
-        var profiles = new Dictionary<string, (string Summary, int Seed)>
+        // ── Build filtered base query ──
+        var q = _db.XmlParsedRecords.AsNoTracking().AsQueryable();
+
+        if (filters.FacilityId.HasValue)
+            q = q.Where(r => r.FacilityId == filters.FacilityId.Value);
+        if (!string.IsNullOrWhiteSpace(filters.Receiver))
+            q = q.Where(r => (r.ReceiverName ?? r.ReceiverId) == filters.Receiver);
+        if (!string.IsNullOrWhiteSpace(filters.Payer))
+            q = q.Where(r => (r.PayerName ?? r.PayerId) == filters.Payer);
+        if (!string.IsNullOrWhiteSpace(filters.EncounterType))
+            q = q.Where(r => r.EncounterType == filters.EncounterType);
+        if (filters.DateFrom.HasValue)
         {
-            ["Submissions"] = ($"Claim submission volumes are stable with {stableFieldTitle} as the shared timeline field across exports.", 86),
-            ["Resubmissions"] = ($"Resubmission queues are trending down as aging worklists clear, organized by {stableFieldTitle}.", 64),
-            ["Remittance"] = ("Collections remain healthy with a focused reconciliation backlog.", 78),
-            ["Denials"] = ("Denial pressure is concentrated in authorization and coding categories.", 52),
-            ["Clinicians"] = ("Clinician productivity is balanced, with a few outliers needing follow-up.", 71),
-            ["Operations"] = ("Operational throughput is steady and turnaround time is within target.", 83),
-            ["Insurance"] = ("Payer performance is mixed; two networks are driving most exceptions.", 67),
-            ["Department"] = ("Department-level activity is led by emergency, cardiology, and radiology.", 75)
+            var from = filters.DateFrom.Value.ToString("yyyy-MM-dd");
+            q = q.Where(r => string.Compare(r.TreatmentDate ?? "", from) >= 0);
+        }
+        if (filters.DateTo.HasValue)
+        {
+            var to = filters.DateTo.Value.ToString("yyyy-MM-dd");
+            q = q.Where(r => string.Compare(r.TreatmentDate ?? "", to) <= 0);
+        }
+
+        // Tab-specific record kind filter
+        var tabQuery = activeTab switch
+        {
+            "Submissions" => q.Where(r => r.RecordKind == "Submission"),
+            "Resubmissions" => q.Where(r => r.RecordKind == "Submission" && r.ResubmissionType != null && r.ResubmissionType != ""),
+            "Remittance" => q.Where(r => r.RecordKind == "Remittance"),
+            "Denials" => q.Where(r => r.RecordKind == "Remittance" && r.DenialCodesJson != null && r.DenialCodesJson != "" && r.DenialCodesJson != "[]"),
+            _ => q
         };
 
-        var profile = profiles[activeTab];
-        var seed = profile.Seed;
+        // ── Aggregate KPI metrics from real data ──
+        var totalClaims = await tabQuery.CountAsync();
+        var netTotal = await tabQuery.SumAsync(r => r.NetAmount);
+        var grossTotal = await tabQuery.SumAsync(r => r.GrossAmount);
+        var paidTotal = await tabQuery.SumAsync(r => r.PaidAmount);
+
+        // Compute prior-period comparison (last 30d vs prev 30d)
+        var now = DateTime.UtcNow;
+        var thirtyDaysAgo = now.AddDays(-30).ToString("yyyy-MM-dd");
+        var sixtyDaysAgo = now.AddDays(-60).ToString("yyyy-MM-dd");
+        var currentPeriod = await tabQuery.CountAsync(r => string.Compare(r.TreatmentDate ?? "", thirtyDaysAgo) >= 0);
+        var priorPeriod = await tabQuery.CountAsync(r =>
+            string.Compare(r.TreatmentDate ?? "", sixtyDaysAgo) >= 0 &&
+            string.Compare(r.TreatmentDate ?? "", thirtyDaysAgo) < 0);
+        var claimDelta = priorPeriod > 0
+            ? ((currentPeriod - priorPeriod) * 100.0 / priorPeriod)
+            : 0;
+
+        // Tab-specific metric 3 and 4
+        var (metric3, metric4) = activeTab switch
+        {
+            "Submissions" or "Resubmissions" => (
+                new DashboardMetric
+                {
+                    Label = "Gross Value",
+                    Value = FormatAed(grossTotal),
+                    Delta = "",
+                    Icon = "fa-money-bill-wave",
+                    Tone = "gold"
+                },
+                new DashboardMetric
+                {
+                    Label = "Avg per Claim",
+                    Value = totalClaims > 0 ? FormatAed(netTotal / totalClaims) : "—",
+                    Delta = "",
+                    Icon = "fa-calculator",
+                    Tone = "blue"
+                }
+            ),
+            "Remittance" => (
+                new DashboardMetric
+                {
+                    Label = "Paid Amount",
+                    Value = FormatAed(paidTotal),
+                    Delta = grossTotal > 0 ? $"{(paidTotal / grossTotal * 100):F1}% of gross" : "",
+                    Icon = "fa-hand-holding-dollar",
+                    Tone = "green"
+                },
+                new DashboardMetric
+                {
+                    Label = "Matched",
+                    Value = $"{await tabQuery.CountAsync(r => r.IsMatched):N0}",
+                    Delta = totalClaims > 0 ? $"{(await tabQuery.CountAsync(r => r.IsMatched) * 100.0 / totalClaims):F0}%" : "",
+                    Icon = "fa-link",
+                    Tone = "blue"
+                }
+            ),
+            "Denials" => (
+                new DashboardMetric
+                {
+                    Label = "Denied Value",
+                    Value = FormatAed(grossTotal - paidTotal),
+                    Delta = "",
+                    Icon = "fa-ban",
+                    Tone = "red"
+                },
+                new DashboardMetric
+                {
+                    Label = "Denial Rate",
+                    Value = grossTotal > 0 ? $"{((grossTotal - paidTotal) / grossTotal * 100):F1}%" : "—",
+                    Delta = "",
+                    Icon = "fa-chart-pie",
+                    Tone = "orange"
+                }
+            ),
+            _ => (
+                new DashboardMetric
+                {
+                    Label = "Gross Value",
+                    Value = FormatAed(grossTotal),
+                    Delta = "",
+                    Icon = "fa-coins",
+                    Tone = "gold"
+                },
+                new DashboardMetric
+                {
+                    Label = "Paid Amount",
+                    Value = FormatAed(paidTotal),
+                    Delta = "",
+                    Icon = "fa-hand-holding-dollar",
+                    Tone = "green"
+                }
+            )
+        };
+
+        var metrics = new List<DashboardMetric>
+        {
+            new() { Label = "Total Claims", Value = $"{totalClaims:N0}", Delta = FormatDelta(claimDelta), Icon = "fa-file-medical", Tone = "teal" },
+            new() { Label = "Net Value", Value = FormatAed(netTotal), Delta = "", Icon = "fa-coins", Tone = "gold" },
+            metric3,
+            metric4
+        };
+
+        // ── Trend: monthly claim counts over last 6 months ──
+        var sixMonthsAgo = now.AddMonths(-6);
+        var trendData = await tabQuery
+            .Where(r => r.ServiceYear != null && r.ServiceMonth != null)
+            .GroupBy(r => new { r.ServiceYear, r.ServiceMonth })
+            .Select(g => new { g.Key.ServiceYear, g.Key.ServiceMonth, Count = g.Count() })
+            .ToListAsync();
+
+        var trend = Enumerable.Range(0, 6)
+            .Select(i =>
+            {
+                var month = sixMonthsAgo.AddMonths(i + 1);
+                var yr = month.Year.ToString();
+                var mo = month.Month.ToString("D2");
+                var count = trendData
+                    .Where(t => t.ServiceYear == yr && t.ServiceMonth == mo)
+                    .Sum(t => t.Count);
+                return new DashboardTrendPoint
+                {
+                    Label = month.ToString("MMM"),
+                    Value = count
+                };
+            })
+            .ToList();
+
+        // ── Breakdown: top categories by tab ──
+        var breakdown = activeTab switch
+        {
+            "Denials" => await BuildBreakdownByDenialCategory(tabQuery),
+            "Clinicians" => await BuildBreakdownByField(q, r => r.Clinician ?? "Unknown"),
+            "Insurance" => await BuildBreakdownByField(tabQuery, r => r.PayerName ?? r.PayerId ?? "Unknown"),
+            "Department" => await BuildBreakdownByField(tabQuery, r => r.EncounterType ?? "Unknown"),
+            _ => await BuildBreakdownByField(tabQuery, r => r.EncounterType ?? "Unknown")
+        };
+
+        // ── Insights: data-driven observations ──
+        var insights = BuildInsights(activeTab, totalClaims, netTotal, paidTotal, grossTotal, claimDelta, breakdown);
+
+        var summary = BuildSummary(activeTab, totalClaims, netTotal, paidTotal);
 
         return new RCMDashboardViewModel
         {
@@ -332,42 +492,127 @@ public class DashboardService : IDashboardService
             Tabs = tabs,
             StableFieldTitle = stableFieldTitle,
             StableFieldDetail = stableFieldDetail,
-            Summary = profile.Summary,
+            Summary = summary,
             RefreshedAt = DateTime.Now,
             Filters = filters,
             FacilityOptions = facilityOptions,
             ReceiverOptions = receiverOptions,
             PayerOptions = payerOptions,
             EncounterTypeOptions = encounterTypeOptions,
-            Metrics =
-            [
-                new DashboardMetric { Label = "Total Claims", Value = $"{seed * 124:N0}", Delta = "+8.4%", Icon = "fa-file-medical", Tone = "teal" },
-                new DashboardMetric { Label = "Net Value", Value = $"AED {seed * 18:N0}K", Delta = "+5.1%", Icon = "fa-coins", Tone = "gold" },
-                new DashboardMetric { Label = "Clean Rate", Value = $"{Math.Min(seed + 9, 96)}%", Delta = "+2.7%", Icon = "fa-circle-check", Tone = "green" },
-                new DashboardMetric { Label = "TAT", Value = $"{Math.Max(2, 14 - seed % 9)} days", Delta = "-1.3d", Icon = "fa-clock", Tone = "blue" }
-            ],
-            Trend =
-            [
-                new DashboardTrendPoint { Label = "Jan", Value = seed - 18 },
-                new DashboardTrendPoint { Label = "Feb", Value = seed - 10 },
-                new DashboardTrendPoint { Label = "Mar", Value = seed - 4 },
-                new DashboardTrendPoint { Label = "Apr", Value = seed + 3 },
-                new DashboardTrendPoint { Label = "May", Value = seed + 8 },
-                new DashboardTrendPoint { Label = "Jun", Value = seed + 12 }
-            ],
-            Breakdown =
-            [
-                new DashboardBreakdownItem { Label = "Emergency", Value = seed + 10, Detail = "Highest activity" },
-                new DashboardBreakdownItem { Label = "Cardiology", Value = seed - 4, Detail = "Within target" },
-                new DashboardBreakdownItem { Label = "Radiology", Value = seed - 12, Detail = "Watchlist" },
-                new DashboardBreakdownItem { Label = "Orthopedics", Value = seed - 18, Detail = "Improving" }
-            ],
-            Insights =
-            [
-                new DashboardInsight { Title = "Priority focus", Detail = $"{activeTab} exceptions are concentrated in three queues.", Status = "Action" },
-                new DashboardInsight { Title = "Best performer", Detail = "Clean claims improved across the latest reporting cycle.", Status = "Good" },
-                new DashboardInsight { Title = "Risk signal", Detail = "Aging work above seven days needs daily review.", Status = "Watch" }
-            ]
+            Metrics = metrics,
+            Trend = trend,
+            Breakdown = breakdown,
+            Insights = insights
+        };
+    }
+
+    private static string FormatAed(decimal amount) =>
+        amount >= 1_000_000 ? $"AED {amount / 1_000_000:F2}M"
+        : amount >= 1_000 ? $"AED {amount / 1_000:F1}K"
+        : $"AED {amount:F0}";
+
+    private static string FormatDelta(double pct) =>
+        pct == 0 ? "—" : pct > 0 ? $"+{pct:F1}%" : $"{pct:F1}%";
+
+    private async Task<List<DashboardBreakdownItem>> BuildBreakdownByField(
+        IQueryable<XmlParsedRecord> query,
+        System.Linq.Expressions.Expression<Func<XmlParsedRecord, string>> fieldSelector)
+    {
+        return await query
+            .GroupBy(fieldSelector)
+            .Select(g => new DashboardBreakdownItem
+            {
+                Label = g.Key,
+                Value = g.Count(),
+                Detail = ""
+            })
+            .OrderByDescending(b => b.Value)
+            .Take(6)
+            .ToListAsync();
+    }
+
+    private async Task<List<DashboardBreakdownItem>> BuildBreakdownByDenialCategory(
+        IQueryable<XmlParsedRecord> query)
+    {
+        var categories = await query
+            .Where(r => r.ClaimCategory != null && r.ClaimCategory != "")
+            .GroupBy(r => r.ClaimCategory!)
+            .Select(g => new DashboardBreakdownItem
+            {
+                Label = g.Key,
+                Value = g.Count(),
+                Detail = ""
+            })
+            .OrderByDescending(b => b.Value)
+            .Take(6)
+            .ToListAsync();
+        return categories.Count > 0 ? categories
+            : new List<DashboardBreakdownItem> { new() { Label = "No denial data", Value = 0, Detail = "Upload remittance files to see denial categories" } };
+    }
+
+    private static List<DashboardInsight> BuildInsights(
+        string tab, int totalClaims, decimal netTotal, decimal paidTotal,
+        decimal grossTotal, double claimDelta, List<DashboardBreakdownItem> breakdown)
+    {
+        var insights = new List<DashboardInsight>();
+
+        if (totalClaims == 0)
+        {
+            insights.Add(new DashboardInsight
+            {
+                Title = "No data yet",
+                Detail = "Upload XML files via Portal Sync to populate this dashboard.",
+                Status = "Action"
+            });
+            return insights;
+        }
+
+        if (claimDelta > 10)
+            insights.Add(new DashboardInsight { Title = "Volume surge", Detail = $"Claims up {claimDelta:F0}% vs prior 30 days — verify capacity.", Status = "Watch" });
+        else if (claimDelta < -10)
+            insights.Add(new DashboardInsight { Title = "Volume drop", Detail = $"Claims down {Math.Abs(claimDelta):F0}% vs prior 30 days.", Status = "Watch" });
+        else
+            insights.Add(new DashboardInsight { Title = "Stable volume", Detail = "Claim volume is within normal range vs prior period.", Status = "Good" });
+
+        if (grossTotal > 0 && tab is "Remittance" or "Denials")
+        {
+            var recoveryPct = paidTotal / grossTotal * 100;
+            insights.Add(new DashboardInsight
+            {
+                Title = "Recovery rate",
+                Detail = $"{recoveryPct:F1}% of gross amount recovered.",
+                Status = recoveryPct >= 80 ? "Good" : recoveryPct >= 60 ? "Watch" : "Action"
+            });
+        }
+
+        var top = breakdown.FirstOrDefault();
+        if (top != null && top.Value > 0)
+        {
+            insights.Add(new DashboardInsight
+            {
+                Title = "Top category",
+                Detail = $"\"{top.Label}\" leads with {top.Value:N0} records.",
+                Status = "Stable"
+            });
+        }
+
+        return insights;
+    }
+
+    private static string BuildSummary(string tab, int totalClaims, decimal netTotal, decimal paidTotal)
+    {
+        if (totalClaims == 0) return $"No {tab.ToLower()} data available. Sync portal data to populate this view.";
+        return tab switch
+        {
+            "Submissions" => $"{totalClaims:N0} submissions totaling {FormatAed(netTotal)} net value.",
+            "Resubmissions" => $"{totalClaims:N0} resubmissions in the current dataset.",
+            "Remittance" => $"{totalClaims:N0} remittance records with {FormatAed(paidTotal)} paid of {FormatAed(netTotal)} net.",
+            "Denials" => $"{totalClaims:N0} denied claims identified across remittance data.",
+            "Clinicians" => $"{totalClaims:N0} records across all clinicians.",
+            "Operations" => $"{totalClaims:N0} operational records for throughput analysis.",
+            "Insurance" => $"{totalClaims:N0} records across payer networks.",
+            "Department" => $"{totalClaims:N0} records across departments.",
+            _ => $"{totalClaims:N0} records loaded."
         };
     }
 }

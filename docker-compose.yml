@@ -1,10 +1,56 @@
 services:
+
+  # ── Background worker — Hangfire jobs only, no public port ────
+  # Starts first: runs DB migrations before the web app connects.
+  worker:
+    build: .
+    container_name: analytika-worker
+    restart: unless-stopped
+    user: root     # needed for NTFS bind-mount write access on Windows host
+    volumes:
+      - type: bind
+        source: ${DATA_DIR:-J:/GhafAnalytika/Analytika}
+        target: /app/data
+      - analytika-downloads:/app/wwwroot/portal-downloads
+      - analytika-logs:/app/logs
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DB_DIR=/app/data
+      - ASPNETCORE_URLS=http://127.0.0.1:8081
+      - StartupMaintenance__RunDatabaseSetupOnStartup=true
+      - StartupMaintenance__CreateIndexesOnStartup=true
+      - StartupMaintenance__SeedDataOnStartup=false
+      - BackgroundJobs__HangfireServerEnabled=true
+      - BackgroundJobs__RecurringJobsEnabled=true
+      - BackgroundJobs__HangfireDashboardEnabled=false
+      - BackgroundJobs__PendingDownloads__HostedServiceEnabled=true
+      - BackgroundJobs__PendingDownloads__ScheduledRunEnabled=true
+      - BackgroundJobs__PendingDownloads__ScheduledLocalTime=02:30
+      - BackgroundJobs__PendingDownloads__AutoParseRemittance=true
+      - BackgroundJobs__PendingDownloads__BatchSize=25
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+      - Alerting__AdminEmails=${ADMIN_EMAIL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8081/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # ── Web app — HTTP only, Hangfire disabled ────────────────────
+  # Port 5000 → 8080 keeps the existing cloudflared tunnel working
+  # (config.yml already routes bix.ghafservices.com → localhost:5000)
   analytika:
     build: .
+    container_name: analytika-app
+    restart: unless-stopped
+    user: root     # needed for NTFS bind-mount write access on Windows host
     ports:
-      - "80:8080"
+      - "5000:8080"
     volumes:
-      - analytika-data:/app/data
+      - type: bind
+        source: ${DATA_DIR:-J:/GhafAnalytika/Analytika}
+        target: /app/data
       - analytika-downloads:/app/wwwroot/portal-downloads
       - analytika-reports:/app/wwwroot/reports
       - analytika-logs:/app/logs
@@ -18,16 +64,29 @@ services:
       - BackgroundJobs__HangfireDashboardEnabled=false
       - BackgroundJobs__RecurringJobsEnabled=false
       - BackgroundJobs__PendingDownloads__HostedServiceEnabled=false
+      - Anthropic__ApiKey=${ANTHROPIC_API_KEY}
+      - Alerting__AdminEmails=${ADMIN_EMAIL}
+    depends_on:
+      worker:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/healthz || exit 1"]
       interval: 60s
       timeout: 10s
       retries: 3
       start_period: 30s
-    restart: unless-stopped
+
+# Note: cloudflared runs as a Windows service/process — NOT in Docker.
+# Existing config at C:\Users\jawah\.cloudflared\config.yml already routes:
+#   bix.ghafservices.com → http://localhost:5000
+# which maps to the analytika container above.
+# Run "cloudflared tunnel run analytika" (or the Windows service) separately.
+
+# IMPORTANT: Stop the native app (Analytika.exe on port 5000) before starting
+# this stack. SQLite requires exclusive access for WAL mode on first open.
+# You can kill it via Task Manager or:  Stop-Process -Name Analytika
 
 volumes:
-  analytika-data:
   analytika-downloads:
   analytika-reports:
   analytika-logs:

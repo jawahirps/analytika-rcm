@@ -2,11 +2,11 @@ using Analytika.Models;
 using Analytika.Modules;
 using Analytika.Services;
 using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
-using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -177,7 +177,10 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 if (hangfireDashboardEnabled)
-    app.UseHangfireDashboard("/hangfire");
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new HangfireAuthorizationFilter() }
+    });
 
 if (hangfireServerEnabled || recurringJobsEnabled)
     GlobalJobFilters.Filters.Add(new JobFailureNotificationFilter(app.Services));
@@ -276,173 +279,37 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
     using var scope = app.Services.CreateScope();
     var services = scope.ServiceProvider;
     var db = services.GetRequiredService<AppDbContext>();
-    if (db.Database.IsNpgsql())
+    if (!db.Database.IsNpgsql())
     {
-        // Schema handled by Migrate() above; the raw SQL below is SQLite-specific
-    }
-    else
-    {
-    db.Database.EnsureCreated();
-    var createIndexesOnStartup = app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false);
-    if (createIndexesOnStartup)
-    {
-        db.Database.ExecuteSqlRaw(@"
-            -- Performance indexes. Run only during planned maintenance on large local DBs.
-            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FetchedAt""
-                ON ""PortalFetchLogs""(""FetchedAt"" DESC);
-            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Status""
-                ON ""PortalFetchLogs""(""FacilityId"", ""Status"");
-            CREATE INDEX IF NOT EXISTS ""IX_PortalFetchLogs_FacilityId_Operation""
-                ON ""PortalFetchLogs""(""FacilityId"", ""Operation"");
-            CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_FacilityId_FileDownloaded""
-                ON ""PortalTransactions""(""FacilityId"", ""FileDownloaded"");
-            CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
-                ON ""PortalTransactions""(""SyncedAt"" DESC);
-        ");
-    }
-    // Add EmailTo column to ReportRequests if not present (SQLite safe migration)
-    if (!ColumnExists(db, "ReportRequests", "EmailTo"))
-        db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL");
-
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS ""DhpoCodingSets"" (
-            ""Id"" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""Category"" TEXT NOT NULL,
-            ""Code"" TEXT NOT NULL,
-            ""Name"" TEXT NOT NULL,
-            ""SubType"" TEXT NULL,
-            ""ExtraJson"" TEXT NULL,
-            ""ImportedAt"" TEXT NOT NULL
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_DhpoCodingSets_Category_Code""
-            ON ""DhpoCodingSets""(""Category"", ""Code"");
-    ");
-    // SystemSettings and ReportSchedules tables (SQLite safe — no-op if already exist)
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS ""SystemSettings"" (
-            ""Id""         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""Category""   TEXT NOT NULL,
-            ""Key""        TEXT NOT NULL,
-            ""Value""      TEXT NULL,
-            ""UpdatedAt""  TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_SystemSettings_Category_Key""
-            ON ""SystemSettings""(""Category"", ""Key"");
-
-        CREATE TABLE IF NOT EXISTS ""ReportSchedules"" (
-            ""Id""              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""Name""            TEXT NOT NULL,
-            ""ReportType""      TEXT NOT NULL,
-            ""CronExpression""  TEXT NOT NULL DEFAULT '0 8 1 * *',
-            ""Recipients""      TEXT NOT NULL,
-            ""FileFormat""      TEXT NOT NULL DEFAULT 'Excel',
-            ""FacilityIdsJson"" TEXT NULL,
-            ""ParametersJson""  TEXT NULL,
-            ""IsActive""        INTEGER NOT NULL DEFAULT 1,
-            ""LastRunAt""       TEXT NULL,
-            ""LastRunStatus""   TEXT NULL,
-            ""CreatedAt""       TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-    ");
-
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS ""RemittanceClaims"" (
-            ""Id""                       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""RemittanceTransactionId""  INTEGER NOT NULL REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
-            ""FacilityId""               INTEGER NOT NULL REFERENCES ""Facilities""(""Id"") ON DELETE CASCADE,
-            ""ClaimId""                  TEXT NOT NULL,
-            ""PayerClaimId""             TEXT NULL,
-            ""PayerCode""                TEXT NULL,
-            ""ClinicianLicense""         TEXT NULL,
-            ""OriginalAmount""           REAL NOT NULL DEFAULT 0,
-            ""PaidAmount""               REAL NOT NULL DEFAULT 0,
-            ""DenialCodesJson""          TEXT NULL,
-            ""Comments""                 TEXT NULL,
-            ""ActivityCount""            INTEGER NOT NULL DEFAULT 0,
-            ""SettlementDate""           TEXT NULL,
-            ""PaymentReference""         TEXT NULL,
-            ""ParsedAt""                 TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS ""XmlParsedRecords"" (
-            ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""PortalTransactionId"" INTEGER NOT NULL REFERENCES ""PortalTransactions""(""Id"") ON DELETE CASCADE,
-            ""FacilityId""          INTEGER NOT NULL REFERENCES ""Facilities""(""Id"") ON DELETE CASCADE,
-            ""RecordKind""          TEXT NOT NULL,
-            ""ClaimId""             TEXT NOT NULL,
-            ""FileName""            TEXT NULL,
-            ""FileId""              TEXT NULL,
-            ""TransactionDate""      TEXT NULL,
-            ""SenderId""            TEXT NULL,
-            ""ReceiverId""          TEXT NULL,
-            ""ReceiverName""        TEXT NULL,
-            ""PayerId""             TEXT NULL,
-            ""PayerName""           TEXT NULL,
-            ""PatientId""           TEXT NULL,
-            ""MemberId""            TEXT NULL,
-            ""TreatmentDate""       TEXT NULL,
-            ""TreatmentDateEnd""    TEXT NULL,
-            ""DateOfAdmission""     TEXT NULL,
-            ""SubmissionDate""      TEXT NULL,
-            ""EncounterType""       TEXT NULL,
-            ""Clinician""           TEXT NULL,
-            ""ServiceYear""         TEXT NULL,
-            ""ServiceMonth""        TEXT NULL,
-            ""NetAmount""           REAL NOT NULL DEFAULT 0,
-            ""PaidAmount""          REAL NOT NULL DEFAULT 0,
-            ""ActivityCount""       INTEGER NOT NULL DEFAULT 0,
-            ""PaymentReference""    TEXT NULL,
-            ""SettlementDate""      TEXT NULL,
-            ""DenialCodesJson""     TEXT NULL,
-            ""Comments""            TEXT NULL,
-            ""IdPayer""             TEXT NULL,
-            ""ResubmissionType""    TEXT NULL,
-            ""PrincipalDiagnosis""  TEXT NULL,
-            ""IsMatched""           INTEGER NOT NULL DEFAULT 0,
-            ""ReadyForReport""      INTEGER NOT NULL DEFAULT 1,
-            ""Notes""               TEXT NULL,
-            ""ParsedAt""            TEXT NOT NULL,
-            ""MatchedAt""           TEXT NULL
-        );
-        CREATE TABLE IF NOT EXISTS ""ResubmissionTasks"" (
-            ""Id""                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-            ""RemittanceClaimId""   INTEGER NOT NULL UNIQUE REFERENCES ""RemittanceClaims""(""Id"") ON DELETE CASCADE,
-            ""AssignedToUserId""    TEXT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE SET NULL,
-            ""AssignedByUserId""    TEXT NULL REFERENCES ""AspNetUsers""(""Id"") ON DELETE SET NULL,
-            ""AssignedAt""          TEXT NOT NULL DEFAULT (datetime('now')),
-            ""DueDate""             TEXT NULL,
-            ""Status""              TEXT NOT NULL DEFAULT 'Unassigned',
-            ""Priority""            TEXT NOT NULL DEFAULT 'Normal',
-            ""Notes""               TEXT NULL,
-            ""ActionTaken""         TEXT NULL,
-            ""StartedAt""           TEXT NULL,
-            ""ResubmittedAt""       TEXT NULL,
-            ""ClosedAt""            TEXT NULL,
-            ""CreatedAt""           TEXT NOT NULL DEFAULT (datetime('now')),
-            ""UpdatedAt""           TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-    ");
-
-    if (createIndexesOnStartup)
-    {
-        db.Database.ExecuteSqlRaw(@"
-            CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_FacilityId"" ON ""RemittanceClaims""(""FacilityId"");
-            CREATE INDEX IF NOT EXISTS ""IX_RemittanceClaims_ClaimId""    ON ""RemittanceClaims""(""ClaimId"");
-            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_PortalTransactionId"" ON ""XmlParsedRecords""(""PortalTransactionId"");
-            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Facility_Kind"" ON ""XmlParsedRecords""(""FacilityId"", ""RecordKind"");
-            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ClaimId"" ON ""XmlParsedRecords""(""ClaimId"");
-            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport"" ON ""XmlParsedRecords""(""ReadyForReport"");
-            CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");
-            CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_AssignedToUserId"" ON ""ResubmissionTasks""(""AssignedToUserId"");
-        ");
-    }
-
-    // Add ClaimCategory column if it doesn't exist yet
-    if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
-        db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
+        var createIndexes = app.Configuration.GetValue("StartupMaintenance:CreateIndexesOnStartup", false);
+        SqliteSchemaService.EnsureSchema(db, createIndexes);
     }
 
     if (!db.Database.IsNpgsql() && app.Configuration.GetValue("StartupMaintenance:SeedDataOnStartup", false))
         await SeedData.InitializeAsync(services);
+}
+
+// ── Startup config validation ─────────────────────────────────────────
+{
+    var smtpHost = app.Configuration["Smtp:Host"];
+    if (string.IsNullOrEmpty(smtpHost) || smtpHost == "smtp.example.com")
+        app.Logger.LogWarning("SMTP host is not configured — email delivery will be disabled. Set Smtp:Host in appsettings or environment.");
+
+    var smtpPwd = app.Configuration["Smtp:Password"];
+    if (smtpPwd == "YOUR_SMTP_PASSWORD")
+        app.Logger.LogWarning("SMTP password is still the placeholder value — email delivery will fail. Set Smtp:Password via environment variable.");
+
+    var adminEmails = app.Configuration["Alerting:AdminEmails"];
+    if (string.IsNullOrEmpty(adminEmails))
+        app.Logger.LogWarning("Alerting:AdminEmails is empty — job failure notifications will not be sent.");
+
+    var backupRetention = app.Configuration.GetValue("Backup:RetentionCount", 14);
+    if (backupRetention < 1)
+        app.Logger.LogWarning("Backup:RetentionCount is {Count} — this may delete all backups. Set to at least 1.", backupRetention);
+
+    var guestPwd = app.Configuration["Security:GuestPassword"];
+    if (string.IsNullOrEmpty(guestPwd))
+        app.Logger.LogWarning("Security:GuestPassword is not configured — guest provisioning will use a default password.");
 }
 
 // Pre-warm dashboard facility status so the first user lands on hot data.
@@ -482,29 +349,3 @@ app.Lifetime.ApplicationStarted.Register(() =>
 });
 
 app.Run();
-
-static bool ColumnExists(AppDbContext db, string tableName, string columnName)
-{
-    var connection = db.Database.GetDbConnection();
-    var shouldClose = connection.State != ConnectionState.Open;
-    if (shouldClose) connection.Open();
-
-    try
-    {
-        using var command = connection.CreateCommand();
-        var safeTableName = tableName.Replace("\"", "\"\"");
-        command.CommandText = $@"PRAGMA table_info(""{safeTableName}"")";
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
-    finally
-    {
-        if (shouldClose) connection.Close();
-    }
-}

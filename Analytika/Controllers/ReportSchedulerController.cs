@@ -3,6 +3,7 @@ using Analytika.Models.ViewModels;
 using Analytika.Services;
 using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -15,27 +16,65 @@ public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
-    private readonly IWebHostEnvironment _env;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService, IWebHostEnvironment env)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService, UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _reportService = reportService;
-        _env = env;
+        _userManager = userManager;
+    }
+
+    // Returns the single facility ID for Facility-type users, null for Global users.
+    private async Task<int?> GetUserFacilityIdAsync()
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser?.UserType != "Facility") return null;
+        var uf = await _context.Set<UserFacility>()
+            .Where(x => x.UserId == appUser.Id)
+            .FirstOrDefaultAsync();
+        return uf?.FacilityId;
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityId);
+
+        var facilitiesQuery = _context.Facilities.Where(f => f.IsActive);
+        if (facilityId.HasValue)
+            facilitiesQuery = facilitiesQuery.Where(f => f.Id == facilityId.Value);
+
+        // Scope filter dropdowns to codes that actually appear in this facility's parsed data
+        var parsedScope = _context.XmlParsedRecords.AsNoTracking();
+        if (facilityId.HasValue)
+            parsedScope = parsedScope.Where(r => r.FacilityId == facilityId.Value);
+
+        var payerCodes = await parsedScope
+            .Where(r => r.PayerId != null && r.PayerId != "")
+            .Select(r => r.PayerId!).Distinct().ToListAsync();
+        var receiverCodes = await parsedScope
+            .Where(r => r.ReceiverId != null && r.ReceiverId != "")
+            .Select(r => r.ReceiverId!).Distinct().ToListAsync();
+        var clinicianCodes = await parsedScope
+            .Where(r => r.Clinician != null && r.Clinician != "")
+            .Select(r => r.Clinician!).Distinct().ToListAsync();
+
         return new ReportSchedulerViewModel
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
             SearchCriteria = "EncounterStartDate",
-            Facilities = new SelectList(await _context.Facilities.Where(f => f.IsActive).ToListAsync(), "Id", "Name"),
-            Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
-            Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
-            Clinicians = new SelectList(await _context.Clinicians.Where(c => c.IsActive).ToListAsync(), "Id", "Name"),
+            Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
+            Payers    = new SelectList(await _context.Payers
+                .Where(p => p.IsActive && payerCodes.Contains(p.Name))
+                .OrderBy(p => p.Name).ToListAsync(), "Id", "Name"),
+            Receivers = new SelectList(await _context.Receivers
+                .Where(r => r.IsActive && receiverCodes.Contains(r.Name))
+                .OrderBy(r => r.Name).ToListAsync(), "Id", "Name"),
+            Clinicians = new SelectList(await _context.Clinicians
+                .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
+                .OrderBy(c => c.Name).ToListAsync(), "Id", "Name"),
             Departments = new SelectList(await _context.Departments.Where(d => d.IsActive).ToListAsync(), "Id", "Name"),
             RecentReports = reports,
             TotalReports = total,
@@ -103,7 +142,8 @@ public class ReportSchedulerController : Controller
     [HttpGet]
     public async Task<IActionResult> GetReports(string reportType, int page = 1, int pageSize = 10)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityId);
         return Json(new
         {
             data = reports.Select(r => new
@@ -212,14 +252,15 @@ public class ReportSchedulerController : Controller
         return RedirectToAction(GetActionName(reportType));
     }
 
-    private string? ResolveReportFilePath(string? reportFilePath)
+    private static string? ResolveReportFilePath(string? reportFilePath)
     {
         if (string.IsNullOrWhiteSpace(reportFilePath))
             return null;
 
-        var webRoot = Path.GetFullPath(_env.WebRootPath);
+        var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
         var filePath = Path.GetFullPath(Path.Combine(
-            _env.WebRootPath,
+            Directory.GetCurrentDirectory(),
+            "wwwroot",
             reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
 
         return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;
