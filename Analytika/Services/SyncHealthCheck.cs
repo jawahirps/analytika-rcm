@@ -30,21 +30,73 @@ public class SyncHealthCheck : IHealthCheck
                 return HealthCheckResult.Healthy("No active portal credentials configured.");
 
             var staleAfterHours = _config.GetValue("Monitoring:SyncStaleAfterHours", 26);
-            var lastSuccess = await _db.PortalFetchLogs
-                .Where(l => l.Status == "Success")
-                .MaxAsync(l => (DateTime?)l.FetchedAt, ct);
 
-            if (lastSuccess == null)
-                return HealthCheckResult.Degraded("Credentials are configured but no portal fetch has succeeded yet.");
+            var facilityStats = await _db.PortalCredentials
+                .Where(c => c.IsActive)
+                .Select(c => new { c.FacilityId, FacilityName = c.Facility!.Name, c.Portal })
+                .Distinct()
+                .ToListAsync(ct);
 
-            var age = DateTime.UtcNow - lastSuccess.Value;
-            return age > TimeSpan.FromHours(staleAfterHours)
-                ? HealthCheckResult.Degraded($"Last successful portal fetch was {age.TotalHours:F0}h ago (threshold {staleAfterHours}h).")
-                : HealthCheckResult.Healthy($"Last successful portal fetch {age.TotalMinutes:F0} min ago.");
+            var cutoff90d = DateTime.UtcNow.AddDays(-90);
+            var recentLogs = await _db.PortalFetchLogs
+                .Where(l => l.FetchedAt >= cutoff90d)
+                .GroupBy(l => new { l.FacilityId, l.Portal })
+                .Select(g => new
+                {
+                    g.Key.FacilityId,
+                    g.Key.Portal,
+                    LastSuccess = g.Where(l => l.Status == "Success").Max(l => (DateTime?)l.FetchedAt),
+                    LastAttempt = g.Max(l => l.FetchedAt),
+                    FailCount = g.Count(l => l.Status != "Success")
+                })
+                .ToListAsync(ct);
+
+            var pendingDownloads = await _db.PortalTransactions
+                .CountAsync(t => !t.FileDownloaded, ct);
+
+            var parsedCount = await _db.XmlParsedRecords.CountAsync(ct);
+
+            var data = new Dictionary<string, object>
+            {
+                ["activeFacilities"] = facilityStats.Count,
+                ["pendingDownloads"] = pendingDownloads,
+                ["parsedRecords"] = parsedCount
+            };
+
+            var degradedFacilities = new List<string>();
+            foreach (var fac in facilityStats)
+            {
+                var log = recentLogs.FirstOrDefault(l =>
+                    l.FacilityId == fac.FacilityId &&
+                    l.Portal.Equals(fac.Portal, StringComparison.OrdinalIgnoreCase));
+
+                var key = $"{fac.FacilityName}:{fac.Portal}";
+                if (log?.LastSuccess == null)
+                {
+                    degradedFacilities.Add($"{key} (never synced)");
+                    data[$"facility:{key}:status"] = "never_synced";
+                }
+                else
+                {
+                    var age = DateTime.UtcNow - log.LastSuccess.Value;
+                    data[$"facility:{key}:lastSuccess"] = $"{age.TotalHours:F0}h ago";
+                    data[$"facility:{key}:recentFailures"] = log.FailCount;
+                    if (age > TimeSpan.FromHours(staleAfterHours))
+                        degradedFacilities.Add($"{key} ({age.TotalHours:F0}h stale)");
+                }
+            }
+
+            if (degradedFacilities.Count > 0)
+                return HealthCheckResult.Degraded(
+                    $"{degradedFacilities.Count}/{facilityStats.Count} facilities degraded: {string.Join(", ", degradedFacilities.Take(5))}",
+                    data: data);
+
+            return HealthCheckResult.Healthy(
+                $"All {facilityStats.Count} facilities synced within {staleAfterHours}h. {pendingDownloads} pending downloads, {parsedCount:N0} parsed records.",
+                data: data);
         }
         catch (Exception ex)
         {
-            // Schema not ready (first boot) — don't fail the probe over the sync signal
             return HealthCheckResult.Healthy($"Sync status unavailable: {ex.Message}");
         }
     }

@@ -769,6 +769,54 @@ namespace Analytika.Migrations
                     b.ToTable("UserReportAccesses");
                 });
 
+            modelBuilder.Entity("Analytika.Models.XmlParsedActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ActivityType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Clinician")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DenialCode")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Gross")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("Net")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("OrderingClinician")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("PaymentAmount")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Start")
+                        .HasColumnType("text");
+
+                    b.Property<int>("XmlParsedRecordId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("XmlParsedRecordId");
+
+                    b.ToTable("XmlParsedActivities");
+                });
+
             modelBuilder.Entity("Analytika.Models.XmlParsedRecord", b =>
                 {
                     b.Property<int>("Id")
@@ -779,6 +827,9 @@ namespace Analytika.Migrations
 
                     b.Property<int>("ActivityCount")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ClaimCategory")
+                        .HasColumnType("text");
 
                     b.Property<string>("ClaimId")
                         .IsRequired()
@@ -796,6 +847,9 @@ namespace Analytika.Migrations
                     b.Property<string>("DenialCodesJson")
                         .HasColumnType("text");
 
+                    b.Property<string>("DiagnosesJson")
+                        .HasColumnType("text");
+
                     b.Property<string>("EncounterType")
                         .HasColumnType("text");
 
@@ -807,6 +861,9 @@ namespace Analytika.Migrations
 
                     b.Property<string>("FileName")
                         .HasColumnType("text");
+
+                    b.Property<decimal>("GrossAmount")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("IdPayer")
                         .HasColumnType("text");
@@ -832,7 +889,16 @@ namespace Analytika.Migrations
                     b.Property<DateTime>("ParsedAt")
                         .HasColumnType("timestamp without time zone");
 
+                    b.Property<string>("PatientDob")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatientGender")
+                        .HasColumnType("text");
+
                     b.Property<string>("PatientId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PatientNationalId")
                         .HasColumnType("text");
 
                     b.Property<string>("PayerId")
@@ -1175,6 +1241,17 @@ namespace Analytika.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Analytika.Models.XmlParsedActivity", b =>
+                {
+                    b.HasOne("Analytika.Models.XmlParsedRecord", "XmlParsedRecord")
+                        .WithMany("Activities")
+                        .HasForeignKey("XmlParsedRecordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("XmlParsedRecord");
+                });
+
             modelBuilder.Entity("Analytika.Models.XmlParsedRecord", b =>
                 {
                     b.HasOne("Analytika.Models.Facility", "Facility")
@@ -1255,6 +1332,11 @@ namespace Analytika.Migrations
             modelBuilder.Entity("Analytika.Models.RemittanceClaim", b =>
                 {
                     b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("Analytika.Models.XmlParsedRecord", b =>
+                {
+                    b.Navigation("Activities");
                 });
 #pragma warning restore 612, 618
         }

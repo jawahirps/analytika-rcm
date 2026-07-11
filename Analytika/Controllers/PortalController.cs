@@ -24,8 +24,9 @@ public class PortalController : Controller
     private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly ILogger<PortalController> _logger;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, ILogger<PortalController> logger)
     {
         _db = db;
         _dha = dha;
@@ -35,6 +36,7 @@ public class PortalController : Controller
         _xmlParsing = xmlParsing;
         _cache = cache;
         _credentials = credentials;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -1146,8 +1148,8 @@ public class PortalController : Controller
             foreach (var txStatus in txStatuses)
                 foreach (var txType in txTypes)
                 {
-                    var (_, rSent, eSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rSent, eSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
                     allRows.AddRange(rSent);
                     allRows.AddRange(rRecv);
                     fetchErr ??= eSent ?? eRecv;
@@ -1327,8 +1329,8 @@ public class PortalController : Controller
                         foreach (var txStatus in txStatuses)
                         foreach (var txType in txTypes)
                         {
-                            var (_, sent, errSent) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 1, df, dt, txStatus, txType);
-                            var (_, recv, errRecv) = await _dha.SearchTransactionsAsync(cred.Username, pwd, 2, df, dt, txStatus, txType);
+                            var (_, sent, errSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, df, dt, txStatus, txType);
+                            var (_, recv, errRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, df, dt, txStatus, txType);
                             allRows.AddRange(sent);
                             allRows.AddRange(recv);
                             fetchErr ??= errSent ?? errRecv;
@@ -1746,7 +1748,7 @@ public class PortalController : Controller
                     .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId && c.IsActive && c.Portal == "DHA", ct);
                 if (cr == null) { failed++; lastId = tx.Id; await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total }); continue; }
                 try { cred = (cr.Username, _credentials.Unprotect(cr.PasswordEncrypted)); credCache[tx.FacilityId] = cred; }
-                catch { failed++; lastId = tx.Id; continue; }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to decrypt credential for facility {FacilityId}", tx.FacilityId); failed++; lastId = tx.Id; continue; }
             }
 
             try
@@ -1765,7 +1767,7 @@ public class PortalController : Controller
                 }
                 else { failed++; }
             }
-            catch { failed++; }
+            catch (Exception ex) { _logger.LogWarning(ex, "Download failed for transaction {TxId}", tx.Id); failed++; }
 
             lastId = tx.Id;
             int pct = (int)((double)(done + failed) / total * 100);

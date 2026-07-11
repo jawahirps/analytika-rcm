@@ -4,6 +4,12 @@
 
 Analytika/bin/
 Analytika/obj/
+Analytika.Tests/bin/
+Analytika.Tests/obj/
+analytika.db
+analytika.db.gz
+analytika.db-shm
+analytika.db-wal
 Analytika/analytika.db
 Analytika/publish/
 Analytika/wwwroot/portal-downloads/
@@ -45,3 +51,8 @@ logs/
 
 # Server controller runtime (PIDs, logs, mode file)
 .run/
+
+# Node (Playwright test tooling)
+node_modules/
+package.json
+package-lock.json

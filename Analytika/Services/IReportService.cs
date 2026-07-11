@@ -8,5 +8,6 @@ public interface IReportService
     Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, int? facilityId = null);
     Task<ReportRequest?> GetReportByIdAsync(int id);
     Task GenerateReportAsync(int reportRequestId);
+    Task RunScheduledReportAsync(int scheduleId);
     string GetNextReportId(ReportRequest request, string? selectedDateRange = null);
 }

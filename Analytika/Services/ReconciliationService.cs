@@ -350,49 +350,68 @@ public class ReconciliationService
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
-        // Load all DHA transactions that have downloaded XML content
-        var query = _db.PortalTransactions
-            .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
+        // Read from XmlParsedRecords cache instead of re-parsing raw XML each time
+        var parsedQuery = _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.ReadyForReport);
 
         if (facilityIds != null && facilityIds.Count > 0)
-            query = query.Where(t => facilityIds.Contains(t.FacilityId));
-        if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
-        if (!string.IsNullOrEmpty(dateTo)) query = query.Where(t => string.Compare(t.TransactionDate, dateTo) <= 0);
+            parsedQuery = parsedQuery.Where(r => facilityIds.Contains(r.FacilityId));
+        if (!string.IsNullOrEmpty(dateFrom))
+            parsedQuery = parsedQuery.Where(r => r.TransactionDate != null && string.Compare(r.TransactionDate, dateFrom) >= 0);
+        if (!string.IsNullOrEmpty(dateTo))
+            parsedQuery = parsedQuery.Where(r => r.TransactionDate != null && string.Compare(r.TransactionDate, dateTo) <= 0);
 
-        // Only fetch columns needed for parsing — avoids loading large RawXml into memory
-        var transactions = await query
-            .Select(t => new PortalTransaction
+        var parsedRecords = await parsedQuery
+            .Select(r => new
             {
-                TransactionId = t.TransactionId,
-                FileId = t.FileId,
-                Type = t.Type,
-                FileName = t.FileName,
-                FileContentXml = t.FileContentXml,
-                FacilityId = t.FacilityId
+                r.RecordKind,
+                r.ClaimId,
+                r.FacilityId,
+                r.PayerName,
+                r.PayerId,
+                r.TreatmentDate,
+                r.GrossAmount,
+                r.NetAmount,
+                r.PaidAmount,
+                r.SettlementDate,
+                r.FileId,
+                r.FileName
             })
-            .ToListAsync();   // no cap — unlimited records
+            .ToListAsync();
 
-        // Parse claims and remittances from XML content
         var claimMap = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
         var remittanceMap = new Dictionary<string, RemittanceEntry>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var tx in transactions)
+        foreach (var r in parsedRecords)
         {
-            // Check remittance FIRST — the stored Type column is unreliable (defaults to "Claim")
-            // so we always let XML content decide.
-            if (IsRemittanceFile(tx))
+            if (string.IsNullOrWhiteSpace(r.ClaimId)) continue;
+
+            if (r.RecordKind == "Submission")
             {
-                foreach (var r in ParseRemittanceXml(tx))
-                    remittanceMap.TryAdd(r.ClaimId, r);
+                claimMap.TryAdd(r.ClaimId, new ClaimEntry
+                {
+                    ClaimId = r.ClaimId,
+                    Payer = r.PayerName ?? r.PayerId,
+                    ServiceDate = r.TreatmentDate,
+                    SubmittedAmount = r.GrossAmount > 0 ? r.GrossAmount : (r.NetAmount > 0 ? r.NetAmount : null),
+                    SourceFileId = r.FileId ?? r.FileName
+                });
             }
-            else if (IsClaimFile(tx))
+            else if (r.RecordKind == "Remittance")
             {
-                foreach (var c in ParseClaimXml(tx))
-                    claimMap.TryAdd(c.ClaimId, c);
+                remittanceMap.TryAdd(r.ClaimId, new RemittanceEntry
+                {
+                    ClaimId = r.ClaimId,
+                    PaidAmount = r.PaidAmount,
+                    RemittanceDate = r.SettlementDate,
+                    PaymentStatus = r.PaidAmount <= 0 ? "Rejected" : "Paid",
+                    Payer = r.PayerName ?? r.PayerId,
+                    SourceFileId = r.FileId ?? r.FileName
+                });
             }
         }
 
-        // Join on ClaimID
         var allIds = claimMap.Keys.Union(remittanceMap.Keys, StringComparer.OrdinalIgnoreCase).ToList();
         var rows = new List<ReconciliationRow>();
 
@@ -436,7 +455,7 @@ public class ReconciliationService
             DateFrom = dateFrom,
             DateTo = dateTo,
             TotalRowCount = rows.Count,
-            Rows = rows   // unlimited — no display cap
+            Rows = rows
         };
     }
 
@@ -466,7 +485,9 @@ public class ReconciliationService
         XDocument doc;
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — XML is already fully loaded; iterating every <Claim>
+        // is cheap and any hard cap silently drops rows for large submission files.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             // DHA Claim.Submission format uses child elements, not attributes
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
@@ -506,7 +527,8 @@ public class ReconciliationService
         var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
                      ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — see ParseClaimXml note.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
             if (string.IsNullOrWhiteSpace(claimId)) continue;
