@@ -1,20 +1,16 @@
-using Analytika.Models.ViewModels;
 using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Analytika.Controllers;
 
+/// <summary>
+/// Advanced report entry points. Submission XML uses the shared Report Scheduler UI.
+/// </summary>
 [Authorize(Roles = AppRoles.ReportAccess)]
 public class AdvancedReportsController : Controller
 {
-    public IActionResult SubmissionXMLFileReport()
-    {
-        var vm = new ReportSchedulerViewModel
-        {
-            ReportType = "SubmissionXML",
-            ReportTitle = "Submission XML File Report"
-        };
-        return View(vm);
-    }
+    [HttpGet]
+    public IActionResult SubmissionXMLFileReport(int page = 1)
+        => RedirectToAction("SubmissionXMLFileReport", "ReportScheduler", new { page });
 }

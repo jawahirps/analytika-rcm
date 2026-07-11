@@ -791,6 +791,7 @@ public class ReportService : IReportService
         "FinanceTAT" => "Finance TAT Report",
         "DenialReport" => "Denial Query Report",
         "ClaimLifeCycle" => "Claim Life Cycle Report",
+        "SubmissionXML" => "Submission XML File Report",
         _ => "Ghaf Business Intelligence Report"
     };
 
@@ -806,6 +807,7 @@ public class ReportService : IReportService
             "FinanceTAT" => "Finance TAT",
             "DenialReport" => "Denial Query",
             "ClaimLifeCycle" => "Claim Life Cycle",
+            "SubmissionXML" => "Submission XML",
             _ => "Ghaf Report"
         };
 
