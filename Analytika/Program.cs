@@ -10,6 +10,9 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow running as a Windows Service (sc.exe / NSSM) without a console.
+builder.Host.UseWindowsService();
+
 // Serilog: reads sinks/levels from the "Serilog" section of appsettings.
 builder.Services.AddSerilog((services, config) => config
     .ReadFrom.Configuration(builder.Configuration)

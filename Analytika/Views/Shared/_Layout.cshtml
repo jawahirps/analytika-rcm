@@ -26,9 +26,9 @@
     <!-- Inter font — async, non-blocking (falls back to system-ui) -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
-    <!-- Non-critical: widget CSS loaded after paint via JS swap -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" media="print" onload="this.media='all'" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" media="print" onload="this.media='all'" />
+    <!-- Non-critical: widget CSS (prefer local copies for select2/flatpickr) -->
+    <link rel="stylesheet" href="~/lib/select2.min.css" asp-append-version="true" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="~/lib/flatpickr.min.css" asp-append-version="true" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.min.css" media="print" onload="this.media='all'" />
@@ -412,22 +412,21 @@
 <div class="support-backdrop" id="supportBackdrop"></div>
 
 <!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
-<!-- Bootstrap must be synchronous — it initialises immediately on DOMContentLoaded -->
+<!-- Load sync (no defer) so page Scripts sections can use $, select2, DataTables, etc. -->
 <script src="/vendor/bootstrap.bundle.min.js"></script>
-<!-- All other scripts deferred — parse in parallel, execute after HTML is parsed -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr" defer></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js" defer></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js" defer></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js" defer></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js" defer></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
-<script src="~/js/site.js" asp-append-version="true" defer></script>
+<script src="~/lib/jquery.min.js" asp-append-version="true"></script>
+<script src="~/lib/select2.min.js" asp-append-version="true"></script>
+<script src="~/lib/flatpickr.min.js" asp-append-version="true"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
 // Show server-rendered toasts

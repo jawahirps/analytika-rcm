@@ -25,8 +25,12 @@ Set `ANALYTIKA_TUNNEL_ORIGIN` to the tunnel target the Worker should proxy to.
 
 Examples:
 
-- `https://my-named-tunnel.example.com`
+- `https://bix.ghafservices.com` (only if the Worker route uses a *different* hostname)
 - `https://random-name.trycloudflare.com`
+
+Public end-user hostname for this deployment is **`bix.ghafservices.com`**.
+If the Worker itself is served on that hostname, point `ANALYTIKA_TUNNEL_ORIGIN`
+at a private tunnel hostname instead to avoid a proxy loop.
 
 ## Deploy steps
 

@@ -30,13 +30,14 @@ This starts:
 
 ## Recommended Cloudflare ingress target
 
-In the Cloudflare dashboard, point the public hostname for the named tunnel to:
+In the Cloudflare dashboard, set the public hostname to **`bix.ghafservices.com`**
+and point the named tunnel service to:
 
 ```text
 http://analytika:8080
 ```
 
-That hostname works because both services share the same Docker Compose network.
+That service target works because both containers share the same Docker Compose network.
 
 ## Current connector reference
 
@@ -53,12 +54,13 @@ tunnel ID used in `deploy/3_cloudflared_config.yml`.
 
 1. `docker compose ps`
 2. `docker compose logs cloudflared --tail 100`
-3. Open the public hostname configured on the tunnel.
+3. Open `https://bix.ghafservices.com` (and `/healthz`).
 
 ## Windows service path
 
 If you are deploying directly onto a Windows server instead of Docker, keep
-using `deploy/2_install_service.ps1` and `deploy/3_cloudflared_config.yml`.
+using `deploy/2_install_service.ps1`, `deploy/3_cloudflared_config.yml`, and
+`deploy/3b_install_tunnel_service.ps1` for `bix.ghafservices.com`.
 
 ## Optional Worker layer
 
