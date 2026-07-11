@@ -72,69 +72,63 @@
     }
 })();
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-(function initSidebar() {
-    var root    = document.documentElement;
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    var toggleBtn  = document.getElementById('sidebarToggle');
-    var toggleIcon = document.getElementById('sidebarToggleIcon');
-    var openBtn    = document.getElementById('sidebarOpen');
-    var closeBtn   = document.getElementById('sidebarClose');
-
-    if (!sidebar) return;
-
-    function setCollapsed(collapsed) {
-        root.classList.toggle('sidebar-collapsed', collapsed);
-        try { localStorage.setItem('sidebar_collapsed', collapsed); } catch (_) {}
-        if (toggleIcon) toggleIcon.className = collapsed
-            ? 'fas fa-chevron-right sidebar-icon'
-            : 'fas fa-chevron-left sidebar-icon';
-        if (toggleBtn) toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-    }
+// ── Horizontal menubar (mobile drawer) ───────────────────────────────────────
+(function initMenubar() {
+    var root = document.documentElement;
+    var openBtn = document.getElementById('menubarOpen');
+    var mobileNav = document.getElementById('menubarMobile');
+    var overlay = document.getElementById('menubarOverlay');
+    if (!mobileNav) return;
 
     function openMobile() {
-        root.classList.add('sidebar-open');
-        if (overlay) { overlay.removeAttribute('aria-hidden'); overlay.style.display = 'block'; }
+        root.classList.add('menubar-open');
+        mobileNav.hidden = false;
+        if (overlay) {
+            overlay.removeAttribute('aria-hidden');
+            overlay.style.display = 'block';
+        }
         if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
     }
 
     function closeMobile() {
-        root.classList.remove('sidebar-open');
-        if (overlay) { overlay.setAttribute('aria-hidden', 'true'); overlay.style.display = 'none'; }
+        root.classList.remove('menubar-open');
+        mobileNav.hidden = true;
+        if (overlay) {
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.style.display = 'none';
+        }
         if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
     }
 
-    if (toggleBtn) toggleBtn.addEventListener('click', function() {
-        setCollapsed(!root.classList.contains('sidebar-collapsed'));
+    if (openBtn) openBtn.addEventListener('click', function () {
+        if (root.classList.contains('menubar-open')) closeMobile();
+        else openMobile();
     });
+    if (overlay) overlay.addEventListener('click', closeMobile);
 
-    if (openBtn)  openBtn.addEventListener('click', openMobile);
-    if (closeBtn) closeBtn.addEventListener('click', closeMobile);
-    if (overlay)  overlay.addEventListener('click', closeMobile);
-
-    // Section accordion
-    document.querySelectorAll('.sidebar-section-toggle').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var section    = this.closest('.sidebar-section');
-            var isExpanded = section.classList.contains('expanded');
-            section.classList.toggle('expanded', !isExpanded);
-            this.setAttribute('aria-expanded', !isExpanded ? 'true' : 'false');
+    document.querySelectorAll('.menubar-mobile-group-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var group = this.closest('.menubar-mobile-group');
+            if (!group) return;
+            var expanded = group.classList.toggle('expanded');
+            this.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         });
     });
 
-    // Close mobile sidebar on nav click
-    document.querySelectorAll('.sidebar-link, .sidebar-sublink').forEach(function(link) {
-        link.addEventListener('click', function() {
+    document.querySelectorAll('.menubar-mobile-link, .menubar-mobile-sublink').forEach(function (link) {
+        link.addEventListener('click', function () {
             if (window.innerWidth < 992) closeMobile();
         });
     });
 
-    // Keyboard: close mobile with Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && root.classList.contains('sidebar-open')) closeMobile();
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && root.classList.contains('menubar-open')) closeMobile();
+    });
+
+    window.addEventListener('resize', function () {
+        if (window.innerWidth >= 992 && root.classList.contains('menubar-open')) closeMobile();
     });
 })();
 
@@ -307,6 +301,7 @@ $(document).ready(function() {
 
     /* Conversation history sent to the server */
     var history = [];
+    var openBtnMobile = document.getElementById('supportChatBtnMobile');
 
     function open() {
         panel.classList.add('is-open');
@@ -321,6 +316,7 @@ $(document).ready(function() {
     }
 
     openBtn.addEventListener('click', function(e) { e.preventDefault(); open(); });
+    if (openBtnMobile) openBtnMobile.addEventListener('click', function(e) { e.preventDefault(); open(); });
     closeBtn.addEventListener('click', close);
     backdrop.addEventListener('click', close);
     document.addEventListener('keydown', function(e) {
