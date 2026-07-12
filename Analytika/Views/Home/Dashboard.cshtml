@@ -298,6 +298,7 @@
 
         fetch('/Agent/Query', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'RequestVerificationToken': csrf ? csrf.value : '',
