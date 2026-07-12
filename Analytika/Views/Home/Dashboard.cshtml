@@ -65,7 +65,7 @@
             </div>
             <div class="agent-modal-body">
                 @Html.AntiForgeryToken()
-                <form id="agentQueryForm" class="agent-query-row" autocomplete="off">
+                <form id="agentQueryForm" class="agent-query-row" autocomplete="off" data-no-loader="true">
                     <input id="agentPrompt" class="form-control agent-query-input" type="text"
                            placeholder="Ask for a report… e.g. denials by payer" maxlength="600" />
                     <button type="submit" class="agent-btn agent-btn-primary" id="agentRunBtn">

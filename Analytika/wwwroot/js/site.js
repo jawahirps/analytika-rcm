@@ -215,7 +215,10 @@ function showToast(message, type) {
 // ── Submit button loading state ───────────────────────────────────────────────
 (function initLoadingButtons() {
     document.querySelectorAll('form').forEach(function(form) {
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', function(e) {
+            // AJAX forms handle their own loading state — the global overlay
+            // would never be dismissed because no navigation happens.
+            if (form.dataset.noLoader === 'true' || e.defaultPrevented) return;
             var btn = form.querySelector('[data-loading-text]');
             if (btn && !btn.disabled) {
                 var originalHtml = btn.innerHTML;
