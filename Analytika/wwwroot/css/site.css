@@ -4558,3 +4558,35 @@ html[data-theme="dark"] .agent-feature-ico { background: rgba(84,172,191,0.14); 
 }
 .agent-modal-note i { color: var(--brand-aqua); margin-right: 6px; }
 @keyframes dropIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ── Portal sync log panels (theme-aware) ─────────────────────── */
+.sync-log-panel {
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: .71rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  line-height: 1.9;
+  color: var(--text);
+}
+html[data-theme="dark"] .sync-log-panel {
+  background: #0d1826;
+  color: #c4d6e2;
+}
+
+/* ── XML parsing workspace dark support ───────────────────────── */
+html[data-theme="dark"] .xp-shell,
+html[data-theme="dark"] .xp-stat,
+html[data-theme="dark"] .xp-progress {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+html[data-theme="dark"] .xp-stat .num,
+html[data-theme="dark"] .xp-title,
+html[data-theme="dark"] .xp-progress-head { color: var(--text) !important; }
+html[data-theme="dark"] .xp-stat .lbl { color: var(--text-muted) !important; }
+html[data-theme="dark"] .xp-toolbar { border-bottom-color: var(--border) !important; }
+html[data-theme="dark"] .xp-progress-track { background: rgba(167,235,242,0.12) !important; }
