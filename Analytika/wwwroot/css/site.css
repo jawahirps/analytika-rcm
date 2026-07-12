@@ -3079,13 +3079,15 @@ html[data-theme="dark"] .select2-container--default .select2-results__option--hi
 .page-wrapper {
   position: relative;
   overflow: hidden;
-  background: #0b1524;
 }
-.page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
+html[data-theme="dark"] .page-wrapper {
+  background: #0b1524 !important;
+}
+html[data-theme="dark"] .page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
 
 /* Cards become dark glass panels over the aurora */
-.page-wrapper .filter-card,
-.page-wrapper .table-card {
+html[data-theme="dark"] .page-wrapper .filter-card,
+html[data-theme="dark"] .page-wrapper .table-card {
   border: 1px solid rgba(255,255,255,.09) !important;
   border-radius: 22px;
   box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
@@ -3094,77 +3096,77 @@ html[data-theme="dark"] .select2-container--default .select2-results__option--hi
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   overflow: hidden;
 }
-.page-wrapper .filter-card .card-header {
+html[data-theme="dark"] .page-wrapper .filter-card .card-header {
   background: linear-gradient(135deg, rgba(8,20,35,.96), rgba(0,102,102,.9)) !important;
   color: #f0f7fb !important;
   border-bottom: 1px solid rgba(255,255,255,.08) !important;
 }
-.page-wrapper .table-card .card-header {
+html[data-theme="dark"] .page-wrapper .table-card .card-header {
   background: rgba(255,255,255,.04) !important;
   color: #f0f7fb !important;
   border-bottom: 1px solid rgba(255,255,255,.07) !important;
 }
-.page-wrapper .table thead th {
+html[data-theme="dark"] .page-wrapper .table thead th {
   background: rgba(255,255,255,.05) !important;
   color: #8ba7bd !important;
   border-bottom: 1px solid rgba(255,255,255,.07) !important;
 }
-.page-wrapper .table tbody td { color: #c4d6e2 !important; }
-.page-wrapper .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05) !important; }
-.page-wrapper .breadcrumb-item a { color: #A7EBF2 !important; }
-.page-wrapper .breadcrumb-item.active { color: #8ba7bd !important; }
-.page-wrapper .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
-.page-wrapper .form-control,
-.page-wrapper .form-select,
-.page-wrapper .input-group-text {
+html[data-theme="dark"] .page-wrapper .table tbody td { color: #c4d6e2 !important; }
+html[data-theme="dark"] .page-wrapper .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05) !important; }
+html[data-theme="dark"] .page-wrapper .breadcrumb-item a { color: #A7EBF2 !important; }
+html[data-theme="dark"] .page-wrapper .breadcrumb-item.active { color: #8ba7bd !important; }
+html[data-theme="dark"] .page-wrapper .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
+html[data-theme="dark"] .page-wrapper .form-control,
+html[data-theme="dark"] .page-wrapper .form-select,
+html[data-theme="dark"] .page-wrapper .input-group-text {
   background: rgba(255,255,255,.06) !important;
   color: #f0f7fb !important;
   border-color: rgba(255,255,255,.10) !important;
 }
-.page-wrapper .form-control:focus,
-.page-wrapper .form-select:focus {
+html[data-theme="dark"] .page-wrapper .form-control:focus,
+html[data-theme="dark"] .page-wrapper .form-select:focus {
   background: rgba(255,255,255,.09) !important;
   border-color: #54ACBF !important;
   box-shadow: 0 0 0 3px rgba(84,172,191,.18) !important;
 }
-.page-wrapper .form-label,
-.page-wrapper label { color: #8ba7bd !important; }
-.page-wrapper .date-range-btn {
+html[data-theme="dark"] .page-wrapper .form-label,
+html[data-theme="dark"] .page-wrapper label { color: #8ba7bd !important; }
+html[data-theme="dark"] .page-wrapper .date-range-btn {
   border: 1px solid rgba(255,255,255,.10);
   background: rgba(255,255,255,.06);
   color: #c4d6e2;
 }
-.page-wrapper .date-range-btn:hover { background: rgba(255,255,255,.10); color: #f0f7fb; }
-.page-wrapper .date-range-btn.active {
+html[data-theme="dark"] .page-wrapper .date-range-btn:hover { background: rgba(255,255,255,.10); color: #f0f7fb; }
+html[data-theme="dark"] .page-wrapper .date-range-btn.active {
   background: rgba(84,172,191,.22) !important;
   color: #A7EBF2 !important;
   border-color: rgba(84,172,191,.40) !important;
 }
-.page-wrapper .btn-submit-report {
+html[data-theme="dark"] .page-wrapper .btn-submit-report {
   background: #54ACBF !important;
   border-color: rgba(84,172,191,.50) !important;
   box-shadow: 0 4px 20px rgba(84,172,191,.35) !important;
 }
-.page-wrapper .btn-reset-report {
+html[data-theme="dark"] .page-wrapper .btn-reset-report {
   background: rgba(255,255,255,.06) !important;
   color: #c4d6e2 !important;
   border-color: rgba(255,255,255,.10) !important;
 }
-.page-wrapper .text-muted { color: #7c9ab1 !important; }
-.page-wrapper .report-id-link { color: #A7EBF2 !important; }
-.page-wrapper .status-completed { color: #34d399 !important; }
-.page-wrapper .status-pending   { color: #fbbf24 !important; }
-.page-wrapper .status-processing { color: #A7EBF2 !important; }
-.page-wrapper .status-failed    { color: #f87171 !important; }
-.page-wrapper .btn-download {
+html[data-theme="dark"] .page-wrapper .text-muted { color: #7c9ab1 !important; }
+html[data-theme="dark"] .page-wrapper .report-id-link { color: #A7EBF2 !important; }
+html[data-theme="dark"] .page-wrapper .status-completed { color: #34d399 !important; }
+html[data-theme="dark"] .page-wrapper .status-pending   { color: #fbbf24 !important; }
+html[data-theme="dark"] .page-wrapper .status-processing { color: #A7EBF2 !important; }
+html[data-theme="dark"] .page-wrapper .status-failed    { color: #f87171 !important; }
+html[data-theme="dark"] .page-wrapper .btn-download {
   background: rgba(84,172,191,.18) !important; color: #A7EBF2 !important;
   border-color: rgba(84,172,191,.30) !important;
 }
-.page-wrapper .btn-delete-report {
+html[data-theme="dark"] .page-wrapper .btn-delete-report {
   background: rgba(248,113,113,.10) !important; color: #fca5a5 !important;
   border-color: rgba(248,113,113,.25) !important;
 }
-.page-wrapper .btn-clear-reports {
+html[data-theme="dark"] .page-wrapper .btn-clear-reports {
   background: rgba(248,113,113,.08) !important; color: #fca5a5 !important;
   border-color: rgba(248,113,113,.20) !important;
 }
