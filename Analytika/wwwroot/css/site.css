@@ -3654,13 +3654,11 @@ html[data-theme="light"] .menubar-mobile {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(8, 12, 24, 0.48);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  background: rgba(8, 12, 24, 0.62);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.18s ease, visibility 0.18s ease;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 .app-loading-overlay.is-active {
   opacity: 1;
@@ -3672,19 +3670,20 @@ html[data-theme="light"] .menubar-mobile {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 18px 22px 16px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 20px 24px 18px;
+  border-radius: 16px;
   background: var(--bix-loader-bg, #0c1424);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
   color: #e2e8f0;
-  overflow: hidden;
 }
-.app-loading-card--cube {
-  min-width: 180px;
-  padding-top: 8px;
-  padding-bottom: 14px;
+.app-loading-spinner-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
 }
 html[data-theme="light"] .app-loading-card {
   --bix-loader-bg: #ffffff;
@@ -4133,6 +4132,8 @@ html[data-theme="light"] .bix-cube-loader {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 16px;
+        content-visibility: auto;
+        contain-intrinsic-size: auto 400px;
     }
     .fac-status-card {
         background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);

@@ -1,10 +1,61 @@
 // Bix — Global JavaScript
 
+// ── Lazy script loader (DataTables, ApexCharts) ───────────────────────────────
+(function initScriptLoader() {
+    var cache = {};
+
+    function loadScript(src) {
+        if (cache[src]) return cache[src];
+        cache[src] = new Promise(function(resolve, reject) {
+            if (document.querySelector('script[src="' + src + '"]')) {
+                resolve();
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = src;
+            s.async = false;
+            s.onload = function() { resolve(); };
+            s.onerror = function() { reject(new Error('Failed to load ' + src)); };
+            document.head.appendChild(s);
+        });
+        return cache[src];
+    }
+
+    function loadScripts(urls) {
+        return urls.reduce(function(chain, url) {
+            return chain.then(function() { return loadScript(url); });
+        }, Promise.resolve());
+    }
+
+    window.bixLoadScript = loadScript;
+    window.bixLoadScripts = loadScripts;
+
+    window.bixEnsureDataTables = function() {
+        if (window.jQuery && $.fn.DataTable) return Promise.resolve();
+        return loadScripts([
+            'https://cdn.datatables.net/2.1.8/js/dataTables.min.js',
+            'https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js',
+            'https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js',
+            'https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js'
+        ]);
+    };
+
+    window.bixEnsureApexCharts = function() {
+        if (window.ApexCharts) return Promise.resolve();
+        return loadScript('https://cdn.jsdelivr.net/npm/apexcharts/dist/apexcharts.min.js');
+    };
+})();
+
 // ── App-wide loading indicator ───────────────────────────────────────────────
 (function initAppLoadingIndicator() {
     var overlay = document.getElementById('appLoadingOverlay');
     var activeCount = 0;
     var showTimer = null;
+    var LOADER_DELAY_MS = 350;
 
     function setVisible(visible) {
         if (!overlay) return;
@@ -15,7 +66,7 @@
     window.showAppLoader = function() {
         activeCount += 1;
         if (showTimer) window.clearTimeout(showTimer);
-        showTimer = window.setTimeout(function() { setVisible(activeCount > 0); }, 120);
+        showTimer = window.setTimeout(function() { setVisible(activeCount > 0); }, LOADER_DELAY_MS);
     };
 
     window.hideAppLoader = function() {
@@ -58,8 +109,11 @@
         } catch (_) {}
     });
 
-    window.addEventListener('beforeunload', function() {
-        setVisible(true);
+    window.addEventListener('pageshow', function(e) {
+        activeCount = 0;
+        if (showTimer) window.clearTimeout(showTimer);
+        showTimer = null;
+        setVisible(false);
     });
 
     if (window.fetch) {
@@ -253,33 +307,43 @@ function showToast(message, type) {
 })();
 
 // ── DataTables ────────────────────────────────────────────────────────────────
+function initDataTables() {
+    if (!window.jQuery || !$.fn.DataTable) return;
+    $('.data-table').each(function() {
+        if (!$.fn.DataTable.isDataTable(this)) {
+            $(this).DataTable({
+                pageLength: 25,
+                lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
+                responsive: true,
+                dom: '<"dt-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"<"dt-search"f><"dt-export"B>>rtip',
+                buttons: [
+                    { extend: 'csv',    className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-download me-1" aria-hidden="true"></i>CSV' },
+                    { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-columns me-1" aria-hidden="true"></i>Columns' }
+                ],
+                columnDefs: [{ orderable: false, targets: -1 }],
+                language: {
+                    search: '',
+                    searchPlaceholder: 'Search…',
+                    emptyTable:   'No records found',
+                    zeroRecords:  'No matching records',
+                    info:         '_START_–_END_ of _TOTAL_',
+                    infoEmpty:    '0 records',
+                    infoFiltered: '(filtered from _MAX_)',
+                    paginate:     { previous: '‹', next: '›' }
+                }
+            });
+        }
+    });
+}
+
 $(document).ready(function() {
+    if (!$('.data-table').length) return;
     if ($.fn.DataTable) {
-        $('.data-table').each(function() {
-            if (!$.fn.DataTable.isDataTable(this)) {
-                $(this).DataTable({
-                    pageLength: 25,
-                    lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
-                    responsive: true,
-                    dom: '<"dt-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"<"dt-search"f><"dt-export"B>>rtip',
-                    buttons: [
-                        { extend: 'csv',    className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-download me-1" aria-hidden="true"></i>CSV' },
-                        { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-columns me-1" aria-hidden="true"></i>Columns' }
-                    ],
-                    columnDefs: [{ orderable: false, targets: -1 }],
-                    language: {
-                        search: '',
-                        searchPlaceholder: 'Search…',
-                        emptyTable:   'No records found',
-                        zeroRecords:  'No matching records',
-                        info:         '_START_–_END_ of _TOTAL_',
-                        infoEmpty:    '0 records',
-                        infoFiltered: '(filtered from _MAX_)',
-                        paginate:     { previous: '‹', next: '›' }
-                    }
-                });
-            }
-        });
+        initDataTables();
+        return;
+    }
+    if (window.bixEnsureDataTables) {
+        window.bixEnsureDataTables().then(initDataTables).catch(function() {});
     }
 });
 

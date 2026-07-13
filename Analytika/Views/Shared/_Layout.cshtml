@@ -1,3 +1,13 @@
+@{
+    var layoutCtrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var layoutAct  = ViewContext.RouteData.Values["action"]?.ToString()     ?? "";
+    var layoutIsPortal   = layoutCtrl == "Portal";
+    var layoutIsReports  = layoutCtrl is "ReportScheduler" or "AdvancedReports";
+    var layoutIsAdmin    = layoutCtrl == "Admin";
+    bool needsSelect2    = layoutIsPortal || layoutIsReports || (layoutIsAdmin && layoutAct is "Credentials" or "XmlParsing");
+    bool needsFlatpickr  = layoutIsPortal || layoutIsReports;
+    bool needsDataTables = layoutIsReports || layoutIsPortal || (layoutIsAdmin && layoutAct == "Users");
+}
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -25,12 +35,21 @@
     <!-- Inter font — async, non-blocking (falls back to system-ui) -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
     <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" /></noscript>
-    <!-- Non-critical: widget CSS (prefer local copies for select2/flatpickr) -->
+    <!-- Non-critical: widget CSS (loaded only when the page uses the widget) -->
+    @if (needsSelect2)
+    {
     <link rel="stylesheet" href="~/lib/select2.min.css" asp-append-version="true" media="print" onload="this.media='all'" />
+    }
+    @if (needsFlatpickr)
+    {
     <link rel="stylesheet" href="~/lib/flatpickr.min.css" asp-append-version="true" media="print" onload="this.media='all'" />
+    }
+    @if (needsDataTables)
+    {
     <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.min.css" media="print" onload="this.media='all'" />
+    }
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -432,38 +451,29 @@
 
 <!-- ═══════════════════════════════════════════════ App loading overlay ═══════ -->
 <div id="appLoadingOverlay" class="app-loading-overlay" aria-hidden="true" role="status" aria-label="Loading">
-    <div class="app-loading-card app-loading-card--cube">
-        <!-- 21st.dev loader-3 style 3D cube loader (BiX brand colors) -->
-        <div class="bix-cube-loader" aria-hidden="true">
-            <div class="box box0"><div></div></div>
-            <div class="box box1"><div></div></div>
-            <div class="box box2"><div></div></div>
-            <div class="box box3"><div></div></div>
-            <div class="box box4"><div></div></div>
-            <div class="box box5"><div></div></div>
-            <div class="box box6"><div></div></div>
-            <div class="box box7"><div></div></div>
-            <div class="ground"><div></div></div>
+    <div class="app-loading-card">
+        <div class="app-loading-spinner-wrap" aria-hidden="true">
+            <svg class="bix-spinner bix-spinner-lg bix-spinner-teal" viewBox="3 3 18 18">
+                <path class="bix-spinner-track" d="M12 5C8.13401 5 5 8.13401 5 12C5 15.866 8.13401 19 12 19C15.866 19 19 15.866 19 12C19 8.13401 15.866 5 12 5ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z"></path>
+                <path class="bix-spinner-head" d="M16.9497 7.05015C14.2161 4.31648 9.78392 4.31648 7.05025 7.05015C6.65973 7.44067 6.02656 7.44067 5.63604 7.05015C5.24551 6.65962 5.24551 6.02646 5.63604 5.63593C9.15076 2.12121 14.8492 2.12121 18.364 5.63593C18.7545 6.02646 18.7545 6.65962 18.364 7.05015C17.9734 7.44067 17.3403 7.44067 16.9497 7.05015Z"></path>
+            </svg>
         </div>
         <div class="app-loading-label">Loading…</div>
     </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
-<!-- Load sync (no defer) so page Scripts sections can use $, select2, DataTables, etc. -->
+<!-- Core only — DataTables/ApexCharts load on demand via site.js -->
 <script src="/vendor/bootstrap.bundle.min.js"></script>
 <script src="~/lib/jquery.min.js" asp-append-version="true"></script>
+@if (needsSelect2)
+{
 <script src="~/lib/select2.min.js" asp-append-version="true"></script>
+}
+@if (needsFlatpickr)
+{
 <script src="~/lib/flatpickr.min.js" asp-append-version="true"></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
-<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+}
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>

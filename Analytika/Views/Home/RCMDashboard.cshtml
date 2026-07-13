@@ -441,39 +441,44 @@
 <script>
     (function () {
         var el = document.getElementById('rcmTrendChart');
-        if (!el || typeof ApexCharts === 'undefined') return;
+        if (!el) return;
 
         var accent = '@ActiveMeta.Accent';
         var accent2 = '@ActiveMeta.Accent2';
         var data = @Html.Raw(trendJson);
         var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-        var options = {
-            chart: { type: 'area', height: 280, fontFamily: 'inherit', toolbar: { show: false }, animations: { easing: 'easeinout', speed: 700 } },
-            series: [{ name: 'Volume', data: data.map(function (d) { return d.y; }) }],
-            xaxis: {
-                categories: data.map(function (d) { return d.x; }),
-                labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088', fontWeight: 600 } },
-                axisBorder: { show: false }, axisTicks: { show: false }
-            },
-            yaxis: { labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088' } } },
-            colors: [accent],
-            stroke: { curve: 'smooth', width: 3 },
-            fill: {
-                type: 'gradient',
-                gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100], colorStops: [
-                    { offset: 0, color: accent, opacity: 0.45 },
-                    { offset: 100, color: accent2, opacity: 0.05 }
-                ] }
-            },
-            dataLabels: { enabled: false },
-            grid: { borderColor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(15,39,66,.06)', strokeDashArray: 4 },
-            markers: { size: 4, colors: ['#fff'], strokeColors: accent, strokeWidth: 2, hover: { size: 6 } },
-            tooltip: { theme: isDark ? 'dark' : 'light' }
-        };
-        new ApexCharts(el, options).render();
+        function renderTrend() {
+            var options = {
+                chart: { type: 'area', height: 280, fontFamily: 'inherit', toolbar: { show: false }, animations: { easing: 'easeinout', speed: 400 } },
+                series: [{ name: 'Volume', data: data.map(function (d) { return d.y; }) }],
+                xaxis: {
+                    categories: data.map(function (d) { return d.x; }),
+                    labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088', fontWeight: 600 } },
+                    axisBorder: { show: false }, axisTicks: { show: false }
+                },
+                yaxis: { labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088' } } },
+                colors: [accent],
+                stroke: { curve: 'smooth', width: 3 },
+                fill: {
+                    type: 'gradient',
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100], colorStops: [
+                        { offset: 0, color: accent, opacity: 0.45 },
+                        { offset: 100, color: accent2, opacity: 0.05 }
+                    ] }
+                },
+                dataLabels: { enabled: false },
+                grid: { borderColor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(15,39,66,.06)', strokeDashArray: 4 },
+                markers: { size: 4, colors: ['#fff'], strokeColors: accent, strokeWidth: 2, hover: { size: 6 } },
+                tooltip: { theme: isDark ? 'dark' : 'light' }
+            };
+            new ApexCharts(el, options).render();
+        }
 
-        // Animate breakdown bars
+        var ready = window.bixEnsureApexCharts ? window.bixEnsureApexCharts() : Promise.resolve();
+        ready.then(renderTrend).catch(function() {});
+
+        // Animate breakdown bars (no chart dependency)
         requestAnimationFrame(function () {
             document.querySelectorAll('.rcm-bar-fill').forEach(function (b) {
                 b.style.width = (b.getAttribute('data-w') || 0) + '%';
