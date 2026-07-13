@@ -2756,6 +2756,8 @@ html[data-theme="dark"] .table-responsive {
 }
 
 /* ── Dropdown menus ─────────────────────────────────────────── */
+/* NOTE: animate opacity only — animating transform overrides the
+   inline translate() Popper uses to position Bootstrap dropdowns. */
 .dropdown-menu {
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
@@ -2764,11 +2766,11 @@ html[data-theme="dark"] .table-responsive {
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   padding: 6px;
-  animation: dropIn 0.15s cubic-bezier(0.4,0,0.2,1) both;
+  animation: ddFadeIn 0.15s ease-out;
 }
-@keyframes dropIn {
-  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes ddFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .dropdown-item {
   border-radius: var(--radius);
@@ -3429,10 +3431,9 @@ html[data-theme="dark"] .stat-card .stat-label  { color: #6b7385; }
   gap: 2px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  /* Must stay visible: overflow clipping hides Popper-positioned dropdowns */
+  overflow: visible;
 }
-.menubar-nav::-webkit-scrollbar { display: none; }
 
 .menubar-link {
   display: inline-flex;
@@ -4506,7 +4507,7 @@ html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
   width: min(560px, 94vw);
   box-shadow: 0 32px 80px rgba(1,28,64,0.28);
   overflow: hidden;
-  animation: dropIn .22s cubic-bezier(.4,0,.2,1) both;
+  animation: agentDropIn .22s cubic-bezier(.4,0,.2,1) both;
 }
 .agent-modal-head {
   background: linear-gradient(135deg, #011C40 0%, #023859 100%);
@@ -4557,7 +4558,7 @@ html[data-theme="dark"] .agent-feature-ico { background: rgba(84,172,191,0.14); 
   border: 1px solid var(--border);
 }
 .agent-modal-note i { color: var(--brand-aqua); margin-right: 6px; }
-@keyframes dropIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes agentDropIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
 
 /* ── Portal sync log panels (theme-aware) ─────────────────────── */
 .sync-log-panel {
