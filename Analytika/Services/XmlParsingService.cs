@@ -1,3 +1,4 @@
+using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using System.Xml.Linq;
@@ -98,20 +99,34 @@ public class XmlParsingService
                 ON ""XmlParsedActivities""(""XmlParsedRecordId"");
         ", ct);
 
-        // Add new columns to existing SQLite tables (safe to run repeatedly — SQLite ignores duplicates)
-        var newColumns = new[]
+        // Add new columns to existing SQLite tables only when missing
+        // (avoids EF Error-level logs from duplicate ALTER TABLE attempts).
+        var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (var cmd = _db.Database.GetDbConnection().CreateCommand())
         {
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""GrossAmount"" REAL NOT NULL DEFAULT 0",
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""DiagnosesJson"" TEXT NULL",
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientGender"" TEXT NULL",
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientDob"" TEXT NULL",
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientNationalId"" TEXT NULL",
-            @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""ClaimCategory"" TEXT NULL",
+            if (cmd.Connection!.State != ConnectionState.Open)
+                await cmd.Connection.OpenAsync(ct);
+            cmd.CommandText = @"PRAGMA table_info(""XmlParsedRecords"")";
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                existingColumns.Add(reader.GetString(1));
+        }
+
+        var newColumns = new (string Name, string Sql)[]
+        {
+            ("GrossAmount", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""GrossAmount"" REAL NOT NULL DEFAULT 0"),
+            ("DiagnosesJson", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""DiagnosesJson"" TEXT NULL"),
+            ("PatientGender", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientGender"" TEXT NULL"),
+            ("PatientDob", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientDob"" TEXT NULL"),
+            ("PatientNationalId", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""PatientNationalId"" TEXT NULL"),
+            ("ClaimCategory", @"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""ClaimCategory"" TEXT NULL"),
         };
-        foreach (var sql in newColumns)
+        foreach (var (name, sql) in newColumns)
         {
+            if (existingColumns.Contains(name))
+                continue;
             try { await _db.Database.ExecuteSqlRawAsync(sql, ct); }
-            catch { /* column already exists */ }
+            catch (Exception ex) { _logger.LogDebug(ex, "Skipping XmlParsedRecords column add for {Column}", name); }
         }
     }
 

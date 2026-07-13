@@ -14,6 +14,7 @@
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.dataset.lang = lang;
                 document.documentElement.dataset.theme = theme;
+                if (collapsed) document.documentElement.classList.add('sidebar-collapsed');
             } catch (_) {}
         })();
     </script>
@@ -21,7 +22,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
-    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="dns-prefetch" href="https://cdn.datatables.net" />
     <!-- Inter font — swap prevents FOIT, only render-blocking for 100ms -->
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
@@ -77,6 +77,10 @@
                 <span class="brand-sub">Business Intelligence</span>
             </div>
         </a>
+        <button class="sidebar-close-btn d-lg-none" id="sidebarClose" aria-label="Close navigation">
+            <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+    </div>
 
     <nav class="sidebar-nav" role="navigation">
 
@@ -316,9 +320,15 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
     @if (TempData["Success"] != null)
     {
-        <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
-            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="toast align-items-center border-0 toast-success" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="4500">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-check-circle" aria-hidden="true"></i>
+                    <span>@TempData["Success"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
         </div>
     }
     @if (TempData["Error"] != null)
@@ -329,6 +339,19 @@
                 <div class="toast-body d-flex align-items-center gap-2">
                     <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
                     <span>@TempData["Error"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    }
+    @if (TempData["Warning"] != null)
+    {
+        <div class="toast align-items-center border-0 toast-warning" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="5000">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
+                    <span>@TempData["Warning"]</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
@@ -361,7 +384,7 @@
         <div class="d-flex align-items-center gap-2">
             <div class="support-avatar"><i class="fas fa-robot" aria-hidden="true"></i></div>
             <div>
-                <div class="support-title">Analytika Support</div>
+                <div class="support-title">Bix Support</div>
                 <div class="support-subtitle">Powered by Claude AI</div>
             </div>
         </div>
@@ -372,7 +395,7 @@
     <div class="support-messages" id="supportMessages">
         <div class="support-msg support-msg-assistant">
             <div class="support-bubble">
-                Hi! I'm your Analytika support assistant. Describe a bug, ask a question, or request a feature — I'll help you right away.
+                Hi! I'm your Bix support assistant. Describe a bug, ask a question, or request a feature — I'll help you right away.
             </div>
         </div>
     </div>
@@ -411,79 +434,47 @@
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
+// Show server-rendered toasts
+document.querySelectorAll('.toast').forEach(function(t) {
+    bootstrap.Toast.getOrCreateInstance(t).show();
+});
+
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4 fs-80"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
-    const badge = document.getElementById('bellBadge');
+        '<div class="text-center text-muted py-4" style="font-size:var(--fs-sm);"><i class="fas fa-check-circle me-1 text-primary" aria-hidden="true"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+    var badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
 
 (function initThemeLanguageControls() {
-    const root = document.documentElement;
-    const langButtons = {
-        en: document.getElementById('langToggleEn'),
-        ar: document.getElementById('langToggleAr')
+    var root = document.documentElement;
+    var langButtons = { en: document.getElementById('langToggleEn'), ar: document.getElementById('langToggleAr') };
+    var themeButton = document.getElementById('themeToggleBtn');
+    var dict = {
+        en: { support:'Support', notifications:'Notifications', mark_all_read:'Mark all read', view_all_activity:'View all activity', profile:'Profile', sign_out:'Sign Out', all_caught_up:'All caught up!' },
+        ar: { support:'الدعم', notifications:'الإشعارات', mark_all_read:'تعليم الكل كمقروء', view_all_activity:'عرض كل النشاط', profile:'الملف الشخصي', sign_out:'تسجيل الخروج', all_caught_up:'تمت المزامنة!' }
     };
-    const themeButton = document.getElementById('themeToggleBtn');
-
-    const dict = {
-        en: {
-            support: 'Support',
-            notifications: 'Notifications',
-            mark_all_read: 'Mark all read',
-            view_all_activity: 'View all activity',
-            profile: 'Profile',
-            sign_out: 'Sign Out',
-            theme: 'Dark',
-            all_caught_up: 'All caught up!'
-        },
-        ar: {
-            support: 'الدعم',
-            notifications: 'الإشعارات',
-            mark_all_read: 'تعليم الكل كمقروء',
-            view_all_activity: 'عرض كل النشاط',
-            profile: 'الملف الشخصي',
-            sign_out: 'تسجيل الخروج',
-            theme: 'داكن',
-            all_caught_up: 'تمت المزامنة!'
-        }
-    };
-
     function applyLanguage(lang) {
-        root.lang = lang;
-        root.dir = lang === 'ar' ? 'rtl' : 'ltr';
-        root.dataset.lang = lang;
-        try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
-
-        document.querySelectorAll('[data-i18n]').forEach(function (node) {
+        root.lang = lang; root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.dataset.lang = lang;
+        try { localStorage.setItem('bix-lang', lang); } catch (_) {}
+        document.querySelectorAll('[data-i18n]').forEach(function(node) {
             var key = node.getAttribute('data-i18n');
-            if (dict[lang] && dict[lang][key]) {
-                node.textContent = dict[lang][key];
-            }
+            if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
         });
-
-        Object.keys(langButtons).forEach(function (key) {
-            var btn = langButtons[key];
-            if (!btn) return;
+        Object.keys(langButtons).forEach(function(key) {
+            var btn = langButtons[key]; if (!btn) return;
             btn.classList.toggle('active', key === lang);
             btn.setAttribute('aria-pressed', key === lang ? 'true' : 'false');
         });
     }
-
     function applyTheme(theme) {
         root.dataset.theme = theme;
-        try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
+        try { localStorage.setItem('bix-theme', theme); } catch (_) {}
         if (themeButton) {
             var icon = themeButton.querySelector('i');
+            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
             var label = document.getElementById('themeToggleLabel');
-            if (icon) {
-                icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
-            }
-            if (label) {
-                var lang = root.dataset.lang || 'en';
-                var labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
-                label.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
-            }
+            if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
             themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     }
@@ -493,21 +484,13 @@ function clearNotifications() {
 
     applyLanguage(currentLang);
     applyTheme(currentTheme);
-
-    Object.keys(langButtons).forEach(function (key) {
-        var btn = langButtons[key];
-        if (!btn) return;
-        btn.addEventListener('click', function () {
-            applyLanguage(key);
-        });
+    Object.keys(langButtons).forEach(function(key) {
+        var btn = langButtons[key]; if (!btn) return;
+        btn.addEventListener('click', function() { applyLanguage(key); });
     });
-
-    if (themeButton) {
-        themeButton.addEventListener('click', function () {
-            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-            applyTheme(next);
-        });
-    }
+    if (themeButton) themeButton.addEventListener('click', function() {
+        applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+    });
 })();
 </script>
 </body>

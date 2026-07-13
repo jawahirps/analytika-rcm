@@ -1,4 +1,4 @@
-using Analytika.Models;
+﻿using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
 using Analytika.Security;
@@ -260,14 +260,15 @@ public class ReportSchedulerController : Controller
         return RedirectToAction(GetActionName(reportType));
     }
 
-    private string? ResolveReportFilePath(string? reportFilePath)
+    private static string? ResolveReportFilePath(string? reportFilePath)
     {
         if (string.IsNullOrWhiteSpace(reportFilePath))
             return null;
 
-        var webRoot = Path.GetFullPath(_env.WebRootPath);
+        var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
         var filePath = Path.GetFullPath(Path.Combine(
-            _env.WebRootPath,
+            Directory.GetCurrentDirectory(),
+            "wwwroot",
             reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
 
         return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;

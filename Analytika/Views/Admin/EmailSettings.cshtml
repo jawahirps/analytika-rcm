@@ -121,7 +121,6 @@
 
 @section Scripts {
 <script>
-@Html.AntiForgeryToken()
 function getToken() {
     return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
 }

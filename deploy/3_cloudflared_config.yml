@@ -16,18 +16,18 @@
 #
 #   4. Edit this file:
 #        - Replace YOUR_TUNNEL_ID with the ID from step 3
-#        - Replace rcm.yourdomain.com with your actual domain
+#        - Replace YOUR_USERNAME with the Windows account that ran step 3
 #        - Save as:  C:\Users\<you>\.cloudflared\config.yml
 #
 #   5. Create a DNS record pointing to your tunnel
-#        cloudflared tunnel route dns ghafbi rcm.yourdomain.com
+#        cloudflared tunnel route dns ghafbi bix.ghafservices.com
 #
 #   6. Install cloudflared as a Windows Service (auto-starts on boot)
 #        cloudflared service install
 #        net start cloudflared
 #
 #   7. Verify
-#        Open https://rcm.yourdomain.com in any browser
+#        Open https://bix.ghafservices.com in any browser
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -35,7 +35,8 @@ tunnel: YOUR_TUNNEL_ID
 credentials-file: C:\Users\YOUR_USERNAME\.cloudflared\YOUR_TUNNEL_ID.json
 
 ingress:
-  - hostname: bi.ghafservices.com
+  # Main app
+  - hostname: bix.ghafservices.com
     service: http://localhost:5200
     originRequest:
       connectTimeout: 30s
@@ -51,7 +52,7 @@ ingress:
 #
 #   Zero Trust → Access → Applications → Add an Application → Self-hosted
 #     Application name : GhafBI RCM
-#     Subdomain        : rcm.yourdomain.com
+#     Subdomain        : bix.ghafservices.com
 #     Policy name      : Company email only
 #     Rule             : Emails ending in   @yourcompany.com
 #

@@ -1,4 +1,4 @@
-// Analytika RCM — Global JavaScript
+// Bix — Global JavaScript
 
 // ── App-wide loading indicator ───────────────────────────────────────────────
 (function initAppLoadingIndicator() {

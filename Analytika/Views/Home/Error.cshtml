@@ -1,0 +1,25 @@
+@{
+    ViewData["Title"] = "Something went wrong";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid py-5 px-4">
+    <div class="card border-0 shadow-sm mx-auto" style="max-width: 560px;">
+        <div class="card-body text-center p-5">
+            <div class="mb-3 text-danger" style="font-size: 2.5rem;" aria-hidden="true">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h4 class="fw-bold text-navy mb-2">Something went wrong</h4>
+            <p class="text-muted mb-4">
+                An unexpected error occurred while processing your request.
+                Please try again, or return to the dashboard.
+            </p>
+            <div class="d-flex justify-content-center gap-2 flex-wrap">
+                <a class="btn btn-primary" asp-controller="Home" asp-action="Dashboard">
+                    <i class="fas fa-home me-1" aria-hidden="true"></i> Dashboard
+                </a>
+                <a class="btn btn-outline-secondary" href="javascript:history.back()">Go back</a>
+            </div>
+        </div>
+    </div>
+</div>

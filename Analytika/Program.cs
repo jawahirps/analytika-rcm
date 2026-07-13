@@ -11,6 +11,9 @@ using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow running as a Windows Service (sc.exe / NSSM) without a console.
+builder.Host.UseWindowsService();
+
 // Desktop app mode: the installed Windows/macOS build launches with BIX_DESKTOP=1
 // (or the --desktop arg). It can't write its SQLite DB / DataProtection keys into a
 // read-only install location (Program Files / .app), so default DB_DIR to a per-user
@@ -376,4 +379,3 @@ app.Lifetime.ApplicationStarted.Register(() =>
 });
 
 app.Run();
-

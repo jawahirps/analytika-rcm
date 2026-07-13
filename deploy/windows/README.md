@@ -95,14 +95,13 @@ cloudflared tunnel create ghafbi
 Edit `3_cloudflared_config.yml`:
 - Replace `YOUR_TUNNEL_ID` with your tunnel ID
 - Replace `YOUR_USERNAME` with your Windows username
-- Replace `rcm.yourdomain.com` with your domain
 
 Save it to: `C:\Users\<you>\.cloudflared\config.yml`
 
 ### 3e. Create DNS Record
 
 ```powershell
-cloudflared tunnel route dns ghafbi rcm.yourdomain.com
+cloudflared tunnel route dns ghafbi bix.ghafservices.com
 ```
 
 ### 3f. Install as Service
@@ -112,9 +111,17 @@ cloudflared service install
 net start cloudflared
 ```
 
+Prefer the dedicated tunnel installer when an existing token-based
+`cloudflared` service must stay intact:
+
+```powershell
+# After copying config to C:\GhafBI\cloudflared\config.yml
+.\3b_install_tunnel_service.ps1
+```
+
 ### 3g. Verify
 
-Open `https://rcm.yourdomain.com` from any device — you should see the login page.
+Open `https://bix.ghafservices.com` from any device — you should see the login page.
 
 ---
 

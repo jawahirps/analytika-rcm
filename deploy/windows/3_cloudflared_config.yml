@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # GhafBI – Cloudflare Tunnel Config
-# Domain: bi.ghafservices.com
+# Domain: bix.ghafservices.com
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # SETUP INSTRUCTIONS (run in PowerShell on your Windows machine):
@@ -21,14 +21,14 @@
 #        - Save as:  C:\Users\<you>\.cloudflared\config.yml
 #
 #   5. Create a DNS record pointing to your tunnel
-#        cloudflared tunnel route dns ghafbi bi.ghafservices.com
+#        cloudflared tunnel route dns ghafbi bix.ghafservices.com
 #
 #   6. Install cloudflared as a Windows Service (auto-starts on boot)
 #        cloudflared service install
 #        net start cloudflared
 #
 #   7. Verify
-#        Open https://bi.ghafservices.com in any browser
+#        Open https://bix.ghafservices.com in any browser
 #
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ tunnel: YOUR_TUNNEL_ID
 credentials-file: C:\Users\YOUR_USERNAME\.cloudflared\YOUR_TUNNEL_ID.json
 
 ingress:
-  - hostname: bi.ghafservices.com
+  - hostname: bix.ghafservices.com
     service: http://localhost:5200
     originRequest:
       connectTimeout: 30s
@@ -52,7 +52,7 @@ ingress:
 #
 #   Zero Trust → Access → Applications → Add an Application → Self-hosted
 #     Application name : GhafBI Analytika RCM
-#     Subdomain        : bi.ghafservices.com
+#     Subdomain        : bix.ghafservices.com
 #     Policy name      : Company email only
 #     Rule             : Emails ending in   @ghafservices.com
 #

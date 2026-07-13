@@ -50,7 +50,7 @@ public class JobFailureNotificationFilter : JobFilterAttribute, IApplyStateFilte
                        $"Server: {Environment.MachineName}\n" +
                        $"Time (UTC): {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\n\n" +
                        $"Error:\n{failed.Exception?.Message}";
-            email.SendEmailAsync(recipients, $"[Analytika] Job failed: {jobName}", body).GetAwaiter().GetResult();
+            email.SendEmailAsync(recipients, $"[Bix] Job failed: {jobName}", body).GetAwaiter().GetResult();
         }
         catch
         {
