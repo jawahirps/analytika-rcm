@@ -7,13 +7,13 @@
     // ── Per-tab identity: icon + a distinct vibrant accent ──────────────
     var tabMeta = new Dictionary<string, (string Icon, string Accent, string Accent2, string Desc)>
     {
-        ["Submissions"]   = ("fa-paper-plane",    "#14B8A6", "#0EA5A0", "Claim submission volumes, acceptance rates, and timelines"),
+        ["Submissions"]   = ("fa-paper-plane",    "#54ACBF", "#26658C", "Claim submission volumes, acceptance rates, and timelines"),
         ["Resubmissions"] = ("fa-rotate",         "#8B5CF6", "#7C3AED", "Resubmitted claims tracking and resolution outcomes"),
         ["Remittance"]    = ("fa-money-bill-wave", "#10B981", "#059669", "Payment reconciliation and remittance analysis"),
         ["Denials"]       = ("fa-ban",             "#F43F5E", "#E11D48", "Denial patterns, root causes, and trends"),
-        ["Clinicians"]    = ("fa-user-doctor",     "#6366F1", "#4F46E5", "Clinician productivity and claim performance"),
+        ["Clinicians"]    = ("fa-user-doctor",     "#26658C", "#1B4C6E", "Clinician productivity and claim performance"),
         ["Operations"]    = ("fa-gears",           "#F59E0B", "#D97706", "Operational KPIs, TAT metrics, and SLA compliance"),
-        ["Insurance"]     = ("fa-shield-halved",   "#06B6D4", "#0891B2", "Payer-wise approval, rejection, and payment behavior"),
+        ["Insurance"]     = ("fa-shield-halved",   "#0891B2", "#0E7490", "Payer-wise approval, rejection, and payment behavior"),
         ["Department"]    = ("fa-building",        "#D946EF", "#C026D3", "Department and facility performance breakdown"),
     };
     (string Icon, string Accent, string Accent2, string Desc) ActiveMeta =
@@ -22,10 +22,10 @@
     // KPI tone → color
     string ToneColor(string t) => t switch
     {
-        "teal"  => "#14B8A6",
+        "teal"  => "#54ACBF",
         "gold"  => "#F59E0B",
         "green" => "#22C55E",
-        "blue"  => "#3B82F6",
+        "blue"  => "#26658C",
         _       => ActiveMeta.Accent
     };
 
@@ -35,11 +35,11 @@
         "Action" => ("rgba(244,63,94,.12)",  "#E11D48", "fa-circle-exclamation"),
         "Good"   => ("rgba(16,185,129,.12)", "#059669", "fa-circle-check"),
         "Watch"  => ("rgba(245,158,11,.14)", "#D97706", "fa-triangle-exclamation"),
-        _        => ("rgba(99,102,241,.12)", "#4F46E5", "fa-circle-info"),
+        _        => ("rgba(38,101,140,.12)", "#26658C", "fa-circle-info"),
     };
 
     // Rotating palette for breakdown bars
-    var palette = new[] { "#14B8A6", "#8B5CF6", "#F59E0B", "#F43F5E", "#06B6D4", "#6366F1", "#22C55E", "#D946EF" };
+    var palette = new[] { "#54ACBF", "#26658C", "#F59E0B", "#F43F5E", "#0891B2", "#A7EBF2", "#22C55E", "#8B5CF6" };
 
     var maxBreakdown = Math.Max(1, Model.Breakdown.Count == 0 ? 1 : Model.Breakdown.Max(x => x.Value));
     var reportDateFrom = Model.Filters.DateFrom ?? new DateOnly(2023, 1, 1);
@@ -55,16 +55,16 @@
     .rcm {
         --accent: @ActiveMeta.Accent;
         --accent2: @ActiveMeta.Accent2;
-        --ink: #0F2742;
-        --ink-soft: #5B7088;
+        --ink: #011C40;
+        --ink-soft: #4B6B73;
         --card: #ffffff;
-        --bd: rgba(15,39,66,.08);
-        --shadow: 0 12px 34px rgba(15,39,66,.08);
+        --bd: rgba(1,28,64,.08);
+        --shadow: 0 12px 34px rgba(1,28,64,.08);
         min-height: calc(100vh - 56px);
         padding: 1.25rem 1.25rem 2.5rem;
         background:
             radial-gradient(1100px 360px at 8% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
-            radial-gradient(900px 320px at 105% 0%, rgba(139,92,246,.10), transparent 55%),
+            radial-gradient(900px 320px at 105% 0%, rgba(84,172,191,.10), transparent 55%),
             linear-gradient(180deg, #F6F9FC 0%, #FBFDFE 100%);
         font-feature-settings: "tnum" 1;
     }
@@ -441,39 +441,44 @@
 <script>
     (function () {
         var el = document.getElementById('rcmTrendChart');
-        if (!el || typeof ApexCharts === 'undefined') return;
+        if (!el) return;
 
         var accent = '@ActiveMeta.Accent';
         var accent2 = '@ActiveMeta.Accent2';
         var data = @Html.Raw(trendJson);
         var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-        var options = {
-            chart: { type: 'area', height: 280, fontFamily: 'inherit', toolbar: { show: false }, animations: { easing: 'easeinout', speed: 700 } },
-            series: [{ name: 'Volume', data: data.map(function (d) { return d.y; }) }],
-            xaxis: {
-                categories: data.map(function (d) { return d.x; }),
-                labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088', fontWeight: 600 } },
-                axisBorder: { show: false }, axisTicks: { show: false }
-            },
-            yaxis: { labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088' } } },
-            colors: [accent],
-            stroke: { curve: 'smooth', width: 3 },
-            fill: {
-                type: 'gradient',
-                gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100], colorStops: [
-                    { offset: 0, color: accent, opacity: 0.45 },
-                    { offset: 100, color: accent2, opacity: 0.05 }
-                ] }
-            },
-            dataLabels: { enabled: false },
-            grid: { borderColor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(15,39,66,.06)', strokeDashArray: 4 },
-            markers: { size: 4, colors: ['#fff'], strokeColors: accent, strokeWidth: 2, hover: { size: 6 } },
-            tooltip: { theme: isDark ? 'dark' : 'light' }
-        };
-        new ApexCharts(el, options).render();
+        function renderTrend() {
+            var options = {
+                chart: { type: 'area', height: 280, fontFamily: 'inherit', toolbar: { show: false }, animations: { easing: 'easeinout', speed: 400 } },
+                series: [{ name: 'Volume', data: data.map(function (d) { return d.y; }) }],
+                xaxis: {
+                    categories: data.map(function (d) { return d.x; }),
+                    labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088', fontWeight: 600 } },
+                    axisBorder: { show: false }, axisTicks: { show: false }
+                },
+                yaxis: { labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088' } } },
+                colors: [accent],
+                stroke: { curve: 'smooth', width: 3 },
+                fill: {
+                    type: 'gradient',
+                    gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100], colorStops: [
+                        { offset: 0, color: accent, opacity: 0.45 },
+                        { offset: 100, color: accent2, opacity: 0.05 }
+                    ] }
+                },
+                dataLabels: { enabled: false },
+                grid: { borderColor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(15,39,66,.06)', strokeDashArray: 4 },
+                markers: { size: 4, colors: ['#fff'], strokeColors: accent, strokeWidth: 2, hover: { size: 6 } },
+                tooltip: { theme: isDark ? 'dark' : 'light' }
+            };
+            new ApexCharts(el, options).render();
+        }
 
-        // Animate breakdown bars
+        var ready = window.bixEnsureApexCharts ? window.bixEnsureApexCharts() : Promise.resolve();
+        ready.then(renderTrend).catch(function() {});
+
+        // Animate breakdown bars (no chart dependency)
         requestAnimationFrame(function () {
             document.querySelectorAll('.rcm-bar-fill').forEach(function (b) {
                 b.style.width = (b.getAttribute('data-w') || 0) + '%';

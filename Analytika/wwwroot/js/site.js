@@ -1,10 +1,61 @@
 // Bix — Global JavaScript
 
+// ── Lazy script loader (DataTables, ApexCharts) ───────────────────────────────
+(function initScriptLoader() {
+    var cache = {};
+
+    function loadScript(src) {
+        if (cache[src]) return cache[src];
+        cache[src] = new Promise(function(resolve, reject) {
+            if (document.querySelector('script[src="' + src + '"]')) {
+                resolve();
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = src;
+            s.async = false;
+            s.onload = function() { resolve(); };
+            s.onerror = function() { reject(new Error('Failed to load ' + src)); };
+            document.head.appendChild(s);
+        });
+        return cache[src];
+    }
+
+    function loadScripts(urls) {
+        return urls.reduce(function(chain, url) {
+            return chain.then(function() { return loadScript(url); });
+        }, Promise.resolve());
+    }
+
+    window.bixLoadScript = loadScript;
+    window.bixLoadScripts = loadScripts;
+
+    window.bixEnsureDataTables = function() {
+        if (window.jQuery && $.fn.DataTable) return Promise.resolve();
+        return loadScripts([
+            'https://cdn.datatables.net/2.1.8/js/dataTables.min.js',
+            'https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js',
+            'https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js',
+            'https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js',
+            'https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js'
+        ]);
+    };
+
+    window.bixEnsureApexCharts = function() {
+        if (window.ApexCharts) return Promise.resolve();
+        return loadScript('https://cdn.jsdelivr.net/npm/apexcharts/dist/apexcharts.min.js');
+    };
+})();
+
 // ── App-wide loading indicator ───────────────────────────────────────────────
 (function initAppLoadingIndicator() {
     var overlay = document.getElementById('appLoadingOverlay');
     var activeCount = 0;
     var showTimer = null;
+    var LOADER_DELAY_MS = 350;
 
     function setVisible(visible) {
         if (!overlay) return;
@@ -15,7 +66,7 @@
     window.showAppLoader = function() {
         activeCount += 1;
         if (showTimer) window.clearTimeout(showTimer);
-        showTimer = window.setTimeout(function() { setVisible(activeCount > 0); }, 120);
+        showTimer = window.setTimeout(function() { setVisible(activeCount > 0); }, LOADER_DELAY_MS);
     };
 
     window.hideAppLoader = function() {
@@ -27,8 +78,22 @@
         }
     };
 
-    window.bixSpinnerMarkup = function(sizeClass) {
-        return '<span class="bix-spinner ' + (sizeClass || 'bix-spinner-sm') + ' me-1" aria-hidden="true"></span>';
+    // Round spinner (ported from React RoundSpinner) — sizeClass: bix-spinner-xs|sm|md|lg|xl
+    window.bixSpinnerMarkup = function(sizeClass, colorClass) {
+        var size = sizeClass || 'bix-spinner-sm';
+        var color = colorClass || 'bix-spinner-teal';
+        return '<svg class="bix-spinner ' + size + ' ' + color + ' me-1" viewBox="3 3 18 18" aria-hidden="true">' +
+            '<path class="bix-spinner-track" d="M12 5C8.13401 5 5 8.13401 5 12C5 15.866 8.13401 19 12 19C15.866 19 19 15.866 19 12C19 8.13401 15.866 5 12 5ZM3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12Z"></path>' +
+            '<path class="bix-spinner-head" d="M16.9497 7.05015C14.2161 4.31648 9.78392 4.31648 7.05025 7.05015C6.65973 7.44067 6.02656 7.44067 5.63604 7.05015C5.24551 6.65962 5.24551 6.02646 5.63604 5.63593C9.15076 2.12121 14.8492 2.12121 18.364 5.63593C18.7545 6.02646 18.7545 6.65962 18.364 7.05015C17.9734 7.44067 17.3403 7.44067 16.9497 7.05015Z"></path>' +
+            '</svg>';
+    };
+
+    window.bixDotsMarkup = function(variant) {
+        variant = variant || 'v2';
+        if (variant === 'v3') {
+            return '<div class="bix-dots bix-dots-v3" aria-hidden="true"><span></span><span></span><span></span></div>';
+        }
+        return '<div class="bix-dots bix-dots-v2" aria-hidden="true"><span></span><span></span><span></span></div>';
     };
 
     document.addEventListener('click', function(e) {
@@ -44,8 +109,11 @@
         } catch (_) {}
     });
 
-    window.addEventListener('beforeunload', function() {
-        setVisible(true);
+    window.addEventListener('pageshow', function(e) {
+        activeCount = 0;
+        if (showTimer) window.clearTimeout(showTimer);
+        showTimer = null;
+        setVisible(false);
     });
 
     if (window.fetch) {
@@ -72,69 +140,63 @@
     }
 })();
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-(function initSidebar() {
-    var root    = document.documentElement;
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    var toggleBtn  = document.getElementById('sidebarToggle');
-    var toggleIcon = document.getElementById('sidebarToggleIcon');
-    var openBtn    = document.getElementById('sidebarOpen');
-    var closeBtn   = document.getElementById('sidebarClose');
-
-    if (!sidebar) return;
-
-    function setCollapsed(collapsed) {
-        root.classList.toggle('sidebar-collapsed', collapsed);
-        try { localStorage.setItem('sidebar_collapsed', collapsed); } catch (_) {}
-        if (toggleIcon) toggleIcon.className = collapsed
-            ? 'fas fa-chevron-right sidebar-icon'
-            : 'fas fa-chevron-left sidebar-icon';
-        if (toggleBtn) toggleBtn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
-    }
+// ── Horizontal menubar (mobile drawer) ───────────────────────────────────────
+(function initMenubar() {
+    var root = document.documentElement;
+    var openBtn = document.getElementById('menubarOpen');
+    var mobileNav = document.getElementById('menubarMobile');
+    var overlay = document.getElementById('menubarOverlay');
+    if (!mobileNav) return;
 
     function openMobile() {
-        root.classList.add('sidebar-open');
-        if (overlay) { overlay.removeAttribute('aria-hidden'); overlay.style.display = 'block'; }
+        root.classList.add('menubar-open');
+        mobileNav.hidden = false;
+        if (overlay) {
+            overlay.removeAttribute('aria-hidden');
+            overlay.style.display = 'block';
+        }
         if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
         document.body.style.overflow = 'hidden';
     }
 
     function closeMobile() {
-        root.classList.remove('sidebar-open');
-        if (overlay) { overlay.setAttribute('aria-hidden', 'true'); overlay.style.display = 'none'; }
+        root.classList.remove('menubar-open');
+        mobileNav.hidden = true;
+        if (overlay) {
+            overlay.setAttribute('aria-hidden', 'true');
+            overlay.style.display = 'none';
+        }
         if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
         document.body.style.overflow = '';
     }
 
-    if (toggleBtn) toggleBtn.addEventListener('click', function() {
-        setCollapsed(!root.classList.contains('sidebar-collapsed'));
+    if (openBtn) openBtn.addEventListener('click', function () {
+        if (root.classList.contains('menubar-open')) closeMobile();
+        else openMobile();
     });
+    if (overlay) overlay.addEventListener('click', closeMobile);
 
-    if (openBtn)  openBtn.addEventListener('click', openMobile);
-    if (closeBtn) closeBtn.addEventListener('click', closeMobile);
-    if (overlay)  overlay.addEventListener('click', closeMobile);
-
-    // Section accordion
-    document.querySelectorAll('.sidebar-section-toggle').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var section    = this.closest('.sidebar-section');
-            var isExpanded = section.classList.contains('expanded');
-            section.classList.toggle('expanded', !isExpanded);
-            this.setAttribute('aria-expanded', !isExpanded ? 'true' : 'false');
+    document.querySelectorAll('.menubar-mobile-group-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var group = this.closest('.menubar-mobile-group');
+            if (!group) return;
+            var expanded = group.classList.toggle('expanded');
+            this.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         });
     });
 
-    // Close mobile sidebar on nav click
-    document.querySelectorAll('.sidebar-link, .sidebar-sublink').forEach(function(link) {
-        link.addEventListener('click', function() {
+    document.querySelectorAll('.menubar-mobile-link, .menubar-mobile-sublink').forEach(function (link) {
+        link.addEventListener('click', function () {
             if (window.innerWidth < 992) closeMobile();
         });
     });
 
-    // Keyboard: close mobile with Escape
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && root.classList.contains('sidebar-open')) closeMobile();
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && root.classList.contains('menubar-open')) closeMobile();
+    });
+
+    window.addEventListener('resize', function () {
+        if (window.innerWidth >= 992 && root.classList.contains('menubar-open')) closeMobile();
     });
 })();
 
@@ -207,7 +269,10 @@ function showToast(message, type) {
 // ── Submit button loading state ───────────────────────────────────────────────
 (function initLoadingButtons() {
     document.querySelectorAll('form').forEach(function(form) {
-        form.addEventListener('submit', function() {
+        form.addEventListener('submit', function(e) {
+            // AJAX forms handle their own loading state — the global overlay
+            // would never be dismissed because no navigation happens.
+            if (form.dataset.noLoader === 'true' || e.defaultPrevented) return;
             var btn = form.querySelector('[data-loading-text]');
             if (btn && !btn.disabled) {
                 var originalHtml = btn.innerHTML;
@@ -242,33 +307,43 @@ function showToast(message, type) {
 })();
 
 // ── DataTables ────────────────────────────────────────────────────────────────
+function initDataTables() {
+    if (!window.jQuery || !$.fn.DataTable) return;
+    $('.data-table').each(function() {
+        if (!$.fn.DataTable.isDataTable(this)) {
+            $(this).DataTable({
+                pageLength: 25,
+                lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
+                responsive: true,
+                dom: '<"dt-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"<"dt-search"f><"dt-export"B>>rtip',
+                buttons: [
+                    { extend: 'csv',    className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-download me-1" aria-hidden="true"></i>CSV' },
+                    { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-columns me-1" aria-hidden="true"></i>Columns' }
+                ],
+                columnDefs: [{ orderable: false, targets: -1 }],
+                language: {
+                    search: '',
+                    searchPlaceholder: 'Search…',
+                    emptyTable:   'No records found',
+                    zeroRecords:  'No matching records',
+                    info:         '_START_–_END_ of _TOTAL_',
+                    infoEmpty:    '0 records',
+                    infoFiltered: '(filtered from _MAX_)',
+                    paginate:     { previous: '‹', next: '›' }
+                }
+            });
+        }
+    });
+}
+
 $(document).ready(function() {
+    if (!$('.data-table').length) return;
     if ($.fn.DataTable) {
-        $('.data-table').each(function() {
-            if (!$.fn.DataTable.isDataTable(this)) {
-                $(this).DataTable({
-                    pageLength: 25,
-                    lengthMenu: [[25, 50, 100, -1], [25, 50, 100, 'All']],
-                    responsive: true,
-                    dom: '<"dt-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3"<"dt-search"f><"dt-export"B>>rtip',
-                    buttons: [
-                        { extend: 'csv',    className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-download me-1" aria-hidden="true"></i>CSV' },
-                        { extend: 'colvis', className: 'btn btn-sm btn-outline-secondary', text: '<i class="fas fa-columns me-1" aria-hidden="true"></i>Columns' }
-                    ],
-                    columnDefs: [{ orderable: false, targets: -1 }],
-                    language: {
-                        search: '',
-                        searchPlaceholder: 'Search…',
-                        emptyTable:   'No records found',
-                        zeroRecords:  'No matching records',
-                        info:         '_START_–_END_ of _TOTAL_',
-                        infoEmpty:    '0 records',
-                        infoFiltered: '(filtered from _MAX_)',
-                        paginate:     { previous: '‹', next: '›' }
-                    }
-                });
-            }
-        });
+        initDataTables();
+        return;
+    }
+    if (window.bixEnsureDataTables) {
+        window.bixEnsureDataTables().then(initDataTables).catch(function() {});
     }
 });
 
@@ -307,6 +382,7 @@ $(document).ready(function() {
 
     /* Conversation history sent to the server */
     var history = [];
+    var openBtnMobile = document.getElementById('supportChatBtnMobile');
 
     function open() {
         panel.classList.add('is-open');
@@ -321,6 +397,7 @@ $(document).ready(function() {
     }
 
     openBtn.addEventListener('click', function(e) { e.preventDefault(); open(); });
+    if (openBtnMobile) openBtnMobile.addEventListener('click', function(e) { e.preventDefault(); open(); });
     closeBtn.addEventListener('click', close);
     backdrop.addEventListener('click', close);
     document.addEventListener('keydown', function(e) {

@@ -8,92 +8,86 @@
 <style>
     .page-wrapper {
         padding: 22px 24px 70px;
-        background: #09090b;
+        background: var(--bg);
         min-height: calc(100vh - 120px);
         overflow: hidden;
     }
     /* Shader canvas sits at z-index:0; cards at z-index:1 */
     .page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
+    html[data-theme="light"] .page-wrapper canvas { display: none; }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #818cf8; text-decoration: none; font-weight: 600; }
-    .breadcrumb-item.active { color: #a1a1aa; }
-    .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
+    .breadcrumb-item a { color: var(--classic-teal); text-decoration: none; font-weight: 600; }
+    .breadcrumb-item.active { color: var(--text-muted); }
+    .breadcrumb { --bs-breadcrumb-divider-color: var(--border); }
     .filter-card,
     .table-card {
-        border: 1px solid rgba(255,255,255,.09);
+        border: 1px solid var(--border);
         border-radius: 22px;
-        box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-        background: rgba(9,9,11,.72);
+        box-shadow: var(--shadow-md);
+        background: var(--surface);
         backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
         margin-bottom: 20px;
         overflow: hidden;
     }
     .filter-card .card-header {
-        background: linear-gradient(135deg, rgba(8,20,35,.96), rgba(0,102,102,.9));
+        background: linear-gradient(135deg, #011C40 0%, #26658C 100%);
         color: white;
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
         font-weight: 600;
-        border-bottom: 1px solid rgba(255,255,255,.28);
+        border-bottom: 1px solid rgba(167,235,242,.28);
     }
     .date-range-btn {
         border-radius: 999px;
         padding: 6px 15px;
         font-size: 0.82rem;
         margin-right: 6px;
-        border: 1px solid rgba(255,255,255,.10);
-        background: rgba(255,255,255,.06);
-        color: #d4d4d8;
+        border: 1px solid var(--border);
+        background: var(--surface-alt);
+        color: var(--text-secondary);
         cursor: pointer;
         transition: all 0.2s;
     }
-    .date-range-btn:hover { background: rgba(255,255,255,.10); color: #fafafa; }
+    .date-range-btn:hover { background: var(--emerald-light); color: var(--text); }
     .date-range-btn.active {
-        background: rgba(99,102,241,.22);
-        color: #a5b4fc;
-        border-color: rgba(99,102,241,.40);
-        box-shadow: 0 0 0 1px rgba(99,102,241,.25);
+        background: rgba(84,172,191,.22);
+        color: var(--emerald-dark);
+        border-color: rgba(84,172,191,.40);
+        box-shadow: 0 0 0 1px rgba(84,172,191,.25);
     }
+    html[data-theme="dark"] .date-range-btn.active { color: #A7EBF2; }
     .table-card .card-header {
-        background: rgba(255,255,255,.04);
+        background: var(--surface-alt);
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
-        border-bottom: 1px solid rgba(255,255,255,.07);
+        border-bottom: 1px solid var(--border);
         font-weight: 600;
-        color: #fafafa;
+        color: var(--text);
     }
-    .table thead th { background: rgba(255,255,255,.05); font-weight: 700; font-size: 0.82rem; color: #a1a1aa; border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap; }
-    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: #d4d4d8; }
-    .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); }
-    .report-id-link { color: #818cf8; font-weight: 700; text-decoration: none; }
-    .report-id-link:hover { text-decoration: underline; color: #a5b4fc; }
-    .status-completed { color: #34d399; font-weight: 700; }
-    .status-pending { color: #fbbf24; font-weight: 700; }
-    .status-processing { color: #818cf8; font-weight: 700; }
-    .status-failed { color: #f87171; font-weight: 700; }
-    .btn-download { background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.30); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: rgba(99,102,241,.30); color: #c7d2fe; }
-    .btn-delete-report { background: rgba(248,113,113,.10); color: #fca5a5; border: 1px solid rgba(248,113,113,.25); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
-    .btn-delete-report:hover { background: rgba(248,113,113,.20); color: #fecaca; }
-    .btn-clear-reports { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
-    .btn-clear-reports:hover { background: rgba(248,113,113,.16); color: #fecaca; }
-    .pagination-info { font-size: 0.82rem; color: #71717a; }
+    .table thead th { background: var(--surface-alt); font-weight: 700; font-size: 0.82rem; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: var(--text-secondary); }
+    .table tbody tr { border-bottom: 1px solid var(--border-light); }
+    .report-id-link { color: var(--classic-teal); font-weight: 700; text-decoration: none; }
+    .report-id-link:hover { text-decoration: underline; color: var(--emerald-dark); }
+    .status-completed { color: var(--success); font-weight: 700; }
+    .status-pending { color: var(--warning); font-weight: 700; }
+    .status-processing { color: var(--classic-teal); font-weight: 700; }
+    .status-failed { color: var(--danger); font-weight: 700; }
+    .btn-download { background: rgba(84,172,191,.16); color: var(--emerald-dark); border: 1px solid rgba(84,172,191,.30); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: rgba(84,172,191,.28); color: var(--text); }
+    html[data-theme="dark"] .btn-download { color: #A7EBF2; }
+    .btn-delete-report { background: rgba(220,38,38,.08); color: var(--danger); border: 1px solid rgba(220,38,38,.25); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-delete-report:hover { background: rgba(220,38,38,.18); }
+    .btn-clear-reports { background: rgba(220,38,38,.06); color: var(--danger); border: 1px solid rgba(220,38,38,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
+    .btn-clear-reports:hover { background: rgba(220,38,38,.14); }
+    .pagination-info { font-size: 0.82rem; color: var(--text-muted); }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: #6366f1; color: white; border: 1px solid rgba(99,102,241,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(99,102,241,.35); }
-    .btn-submit-report:hover { background: #4f46e5; }
-    .btn-reset-report { background: rgba(255,255,255,.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,.10); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
-    .btn-reset-report:hover { background: rgba(255,255,255,.10); color: #fafafa; }
-    /* form controls inside the page-wrapper */
-    .page-wrapper .form-control,
-    .page-wrapper .form-select,
-    .page-wrapper .input-group-text { background: rgba(255,255,255,.06); color: #fafafa; border-color: rgba(255,255,255,.10); }
-    .page-wrapper .form-control:focus,
-    .page-wrapper .form-select:focus { background: rgba(255,255,255,.09); border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.18); color: #fafafa; }
-    .page-wrapper .form-label,
-    .page-wrapper label { color: #a1a1aa; }
-    .page-wrapper .text-muted { color: #71717a !important; }
+    .btn-submit-report { background: linear-gradient(135deg, #54ACBF 0%, #26658C 100%); color: white; border: 1px solid rgba(84,172,191,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(84,172,191,.35); }
+    .btn-submit-report:hover { background: linear-gradient(135deg, #6dbdcf 0%, #2f7aa8 100%); color: white; }
+    .btn-reset-report { background: var(--surface-alt); color: var(--text-secondary); border: 1px solid var(--border); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
+    .btn-reset-report:hover { background: var(--emerald-light); color: var(--text); }
 
     @@media (max-width: 768px) {
         .page-wrapper {
