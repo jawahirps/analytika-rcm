@@ -293,7 +293,8 @@
                         <option value="">All facilities</option>
                         @foreach (var opt in Model.FacilityOptions)
                         {
-                            <option value="@opt.Value" selected="@(Model.Filters.FacilityId?.ToString() == opt.Value)">@opt.Label</option>
+                            var isSel = Model.Filters.FacilityId?.ToString() == opt.Value;
+                            <option value="@opt.Value" selected="@(isSel ? "selected" : null)">@opt.Label</option>
                         }
                     </select>
                 </div>
@@ -308,7 +309,8 @@
                         }
                         @foreach (var opt in Model.ReceiverOptions)
                         {
-                            <option value="@opt.Value" selected="@(Model.Filters.Receiver == opt.Value)">@opt.Label</option>
+                            var isSelR = Model.Filters.Receiver == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelR ? "selected" : null)">@opt.Label</option>
                         }
                     </select>
                 </div>
@@ -323,7 +325,8 @@
                         }
                         @foreach (var opt in Model.PayerOptions)
                         {
-                            <option value="@opt.Value" selected="@(Model.Filters.Payer == opt.Value)">@opt.Label</option>
+                            var isSelP = Model.Filters.Payer == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelP ? "selected" : null)">@opt.Label</option>
                         }
                     </select>
                 </div>
@@ -338,7 +341,8 @@
                         }
                         @foreach (var opt in Model.EncounterTypeOptions)
                         {
-                            <option value="@opt.Value" selected="@(Model.Filters.EncounterType == opt.Value)">@opt.Label</option>
+                            var isSelE = Model.Filters.EncounterType == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelE ? "selected" : null)">@opt.Label</option>
                         }
                     </select>
                 </div>

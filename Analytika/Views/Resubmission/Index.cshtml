@@ -111,7 +111,7 @@
                 <option value="">All</option>
                 @foreach (var s in (string[])ViewBag.Statuses)
                 {
-                    <option value="@s" selected="@(ViewBag.FilterStatus == s)">@s</option>
+                    <option value="@s" selected="@(ViewBag.FilterStatus == s ? "selected" : null)">@s</option>
                 }
             </select>
         </div>
@@ -121,7 +121,7 @@
                 <option value="">All</option>
                 @foreach (var f in facilities)
                 {
-                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString())">@f.Name</option>
+                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString() ? "selected" : null)">@f.Name</option>
                 }
             </select>
         </div>
@@ -131,7 +131,7 @@
                 <option value="">All</option>
                 @foreach (var p in (string[])ViewBag.Priorities)
                 {
-                    <option value="@p" selected="@(ViewBag.FilterPriority == p)">@p</option>
+                    <option value="@p" selected="@(ViewBag.FilterPriority == p ? "selected" : null)">@p</option>
                 }
             </select>
         </div>
@@ -141,10 +141,10 @@
                 <label class="form-label mb-1 fs-72" style="font-weight:600;">ASSIGNEE</label>
                 <select name="assignee" class="form-select form-select-sm" style="min-width:130px;">
                     <option value="">All</option>
-                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__")">Unassigned</option>
+                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__" ? "selected" : null)">Unassigned</option>
                     @foreach (var u in coders)
                     {
-                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id)">@(u.FullName ?? u.Email)</option>
+                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id ? "selected" : null)">@(u.FullName ?? u.Email)</option>
                     }
                 </select>
             </div>
@@ -373,7 +373,7 @@
                             <select name="priority" class="form-select form-select-sm">
                                 @foreach (var p in (string[])ViewBag.Priorities)
                                 {
-                                    <option value="@p" selected="@(p == "Normal")">@p</option>
+                                    <option value="@p" selected="@(p == "Normal" ? "selected" : null)">@p</option>
                                 }
                             </select>
                         </div>

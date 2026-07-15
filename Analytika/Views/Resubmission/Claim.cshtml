@@ -152,7 +152,7 @@
                         <select id="newStatus" class="form-select form-select-sm" style="max-width:220px;">
                             @foreach (var s in (string[])ViewBag.Statuses)
                             {
-                                <option value="@s" selected="@(status == s)">@s</option>
+                                <option value="@s" selected="@(status == s ? "selected" : null)">@s</option>
                             }
                         </select>
                     </div>
@@ -239,7 +239,7 @@
                         <select id="assigneeSelect" class="form-select form-select-sm">
                             @foreach (var u in coders)
                             {
-                                <option value="@u.Id" selected="@(task?.AssignedToUserId == u.Id)">@(u.FullName ?? u.Email)</option>
+                                <option value="@u.Id" selected="@(task?.AssignedToUserId == u.Id ? "selected" : null)">@(u.FullName ?? u.Email)</option>
                             }
                         </select>
                     </div>
@@ -249,7 +249,7 @@
                             <select id="prioritySelect" class="form-select form-select-sm">
                                 @foreach (var p in (string[])ViewBag.Priorities)
                                 {
-                                    <option value="@p" selected="@(task?.Priority == p || (task == null && p == "Normal"))">@p</option>
+                                    <option value="@p" selected="@(task?.Priority == p || (task == null && p == "Normal") ? "selected" : null)">@p</option>
                                 }
                             </select>
                         </div>
