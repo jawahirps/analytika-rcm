@@ -14,7 +14,7 @@
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.dataset.lang = lang;
                 document.documentElement.dataset.theme = theme;
-                if (collapsed) document.documentElement.classList.add('sidebar-collapsed');
+                if (skin !== 'classic') document.documentElement.dataset.skin = skin;
             } catch (_) {}
         })();
     </script>
@@ -37,6 +37,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/themes.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
@@ -77,10 +78,6 @@
                 <span class="brand-sub">Business Intelligence</span>
             </div>
         </a>
-        <button class="sidebar-close-btn d-lg-none" id="sidebarClose" aria-label="Close navigation">
-            <i class="fas fa-times" aria-hidden="true"></i>
-        </button>
-    </div>
 
     <nav class="sidebar-nav" role="navigation">
 
@@ -300,7 +297,96 @@
                         <button type="submit" class="dropdown-item text-danger">
                             <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
                         </button>
-                    </form>
+                        <div class="dropdown-menu dropdown-menu-end skin-menu" id="skinMenu">
+                            <button type="button" class="dropdown-item skin-option" data-skin-choice="classic">
+                                <span class="skin-dot classic"></span>Classic Teal<i class="fas fa-check skin-check"></i>
+                            </button>
+                            <button type="button" class="dropdown-item skin-option" data-skin-choice="obsidian">
+                                <span class="skin-dot obsidian"></span>Obsidian Glass<i class="fas fa-check skin-check"></i>
+                            </button>
+                            <button type="button" class="dropdown-item skin-option" data-skin-choice="ledger">
+                                <span class="skin-dot ledger"></span>Ledger<i class="fas fa-check skin-check"></i>
+                            </button>
+                            <button type="button" class="dropdown-item skin-option" data-skin-choice="aurora">
+                                <span class="skin-dot aurora"></span>Aurora Bento<i class="fas fa-check skin-check"></i>
+                            </button>
+                            <button type="button" class="dropdown-item skin-option" data-skin-choice="fable">
+                                <span class="skin-dot fable"></span>Fable Velvet<i class="fas fa-check skin-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </li>
+                <!-- Bell -->
+                <li class="nav-item dropdown">
+                    <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <i class="fas fa-bell"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu">
+                        <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
+                            <span class="fw-semibold text-white fs-85" data-i18n="notifications">Notifications</span>
+                            <button class="btn btn-link btn-sm text-white p-0 fs-72" style="text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
+                        </div>
+                        <div id="notificationList">
+                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
+                                <div class="notif-icon flex-shrink-0 notification-icon-muted">
+                                    <i class="fas fa-file-download"></i>
+                                </div>
+                                <div class="fs-78">
+                                    <div class="fw-semibold text-dark">New transactions available</div>
+                                    <div class="text-muted">DHA portal has undownloaded files</div>
+                                    <div class="text-muted fs-70">Just now</div>
+                                </div>
+                            </a>
+                            <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
+                                <div class="notif-icon flex-shrink-0 notification-icon-accent">
+                                    <i class="fas fa-file-code"></i>
+                                </div>
+                                <div class="fs-78">
+                                    <div class="fw-semibold text-dark">XML Parsing summary</div>
+                                    <div class="text-muted">Some claims have no remittance match</div>
+                                    <div class="text-muted fs-70">Today</div>
+                                </div>
+                            </a>
+                            <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
+                                <div class="notif-icon flex-shrink-0 notification-icon-primary">
+                                    <i class="fas fa-sync"></i>
+                                </div>
+                                <div class="fs-78">
+                                    <div class="fw-semibold text-dark">Daily sync complete</div>
+                                    <div class="text-muted">Last cron run finished successfully</div>
+                                    <div class="text-muted fs-70">2 hours ago</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="text-center py-2 notification-menu-footer">
+                            <a href="/Portal/Sync" class="notification-footer-link" data-i18n="view_all_activity">View all activity</a>
+                        </div>
+                    </div>
+                </li>
+
+                <!-- Profile -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link profile-btn dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <div class="profile-avatar-circle">
+                            @(User.Identity?.Name?.Length > 0 ? User.Identity.Name[0].ToString().ToUpper() : "U")
+                        </div>
+                        <span class="d-none d-lg-inline text-truncate" style="max-width:120px;">
+                            @User.Identity?.Name?.Split('@')[0]
+                        </span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i><span data-i18n="profile">Profile</span></a></li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <form asp-controller="Home" asp-action="LogOut" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </li>
             </ul>
         </div>
@@ -320,15 +406,9 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
     @if (TempData["Success"] != null)
     {
-        <div class="toast align-items-center border-0 toast-success" role="alert" aria-live="assertive" aria-atomic="true"
-             data-bs-autohide="true" data-bs-delay="4500">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fas fa-check-circle" aria-hidden="true"></i>
-                    <span>@TempData["Success"]</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
+        <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
     @if (TempData["Error"] != null)
@@ -344,20 +424,8 @@
             </div>
         </div>
     }
-    @if (TempData["Warning"] != null)
-    {
-        <div class="toast align-items-center border-0 toast-warning" role="alert" aria-live="assertive" aria-atomic="true"
-             data-bs-autohide="true" data-bs-delay="5000">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center gap-2">
-                    <i class="fas fa-exclamation-triangle" aria-hidden="true"></i>
-                    <span>@TempData["Warning"]</span>
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    }
-</div>
+    @RenderBody()
+</main>
 
 <!-- ═══════════════════════════════════════════════ Confirm modal ════════════ -->
 <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
@@ -434,47 +502,79 @@
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
-// Show server-rendered toasts
-document.querySelectorAll('.toast').forEach(function(t) {
-    bootstrap.Toast.getOrCreateInstance(t).show();
-});
-
 function clearNotifications() {
     document.getElementById('notificationList').innerHTML =
-        '<div class="text-center text-muted py-4" style="font-size:var(--fs-sm);"><i class="fas fa-check-circle me-1 text-primary" aria-hidden="true"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
-    var badge = document.getElementById('bellBadge');
+        '<div class="text-center text-muted py-4 fs-80"><i class="fas fa-check-circle me-1 text-primary"></i><span data-i18n="all_caught_up">All caught up!</span></div>';
+    const badge = document.getElementById('bellBadge');
     if (badge) badge.style.display = 'none';
 }
 
 (function initThemeLanguageControls() {
-    var root = document.documentElement;
-    var langButtons = { en: document.getElementById('langToggleEn'), ar: document.getElementById('langToggleAr') };
-    var themeButton = document.getElementById('themeToggleBtn');
-    var dict = {
-        en: { support:'Support', notifications:'Notifications', mark_all_read:'Mark all read', view_all_activity:'View all activity', profile:'Profile', sign_out:'Sign Out', all_caught_up:'All caught up!' },
-        ar: { support:'الدعم', notifications:'الإشعارات', mark_all_read:'تعليم الكل كمقروء', view_all_activity:'عرض كل النشاط', profile:'الملف الشخصي', sign_out:'تسجيل الخروج', all_caught_up:'تمت المزامنة!' }
+    const root = document.documentElement;
+    const langButtons = {
+        en: document.getElementById('langToggleEn'),
+        ar: document.getElementById('langToggleAr')
     };
+    const themeButton = document.getElementById('themeToggleBtn');
+
+    const dict = {
+        en: {
+            support: 'Support',
+            notifications: 'Notifications',
+            mark_all_read: 'Mark all read',
+            view_all_activity: 'View all activity',
+            profile: 'Profile',
+            sign_out: 'Sign Out',
+            theme: 'Dark',
+            all_caught_up: 'All caught up!'
+        },
+        ar: {
+            support: 'الدعم',
+            notifications: 'الإشعارات',
+            mark_all_read: 'تعليم الكل كمقروء',
+            view_all_activity: 'عرض كل النشاط',
+            profile: 'الملف الشخصي',
+            sign_out: 'تسجيل الخروج',
+            theme: 'داكن',
+            all_caught_up: 'تمت المزامنة!'
+        }
+    };
+
     function applyLanguage(lang) {
-        root.lang = lang; root.dir = lang === 'ar' ? 'rtl' : 'ltr'; root.dataset.lang = lang;
-        try { localStorage.setItem('bix-lang', lang); } catch (_) {}
-        document.querySelectorAll('[data-i18n]').forEach(function(node) {
+        root.lang = lang;
+        root.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        root.dataset.lang = lang;
+        try { localStorage.setItem('analytika-lang', lang); } catch (_) {}
+
+        document.querySelectorAll('[data-i18n]').forEach(function (node) {
             var key = node.getAttribute('data-i18n');
-            if (dict[lang] && dict[lang][key]) node.textContent = dict[lang][key];
+            if (dict[lang] && dict[lang][key]) {
+                node.textContent = dict[lang][key];
+            }
         });
-        Object.keys(langButtons).forEach(function(key) {
-            var btn = langButtons[key]; if (!btn) return;
+
+        Object.keys(langButtons).forEach(function (key) {
+            var btn = langButtons[key];
+            if (!btn) return;
             btn.classList.toggle('active', key === lang);
             btn.setAttribute('aria-pressed', key === lang ? 'true' : 'false');
         });
     }
+
     function applyTheme(theme) {
         root.dataset.theme = theme;
-        try { localStorage.setItem('bix-theme', theme); } catch (_) {}
+        try { localStorage.setItem('analytika-theme', theme); } catch (_) {}
         if (themeButton) {
             var icon = themeButton.querySelector('i');
-            if (icon) icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
             var label = document.getElementById('themeToggleLabel');
-            if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
+            if (icon) {
+                icon.className = theme === 'dark' ? 'fas fa-sun me-1' : 'fas fa-moon me-1';
+            }
+            if (label) {
+                var lang = root.dataset.lang || 'en';
+                var labels = { en: { dark: 'Dark', light: 'Light' }, ar: { dark: 'داكن', light: 'فاتح' } };
+                label.textContent = (labels[lang] || labels.en)[theme === 'dark' ? 'light' : 'dark'];
+            }
             themeButton.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     }
@@ -484,12 +584,40 @@ function clearNotifications() {
 
     applyLanguage(currentLang);
     applyTheme(currentTheme);
-    Object.keys(langButtons).forEach(function(key) {
-        var btn = langButtons[key]; if (!btn) return;
-        btn.addEventListener('click', function() { applyLanguage(key); });
+
+    Object.keys(langButtons).forEach(function (key) {
+        var btn = langButtons[key];
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+            applyLanguage(key);
+        });
     });
-    if (themeButton) themeButton.addEventListener('click', function() {
-        applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
+
+    if (themeButton) {
+        themeButton.addEventListener('click', function () {
+            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+        });
+    }
+
+    function applySkin(skin) {
+        if (skin === 'classic') {
+            delete root.dataset.skin;
+        } else {
+            root.dataset.skin = skin;
+        }
+        try { localStorage.setItem('analytika-skin', skin); } catch (_) {}
+        document.querySelectorAll('.skin-option').forEach(function (opt) {
+            opt.classList.toggle('active', opt.getAttribute('data-skin-choice') === skin);
+        });
+    }
+
+    var currentSkin = root.dataset.skin || 'classic';
+    document.querySelectorAll('.skin-option').forEach(function (opt) {
+        opt.classList.toggle('active', opt.getAttribute('data-skin-choice') === currentSkin);
+        opt.addEventListener('click', function () {
+            applySkin(opt.getAttribute('data-skin-choice'));
+        });
     });
 })();
 </script>
