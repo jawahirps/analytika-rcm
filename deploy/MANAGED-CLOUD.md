@@ -1,5 +1,28 @@
 # Managed Cloud Deployment (v2.0)
 
+## Quickstart: deploy a preview pod on Render (~5 minutes)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/jawahirps/analytika-rcm)
+
+1. Click the button (or Render dashboard → **New → Blueprint** → select this
+   repo, branch `main`). Render reads `render.yaml` automatically.
+2. **First boot only** — override two env vars in the service settings so the
+   fresh database gets schema + admin account:
+   `StartupMaintenance__RunDatabaseSetupOnStartup=true` and
+   `StartupMaintenance__SeedDataOnStartup=true`.
+3. Deploy. When `/healthz` goes green, open the service URL and sign in with
+   the seeded admin `admin@ghafbi.ae` / `Admin@123`.
+4. **Immediately change the admin password** (Admin → Users) and flip the two
+   startup flags back to `false`.
+5. Optional, recommended: add a Render **PostgreSQL** instance and set its URL
+   as `DATABASE_URL` on the service — v2.0 auto-selects Postgres, runs EF
+   migrations, and Hangfire becomes durable. Do this before step 2 on a brand
+   new pod, or migrate later.
+
+Notes: the `starter` plan is required for the persistent disk (SQLite +
+Data Protection keys live on it; on the free plan everything resets on each
+deploy). Railway works the same way via `railway.toml` + a Postgres add-on.
+
 v2.0 makes the platform safely hostable as single-tenant cloud pods while
 remaining 100% backward-compatible with existing SQLite/on-prem installs.
 
