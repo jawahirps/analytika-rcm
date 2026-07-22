@@ -12,7 +12,9 @@ namespace Analytika.Services;
 public class ReportService : IReportService
 {
     private const string GhafInk = "#011C40";
-    private const string GhafPrimary = "#A7EBF2";
+    // Table-header fill. Was a light cyan (#A7EBF2) that read poorly under the
+    // white header text; now a dark teal that matches the navy heading band.
+    private const string GhafPrimary = "#115E59";
     private const string GhafTeal = "#54ACBF";
     private const string GhafPale = "#26658C";
     private const string GhafCream = "#EAF4FB";
@@ -825,6 +827,9 @@ public class ReportService : IReportService
             .ToListAsync();
         var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
         var encTypes = ResolveEncounterTypes(report);
+        // Denial reports append the human description to each denial code (from the
+        // imported eClaimLink denial-code set). RemittanceActivity keeps raw codes.
+        var denialDesc = denialsOnly ? await LoadDenialLookupAsync() : null;
 
         var rows = new List<RemitReportRow>();
         foreach (var r in list)
@@ -952,7 +957,7 @@ public class ReportService : IReportService
             ws.Cell(rn, 9).Value = net;
             ws.Cell(rn, 10).Value = paid;
             ws.Cell(rn, 11).Value = denied;
-            var codes = FormatDenialCodes(r.DenialCodesJson);
+            var codes = FormatDenialCodes(r.DenialCodesJson, denialDesc);
             ws.Cell(rn, 12).Value = D(codes);
             // Some source PaymentReference values carry a leading apostrophe
             // (an Excel text-marker artifact in the portal data). Strip it.
@@ -1201,17 +1206,22 @@ public class ReportService : IReportService
         return s.Length > 2 && s != "[]" && !s.Equals("null", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FormatDenialCodes(string? json)
+    private static string FormatDenialCodes(string? json, IReadOnlyDictionary<string, string>? descLookup = null)
     {
         if (string.IsNullOrWhiteSpace(json)) return "";
-        try
+        List<string>? arr = null;
+        try { arr = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json); } catch { }
+        if (arr == null || arr.Count == 0)
         {
-            var arr = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
-            if (arr != null && arr.Count > 0)
-                return string.Join(", ", arr.Where(x => !string.IsNullOrWhiteSpace(x)));
+            var raw = json.Trim('[', ']', '"', ' ');
+            arr = raw.Length == 0 ? new() : raw.Split(',').Select(s => s.Trim()).ToList();
         }
-        catch { }
-        return json.Trim('[', ']', '"', ' ');
+        var codes = arr.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim());
+        if (descLookup == null)
+            return string.Join(", ", codes);
+        // Denial report: append the human description to each code.
+        return string.Join("; ", codes.Select(c =>
+            descLookup.TryGetValue(c, out var d) && !string.IsNullOrWhiteSpace(d) ? $"{c} — {d}" : c));
     }
 
     // Shared executive report palette (matches GenerateRemittanceWorkbookAsync).
@@ -1639,6 +1649,20 @@ public class ReportService : IReportService
         {
             return "";
         }
+    }
+
+    // Denial code -> human description, from the imported eClaimLink denial-code set.
+    private async Task<IReadOnlyDictionary<string, string>> LoadDenialLookupAsync()
+    {
+        var rows = await _context.DhpoCodingSets.AsNoTracking()
+            .Where(x => x.Category == "DenialCode")
+            .Select(x => new { x.Code, x.Name })
+            .ToListAsync();
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.Code) && !string.IsNullOrWhiteSpace(r.Name))
+                lookup[r.Code.Trim()] = r.Name.Trim();
+        return lookup;
     }
 
     private async Task<IReadOnlyDictionary<string, string>> LoadPayerLookupAsync()
