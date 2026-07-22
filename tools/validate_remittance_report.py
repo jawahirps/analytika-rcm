@@ -197,6 +197,12 @@ def main():
             # placeholder; treat it as blank for comparison against the DB.
             x = (x or "").strip()
             return "" if x in ("—", "-") else x
+        # Payer(2) Payer Name(3) Clinician(4) Encounter Type(5) Service Year(6)
+        # Service Month(7) are ENRICHED at export time from the matching submission
+        # record + eClaimLink lookups (remittance rows are blank on these), so they
+        # are not compared against the raw remittance record. Identity + financial +
+        # denial/ref/date/file columns stay strict.
+        ENRICHED = {2, 3, 4, 5, 6, 7}
         def norm(t):
             out = list(t)
             for k in (8, 9, 10):
@@ -205,7 +211,8 @@ def main():
             # Payment Ref: source data sometimes carries a leading apostrophe
             # (Excel text-marker artifact); the export strips it deliberately.
             out[12] = blank(out[12]).lstrip("'")
-            return tuple(blank(x) if i != 12 else out[12] for i, x in enumerate(out))
+            return tuple("" if i in ENRICHED else (blank(x) if i != 12 else out[12])
+                         for i, x in enumerate(out))
         exp_ms = Counter(norm(t) for t in expected)
         got_ms = Counter(norm(tuple(r)) for r in sheet_rows)
         missing = exp_ms - got_ms

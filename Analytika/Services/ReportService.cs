@@ -831,13 +831,22 @@ public class ReportService : IReportService
         // imported eClaimLink denial-code set). RemittanceActivity keeps raw codes.
         var denialDesc = denialsOnly ? await LoadDenialLookupAsync() : null;
 
+        // Remittance (RA) records carry NO payer/clinician/encounter data — that
+        // lives on the matching SUBMISSION (same ClaimId). Join it in, and resolve
+        // the payer/clinician CODE to its real name via the imported eClaimLink sets.
+        var payerLookup = await LoadPayerLookupAsync();
+        var clinicianLookup = await LoadClinicianLookupAsync();
+        var subMeta = await LoadSubmissionMetaAsync(facilityIds);
+        SubMeta Enrich(RemitReportRow r) => subMeta.TryGetValue(r.ClaimId ?? "", out var s) ? s : SubMeta.Empty;
+
         var rows = new List<RemitReportRow>();
         foreach (var r in list)
         {
-            // Date window already applied in SQL. Only encounter-type and
-            // denials-only refinement remain in memory.
-            if (encTypes.Count > 0 && (r.EncounterType == null
-                || !encTypes.Any(e => r.EncounterType.Contains(e, StringComparison.OrdinalIgnoreCase))))
+            // Date window already applied in SQL. Encounter-type filter uses the
+            // ENRICHED encounter type (from the submission), then denials-only.
+            var encForFilter = !string.IsNullOrWhiteSpace(r.EncounterType) ? r.EncounterType : Enrich(r).EncounterType;
+            if (encTypes.Count > 0 && (string.IsNullOrWhiteSpace(encForFilter)
+                || !encTypes.Any(e => encForFilter!.Contains(e, StringComparison.OrdinalIgnoreCase))))
                 continue;
             var denied = (r.NetAmount - r.PaidAmount) > 0.009m || HasDenialCodes(r.DenialCodesJson);
             if (denialsOnly && !denied) continue;
@@ -858,7 +867,7 @@ public class ReportService : IReportService
 
         // ── Executive header: title band, summary block, KPI cards. Data is
         //    untouched; this is presentation only. Table header lands at row 11. ──
-        const string Navy = "#0A2540", Teal = "#0FB5AE", Slate = "#334155",
+        const string Navy = "#0A2540", Teal = "#0F766E", Slate = "#334155",
                      RedDk = "#B42318", RedBg = "#FEE4E2", AmberBg = "#FEF0C7",
                      Ink = "#0F172A", Muted = "#64748B", ZebraBg = "#F1F5F9", Line = "#E2E8F0";
         const int hr = 11;
@@ -946,14 +955,22 @@ public class ReportService : IReportService
             var net = Math.Round(r.NetAmount, 2);
             var paid = Math.Round(r.PaidAmount, 2);
             var denied = Math.Max(0m, net - paid);
+            // Fill descriptive fields from the matching submission (remittance
+            // rows are blank), then resolve payer/clinician CODE -> real name.
+            var s = Enrich(r);
+            var payerCode = FirstNonBlank(r.PayerId, s.PayerId, r.PayerName, s.PayerName);
+            var payerName = payerCode != null && payerLookup.TryGetValue(payerCode, out var pn) ? pn
+                            : FirstNonBlank(r.PayerName, s.PayerName, payerCode);
+            var clinCode = FirstNonBlank(r.Clinician, s.Clinician);
+            var clinName = clinCode != null && clinicianLookup.TryGetValue(clinCode, out var cn) ? cn : clinCode;
             ws.Cell(rn, 1).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
             ws.Cell(rn, 2).Value = r.ClaimId;
-            ws.Cell(rn, 3).Value = D(r.PayerId);
-            ws.Cell(rn, 4).Value = D(r.PayerName);
-            ws.Cell(rn, 5).Value = D(r.Clinician);
-            ws.Cell(rn, 6).Value = D(r.EncounterType);
-            ws.Cell(rn, 7).Value = D(r.ServiceYear);
-            ws.Cell(rn, 8).Value = D(r.ServiceMonth);
+            ws.Cell(rn, 3).Value = D(payerCode);
+            ws.Cell(rn, 4).Value = D(payerName);
+            ws.Cell(rn, 5).Value = D(clinName);
+            ws.Cell(rn, 6).Value = D(FirstNonBlank(r.EncounterType, s.EncounterType));
+            ws.Cell(rn, 7).Value = D(FirstNonBlank(r.ServiceYear, s.ServiceYear));
+            ws.Cell(rn, 8).Value = D(FirstNonBlank(r.ServiceMonth, s.ServiceMonth));
             ws.Cell(rn, 9).Value = net;
             ws.Cell(rn, 10).Value = paid;
             ws.Cell(rn, 11).Value = denied;
@@ -1649,6 +1666,48 @@ public class ReportService : IReportService
         {
             return "";
         }
+    }
+
+    // Descriptive fields pulled from a submission (claim) record to enrich its
+    // remittance row (matched by ClaimId).
+    private sealed record SubMeta(string? PayerId, string? PayerName, string? Clinician,
+        string? EncounterType, string? ServiceYear, string? ServiceMonth)
+    {
+        public static readonly SubMeta Empty = new(null, null, null, null, null, null);
+    }
+
+    private static string? FirstNonBlank(params string?[] vals)
+        => vals.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    // Clinician code -> professional name, from the imported eClaimLink clinician set.
+    private async Task<IReadOnlyDictionary<string, string>> LoadClinicianLookupAsync()
+    {
+        var rows = await _context.DhpoCodingSets.AsNoTracking()
+            .Where(x => x.Category == "Clinician")
+            .Select(x => new { x.Code, x.Name })
+            .ToListAsync();
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.Code) && !string.IsNullOrWhiteSpace(r.Name))
+                lookup[r.Code.Trim()] = r.Name.Trim();
+        return lookup;
+    }
+
+    // ClaimId -> submission descriptive fields, for the report's facility scope.
+    private async Task<IReadOnlyDictionary<string, SubMeta>> LoadSubmissionMetaAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q
+            .Select(r => new { r.ClaimId, r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth })
+            .Take(1000000)
+            .ToListAsync();
+        var map = new Dictionary<string, SubMeta>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.ClaimId))
+                map[r.ClaimId!.Trim()] = new SubMeta(r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth);
+        return map;
     }
 
     // Denial code -> human description, from the imported eClaimLink denial-code set.
