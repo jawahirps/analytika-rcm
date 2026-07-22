@@ -51,7 +51,10 @@ public class BixAssistantService : IBixAssistantService
         var baseUrl = map.TryGetValue("BaseUrl", out var bu) && !string.IsNullOrWhiteSpace(bu) ? bu!.Trim() : "http://localhost:11434";
         var model = map.TryGetValue("Model", out var m) && !string.IsNullOrWhiteSpace(m) ? m!.Trim() : "qwen2.5:7b-instruct";
         var temp = map.TryGetValue("Temperature", out var t) && double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var td) ? td : 0.1;
-        var ctx = map.TryGetValue("NumCtx", out var nc) && int.TryParse(nc, out var nci) ? nci : 8192;
+        // 4096 is ample for the catalogue prompt + aggregate result tables and is
+        // MUCH faster than 8192 (context size dominates per-token latency and was
+        // pushing Stage A past the timeout on the RTX 3060).
+        var ctx = map.TryGetValue("NumCtx", out var nc) && int.TryParse(nc, out var nci) ? nci : 4096;
         var timeout = map.TryGetValue("TimeoutSeconds", out var ts) && int.TryParse(ts, out var tsi) ? tsi : 120;
         return new OllamaSettings(enabled, baseUrl, model, temp, ctx, timeout);
     }
@@ -327,7 +330,9 @@ public class BixAssistantService : IBixAssistantService
                 Model = model,
                 CreatedAt = DateTime.UtcNow
             });
-            await _db.SaveChangesAsync(ct);
+            // Persist the audit row even when the request was cancelled/timed out
+            // (using ct here made the log itself throw TaskCanceledException).
+            await _db.SaveChangesAsync(CancellationToken.None);
         }
         catch (Exception ex) { _log.LogWarning(ex, "Failed to write assistant audit log"); }
     }

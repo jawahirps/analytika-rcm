@@ -37,6 +37,21 @@
         font-weight: 600;
         border-bottom: 1px solid rgba(255,255,255,.28);
     }
+    /* Report Type / Search Criteria plain selects — force readable contrast on
+       the (light-rendered) filter card so the selected value + options show. */
+    .filter-card .form-select,
+    .filter-card select.form-select {
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+        border: 1px solid rgba(8,20,35,.16) !important;
+    }
+    .filter-card .form-select option { color: #0f172a; background-color: #ffffff; }
+    html[data-theme="dark"] .filter-card .form-select,
+    html[data-theme="dark"] .filter-card select.form-select {
+        color: #e5edf5 !important;
+        background-color: rgba(1,28,64,0.82) !important;
+    }
+    html[data-theme="dark"] .filter-card .form-select option { color: #0f172a; }
     .sel-tools { font-size: .72rem; font-weight: 500; white-space: nowrap; }
     .sel-tools a { color: var(--classic-teal, #54ACBF); text-decoration: none; }
     .sel-tools a:hover { text-decoration: underline; }

@@ -203,6 +203,7 @@ public static class ModuleRegistration
         services.AddHttpClient("ollama", c => c.Timeout = TimeSpan.FromSeconds(300));
         services.AddSingleton<IOllamaClient, OllamaClient>();
         services.AddScoped<IBixAssistantService, BixAssistantService>();
+        services.AddHostedService<OllamaWarmupService>();   // pre-warm + pin model
         return services;
     }
 
