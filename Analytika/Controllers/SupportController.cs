@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using System.Text.Json;
@@ -78,7 +78,8 @@ public class SupportController : Controller
             return BadRequest(new { error = "No messages provided." });
 
         /* ── Validate & sanitise history ─────────────────────────────── */
-        var allowed = new[] { "user", "assistant" };
+        // Only accept user-role messages from the client. Assistant turns are not trusted
+        // because they could plant false context in the Anthropic request.
         var sanitised = new List<(string role, string content)>();
 
         foreach (var m in req.Messages)
@@ -86,7 +87,7 @@ public class SupportController : Controller
             var role    = m.Role?.Trim().ToLowerInvariant() ?? "";
             var content = (m.Content ?? "").Trim();
 
-            if (!allowed.Contains(role))         continue;   // drop unknown roles
+            if (role != "user") continue;   // drop assistant/unknown turns from client
             if (content.Length == 0)             continue;   // drop empty
             if (content.Length > MaxMessageLength)
                 content = content[..MaxMessageLength];        // truncate oversized input
@@ -94,9 +95,11 @@ public class SupportController : Controller
             /* Detect prompt injection in user turns */
             if (role == "user" && IsInjectionAttempt(content))
             {
+                var snippet = content[..Math.Min(80, content.Length)]
+                    .Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
                 _logger.LogWarning("Prompt injection detected from user {User}: {Snippet}",
-                    User.Identity?.Name, content[..Math.Min(80, content.Length)]);
-                return Ok(new { reply = "I can only help with Bix. Please describe an issue with the app." });
+                    User.Identity?.Name, snippet);
+                return Ok(new { reply = "I can only help with Analytika RCM. Please describe an issue with the app." });
             }
 
             sanitised.Add((role, content));

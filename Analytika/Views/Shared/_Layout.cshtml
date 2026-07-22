@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
     <meta charset="utf-8" />
@@ -8,8 +8,8 @@
         (function () {
             try {
                 var lang = localStorage.getItem('analytika-lang') || 'en';
-                var theme = localStorage.getItem('analytika-theme') || 'light';
-                var skin = localStorage.getItem('analytika-skin') || 'classic';
+                var theme = localStorage.getItem('analytika-theme') || 'dark';
+                var collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
                 document.documentElement.lang = lang;
                 document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
                 document.documentElement.dataset.lang = lang;
@@ -18,13 +18,24 @@
             } catch (_) {}
         })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <!-- DNS prefetch / preconnect for CDN resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" />
-    <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/lib/fontawesome.min.css" />
-    <link rel="stylesheet" href="~/lib/select2.min.css" />
-    <link rel="stylesheet" href="~/lib/flatpickr.min.css" />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+    <link rel="dns-prefetch" href="https://cdn.datatables.net" />
+    <!-- Inter font — swap prevents FOIT, only render-blocking for 100ms -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" /></noscript>
+    <!-- Critical: Bootstrap + FA (layout-defining) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <!-- Non-critical: widget CSS loaded after paint via JS swap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.min.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.1.2/css/buttons.bootstrap5.min.css" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.min.css" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/themes.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
@@ -37,19 +48,30 @@
             var canAccessRcm = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst) || User.IsInRole(AppRoles.Billing) || User.IsInRole(AppRoles.Finance) || User.IsInRole(AppRoles.Auditor);
             var canAccessResubmission = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst);
             var canAccessAdmin = User.IsInRole(AppRoles.Admin);
+            var isReporter = User.IsInRole(AppRoles.Reporter);
+            var canAccessReports = canAccessRcm || isReporter;
             var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
+
+            var ctrl = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+            var act  = ViewContext.RouteData.Values["action"]?.ToString()     ?? "";
+
+            var isDashboard     = act is "Dashboard" or "RCMDashboard";
+            var isPortal        = ctrl == "Portal";
+            var isReports       = ctrl == "ReportScheduler" || ctrl == "AdvancedReports";
+            var isResubmission  = ctrl == "Resubmission";
+            var isAdmin         = ctrl == "Admin";
         }
 
-        <!-- Brand -->
-        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
-            <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#66B2B2" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#003B4D"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#006884"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#008B8B"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#C6E2E9"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#003B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#003B4D"/>
+<!-- ═══════════════════════════════════════════════ Sidebar ═══════════════════ -->
+<aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="sidebar-header">
+        <a class="sidebar-brand" asp-controller="Home" asp-action="@brandAction" aria-label="Ghaf BI home">
+            <svg class="sidebar-brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="22" cy="22" r="19" stroke="#54ACBF" stroke-width="3"/>
+                <path d="M13 31V34" stroke="#54ACBF" stroke-width="3" stroke-linecap="round"/>
+                <path d="M21 26V34" stroke="#54ACBF" stroke-width="3" stroke-linecap="round"/>
+                <path d="M29 20V34" stroke="#54ACBF" stroke-width="3" stroke-linecap="round"/>
+                <path d="M12.5 28.5L20 23L27 17L33 11" stroke="#A7EBF2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
             <div class="brand-name-wrap">
                 <span class="brand-text">Ghaf Bi</span>
@@ -57,144 +79,243 @@
             </div>
         </a>
 
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-            <span class="navbar-toggler-icon"></span>
+    <nav class="sidebar-nav" role="navigation">
+
+        <!-- Dashboard — hidden for Reporter role -->
+        @if (!isReporter)
+        {
+        <a class="sidebar-link @(isDashboard ? "active" : "")" asp-controller="Home" asp-action="@brandAction">
+            <i class="fas fa-chart-line sidebar-icon" aria-hidden="true"></i>
+            <span class="sidebar-label">Dashboard</span>
+        </a>
+        }
+
+        @if (canAccessRcm)
+        {
+        <!-- Portal -->
+        <div class="sidebar-section @(isPortal ? "expanded" : "")" id="section-portal">
+            <button class="sidebar-section-toggle" aria-expanded="@(isPortal ? "true" : "false")" aria-controls="items-portal">
+                <i class="fas fa-cloud-download-alt sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Portal</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-portal">
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "Sync" ? "active" : "")" asp-controller="Portal" asp-action="Sync">
+                    <i class="fas fa-sync-alt" aria-hidden="true"></i>Sync &amp; Fetch
+                </a>
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "SyncedData" ? "active" : "")" asp-controller="Portal" asp-action="SyncedData">
+                    <i class="fas fa-inbox" aria-hidden="true"></i>Portal Files
+                </a>
+                <a class="sidebar-sublink @(ctrl == "Portal" && act == "XmlParsing" ? "active" : "")" asp-controller="Portal" asp-action="XmlParsing">
+                    <i class="fas fa-file-medical-alt" aria-hidden="true"></i>Claim Extracts
+                </a>
+            </div>
+        </div>
+        }
+
+        @if (canAccessReports)
+        {
+        <!-- Reports -->
+        <div class="sidebar-section @(isReports ? "expanded" : "")" id="section-reports">
+            <button class="sidebar-section-toggle" aria-expanded="@(isReports ? "true" : "false")" aria-controls="items-reports">
+                <i class="fas fa-chart-bar sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Reports</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-reports">
+                <a class="sidebar-sublink @(act == "ClaimSummaryReport"      ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimSummaryReport">Claim Summary</a>
+                <a class="sidebar-sublink @(act == "ClaimActivityReports"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimActivityReports">Claim Activity</a>
+                <a class="sidebar-sublink @(act == "RemittanceActivityReport"? "active" : "")" asp-controller="ReportScheduler" asp-action="RemittanceActivityReport">Remittance Activity</a>
+                <a class="sidebar-sublink @(act == "ClaimReceiverReport"     ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimReceiverReport">Claim Receiver</a>
+                <a class="sidebar-sublink @(act == "ClaimClinicianReport"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimClinicianReport">Claim Clinician</a>
+                <a class="sidebar-sublink @(ctrl == "AdvancedReports"        ? "active" : "")" asp-controller="AdvancedReports"  asp-action="SubmissionXMLFileReport">Submission XML</a>
+                <a class="sidebar-sublink @(act == "FinanceTATReport"        ? "active" : "")" asp-controller="ReportScheduler" asp-action="FinanceTATReport">Finance TAT</a>
+                <a class="sidebar-sublink @(act == "DenialReport"            ? "active" : "")" asp-controller="ReportScheduler" asp-action="DenialReport">Denial Query</a>
+                <a class="sidebar-sublink @(act == "ClaimLifeCycleReport"    ? "active" : "")" asp-controller="ReportScheduler" asp-action="ClaimLifeCycleReport">Claim Life Cycle</a>
+            </div>
+        </div>
+        }
+
+        @if (canAccessResubmission)
+        {
+        <!-- Resubmission -->
+        <div class="sidebar-section @(isResubmission ? "expanded" : "")" id="section-resubmission">
+            <button class="sidebar-section-toggle" aria-expanded="@(isResubmission ? "true" : "false")" aria-controls="items-resubmission">
+                <i class="fas fa-tasks sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Resubmission</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-resubmission">
+                <a class="sidebar-sublink @(act == "Workload"         ? "active" : "")" asp-controller="Resubmission" asp-action="Workload">
+                    <i class="fas fa-users" aria-hidden="true"></i>Workload
+                </a>
+                <a class="sidebar-sublink @(act == "DenialDashboard"  ? "active" : "")" asp-controller="Resubmission" asp-action="DenialDashboard">
+                    <i class="fas fa-chart-pie" aria-hidden="true"></i>Denial Dashboard
+                </a>
+            </div>
+        </div>
+        }
+
+        @if (canAccessAdmin)
+        {
+        <!-- Admin -->
+        <div class="sidebar-section @(isAdmin ? "expanded" : "")" id="section-admin">
+            <button class="sidebar-section-toggle" aria-expanded="@(isAdmin ? "true" : "false")" aria-controls="items-admin">
+                <i class="fas fa-shield-alt sidebar-icon" aria-hidden="true"></i>
+                <span class="sidebar-label">Admin</span>
+                <i class="fas fa-chevron-down sidebar-chevron ms-auto" aria-hidden="true"></i>
+            </button>
+            <div class="sidebar-section-items" id="items-admin">
+                <a class="sidebar-sublink @(act == "Users"           ? "active" : "")" asp-controller="Admin" asp-action="Users">
+                    <i class="fas fa-users" aria-hidden="true"></i>Users
+                </a>
+                <a class="sidebar-sublink @(act == "Roles"           ? "active" : "")" asp-controller="Admin" asp-action="Roles">
+                    <i class="fas fa-user-shield" aria-hidden="true"></i>Roles
+                </a>
+                <a class="sidebar-sublink @(act == "Credentials"     ? "active" : "")" asp-controller="Admin" asp-action="Credentials">
+                    <i class="fas fa-key" aria-hidden="true"></i>Credentials
+                </a>
+                <a class="sidebar-sublink @(act == "CodingSets"      ? "active" : "")" asp-controller="Admin" asp-action="CodingSets">
+                    <i class="fas fa-table" aria-hidden="true"></i>Coding Sets
+                </a>
+                <a class="sidebar-sublink @(act == "EmailSettings"   ? "active" : "")" asp-controller="Admin" asp-action="EmailSettings">
+                    <i class="fas fa-envelope" aria-hidden="true"></i>Email Settings
+                </a>
+                <a class="sidebar-sublink @(act == "ReportSchedules" ? "active" : "")" asp-controller="Admin" asp-action="ReportSchedules">
+                    <i class="fas fa-calendar-alt" aria-hidden="true"></i>Schedules
+                </a>
+                <a class="sidebar-sublink @(act == "Database"        ? "active" : "")" asp-controller="Admin" asp-action="Database">
+                    <i class="fas fa-database" aria-hidden="true"></i>Database
+                </a>
+            </div>
+        </div>
+        }
+
+        <!-- Support -->
+        <a class="sidebar-link" href="https://desk.zoho.com/portal/ghafservices/newticket" target="_blank" rel="noopener noreferrer" data-i18n-key="support" aria-label="Create a Zoho Desk support ticket">
+            <i class="fas fa-life-ring sidebar-icon" aria-hidden="true"></i>
+            <span class="sidebar-label">Support</span>
+        </a>
+
+    </nav>
+
+    <div class="sidebar-footer">
+        <button class="sidebar-collapse-btn d-none d-lg-flex" id="sidebarToggle" aria-label="Collapse sidebar">
+            <i class="fas fa-chevron-left sidebar-icon" id="sidebarToggleIcon" aria-hidden="true"></i>
+            <span class="sidebar-label">Collapse</span>
+        </button>
+    </div>
+</aside>
+
+<div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+
+<!-- ═══════════════════════════════════════════════ Topbar ════════════════════ -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="topbar-hamburger d-lg-none" id="sidebarOpen" aria-label="Open navigation" aria-expanded="false">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <div class="topbar-right">
+        <!-- Language toggle -->
+        <div class="btn-group btn-group-sm lang-toggle-group" role="group" aria-label="Language selection">
+            <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" data-lang="en" id="langToggleEn" aria-pressed="true" aria-label="English">EN</button>
+            <button type="button" class="btn btn-outline-secondary lang-toggle-btn"        data-lang="ar" id="langToggleAr" aria-pressed="false" aria-label="Arabic">AR</button>
+        </div>
+
+        <!-- Theme toggle -->
+        <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle light mode" aria-pressed="true">
+            <i class="fas fa-sun me-1" aria-hidden="true"></i><span id="themeToggleLabel">Light</span>
         </button>
 
-        <div class="collapse navbar-collapse" id="navbarMain">
-            <!-- Left nav -->
-            <ul class="navbar-nav me-auto mb-0">
-                <li class="nav-item">
-                    <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() is "Dashboard" or "RCMDashboard" ? "active" : "")"
-                       asp-controller="Home" asp-action="Dashboard">
-                        <i class="fas fa-signal me-1 fs-75"></i>Dashboard
-                    </a>
-                </li>
-                @if (canAccessResubmission)
-                {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Resubmission" ? "active" : "")"
-                       href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-tasks me-1 fs-75"></i>Resubmission
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" asp-controller="Resubmission" asp-action="Workload">
-                            <i class="fas fa-users me-2 text-muted" style="width:14px;"></i>Workload</a></li>
-                        <li><a class="dropdown-item" asp-controller="Resubmission" asp-action="DenialDashboard">
-                            <i class="fas fa-chart-pie me-2 text-muted" style="width:14px;"></i>Denial Dashboard</a></li>
-                    </ul>
-                </li>
-                }
-                @if (canAccessRcm)
-                {
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Advanced Reports</a>
-                    <ul class="dropdown-menu">
-                        <li class="dropdown-submenu">
-                            <a class="dropdown-item dropdown-toggle" href="#">Claim Processing</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimSummaryReport">Claim Summary</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimActivityReports">Claim Activity</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="RemittanceActivityReport">Remittance Activity</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimReceiverReport">Claim Receiver</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimClinicianReport">Claim Clinician</a></li>
-                                <li><a class="dropdown-item" asp-controller="AdvancedReports" asp-action="SubmissionXMLFileReport">Submission XML File</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="FinanceTATReport">Finance TAT</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="DenialReport">Denial Query</a></li>
-                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimLifeCycleReport">Claim Life Cycle</a></li>
-                            </ul>
-                        </li>
-                    </ul>
-                </li>
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Portal" ? "active" : "")"
-                       href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-cloud-download-alt me-1 fs-78"></i>Portal
-                    </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="Sync">
-                            <i class="fas fa-sync me-2 text-muted"></i>Sync &amp; Fetch
-                        </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="SyncedData">
-                            <i class="fas fa-database me-2 text-muted"></i>Synced Data
-                        </a></li>
-                        <li><a class="dropdown-item" asp-controller="Portal" asp-action="XmlParsing">
-                            <i class="fas fa-file-code me-2 text-muted"></i>XML Parsing
-                        </a></li>
-                    </ul>
-                </li>
-                }
-                @if (canAccessAdmin)
-                {
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Admin" ? "active" : "")"
-                           href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-shield-alt me-1 fs-80"></i>Admin
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Users">
-                                <i class="fas fa-users me-2 text-muted"></i>User Management
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Roles">
-                                <i class="fas fa-user-shield me-2 text-muted"></i>User Roles
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Credentials">
-                                <i class="fas fa-key me-2 text-muted"></i>Portal Credentials
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="CodingSets">
-                                <i class="fas fa-table me-2 text-muted"></i>DHPO Coding Sets
-                            </a></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="EmailSettings">
-                                <i class="fas fa-envelope me-2 text-muted"></i>Email Settings
-                            </a></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="ReportSchedules">
-                                <i class="fas fa-calendar-alt me-2 text-muted"></i>Report Schedules
-                            </a></li>
-                            <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item" asp-controller="Admin" asp-action="Database">
-                                <i class="fas fa-database me-2 text-muted"></i>Database Migration
-                            </a></li>
-                        </ul>
-                    </li>
-                }
-                <li class="nav-item">
-                    <a class="nav-link" href="#Support" data-i18n="support">Support</a>
-                </li>
-            </ul>
-
-            <!-- Right side -->
-            <ul class="navbar-nav ms-auto align-items-center mb-0">
-                <li class="nav-item d-flex align-items-center gap-2 me-2 lang-theme-tools">
-                    <div class="btn-group btn-group-sm lang-toggle-group" role="group" aria-label="Language toggle">
-                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn active" data-lang="en" id="langToggleEn">EN</button>
-                        <button type="button" class="btn btn-outline-secondary lang-toggle-btn" data-lang="ar" id="langToggleAr">AR</button>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn" id="themeToggleBtn">
-                        <i class="fas fa-moon me-1"></i><span id="themeToggleLabel">Dark</span>
-                    </button>
-                    <div class="dropdown">
-                        <button type="button" class="btn btn-outline-secondary btn-sm theme-toggle-btn skin-toggle-btn" id="skinToggleBtn"
-                                data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" title="Theme style">
-                            <i class="fas fa-palette"></i>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end skin-menu" id="skinMenu">
-                            <button type="button" class="dropdown-item skin-option" data-skin-choice="classic">
-                                <span class="skin-dot classic"></span>Classic Teal<i class="fas fa-check skin-check"></i>
-                            </button>
-                            <button type="button" class="dropdown-item skin-option" data-skin-choice="obsidian">
-                                <span class="skin-dot obsidian"></span>Obsidian Glass<i class="fas fa-check skin-check"></i>
-                            </button>
-                            <button type="button" class="dropdown-item skin-option" data-skin-choice="ledger">
-                                <span class="skin-dot ledger"></span>Ledger<i class="fas fa-check skin-check"></i>
-                            </button>
-                            <button type="button" class="dropdown-item skin-option" data-skin-choice="aurora">
-                                <span class="skin-dot aurora"></span>Aurora Bento<i class="fas fa-check skin-check"></i>
-                            </button>
-                            <button type="button" class="dropdown-item skin-option" data-skin-choice="fable">
-                                <span class="skin-dot fable"></span>Fable Velvet<i class="fas fa-check skin-check"></i>
-                            </button>
+        <!-- Bell -->
+        <div class="dropdown">
+            <button class="bell-btn position-relative" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                <i class="fas fa-bell"></i>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge" id="bellBadge">3</span>
+            </button>
+            <div class="dropdown-menu dropdown-menu-end p-0 shadow notification-menu">
+                <div class="d-flex align-items-center justify-content-between px-3 py-2 notification-menu-header">
+                    <span class="fw-semibold text-white" style="font-size:.85rem;" data-i18n="notifications">Notifications</span>
+                    <button class="btn btn-link btn-sm text-white p-0" style="font-size:.72rem;text-decoration:none;" onclick="clearNotifications()" data-i18n="mark_all_read">Mark all read</button>
+                </div>
+                <div id="notificationList">
+                    <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/Sync">
+                        <div class="notif-icon flex-shrink-0 notification-icon-muted">
+                            <i class="fas fa-file-download"></i>
                         </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">New transactions available</div>
+                            <div class="text-muted">DHA portal has undownloaded files</div>
+                            <div class="text-muted" style="font-size:.7rem;">Just now</div>
+                        </div>
+                    </a>
+                    <a class="notification-item d-flex gap-2 px-3 py-2 border-bottom" href="/Portal/XmlParsing">
+                        <div class="notif-icon flex-shrink-0 notification-icon-accent">
+                            <i class="fas fa-file-code"></i>
+                        </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">XML Parsing summary</div>
+                            <div class="text-muted">Some claims have no remittance match</div>
+                            <div class="text-muted" style="font-size:.7rem;">Today</div>
+                        </div>
+                    </a>
+                    <a class="notification-item d-flex gap-2 px-3 py-2" href="/Portal/Sync">
+                        <div class="notif-icon flex-shrink-0 notification-icon-primary">
+                            <i class="fas fa-sync"></i>
+                        </div>
+                        <div style="font-size:.78rem;">
+                            <div class="fw-semibold text-dark">Daily sync complete</div>
+                            <div class="text-muted">Last cron run finished successfully</div>
+                            <div class="text-muted" style="font-size:.7rem;">2 hours ago</div>
+                        </div>
+                    </a>
+                </div>
+                <div class="text-center py-2 notification-menu-footer">
+                    <a href="/Portal/Sync" class="notification-footer-link" data-i18n="view_all_activity">View all activity</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile -->
+        <div class="dropdown">
+            <a class="nav-link profile-btn dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                <div class="profile-avatar-circle">
+                    @(User.Identity?.Name?.Length > 0 ? User.Identity.Name[0].ToString().ToUpper() : "U")
+                </div>
+                <span class="d-none d-lg-inline text-truncate" style="max-width:120px;">
+                    @User.Identity?.Name?.Split('@')[0]
+                </span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="fas fa-user me-2 text-muted"></i><span data-i18n="profile">Profile</span></a></li>
+                <li><hr class="dropdown-divider my-1"></li>
+                <li>
+                    <form asp-controller="Home" asp-action="LogOut" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="dropdown-item text-danger">
+                            <i class="fas fa-sign-out-alt me-2"></i><span data-i18n="sign_out">Sign Out</span>
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <div class="dropdown-menu dropdown-menu-end skin-menu" id="skinMenu">
+                        <button type="button" class="dropdown-item skin-option" data-skin-choice="classic">
+                            <span class="skin-dot classic"></span>Classic Teal<i class="fas fa-check skin-check"></i>
+                        </button>
+                        <button type="button" class="dropdown-item skin-option" data-skin-choice="obsidian">
+                            <span class="skin-dot obsidian"></span>Obsidian Glass<i class="fas fa-check skin-check"></i>
+                        </button>
+                        <button type="button" class="dropdown-item skin-option" data-skin-choice="ledger">
+                            <span class="skin-dot ledger"></span>Ledger<i class="fas fa-check skin-check"></i>
+                        </button>
+                        <button type="button" class="dropdown-item skin-option" data-skin-choice="aurora">
+                            <span class="skin-dot aurora"></span>Aurora Bento<i class="fas fa-check skin-check"></i>
+                        </button>
+                        <button type="button" class="dropdown-item skin-option" data-skin-choice="fable">
+                            <span class="skin-dot fable"></span>Fable Velvet<i class="fas fa-check skin-check"></i>
+                        </button>
                     </div>
                 </li>
                 <!-- Bell -->
@@ -272,9 +393,19 @@
             </ul>
         </div>
     </div>
+</header>
+    </div>
 </nav>
 
-<main>
+<!-- ═══════════════════════════════════════════════ Main content ══════════════ -->
+<div class="main-wrapper" id="mainWrapper">
+    <main>
+        @RenderBody()
+    </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════ Toasts ════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1090;" aria-live="polite" aria-atomic="true">
     @if (TempData["Success"] != null)
     {
         <div class="alert alert-success alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
@@ -284,18 +415,92 @@
     }
     @if (TempData["Error"] != null)
     {
-        <div class="alert alert-danger alert-dismissible fade show mx-3 mt-3 mb-0" role="alert">
-            <i class="fas fa-exclamation-circle me-2"></i>@TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <div class="toast align-items-center border-0 toast-error" role="alert" aria-live="assertive" aria-atomic="true"
+             data-bs-autohide="true" data-bs-delay="4500">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                    <span>@TempData["Error"]</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
         </div>
     }
     @RenderBody()
 </main>
 
-<script src="~/lib/jquery.min.js"></script>
-<script src="~/lib/bootstrap.bundle.min.js"></script>
-<script src="~/lib/select2.min.js"></script>
-<script src="~/lib/flatpickr.min.js"></script>
+<!-- ═══════════════════════════════════════════════ Confirm modal ════════════ -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning" aria-hidden="true"></i>
+                </div>
+                <h6 class="fw-semibold mb-2" id="confirmModalLabel">Confirm Action</h6>
+                <p class="text-muted mb-4" id="confirmModalMessage" style="font-size:var(--fs-sm);"></p>
+                <div class="d-flex gap-2 justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmModalConfirm">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ Support chat panel ═══════ -->
+<div id="supportChatPanel" class="support-panel" aria-hidden="true" role="dialog" aria-label="Support Chat">
+    <div class="support-panel-header">
+        <div class="d-flex align-items-center gap-2">
+            <div class="support-avatar"><i class="fas fa-robot" aria-hidden="true"></i></div>
+            <div>
+                <div class="support-title">Bix Support</div>
+                <div class="support-subtitle">Powered by Claude AI</div>
+            </div>
+        </div>
+        <button class="support-close-btn" id="supportCloseBtn" aria-label="Close support chat">
+            <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div class="support-messages" id="supportMessages">
+        <div class="support-msg support-msg-assistant">
+            <div class="support-bubble">
+                Hi! I'm your Bix support assistant. Describe a bug, ask a question, or request a feature — I'll help you right away.
+            </div>
+        </div>
+    </div>
+    <div class="support-panel-footer">
+        <form id="supportChatForm" autocomplete="off">
+            @Html.AntiForgeryToken()
+            <div class="support-input-row">
+                <textarea id="supportInput" class="support-input" rows="1"
+                          placeholder="Describe your issue…" aria-label="Support message"
+                          maxlength="2000"></textarea>
+                <button type="submit" class="support-send-btn" id="supportSendBtn" aria-label="Send">
+                    <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="support-backdrop" id="supportBackdrop"></div>
+
+<!-- ═══════════════════════════════════════════════ Scripts ═══════════════════ -->
+<!-- Bootstrap must be synchronous — it initialises immediately on DOMContentLoaded -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- jQuery and plugins must be synchronous: MVC @@section Scripts runs inline and depends on $ being defined -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.1.2/js/buttons.colVis.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts" defer></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 <script>
@@ -376,8 +581,8 @@ function clearNotifications() {
         }
     }
 
-    const currentLang = root.dataset.lang || (function () { try { return localStorage.getItem('analytika-lang'); } catch (_) { return null; } })() || 'en';
-    const currentTheme = root.dataset.theme || (function () { try { return localStorage.getItem('analytika-theme'); } catch (_) { return null; } })() || 'light';
+    var currentLang  = root.dataset.lang  || 'en';
+    var currentTheme = root.dataset.theme || 'dark';
 
     applyLanguage(currentLang);
     applyTheme(currentTheme);

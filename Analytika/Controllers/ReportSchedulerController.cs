@@ -1,4 +1,4 @@
-using Analytika.Models;
+﻿using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
 using Analytika.Security;
@@ -17,38 +17,43 @@ public class ReportSchedulerController : Controller
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IWebHostEnvironment _env;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService, UserManager<ApplicationUser> userManager)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
     {
         _context = context;
         _reportService = reportService;
         _userManager = userManager;
+        _env = env;
     }
 
-    // Returns the single facility ID for Facility-type users, null for Global users.
-    private async Task<int?> GetUserFacilityIdAsync()
+    // Returns all facility IDs for Facility-type users, null for global users.
+    // Returns an empty list (not null) when a Facility user has no assignments — callers must treat this as "no access".
+    private async Task<List<int>?> GetUserFacilityIdsAsync()
     {
         var appUser = await _userManager.GetUserAsync(User);
         if (appUser?.UserType != "Facility") return null;
-        var uf = await _context.Set<UserFacility>()
+        return await _context.Set<UserFacility>()
             .Where(x => x.UserId == appUser.Id)
-            .FirstOrDefaultAsync();
-        return uf?.FacilityId;
+            .Select(x => x.FacilityId)
+            .ToListAsync();
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
     {
-        var facilityId = await GetUserFacilityIdAsync();
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityId);
+        var facilityIds = await GetUserFacilityIdsAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityIds);
 
         var facilitiesQuery = _context.Facilities.Where(f => f.IsActive);
-        if (facilityId.HasValue)
-            facilitiesQuery = facilitiesQuery.Where(f => f.Id == facilityId.Value);
+        if (facilityIds != null)
+            facilitiesQuery = facilityIds.Count > 0
+                ? facilitiesQuery.Where(f => facilityIds.Contains(f.Id))
+                : facilitiesQuery.Where(_ => false);
 
         // Scope filter dropdowns to codes that actually appear in this facility's parsed data
         var parsedScope = _context.XmlParsedRecords.AsNoTracking();
-        if (facilityId.HasValue)
-            parsedScope = parsedScope.Where(r => r.FacilityId == facilityId.Value);
+        if (facilityIds != null && facilityIds.Count > 0)
+            parsedScope = parsedScope.Where(r => facilityIds.Contains(r.FacilityId));
 
         var payerCodes = await parsedScope
             .Where(r => r.PayerId != null && r.PayerId != "")
@@ -142,8 +147,8 @@ public class ReportSchedulerController : Controller
     [HttpGet]
     public async Task<IActionResult> GetReports(string reportType, int page = 1, int pageSize = 10)
     {
-        var facilityId = await GetUserFacilityIdAsync();
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityId);
+        var facilityIds = await GetUserFacilityIdsAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityIds);
         return Json(new
         {
             data = reports.Select(r => new
@@ -169,6 +174,7 @@ public class ReportSchedulerController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     public async Task<IActionResult> Download(int id)
     {
         var report = await _reportService.GetReportByIdAsync(id);
@@ -192,6 +198,7 @@ public class ReportSchedulerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     public async Task<IActionResult> DeleteReport(int id, string reportType)
     {
         var report = await _context.ReportRequests.FirstOrDefaultAsync(r => r.Id == id);
@@ -222,6 +229,7 @@ public class ReportSchedulerController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     public async Task<IActionResult> ClearReports(string reportType)
     {
         if (string.IsNullOrWhiteSpace(reportType))

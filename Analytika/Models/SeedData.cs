@@ -78,10 +78,13 @@ public static class SeedData
                 UserName = email,
                 Email = email,
                 FullName = facilityName,
-                EmailConfirmed = true,
+                EmailConfirmed = false,   // requires admin to confirm / reset before first login
+                LockoutEnabled = true,
+                LockoutEnd = DateTimeOffset.MaxValue,
                 UserType = "Facility"
             };
-            var result = await userManager.CreateAsync(reporter, "ghafbi@1234");
+            // Random one-time password — account is locked, so it cannot be used until admin resets it.
+            var result = await userManager.CreateAsync(reporter, Guid.NewGuid().ToString("N") + "Aa1!");
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(reporter, "Reporter");
@@ -98,11 +101,11 @@ public static class SeedData
         // Runs once: detects stale dummy data and replaces it; no-ops on clean DB.
         if (await context.XmlParsedRecords.AnyAsync())
         {
+            // Only replace data if known legacy dummy rows are present — never wipe operator-managed data.
             bool stale =
                 await context.Payers.AnyAsync(p => p.Name == "Dewa - Dha" || p.Name == "Dubai Health Authority") ||
                 await context.Receivers.AnyAsync(r => r.Name == "Neuron LLC - Dha" || r.Name == "Mednet UAE") ||
-                await context.Clinicians.AnyAsync(c => c.Name == "Dr. Ahmed Al Mansoori") ||
-                await context.Departments.AnyAsync();
+                await context.Clinicians.AnyAsync(c => c.Name == "Dr. Ahmed Al Mansoori");
 
             if (stale)
             {
@@ -151,11 +154,11 @@ public static class SeedData
                 {
                     ReportId = $"ANA-{3000000 + i:D7}",
                     ReportType = reportTypes[random.Next(reportTypes.Length)],
-                    BranchId = random.Next(1, 4),
-                    ReceiverId = random.Next(1, 4),
-                    PayerId = random.Next(1, 5),
-                    ClinicianId = random.Next(1, 4),
-                    DepartmentId = random.Next(1, 5),
+                    BranchId = null,      // omit FK ids — lookup rows may not exist on fresh databases
+                    ReceiverId = null,
+                    PayerId = null,
+                    ClinicianId = null,
+                    DepartmentId = null,
                     DateFrom = from,
                     DateTo = from.AddDays(random.Next(7, 60)),
                     Status = statuses[random.Next(statuses.Length)],

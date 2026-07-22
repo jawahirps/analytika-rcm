@@ -7,11 +7,22 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Allow running as a Windows Service (sc.exe / NSSM) without a console.
 builder.Host.UseWindowsService();
+
+// Desktop app mode: the installed Windows/macOS build launches with BIX_DESKTOP=1
+// (or the --desktop arg). It can't write its SQLite DB / DataProtection keys into a
+// read-only install location (Program Files / .app), so default DB_DIR to a per-user
+// writable folder before anything reads it below.
+var isDesktop = Environment.GetEnvironmentVariable("BIX_DESKTOP") == "1"
+    || args.Contains("--desktop");
+if (isDesktop && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DB_DIR")))
+    Environment.SetEnvironmentVariable("DB_DIR",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bix"));
 
 // Serilog: reads sinks/levels from the "Serilog" section of appsettings.
 builder.Services.AddSerilog((services, config) => config
@@ -82,7 +93,32 @@ var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
+// Desktop app: bind to a fixed loopback port if the launcher didn't choose one.
+if (isDesktop
+    && string.IsNullOrEmpty(port)
+    && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
+    builder.WebHost.UseUrls("http://localhost:5097");
+
 var app = builder.Build();
+
+// Desktop app mode: open the default browser once the server is ready.
+if (isDesktop)
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        try
+        {
+            var url = (app.Urls.FirstOrDefault() ?? "http://localhost:5097")
+                .Replace("://+", "://localhost").Replace("://0.0.0.0", "://localhost");
+            ProcessStartInfo psi =
+                OperatingSystem.IsWindows() ? new ProcessStartInfo("cmd", $"/c start \"\" \"{url}\"") { CreateNoWindow = true }
+                : OperatingSystem.IsMacOS() ? new ProcessStartInfo("open", url)
+                : new ProcessStartInfo("xdg-open", url);
+            Process.Start(psi);
+        }
+        catch { /* best-effort browser launch */ }
+    });
+}
 
 app.UseSerilogRequestLogging();
 
@@ -125,15 +161,9 @@ app.Use(async (context, next) =>
             headers["Pragma"] = "no-cache";
             headers["Expires"] = "0";
 
-            // The login page (unauthenticated, no PHI) embeds the Spline 3D viewer,
-            // whose WebGL runtime requires 'unsafe-eval'. Scope that relaxation to the
-            // login page only — every authenticated/PHI page keeps the strict policy.
-            var path = context.Request.Path.Value ?? string.Empty;
-            var isLogin = context.User.Identity?.IsAuthenticated != true
-                && (path == "/" || path.StartsWith("/Home/Index", StringComparison.OrdinalIgnoreCase));
-            var scriptEval = isLogin ? "'unsafe-eval' " : "";
-            var splineHosts = isLogin ? " https://unpkg.com" : "";
-
+            // Strict CSP on every page, login included. The login uses a canvas
+            // particle background (tsParticles, no eval required), so no page needs
+            // 'unsafe-eval' or extra script hosts.
             headers["Content-Security-Policy"] =
                 "default-src 'self'; " +
                 "base-uri 'self'; " +
@@ -144,8 +174,8 @@ app.Use(async (context, next) =>
                 "media-src 'self' data: blob:; " +
                 "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net; " +
-                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " + scriptEval +
-                    "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net" + splineHosts + "; " +
+                "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' " +
+                    "https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://cdn.datatables.net; " +
                 "worker-src 'self' blob:; " +
                 "connect-src 'self' https:; " +
                 "frame-src 'none'";

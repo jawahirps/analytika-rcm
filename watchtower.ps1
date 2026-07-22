@@ -33,20 +33,19 @@ while ($true) {
             $pullOut = git pull $remote $branch 2>&1
             Write-Log "git pull: $pullOut"
 
-            # b. Kill existing process
-            Stop-Process -Name Analytika -Force -ErrorAction SilentlyContinue
-            Start-Sleep -Seconds 3
-            Write-Log "Stopped existing Analytika process (if any)."
-
-            # c. Build
+            # b. Build first — only stop the running app if the build succeeds
             Write-Log "Starting dotnet build..."
             $buildOut = dotnet build "$projectFile" -c Debug 2>&1
             $buildSuccess = $LASTEXITCODE -eq 0
 
             if ($buildSuccess) {
                 Write-Log "Build succeeded."
+                # c. Stop existing process now that we know the new build is good
+                Stop-Process -Name Analytika -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 3
+                Write-Log "Stopped existing Analytika process (if any)."
             } else {
-                Write-Log "Build FAILED. Output:`n$($buildOut -join "`n")"
+                Write-Log "Build FAILED — keeping existing process running. Output:`n$($buildOut -join "`n")"
             }
 
             # d. Start new process if build succeeded
