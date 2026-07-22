@@ -88,7 +88,7 @@ def main():
         "SubmissionDate":     "SubmissionDate",
         "SettlementDate":     "SettlementDate",
     }.get(criteria or "", "TransactionDate")
-    print(f"Validating report #{rid} ({report_id}) | window {date_from[:10]} .. {date_to[:10]} | criteria={criteria or 'RemittanceDate'} → {crit_col}")
+    print(f"Validating report #{rid} ({report_id}) | window {date_from[:10]} .. {date_to[:10]} | criteria={criteria or 'RemittanceDate'} -> {crit_col}")
 
     fname = os.path.basename(file_path.replace("/", os.sep))
     xlsx = os.path.join(args.reports_dir, fname)
@@ -115,7 +115,7 @@ def main():
     wt = datetime.datetime.strptime(date_to[:10], "%Y-%m-%d")
 
     # Date-key mirrors the generator: window is applied to the Search-Criteria
-    # column (default RA Date = TransactionDate). dd/MM/yyyy text → yyyyMMdd key;
+    # column (default RA Date = TransactionDate). dd/MM/yyyy text -> yyyyMMdd key;
     # rows with a missing/short value pass through.
     def date_key(crit_date):
         if not crit_date or len(crit_date.strip()) < 10: return None
