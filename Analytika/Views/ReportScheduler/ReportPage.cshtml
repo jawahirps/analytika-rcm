@@ -113,6 +113,34 @@
     .page-wrapper label { color: #a1a1aa; }
     .page-wrapper .text-muted { color: #71717a !important; }
 
+    /* ── Light-mode legibility fix ───────────────────────────────────────
+       This page was authored dark, but the global glass pass forces its
+       wrapper + cards LIGHT in light mode — stranding the light-gray text.
+       In light mode, make the surface explicitly light and the text dark.
+       Dark mode keeps the original (correct) light-on-dark styling above. */
+    html:not([data-theme="dark"]) .page-wrapper { background: var(--bg, #eef3f9); }
+    html:not([data-theme="dark"]) .page-wrapper .form-control,
+    html:not([data-theme="dark"]) .page-wrapper .form-select,
+    html:not([data-theme="dark"]) .page-wrapper .input-group-text {
+        color: #0f172a; background: #ffffff; border-color: rgba(8,20,35,.16);
+    }
+    html:not([data-theme="dark"]) .page-wrapper .form-control:focus,
+    html:not([data-theme="dark"]) .page-wrapper .form-select:focus { color: #0f172a; }
+    html:not([data-theme="dark"]) .page-wrapper .form-label,
+    html:not([data-theme="dark"]) .page-wrapper label { color: #334e68; }
+    html:not([data-theme="dark"]) .date-range-btn { color: #334e68; border-color: rgba(8,20,35,.14); background: rgba(8,20,35,.04); }
+    html:not([data-theme="dark"]) .date-range-btn:hover { color: #0f172a; background: rgba(8,20,35,.08); }
+    html:not([data-theme="dark"]) .date-range-btn.active { color: #3730a3; background: rgba(99,102,241,.14); border-color: rgba(99,102,241,.40); }
+    html:not([data-theme="dark"]) .table-card .card-header { color: #0f172a; }
+    html:not([data-theme="dark"]) .table thead th { color: #334e68; }
+    html:not([data-theme="dark"]) .table tbody td { color: #1f2937; }
+    html:not([data-theme="dark"]) .breadcrumb-item a { color: #005f70; }
+    html:not([data-theme="dark"]) .breadcrumb-item.active { color: #64748b; }
+    html:not([data-theme="dark"]) .breadcrumb { --bs-breadcrumb-divider-color: rgba(8,20,35,.35); }
+    html:not([data-theme="dark"]) .pagination-info,
+    html:not([data-theme="dark"]) .page-wrapper .text-muted { color: #64748b !important; }
+    html:not([data-theme="dark"]) .report-id-link { color: #4338ca; }
+
     @@media (max-width: 768px) {
         .page-wrapper {
             padding: 14px 12px 90px;

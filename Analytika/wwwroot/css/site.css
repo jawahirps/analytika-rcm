@@ -2916,6 +2916,12 @@ html[data-theme="dark"] .modal-footer {
   border-top-color: rgba(198,226,233,0.09) !important;
 }
 
+/* Bootstrap .text-dark (e.g. the navbar notification dropdown items) must invert
+   in dark mode — otherwise near-black text lands on the dark dropdown surface. */
+html[data-theme="dark"] .text-dark {
+  color: var(--dt-text, #e8eef5) !important;
+}
+
 html[data-theme="dark"] .modal-title {
   color: #EAF4FB;
 }

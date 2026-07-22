@@ -23,7 +23,7 @@
 .bs-Rejected    { background:#fee2e2; color:#991b1b; }
 .prio-Urgent { color:#dc2626; font-weight:700; }
 .prio-High   { color:#ea580c; font-weight:600; }
-.prio-Normal { color:#A7EBF2; }
+.prio-Normal { color:#26658C; }   /* was pale cyan (#A7EBF2) — invisible on white */
 .prio-Low    { color:#35577D; }
 .claim-row { cursor:pointer; transition:background .12s; }
 .claim-row:hover { background:#EAF4FB; }
@@ -31,6 +31,12 @@
 .denied-amt { font-weight:700; color:#dc2626; }
 .paid-amt   { font-weight:600; color:#16a34a; }
 .filter-bar { background:#EAF4FB; border:1px solid #EAF4FB; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; }
+/* Dark-mode legibility: light-authored view on globally-darkened cards. */
+html[data-theme="dark"] .rsb-stat-val { color:#e8eef5; }
+html[data-theme="dark"] .rsb-stat-lbl,
+html[data-theme="dark"] .rsb-stat-sub { color:#9fb3c6; }
+html[data-theme="dark"] .prio-Low { color:#9fb3c6; }
+html[data-theme="dark"] .prio-Normal { color:#7cc7dd; }
 </style>
 }
 

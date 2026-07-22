@@ -68,6 +68,17 @@
         .xp-title h4 { font-size: 1rem; }
         .xp-toolbar { padding: 12px; }
     }
+    /* Dark-mode legibility: this view is light-authored, but the global glass
+       pass darkens its card surfaces — remap the navy/slate text to light. */
+    html[data-theme="dark"] .xp-stat .num,
+    html[data-theme="dark"] .xp-table .facility { color:#e8eef5; }
+    html[data-theme="dark"] .xp-stat .lbl,
+    html[data-theme="dark"] .xp-progress-head,
+    html[data-theme="dark"] .xp-log,
+    html[data-theme="dark"] .xp-empty { color:#9fb3c6; }
+    html[data-theme="dark"] .xp-table td { color:#c7d3df; }
+    html[data-theme="dark"] .xp-table thead th { background:rgba(255,255,255,.06); color:#9fb3c6; border-bottom-color:rgba(255,255,255,.10); }
+    html[data-theme="dark"] .xp-table td { border-bottom-color:rgba(255,255,255,.06); }
 </style>
 }
 
