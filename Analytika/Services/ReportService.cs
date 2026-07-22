@@ -910,6 +910,9 @@ public class ReportService : IReportService
                     var dcode = (string?)a.DenialCode;
                     ws.Cell(rn,34).Value = D(dcode);
                     ws.Cell(rn,35).Value = D(dcode != null && denialLookup.TryGetValue(dcode, out var dd) ? dd : null);
+                    var (denCat, denType) = DenialClassify(dcode);
+                    ws.Cell(rn,36).Value = denCat;   // Denial Category (derived)
+                    ws.Cell(rn,37).Value = denType;  // Denial Type (derived)
                     ws.Cell(rn,38).Value = (int)a.Id;
                     if (!string.IsNullOrWhiteSpace(dcode))
                     {
@@ -918,7 +921,6 @@ public class ReportService : IReportService
                         ws.Cell(rn,34).Style.Font.Bold = true;
                     }
                 }
-                ws.Cell(rn,36).Value = ""; ws.Cell(rn,37).Value = "";  // Denial Category/Type — not parsed
                 ws.Cell(rn,39).Value = D(r.FileName);
                 ws.Cell(rn,40).Value = D(r.FileId);
                 ws.Cell(rn,41).Value = D(s.FileName);
@@ -1909,6 +1911,25 @@ public class ReportService : IReportService
         "8" => "Service", "9" => "DRG", "10" => "Scenario", "11" => "Unspecified",
         _ => code ?? ""
     };
+
+    // Denial code -> (Category, Type) derived from the standard DHPO code prefix
+    // (the eClaimLink denial set has no category/type columns, but the prefix IS
+    // the taxonomy, e.g. PRCE-010 = Price/Technical, DUPL-002 = Duplicate/Technical).
+    private static (string Category, string Type) DenialClassify(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return ("", "");
+        var pfx = new string(code.TrimStart().TakeWhile(char.IsLetter).ToArray()).ToUpperInvariant();
+        var type = pfx switch
+        {
+            "AUTH" => "Authorization", "BENX" => "Benefit", "BSMA" => "Basmah Coverage",
+            "CLAI" => "Claim", "CODE" => "Coding", "COPY" => "Coinsurance", "DRG" => "DRG",
+            "DUPL" => "Duplicate", "ELIG" => "Eligibility", "MNEC" => "Medical Necessity",
+            "NCOV" => "Not Covered", "PRCE" => "Price", "SURC" => "Clinical",
+            "TIME" => "Timely Filing", "WRNG" => "Wrong Submission", _ => pfx
+        };
+        var category = pfx is "MNEC" or "NCOV" or "SURC" ? "Medical" : "Technical";
+        return (category, type);
+    }
 
     private static string? FirstNonBlank(params string?[] vals)
         => vals.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();

@@ -64,28 +64,23 @@ def iter_claim_activities(xml_text):
         if acts:
             yield cid.strip(), acts
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--facility", type=int)
-    ap.add_argument("--limit-files", type=int, default=0)
-    ap.add_argument("--db", default=DB_DEFAULT)
-    args = ap.parse_args()
-
+def process_facility(args, facility):
+    """Backfill one facility and commit — bounded memory, durable progress."""
     ro = sqlite3.connect(f"file:{args.db.replace(chr(92),'/')}?mode=ro", uri=True, timeout=60)
     ro.execute("PRAGMA busy_timeout=45000")
     # (PortalTransactionId, ClaimId) -> [XmlParsedRecordId,...]
     rec_sql = "SELECT Id, PortalTransactionId, ClaimId FROM XmlParsedRecords WHERE PortalTransactionId IS NOT NULL"
     params = []
-    if args.facility:
-        rec_sql += " AND FacilityId=?"; params.append(args.facility)
+    if facility:
+        rec_sql += " AND FacilityId=?"; params.append(facility)
     rec_map = {}
     for rid, ptid, cid in ro.execute(rec_sql, params):
         rec_map.setdefault((ptid, (cid or "").strip().lower()), []).append(rid)
-    print(f"records in scope: {sum(len(v) for v in rec_map.values()):,} across {len(set(k[0] for k in rec_map)):,} files", flush=True)
+    print(f"[fac {facility}] records: {sum(len(v) for v in rec_map.values()):,} across {len(set(k[0] for k in rec_map)):,} files", flush=True)
 
     tx_sql = "SELECT Id, FileContentXml FROM PortalTransactions WHERE FileDownloaded=1 AND FileContentXml IS NOT NULL"
-    if args.facility:
-        tx_sql += f" AND FacilityId={int(args.facility)}"
+    if facility:
+        tx_sql += f" AND FacilityId={int(facility)}"
     if args.limit_files:
         tx_sql += f" LIMIT {int(args.limit_files)}"
 
@@ -107,7 +102,7 @@ def main():
     print(f"parsed {files:,} files -> {len(rows_to_insert):,} activities for {len(touched_record_ids):,} records [{time.time()-t0:.0f}s]", flush=True)
 
     if not rows_to_insert:
-        print("nothing to insert."); return
+        print(f"[fac {facility}] nothing to insert."); return
 
     for attempt in range(1, 15):
         try:
@@ -120,13 +115,35 @@ def main():
                 "INSERT INTO XmlParsedActivities (XmlParsedRecordId,ActivityCode,ActivityType,Quantity,Net,Gross,PaymentAmount,DenialCode,Clinician,Start,OrderingClinician) "
                 "VALUES (?,?,?,?,?,?,?,?,?,?,?)", rows_to_insert)
             w.commit()
-            print(f"committed {len(rows_to_insert):,} activities.")
-            print("  total activities now:", w.execute("SELECT COUNT(*) FROM XmlParsedActivities").fetchone()[0])
+            total = w.execute("SELECT COUNT(*) FROM XmlParsedActivities").fetchone()[0]
+            print(f"[fac {facility}] committed {len(rows_to_insert):,} activities. total now: {total:,}", flush=True)
             w.close(); break
         except sqlite3.OperationalError as e:
             try: w.close()
             except: pass
             print(f"  write retry {attempt}: {e}"); time.sleep(3)
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--facility", type=int)
+    ap.add_argument("--limit-files", type=int, default=0)
+    ap.add_argument("--db", default=DB_DEFAULT)
+    args = ap.parse_args()
+
+    if args.facility:
+        process_facility(args, args.facility)
+        return
+    # All facilities — one at a time so memory is bounded and progress is durable.
+    ro = sqlite3.connect(f"file:{args.db.replace(chr(92),'/')}?mode=ro", uri=True, timeout=60)
+    fac_ids = [r[0] for r in ro.execute("SELECT DISTINCT FacilityId FROM XmlParsedRecords ORDER BY FacilityId")]
+    ro.close()
+    print(f"backfilling {len(fac_ids)} facilities: {fac_ids}", flush=True)
+    for fid in fac_ids:
+        try:
+            process_facility(args, fid)
+        except Exception as e:
+            print(f"[fac {fid}] ERROR: {e}", flush=True)
+    print("ALL FACILITIES DONE.", flush=True)
 
 if __name__ == "__main__":
     main()
