@@ -1912,23 +1912,24 @@ public class ReportService : IReportService
         _ => code ?? ""
     };
 
-    // Denial code -> (Category, Type) derived from the standard DHPO code prefix
-    // (the eClaimLink denial set has no category/type columns, but the prefix IS
-    // the taxonomy, e.g. PRCE-010 = Price/Technical, DUPL-002 = Duplicate/Technical).
+    // Denial code -> (Category, Type). The eClaimLink denial set has no category/
+    // type columns, but the code PREFIX is the standard DHPO taxonomy, so:
+    //   Category = the readable prefix SERIES (ELIGIBILITY, PRICE DESCREP., ...)
+    //   Type     = the broad Technical vs Medical grouping.
     private static (string Category, string Type) DenialClassify(string? code)
     {
         if (string.IsNullOrWhiteSpace(code)) return ("", "");
         var pfx = new string(code.TrimStart().TakeWhile(char.IsLetter).ToArray()).ToUpperInvariant();
-        var type = pfx switch
+        var series = pfx switch
         {
-            "AUTH" => "Authorization", "BENX" => "Benefit", "BSMA" => "Basmah Coverage",
-            "CLAI" => "Claim", "CODE" => "Coding", "COPY" => "Coinsurance", "DRG" => "DRG",
-            "DUPL" => "Duplicate", "ELIG" => "Eligibility", "MNEC" => "Medical Necessity",
-            "NCOV" => "Not Covered", "PRCE" => "Price", "SURC" => "Clinical",
-            "TIME" => "Timely Filing", "WRNG" => "Wrong Submission", _ => pfx
+            "AUTH" => "AUTHORIZATION", "BENX" => "BENEFIT", "BSMA" => "BASMAH",
+            "CLAI" => "CLAIM", "CODE" => "CODING", "COPY" => "CO-PAY/DEDUCTIBLE", "DRG" => "DRG",
+            "DUPL" => "DUPLICATE", "ELIG" => "ELIGIBILITY", "MNEC" => "MEDICAL NECESSITY",
+            "NCOV" => "NOT COVERED", "PRCE" => "PRICE DESCREP.", "SURC" => "DRUG INTERACTION",
+            "TIME" => "TIMELY FILING", "WRNG" => "WRONG SUBMISSION", _ => pfx
         };
-        var category = pfx is "MNEC" or "NCOV" or "SURC" ? "Medical" : "Technical";
-        return (category, type);
+        var techMed = pfx is "MNEC" or "NCOV" or "SURC" ? "Medical" : "Technical";
+        return (series, techMed);
     }
 
     private static string? FirstNonBlank(params string?[] vals)
