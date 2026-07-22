@@ -90,7 +90,7 @@ public class ReportSchedulerController : Controller
             ReportTitle = reportTitle,
             // Remittance-based reports filter by the remittance (settlement/payment)
             // date; claim reports default to encounter start date.
-            SearchCriteria = reportType is "RemittanceActivity" or "DenialReport"
+            SearchCriteria = reportType is "RemittanceActivity" or "RemittanceClaim" or "DenialReport"
                 ? "RemittanceDate" : "EncounterStartDate",
             Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
             Payers    = new SelectList(payerItems, "Value", "Text"),
@@ -109,6 +109,9 @@ public class ReportSchedulerController : Controller
 
     public async Task<IActionResult> RemittanceActivityReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("RemittanceActivity", "Remittance Activity Report", page));
+
+    public async Task<IActionResult> RemittanceClaimReport(int page = 1)
+        => View("ReportPage", await BuildViewModelAsync("RemittanceClaim", "Remittance Claim Report", page));
 
     public async Task<IActionResult> ClaimReceiverReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("ClaimReceiver", "Claim Receiver Report", page));
@@ -351,6 +354,7 @@ public class ReportSchedulerController : Controller
         "ClaimSummary" => "ClaimSummaryReport",
         "ClaimActivity" => "ClaimActivityReports",
         "RemittanceActivity" => "RemittanceActivityReport",
+        "RemittanceClaim" => "RemittanceClaimReport",
         "ClaimReceiver" => "ClaimReceiverReport",
         "ClaimClinician" => "ClaimClinicianReport",
         "FinanceTAT" => "FinanceTATReport",

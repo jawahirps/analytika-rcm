@@ -219,6 +219,7 @@
                         ("ClaimSummaryReport", "Claim Summary"),
                         ("ClaimActivityReports", "Claim Activity"),
                         ("RemittanceActivityReport", "Remittance Activity"),
+                        ("RemittanceClaimReport", "Remittance Claim"),
                         ("ClaimReceiverReport", "Claim Receiver"),
                         ("ClaimClinicianReport", "Claim Clinician"),
                         ("FinanceTATReport", "Finance TAT"),
@@ -278,7 +279,7 @@
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Search Criteria</label>
                         @{
-                            var isRa = Model.ReportType is "RemittanceActivity" or "DenialReport";
+                            var isRa = Model.ReportType is "RemittanceActivity" or "RemittanceClaim" or "DenialReport";
                             // RA-related reports default to RA Date but stay open for
                             // selection; other reports offer the claim date headers.
                             var criteriaOptions = isRa
