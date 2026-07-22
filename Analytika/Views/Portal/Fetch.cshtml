@@ -41,14 +41,25 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Facility</label>
-                            <select name="FacilityIds" id="fetchFacilitySelect" class="form-select form-select-sm select2-multi" multiple>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label small fw-semibold mb-0">Facility <span class="text-muted fw-normal">(branches)</span></label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-ghost btn-xs" onclick="selectAllFacilities()" title="Select every branch">
+                                        <i class="fas fa-check-double me-1"></i>All branches
+                                    </button>
+                                    <button type="button" class="btn btn-ghost btn-xs" onclick="clearFacilities()" title="Clear selection">Clear</button>
+                                </div>
+                            </div>
+                            <select name="FacilityIds" id="fetchFacilitySelect" class="form-select form-select-sm select2-multi mt-1" multiple>
                                 @foreach (var f in Model.Facilities)
                                 {
                                     if (Model.FacilityIds.Contains(int.Parse(f.Value))) { <option value="@f.Value" selected>@f.Text</option> }
                                     else { <option value="@f.Value">@f.Text</option> }
                                 }
                             </select>
+                            <div class="form-text" style="font-size:.7rem;">
+                                Pick <strong>All branches</strong> + <strong>2 Years</strong> below, then <strong>Bulk Save</strong> to pull full data for every branch.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -180,7 +191,9 @@
 
             @if (Model.Results.Any())
             {
-                var canBulk = Model.Operation == "SearchTransactions" && Model.Portal == "DHA" && Model.FacilityIds.Count == 1;
+                var isDhaSearch = Model.Operation == "SearchTransactions" && Model.Portal == "DHA";
+                var canBulk = isDhaSearch && Model.FacilityIds.Count >= 1;   // Bulk Save across one or many branches
+                var canManual = isDhaSearch && Model.FacilityIds.Count == 1; // per-row manual download (single branch only)
                 <div id="resultsCard" class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <div>
@@ -193,23 +206,28 @@
                                 <form id="saveAllForm" style="display:none;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="Portal"            value="@Model.Portal" />
+                                    @foreach (var fid in Model.FacilityIds)
+                                    {
+                                        <input type="hidden" name="FacilityIds" value="@fid" />
+                                    }
                                     <input type="hidden" name="FacilityId"        value="@Model.FacilityId" />
                                     <input type="hidden" name="DateFrom"          value="@Model.DateFrom" />
                                     <input type="hidden" name="DateTo"            value="@Model.DateTo" />
-                                    <input type="hidden" name="Direction"         value="@Model.Direction" />
-                                    <input type="hidden" name="TransactionStatus" value="@Model.TransactionStatus" />
-                                    <input type="hidden" name="TransactionId"     value="@Model.TransactionId" />
-                                    <input type="hidden" name="MinRecord"         value="@Model.MinRecord" />
-                                    <input type="hidden" name="MaxRecord"         value="@Model.MaxRecord" />
                                 </form>
+                            }
+                            @if (canManual)
+                            {
                                 <button type="button" id="selModeBtn" onclick="toggleSelMode()" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem;" title="Manual select mode — for special cases only">
                                     <i class="fas fa-list-check me-1"></i> Select
                                 </button>
                                 <button type="button" id="dlSelBtn" onclick="downloadSelected()" class="btn btn-sm btn-outline-primary" style="font-size:.78rem;" disabled>
                                     <i class="fas fa-download me-1"></i> Download Selected (<span id="selCount">0</span>)
                                 </button>
-                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm btn-primary" style="font-size:.78rem;">
-                                    <i class="fas fa-database me-1"></i> Bulk Save
+                            }
+                            @if (canBulk)
+                            {
+                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm btn-primary" style="font-size:.78rem;" title="@(Model.FacilityIds.Count > 1 ? $"Fetch & save full data for all {Model.FacilityIds.Count} selected branches" : "Fetch & save full data")">
+                                    <i class="fas fa-database me-1"></i> Bulk Save@(Model.FacilityIds.Count > 1 ? $" · {Model.FacilityIds.Count} branches" : "")
                                 </button>
                             }
                             <button class="btn btn-sm btn-outline-secondary" onclick="exportCsv()" style="border-radius:6px;font-size:.78rem;">
@@ -222,7 +240,7 @@
                             <table class="table table-hover mb-0" style="font-size:.82rem;" id="resultsTable">
                                 <thead style="background:#EAF4FB;position:sticky;top:0;">
                                     <tr>
-                                        @if (canBulk)
+                                        @if (canManual)
                                         {
                                             <th class="ps-4 py-2 border-0 sel-col" style="width:34px;"><input type="checkbox" id="selAll" onclick="toggleSelAll(this)" title="Select all"></th>
                                         }
@@ -240,7 +258,7 @@
                                     @foreach (var r in Model.Results)
                                     {
                                         <tr>
-                                            @if (canBulk)
+                                            @if (canManual)
                                             {
                                                 <td class="ps-4 py-2 align-middle sel-col"><input type="checkbox" class="rowchk" onclick="updateSelCount()" data-fileid="@r.FileId" data-filename="@r.FileName" data-type="@r.Type" data-status="@r.Status" data-date="@r.Date" data-payer="@r.Payer" data-amount="@r.Amount"></td>
                                             }
@@ -296,8 +314,9 @@
                 <div class="card-body p-4">
                     <!-- header row -->
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#EAF4FB;">
-                            <i class="fas fa-spinner fa-spin" style="color:#54ACBF;font-size:.85rem;"></i>
+                        <div id="saveStatusIcon" class="d-flex align-items-center justify-content-center flex-shrink-0" style="width:56px;height:56px;">
+                            @* Server-sync loader shown while fetching & syncing (loader-12 port) *@
+                            <span style="transform:scale(.62);transform-origin:center;"><partial name="_LoaderSync" /></span>
                         </div>
                         <div>
                             <div class="fw-bold" id="saveStatusTitle" style="color:#011C40;">Searching portal…</div>
@@ -500,7 +519,7 @@ async function downloadSelected() {
     const portal = form.querySelector('input[name=Portal]').value;
     const facilityId = form.querySelector('input[name=FacilityId]').value;
     const btn = document.getElementById('dlSelBtn'); const orig = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Downloading…';
+    btn.disabled = true; btn.innerHTML = '<span class="pulsating-dots is-sm on-accent align-middle me-2"><span></span><span></span><span></span></span> Downloading…';
     try {
         const fd = new FormData();
         fd.append('__RequestVerificationToken', token);
@@ -521,7 +540,7 @@ async function downloadSelected() {
 async function bulkSave() {
     const btn = document.getElementById('bulkSaveBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving…';
+    btn.innerHTML = '<span class="pulsating-dots is-sm on-accent align-middle me-2"><span></span><span></span><span></span></span> Saving…';
 
     const card = document.getElementById('saveStatusCard');
     card.style.display = '';
@@ -565,11 +584,15 @@ async function bulkSave() {
 }
 
 function updateSaveUI(d) {
+    const branchTag = (d.facCount && d.facCount > 1 && d.facIndex) ? ` · branch ${d.facIndex}/${d.facCount}` : '';
+    const facLabel  = d.facility ? `${d.facility}` : '';
+    const doneSub   = `${d.saved} new saved · ${d.downloaded} files downloaded · ${d.duplicates} duplicates`
+                      + (d.skipped ? `<br><span class="text-warning">Skipped: ${d.skipped}</span>` : '');
     const titles = {
-        searching:  ['Searching portal…',         'Fetching transaction list across all types'],
-        found:      ['Records found — processing…','Downloading &amp; saving to database'],
-        processing: ['Saving files…',              `${d.saved ?? 0} saved · ${d.downloaded ?? 0} downloaded · ${d.pending ?? 0} pending`],
-        done:       ['Complete',                   `${d.saved} new saved · ${d.downloaded} files downloaded · ${d.duplicates} duplicates`],
+        searching:  [facLabel ? `Searching ${facLabel}…` : 'Searching portal…',  `Fetching transaction list across all types${branchTag}`],
+        found:      [facLabel ? `Found in ${facLabel} — processing…` : 'Records found — processing…', `Downloading &amp; saving to database${branchTag}`],
+        processing: [facLabel ? `Saving ${facLabel}…` : 'Saving files…',          `${d.saved ?? 0} saved · ${d.downloaded ?? 0} downloaded · ${d.pending ?? 0} pending${branchTag}`],
+        done:       ['Complete',                   doneSub],
         error:      ['Error',                      d.message ?? 'An error occurred']
     };
     const [title, sub] = titles[d.status] ?? ['Working…', ''];
@@ -618,6 +641,19 @@ function setTxStatus(statuses) {
     if (sel.classList.contains('select2-hidden-accessible')) {
         $(sel).trigger('change');
     }
+}
+
+function selectAllFacilities() {
+    const sel = document.getElementById('fetchFacilitySelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => o.selected = true);
+    if (sel.classList.contains('select2-hidden-accessible')) { $(sel).trigger('change'); }
+}
+function clearFacilities() {
+    const sel = document.getElementById('fetchFacilitySelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => o.selected = false);
+    if (sel.classList.contains('select2-hidden-accessible')) { $(sel).trigger('change'); }
 }
 
 // Init on load

@@ -115,11 +115,17 @@
     if (closeBtn) closeBtn.addEventListener('click', closeMobile);
     if (overlay)  overlay.addEventListener('click', closeMobile);
 
-    // Section accordion
+    // Section accordion (one open at a time — required for horizontal top-nav menus)
     document.querySelectorAll('.sidebar-section-toggle').forEach(function(btn) {
         btn.addEventListener('click', function() {
             var section    = this.closest('.sidebar-section');
             var isExpanded = section.classList.contains('expanded');
+            document.querySelectorAll('.sidebar-section.expanded').forEach(function(openSection) {
+                if (openSection === section) return;
+                openSection.classList.remove('expanded');
+                var openBtn = openSection.querySelector('.sidebar-section-toggle');
+                if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
+            });
             section.classList.toggle('expanded', !isExpanded);
             this.setAttribute('aria-expanded', !isExpanded ? 'true' : 'false');
         });
@@ -268,6 +274,17 @@ $(document).ready(function() {
                     }
                 });
             }
+        });
+    }
+});
+
+// ── Select2 auto-init ────────────────────────────────────────────────────────
+$(document).ready(function() {
+    if ($.fn.select2) {
+        $('.select2-multi').not('.select2-hidden-accessible').select2({
+            placeholder: '-- All --',
+            allowClear: true,
+            width: '100%'
         });
     }
 });

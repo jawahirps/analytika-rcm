@@ -24,8 +24,9 @@ public class PortalController : Controller
     private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly ILogger<PortalController> _logger;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, ILogger<PortalController> logger)
     {
         _db = db;
         _dha = dha;
@@ -35,6 +36,7 @@ public class PortalController : Controller
         _xmlParsing = xmlParsing;
         _cache = cache;
         _credentials = credentials;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -1115,102 +1117,127 @@ public class PortalController : Controller
             catch { }
         }
 
-        if (vm.FacilityId == null)
-        { await Send(new { status = "error", message = "Please select a facility." }); return; }
-
-        var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", vm.FacilityId!.Value);
-        if (credErr != null)
-        { await Send(new { status = "error", message = credErr }); return; }
-        var cred = credNullable!;
-        var pwd = pwdNullable!;
+        var facilityIds = (vm.FacilityIds ?? new List<int>()).Distinct().ToList();
+        if (facilityIds.Count == 0)
+        { await Send(new { status = "error", message = "Please select at least one branch." }); return; }
 
         if (!DateTime.TryParse(vm.DateFrom, out var parsedFrom) || !DateTime.TryParse(vm.DateTo, out var parsedTo))
         { await Send(new { status = "error", message = "Invalid dates." }); return; }
 
         var period = parsedFrom.ToString("yyyy-MM");
-
-        await Send(new { status = "searching", total = 0, found = 0, saved = 0, downloaded = 0, duplicates = 0, pending = 0 });
+        var facNames = await _db.Facilities
+            .Where(f => facilityIds.Contains(f.Id))
+            .ToDictionaryAsync(f => f.Id, f => f.Name, ct);
 
         // Comprehensive search: all 4 txTypes × both directions × both statuses (1=new, 2=already downloaded)
         var txTypes = DhaPortalService.DefaultTxTypes;
         var txStatuses = new[] { 1, 2 };
-        var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
-        var allRows = new List<PortalFetchResultRow>();
-        string? fetchErr = null;
 
-        foreach (var (cs, ce) in chunks)
+        // Aggregate counters across every branch so the UI shows overall progress.
+        int baseSaved = 0, baseDups = 0, baseFiles = 0, cumTotal = 0;
+        var skipped = new List<string>();
+        var facCount = facilityIds.Count;
+        var facIndex = 0;
+
+        await Send(new { status = "searching", facCount, total = 0, found = 0, saved = 0, downloaded = 0, duplicates = 0, pending = 0 });
+
+        foreach (var facilityId in facilityIds)
         {
             if (ct.IsCancellationRequested) return;
-            var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
-            var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
-            foreach (var txStatus in txStatuses)
-                foreach (var txType in txTypes)
-                {
-                    var (_, rSent, eSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
-                    var (_, rRecv, eRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
-                    allRows.AddRange(rSent);
-                    allRows.AddRange(rRecv);
-                    fetchErr ??= eSent ?? eRecv;
-                }
-        }
+            facIndex++;
+            var facName = facNames.TryGetValue(facilityId, out var n) && !string.IsNullOrWhiteSpace(n) ? n : $"Facility {facilityId}";
 
-        var rows = allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
-        var total = rows.Count;
-
-        await Send(new { status = "found", total, found = total, saved = 0, downloaded = 0, duplicates = 0, pending = total });
-
-        if (!rows.Any())
-        {
-            if (fetchErr != null)
+            var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", facilityId);
+            if (credErr != null)
             {
-                await Send(new { status = "error", message = fetchErr });
-                return;
+                skipped.Add($"{facName} ({credErr})");
+                await Send(new { status = "processing", facility = facName, facIndex, facCount, total = cumTotal, found = cumTotal, saved = baseSaved, downloaded = baseFiles, duplicates = baseDups, pending = cumTotal - baseSaved - baseDups });
+                continue;
             }
-            await Send(new { status = "done", total = 0, found = 0, saved = 0, downloaded = 0, duplicates = 0, pending = 0 });
-            return;
-        }
+            var cred = credNullable!;
+            var pwd = pwdNullable!;
 
-        int lastSaved = 0, lastDups = 0, lastFiles = 0;
+            await Send(new { status = "searching", facility = facName, facIndex, facCount, total = cumTotal, found = cumTotal, saved = baseSaved, downloaded = baseFiles, duplicates = baseDups, pending = cumTotal - baseSaved - baseDups });
 
-        await _sync.UpsertDhaTransactionsWithDownloadAsync(
-            rows, cred.Username, pwd, vm.FacilityId!.Value, "BulkSave", period, "DHA",
-            onProgress: async (saved, dups, files, byType) =>
+            var chunks = PortalSyncService.GetDateChunks(parsedFrom, parsedTo, 90);
+            var allRows = new List<PortalFetchResultRow>();
+            string? fetchErr = null;
+
+            foreach (var (cs, ce) in chunks)
             {
-                lastSaved = saved; lastDups = dups; lastFiles = files;
-                await Send(new
-                {
-                    status = "processing",
-                    total,
-                    found = total,
-                    saved,
-                    downloaded = files,
-                    duplicates = dups,
-                    pending = total - saved - dups,
-                    byType
-                });
-            });
+                if (ct.IsCancellationRequested) return;
+                var dhpoFrom = DhaPortalService.FormatDhpoDate(cs.ToString("yyyy-MM-dd"));
+                var dhpoTo = DhaPortalService.FormatDhpoDate(ce.ToString("yyyy-MM-dd"), endOfDay: true);
+                foreach (var txStatus in txStatuses)
+                    foreach (var txType in txTypes)
+                    {
+                        var (_, rSent, eSent) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 1, dhpoFrom, dhpoTo, txStatus, txType);
+                        var (_, rRecv, eRecv) = await _dha.SearchTransactionsWithSplittingAsync(cred.Username, pwd, 2, dhpoFrom, dhpoTo, txStatus, txType);
+                        allRows.AddRange(rSent);
+                        allRows.AddRange(rRecv);
+                        fetchErr ??= eSent ?? eRecv;
+                    }
+            }
 
-        _db.PortalFetchLogs.Add(new PortalFetchLog
-        {
-            Portal = "DHA",
-            FacilityId = vm.FacilityId!.Value,
-            Operation = "BulkSave",
-            FetchedBy = User.Identity?.Name ?? "system",
-            RecordsFetched = lastSaved,
-            Status = "Success",
-            ResponseSummary = $"{lastSaved} saved, {lastFiles} downloaded, {lastDups} duplicates"
-        });
-        await _db.SaveChangesAsync(ct);
+            var rows = allRows.GroupBy(r => r.FileId).Select(g => g.First()).ToList();
+            cumTotal += rows.Count;
+
+            await Send(new { status = "found", facility = facName, facIndex, facCount, total = cumTotal, found = cumTotal, saved = baseSaved, downloaded = baseFiles, duplicates = baseDups, pending = cumTotal - baseSaved - baseDups });
+
+            if (!rows.Any())
+            {
+                if (fetchErr != null) skipped.Add($"{facName} ({fetchErr})");
+                continue;
+            }
+
+            int facSaved = 0, facDups = 0, facFiles = 0;
+            await _sync.UpsertDhaTransactionsWithDownloadAsync(
+                rows, cred.Username, pwd, facilityId, "BulkSave", period, "DHA",
+                onProgress: async (saved, dups, files, byType) =>
+                {
+                    facSaved = saved; facDups = dups; facFiles = files;
+                    await Send(new
+                    {
+                        status = "processing",
+                        facility = facName,
+                        facIndex,
+                        facCount,
+                        total = cumTotal,
+                        found = cumTotal,
+                        saved = baseSaved + saved,
+                        downloaded = baseFiles + files,
+                        duplicates = baseDups + dups,
+                        pending = cumTotal - (baseSaved + saved) - (baseDups + dups),
+                        byType
+                    });
+                });
+
+            baseSaved += facSaved; baseDups += facDups; baseFiles += facFiles;
+
+            _db.PortalFetchLogs.Add(new PortalFetchLog
+            {
+                Portal = "DHA",
+                FacilityId = facilityId,
+                Operation = "BulkSave",
+                FetchedBy = User.Identity?.Name ?? "system",
+                RecordsFetched = facSaved,
+                Status = "Success",
+                ResponseSummary = $"{facSaved} saved, {facFiles} downloaded, {facDups} duplicates"
+            });
+            await _db.SaveChangesAsync(ct);
+        }
 
         await Send(new
         {
             status = "done",
-            total,
-            found = total,
-            saved = lastSaved,
-            downloaded = lastFiles,
-            duplicates = lastDups,
-            pending = 0
+            facCount,
+            total = cumTotal,
+            found = cumTotal,
+            saved = baseSaved,
+            downloaded = baseFiles,
+            duplicates = baseDups,
+            pending = 0,
+            skipped = skipped.Count > 0 ? string.Join("; ", skipped) : null
         });
     }
 
@@ -1746,7 +1773,7 @@ public class PortalController : Controller
                     .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId && c.IsActive && c.Portal == "DHA", ct);
                 if (cr == null) { failed++; lastId = tx.Id; await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total }); continue; }
                 try { cred = (cr.Username, _credentials.Unprotect(cr.PasswordEncrypted)); credCache[tx.FacilityId] = cred; }
-                catch { failed++; lastId = tx.Id; continue; }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to decrypt credential for facility {FacilityId}", tx.FacilityId); failed++; lastId = tx.Id; continue; }
             }
 
             try
@@ -1765,7 +1792,7 @@ public class PortalController : Controller
                 }
                 else { failed++; }
             }
-            catch { failed++; }
+            catch (Exception ex) { _logger.LogWarning(ex, "Download failed for transaction {TxId}", tx.Id); failed++; }
 
             lastId = tx.Id;
             int pct = (int)((double)(done + failed) / total * 100);

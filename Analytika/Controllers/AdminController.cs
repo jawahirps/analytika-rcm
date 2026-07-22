@@ -26,6 +26,9 @@ public class AdminController : Controller
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IReportService _reportService;
+    private readonly IAiSettingsService _aiSettings;
+    private readonly INvidiaAnalystService _aiAnalyst;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
@@ -34,7 +37,8 @@ public class AdminController : Controller
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
         IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
-        Analytika.Security.ICredentialProtector credentials)
+        Analytika.Security.ICredentialProtector credentials, IReportService reportService,
+        IAiSettingsService aiSettings, INvidiaAnalystService aiAnalyst)
     {
         _db = db;
         _userManager = userManager;
@@ -44,6 +48,9 @@ public class AdminController : Controller
         _email = email;
         _configuration = configuration;
         _credentials = credentials;
+        _reportService = reportService;
+        _aiSettings = aiSettings;
+        _aiAnalyst = aiAnalyst;
     }
 
     // ─── Roles ───────────────────────────────────────────────────────────────
@@ -364,8 +371,8 @@ public class AdminController : Controller
     // Viewer role, restricted to report-view + generate on that facility only.
     // Result downloaded as Excel.
 
-    private const string GuestPassword = "Ghafbix@2026";
     private const string GuestRole = "Viewer";
+    private string GuestPassword => _configuration.GetValue("Security:GuestPassword", "Guest@Change1!");
 
     private static string FacilitySlug(string name)
     {
@@ -684,8 +691,12 @@ public class AdminController : Controller
         foreach (var c in creds)
         {
             string pwd;
-            try { pwd = _credentials.Unprotect(c.PasswordEncrypted); }
-            catch { pwd = ""; }
+            try
+            {
+                var raw = _credentials.Unprotect(c.PasswordEncrypted);
+                pwd = raw.Length > 2 ? raw[0] + new string('*', raw.Length - 2) + raw[^1] : "***";
+            }
+            catch { pwd = "***"; }
             sb.AppendLine($"{Csv(c.Portal)},{Csv(c.Facility?.Name ?? "")},{Csv(c.CredentialName ?? "")},{Csv(c.Username)},{Csv(pwd)},{Csv(c.ApiBaseUrl ?? "")},{Csv(c.LicenseCode ?? "")},{c.IsActive}");
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
@@ -1107,7 +1118,7 @@ public class AdminController : Controller
         {
             // Create a dummy temp file for the test
             var tmpFile = Path.Combine(Path.GetTempPath(), "test-report.txt");
-            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from GhafBI.");
+            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from Ghaf Business Intelligence.");
             await _email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
             System.IO.File.Delete(tmpFile);
             return Json(new { ok = true, message = $"Test email sent to {testTo}." });
@@ -1116,6 +1127,68 @@ public class AdminController : Controller
         {
             return Json(new { ok = false, message = ex.Message });
         }
+    }
+
+    // ─── AI Analyst Agent ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Ai()
+    {
+        return View(await BuildAiVmAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAiSettings(
+        bool enabled, string apiBaseUrl, string model, string? apiKey,
+        int maxOutputTokens, double temperature, int rowLimit,
+        int dailyRequestLimit, long monthlyTokenLimit, bool allowFullData, int timeoutSeconds)
+    {
+        var settings = new AiSettings
+        {
+            Enabled = enabled,
+            ApiBaseUrl = string.IsNullOrWhiteSpace(apiBaseUrl) ? "https://integrate.api.nvidia.com/v1" : apiBaseUrl.Trim(),
+            Model = string.IsNullOrWhiteSpace(model) ? "nvidia/nemotron-3-ultra-550b-a55b" : model.Trim(),
+            MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
+            Temperature = Math.Clamp(temperature, 0, 2),
+            RowLimit = Math.Clamp(rowLimit, 1, 5000),
+            DailyRequestLimit = Math.Max(0, dailyRequestLimit),
+            MonthlyTokenLimit = Math.Max(0, monthlyTokenLimit),
+            AllowFullData = allowFullData,
+            TimeoutSeconds = Math.Clamp(timeoutSeconds, 5, 300)
+        };
+        await _aiSettings.SaveAsync(settings, apiKey);
+        TempData["Success"] = "AI agent settings saved.";
+        return RedirectToAction(nameof(Ai));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestAiConnection()
+    {
+        var (ok, message) = await _aiAnalyst.TestConnectionAsync();
+        return Json(new { ok, message });
+    }
+
+    private async Task<AiAdminViewModel> BuildAiVmAsync()
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        var monthStart = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var total = await _db.AiUsageLogs.CountAsync();
+        var succeeded = await _db.AiUsageLogs.CountAsync(l => l.Success);
+
+        return new AiAdminViewModel
+        {
+            Settings = await _aiSettings.GetAsync(),
+            RequestsToday = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= todayUtc),
+            RequestsThisMonth = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= monthStart),
+            TokensThisMonth = await _db.AiUsageLogs.Where(l => l.CreatedAt >= monthStart).SumAsync(l => (long?)l.TotalTokens) ?? 0,
+            TotalRequests = total,
+            SuccessRate = total == 0 ? 0 : Math.Round(succeeded * 100.0 / total, 1),
+            RecentLogs = await _db.AiUsageLogs.AsNoTracking()
+                .OrderByDescending(l => l.CreatedAt).Take(25).ToListAsync()
+        };
     }
 
     // ─── Report Schedules ─────────────────────────────────────────────────────
@@ -1204,18 +1277,37 @@ public class AdminController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult RunScheduleNow(int id)
+    public async Task<IActionResult> RunScheduleNow(int id)
     {
-        Hangfire.BackgroundJob.Enqueue<PortalSyncService>(svc => svc.RunDailyDhaSyncAsync());
-        return Json(new { ok = true, message = "Schedule enqueued for immediate execution." });
+        var s = await _db.ReportSchedules.FindAsync(id);
+        if (s == null) return NotFound();
+
+        var facilityIds = string.IsNullOrWhiteSpace(s.FacilityIdsJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<List<int>>(s.FacilityIdsJson);
+
+        var request = new ReportRequest
+        {
+            ReportType = s.ReportType,
+            BranchId = facilityIds?.FirstOrDefault(),
+            DateFrom = DateTime.UtcNow.AddMonths(-1),
+            DateTo = DateTime.UtcNow,
+            EmailTo = s.Recipients
+        };
+
+        var reportId = await _reportService.QueueReportAsync(request);
+        s.LastRunAt = DateTime.UtcNow;
+        s.LastRunStatus = "OK";
+        await _db.SaveChangesAsync();
+
+        return Json(new { ok = true, message = $"Report {reportId} enqueued for immediate generation." });
     }
 
     private static void RegisterHangfireJob(Models.ReportSchedule s)
     {
-        // Use a no-op placeholder — real report generation wired via PortalSyncService
-        Hangfire.RecurringJob.AddOrUpdate<PortalSyncService>(
+        Hangfire.RecurringJob.AddOrUpdate<IReportService>(
             $"schedule-{s.Id}",
-            svc => svc.RunDailyDhaSyncAsync(),
+            svc => svc.RunScheduledReportAsync(s.Id),
             s.CronExpression);
     }
 

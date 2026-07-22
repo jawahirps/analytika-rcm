@@ -225,7 +225,13 @@ public class PortalSyncService
                 {
                     try
                     {
-                        var (_, dlFileName, dlBytes, _) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
+                        // DownloadTransactionFile takes the transaction GUID. (The
+                        // six-week download outage from Jun 9 was the SOAP param
+                        // casing — DHPO requires <fileId>, we sent <fileID>.)
+                        var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
+                        if (dlErr != null || dlBytes == null || dlBytes.Length == 0)
+                            _logger.LogWarning("[PortalSync] Download refused for {FileId} ({Type}): {Err}",
+                                row.FileId, row.Type, dlErr ?? "no bytes returned");
                         if (dlBytes?.Length > 0)
                         {
                             var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
@@ -246,7 +252,7 @@ public class PortalSyncService
                             return;
                         }
                     }
-                    catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] Download failed for {FileId}", row.FileId); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[PortalSync] Download failed for {FileId}", row.FileId); }
                 }
                 results.Add((row, null, null, false));
             }

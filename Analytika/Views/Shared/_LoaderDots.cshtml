@@ -1,0 +1,6 @@
+@model bool?
+@* Pulsating dots loader (port of the PulsatingDots React component).
+   Usage: <partial name="_LoaderDots" /> — or model="true" for the compact button size. *@
+<span class="pulsating-dots@(Model == true ? " is-sm" : "")" role="status" aria-label="Loading">
+    <span></span><span></span><span></span>
+</span>

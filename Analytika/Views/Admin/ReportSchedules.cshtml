@@ -9,7 +9,7 @@
 <div class="container-fluid py-4 px-4">
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Automated Report Schedules</h4>
+            <h4 class="mb-0 fw-bold text-navy">Automated Report Schedules</h4>
             <small class="text-muted">Schedule recurring Excel reports to be generated and emailed automatically</small>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openScheduleModal(0)">
@@ -48,16 +48,16 @@
                         @foreach (var s in Model)
                         {
                             <tr>
-                                <td class="ps-4 fw-semibold" style="color:var(--navy);font-size:.82rem;vertical-align:middle;">
+                                <td class="ps-4 fw-semibold text-navy fs-82" style="vertical-align:middle;">
                                     @s.Name
                                 </td>
-                                <td style="vertical-align:middle;font-size:.8rem;">
+                                <td class="fs-80" style="vertical-align:middle;">
                                     <span class="badge badge-navy">@s.ReportType</span>
                                 </td>
-                                <td style="vertical-align:middle;font-size:.78rem;font-family:monospace;">
+                                <td class="fs-78" style="vertical-align:middle;font-family:monospace;">
                                     <span title="@s.CronExpression">@s.CronExpression</span>
                                 </td>
-                                <td style="vertical-align:middle;font-size:.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@s.Recipients">
+                                <td class="fs-78" style="vertical-align:middle;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@s.Recipients">
                                     @s.Recipients
                                 </td>
                                 <td class="text-center" style="vertical-align:middle;">
@@ -67,9 +67,9 @@
                                     @if (s.IsActive)
                                     { <span class="status-pill success"><i class="fas fa-circle me-1" style="font-size:.5rem;"></i>Active</span> }
                                     else
-                                    { <span class="status-pill" style="background:rgba(148,163,184,0.15);color:#35577D;">Paused</span> }
+                                    { <span class="status-pill text-slate" style="background:rgba(148,163,184,0.15);">Paused</span> }
                                 </td>
-                                <td class="text-center" style="vertical-align:middle;font-size:.75rem;">
+                                <td class="text-center fs-75" style="vertical-align:middle;">
                                     @if (s.LastRunAt.HasValue)
                                     {
                                         <span title="@(s.LastRunStatus ?? "OK")" style="color:@(s.LastRunStatus?.StartsWith("Error") == true ? "#dc3545" : "#3aac8a")">
@@ -81,13 +81,13 @@
                                 <td class="pe-4 text-center" style="vertical-align:middle;">
                                     <div class="d-flex gap-1 justify-content-center">
                                         <button class="btn btn-xs btn-ghost" title="Edit" onclick="openScheduleModal(@s.Id)">
-                                            <i class="fas fa-edit" style="font-size:.7rem;"></i>
+                                            <i class="fas fa-edit fs-70"></i>
                                         </button>
-                                        <button class="btn btn-xs btn-primary" style="font-size:.65rem;" title="Run Now" onclick="runNow(@s.Id, this)">
+                                        <button class="btn btn-xs btn-primary fs-65" title="Run Now" onclick="runNow(@s.Id, this)">
                                             <i class="fas fa-play"></i>
                                         </button>
                                         <button class="btn btn-xs btn-ghost" style="color:#dc3545;" title="Delete" onclick="deleteSchedule(@s.Id, this)">
-                                            <i class="fas fa-trash" style="font-size:.7rem;"></i>
+                                            <i class="fas fa-trash fs-70"></i>
                                         </button>
                                     </div>
                                 </td>
@@ -105,7 +105,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" style="color:var(--navy);" id="scheduleModalTitle">New Schedule</h5>
+                <h5 class="modal-title fw-bold text-navy" id="scheduleModalTitle">New Schedule</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -126,7 +126,7 @@
                         <label class="form-label">Recipients <span class="text-danger">*</span></label>
                         <input id="sch_recipients" class="form-control"
                                placeholder="email1@domain.com, email2@domain.com" />
-                        <small class="text-muted" style="font-size:.72rem;">Comma-separated email addresses</small>
+                        <small class="text-muted fs-72">Comma-separated email addresses</small>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">File Format</label>
@@ -147,8 +147,8 @@
                         <div class="d-flex gap-2 mb-2 flex-wrap">
                             @foreach (var p in cronPresets)
                             {
-                                <button type="button" class="btn btn-ghost btn-xs"
-                                        onclick="setCron('@p.Value')" style="font-size:.72rem;">
+                                <button type="button" class="btn btn-ghost btn-xs fs-72"
+                                        onclick="setCron('@p.Value')">
                                     @p.Key
                                 </button>
                             }
@@ -156,13 +156,13 @@
                         <div class="input-group">
                             <input id="sch_cron" class="form-control form-control-sm font-monospace"
                                    placeholder="0 8 1 * *" value="0 8 1 * *" />
-                            <span class="input-group-text" style="font-size:.75rem;background:#EAF4FB;">
+                            <span class="input-group-text fs-75 bg-sky-wash">
                                 <a href="https://crontab.guru/" target="_blank" class="text-decoration-none">
                                     <i class="fas fa-external-link-alt me-1"></i>crontab.guru
                                 </a>
                             </span>
                         </div>
-                        <small id="cronHint" class="text-muted" style="font-size:.72rem;"></small>
+                        <small id="cronHint" class="text-muted fs-72"></small>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Facilities <small class="text-muted fw-normal">(leave blank = all)</small></label>
@@ -185,9 +185,9 @@
     </div>
 </div>
 
+<form class="d-none" aria-hidden="true">@Html.AntiForgeryToken()</form>
 @section Scripts {
 <script>
-@Html.AntiForgeryToken()
 function getToken() { return document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''; }
 
 // Cron human-readable hint

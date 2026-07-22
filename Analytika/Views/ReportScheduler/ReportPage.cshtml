@@ -8,20 +8,24 @@
 <style>
     .page-wrapper {
         padding: 22px 24px 70px;
-        background: transparent;
+        background: #09090b;
         min-height: calc(100vh - 120px);
+        overflow: hidden;
     }
+    /* Shader canvas sits at z-index:0; cards at z-index:1 */
+    .page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #54ACBF; text-decoration: none; font-weight: 600; }
-    .breadcrumb { --bs-breadcrumb-divider-color: rgba(8,20,35,.46); }
+    .breadcrumb-item a { color: #818cf8; text-decoration: none; font-weight: 600; }
+    .breadcrumb-item.active { color: #a1a1aa; }
+    .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
     .filter-card,
     .table-card {
-        border: 1px solid rgba(8,20,35,.14);
+        border: 1px solid rgba(255,255,255,.09);
         border-radius: 22px;
-        box-shadow: 0 20px 54px rgba(8,20,35,.12), inset 0 1px 0 rgba(255,255,255,.78);
-        background: rgba(255,255,255,.78);
-        backdrop-filter: blur(24px) saturate(175%);
-        -webkit-backdrop-filter: blur(24px) saturate(175%);
+        box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+        background: rgba(9,9,11,.72);
+        backdrop-filter: blur(28px) saturate(140%);
+        -webkit-backdrop-filter: blur(28px) saturate(140%);
         margin-bottom: 20px;
         overflow: hidden;
     }
@@ -33,52 +37,66 @@
         font-weight: 600;
         border-bottom: 1px solid rgba(255,255,255,.28);
     }
+    .sel-tools { font-size: .72rem; font-weight: 500; white-space: nowrap; }
+    .sel-tools a { color: var(--classic-teal, #54ACBF); text-decoration: none; }
+    .sel-tools a:hover { text-decoration: underline; }
     .date-range-btn {
         border-radius: 999px;
         padding: 6px 15px;
         font-size: 0.82rem;
         margin-right: 6px;
-        border: 1px solid rgba(8,20,35,.14);
-        background: rgba(255,255,255,.82);
-        color: #011C40;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(255,255,255,.06);
+        color: #d4d4d8;
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
     }
-    .date-range-btn:hover { background: rgba(255,255,255,.94); color: #011C40; }
+    .date-range-btn:hover { background: rgba(255,255,255,.10); color: #fafafa; }
     .date-range-btn.active {
-        background: linear-gradient(135deg, #011C40, #A7EBF2);
-        color: white;
-        border-color: rgba(255,255,255,.28);
-        box-shadow: 0 10px 22px rgba(0,139,139,.18), inset 0 1px 0 rgba(255,255,255,.25);
+        background: rgba(99,102,241,.22);
+        color: #a5b4fc;
+        border-color: rgba(99,102,241,.40);
+        box-shadow: 0 0 0 1px rgba(99,102,241,.25);
     }
     .table-card .card-header {
-        background: rgba(255,255,255,.86);
+        background: rgba(255,255,255,.04);
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
-        border-bottom: 1px solid rgba(8,20,35,.14);
+        border-bottom: 1px solid rgba(255,255,255,.07);
         font-weight: 600;
-        color: #011C40;
+        color: #fafafa;
     }
-    .table thead th { background: rgba(216,232,243,.9); font-weight: 700; font-size: 0.82rem; color: #011C40; border-bottom: 1px solid rgba(8,20,35,.16); white-space: nowrap; }
-    .table tbody td { font-size: 0.83rem; vertical-align: middle; }
-    .report-id-link { color: #54ACBF; font-weight: 700; text-decoration: none; }
-    .report-id-link:hover { text-decoration: underline; }
-    .status-completed { color: #1f7a5f; font-weight: 700; }
-    .status-pending { color: #b97700; font-weight: 700; }
-    .status-processing { color: #54ACBF; font-weight: 700; }
-    .status-failed { color: #b91c1c; font-weight: 700; }
-    .btn-download { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; border: 1px solid rgba(255,255,255,.24); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; }
-    .btn-delete-report { background: rgba(254,226,226,.78); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
-    .btn-delete-report:hover { background: #fecaca; color: #7f1d1d; }
-    .btn-clear-reports { background: rgba(255,255,255,.68); color: #991b1b; border: 1px solid rgba(254,202,202,.85); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
-    .btn-clear-reports:hover { background: #fee2e2; color: #7f1d1d; }
-    .pagination-info { font-size: 0.82rem; color: #6c757d; }
+    .table thead th { background: rgba(255,255,255,.05); font-weight: 700; font-size: 0.82rem; color: #a1a1aa; border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap; }
+    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: #d4d4d8; }
+    .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); }
+    .report-id-link { color: #818cf8; font-weight: 700; text-decoration: none; }
+    .report-id-link:hover { text-decoration: underline; color: #a5b4fc; }
+    .status-completed { color: #34d399; font-weight: 700; }
+    .status-pending { color: #fbbf24; font-weight: 700; }
+    .status-processing { color: #818cf8; font-weight: 700; }
+    .status-failed { color: #f87171; font-weight: 700; }
+    .btn-download { background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.30); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: rgba(99,102,241,.30); color: #c7d2fe; }
+    .btn-delete-report { background: rgba(248,113,113,.10); color: #fca5a5; border: 1px solid rgba(248,113,113,.25); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-delete-report:hover { background: rgba(248,113,113,.20); color: #fecaca; }
+    .btn-clear-reports { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
+    .btn-clear-reports:hover { background: rgba(248,113,113,.16); color: #fecaca; }
+    .pagination-info { font-size: 0.82rem; color: #71717a; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: linear-gradient(135deg, #011C40, #A7EBF2); color: white; border: 1px solid rgba(255,255,255,.28); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 12px 24px rgba(0,139,139,.20); }
-    .btn-reset-report { background: rgba(255,255,255,.82); color: #011C40; border: 1px solid rgba(8,20,35,.14); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
+    .btn-submit-report { background: #6366f1; color: white; border: 1px solid rgba(99,102,241,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(99,102,241,.35); }
+    .btn-submit-report:hover { background: #4f46e5; }
+    .btn-reset-report { background: rgba(255,255,255,.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,.10); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
+    .btn-reset-report:hover { background: rgba(255,255,255,.10); color: #fafafa; }
+    /* form controls inside the page-wrapper */
+    .page-wrapper .form-control,
+    .page-wrapper .form-select,
+    .page-wrapper .input-group-text { background: rgba(255,255,255,.06); color: #fafafa; border-color: rgba(255,255,255,.10); }
+    .page-wrapper .form-control:focus,
+    .page-wrapper .form-select:focus { background: rgba(255,255,255,.09); border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.18); color: #fafafa; }
+    .page-wrapper .form-label,
+    .page-wrapper label { color: #a1a1aa; }
+    .page-wrapper .text-muted { color: #71717a !important; }
 
     @@media (max-width: 768px) {
         .page-wrapper {
@@ -159,7 +177,7 @@
 </style>
 }
 
-<div class="page-wrapper">
+<div class="page-wrapper" data-shader-bg>
     <!-- Breadcrumb -->
     <nav class="breadcrumb-bar" aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -178,6 +196,43 @@
             <form asp-controller="ReportScheduler" asp-action="CreateReport" method="post" id="reportForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="ReportType" value="@Model.ReportType" />
+
+                <!-- Report Type — choose the report here, like any other filter -->
+                @{
+                    var reportTypes = new (string Action, string Label)[]
+                    {
+                        ("ClaimSummaryReport", "Claim Summary"),
+                        ("ClaimActivityReports", "Claim Activity"),
+                        ("RemittanceActivityReport", "Remittance Activity"),
+                        ("ClaimReceiverReport", "Claim Receiver"),
+                        ("ClaimClinicianReport", "Claim Clinician"),
+                        ("FinanceTATReport", "Finance TAT"),
+                        ("DenialReport", "Denial Query"),
+                        ("ClaimLifeCycleReport", "Claim Life Cycle"),
+                        ("SubmissionXMLReport", "Submission XML File"),
+                        ("LiveSubmissionReport", "Live Submission"),
+                    };
+                    var currentAction = (string?)ViewContext.RouteData.Values["action"] ?? "ClaimSummaryReport";
+                }
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Report Type</label>
+                        <select class="form-select" id="reportTypeSelect"
+                                onchange="window.location.href='/ReportScheduler/' + this.value">
+                            @foreach (var (action, label) in reportTypes)
+                            {
+                                if (action == currentAction)
+                                {
+                                    <option value="@action" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@action">@label</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
 
                 <!-- Date Range -->
                 <div class="mb-3">
@@ -207,23 +262,46 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Search Criteria</label>
+                        @{
+                            var isRa = Model.ReportType is "RemittanceActivity" or "DenialReport";
+                            // RA-related reports default to RA Date but stay open for
+                            // selection; other reports offer the claim date headers.
+                            var criteriaOptions = isRa
+                                ? new[]
+                                  {
+                                      ("RemittanceDate", "RA Date"),
+                                      ("EncounterStartDate", "Encounter Start Date"),
+                                      ("EncounterEndDate", "Encounter End Date"),
+                                      ("SubmissionDate", "Submission Date"),
+                                      ("SettlementDate", "Settlement Date"),
+                                  }
+                                : new[]
+                                  {
+                                      ("EncounterStartDate", "Encounter Start Date"),
+                                      ("EncounterEndDate", "Encounter End Date"),
+                                      ("SubmissionDate", "Submission Date"),
+                                  };
+                            var selectedCriteria = string.IsNullOrEmpty(Model.SearchCriteria)
+                                ? criteriaOptions[0].Item1 : Model.SearchCriteria;
+                        }
                         <select name="SearchCriteria" class="form-select">
-                            <option value="">-- All --</option>
-                            <option value="EncounterEndDate">Encounter End Date</option>
-                            @if (Model.SearchCriteria == "EncounterStartDate")
+                            @foreach (var (val, label) in criteriaOptions)
                             {
-                                <option value="EncounterStartDate" selected>Encounter Start Date</option>
+                                if (val == selectedCriteria)
+                                {
+                                    <option value="@val" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@val">@label</option>
+                                }
                             }
-                            else
-                            {
-                                <option value="EncounterStartDate">Encounter Start Date</option>
-                            }
-                            <option value="SubmissionDate">Submission Date</option>
-                            <option value="PaymentDate">Payment Date</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Facility</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Facility
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedFacilities">Select all</a> · <a href="#" class="sel-none" data-target="SelectedFacilities">Clear</a></span>
+                        </label>
                         <select name="SelectedFacilities" class="form-select select2-multi" multiple>
                             @if (Model.Facilities != null)
                             {
@@ -234,20 +312,11 @@
                             }
                         </select>
                     </div>
+                    @* Receiver filter hidden — no reliable receiver mapping for report generation yet. *@
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Receiver</label>
-                        <select name="SelectedReceivers" class="form-select select2-multi" multiple>
-                            @if (Model.Receivers != null)
-                            {
-                                @foreach (SelectListItem item in Model.Receivers)
-                                {
-                                    <option value="@item.Value">@item.Text</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Payer</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Payer
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedPayers">Select all</a> · <a href="#" class="sel-none" data-target="SelectedPayers">Clear</a></span>
+                        </label>
                         <select name="SelectedPayers" class="form-select select2-multi" multiple>
                             @if (Model.Payers != null)
                             {
@@ -262,7 +331,9 @@
 
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Clinician</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Clinician
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedClinicians">Select all</a> · <a href="#" class="sel-none" data-target="SelectedClinicians">Clear</a></span>
+                        </label>
                         <select name="SelectedClinicians" class="form-select select2-multi" multiple>
                             @if (Model.Clinicians != null)
                             {
@@ -273,45 +344,26 @@
                             }
                         </select>
                     </div>
+                    @* Department filter hidden — clinical department mapping not yet available. *@
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Department</label>
-                        <select name="SelectedDepartments" class="form-select select2-multi" multiple>
-                            @if (Model.Departments != null)
-                            {
-                                @foreach (SelectListItem item in Model.Departments)
-                                {
-                                    <option value="@item.Value">@item.Text</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Encounter Type</label>
-                        <select name="EncounterType" class="form-select select2-multi" multiple>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Encounter Type
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedEncounterTypes">Select all</a> · <a href="#" class="sel-none" data-target="SelectedEncounterTypes">Clear</a></span>
+                        </label>
+                        <select name="SelectedEncounterTypes" class="form-select select2-multi" multiple>
                             <option value="Inpatient">Inpatient</option>
                             <option value="Outpatient">Outpatient</option>
                             <option value="Emergency">Emergency</option>
                             <option value="Dental">Dental</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Report Template</label>
-                        <select name="Template" class="form-select">
-                            <option value="Template1">Template 1</option>
-                            <option value="Template2">Template 2</option>
-                            <option value="Template3">Template 3</option>
-                        </select>
-                    </div>
+                    @* Report Template hidden — no template layouts implemented for this pass. *@
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">File Format</label>
-                        <select name="FileFormat" class="form-select">
-                            <option value="Excel">Excel (.xlsx)</option>
-                            <option value="CSV">CSV (.csv)</option>
-                            <option value="PDF">PDF (.pdf)</option>
-                        </select>
+                        <input type="hidden" name="FileFormat" value="Excel" />
+                        <input type="text" class="form-select" value="Excel (.xlsx)" readonly disabled />
                     </div>
                     <div class="col-md-9">
                         <label class="form-label fw-semibold">
@@ -338,10 +390,17 @@
 
     <!-- Reports Table -->
     <div class="card table-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span><i class="fas fa-table me-2 text-primary"></i>Scheduled Reports</span>
             <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-primary">@Model.TotalReports items</span>
+                <div class="position-relative">
+                    <i class="fas fa-search position-absolute" style="left:10px;top:50%;transform:translateY(-50%);font-size:.72rem;opacity:.5;"></i>
+                    <input type="text" id="reportListFilter" class="form-control form-control-sm"
+                           style="width:230px;padding-left:28px;"
+                           placeholder="Filter reports… (id, branch, status)"
+                           oninput="filterReportRows(this.value)" />
+                </div>
+                <span class="badge bg-primary" id="reportCountBadge">@Model.TotalReports items</span>
                 @if (Model.TotalReports > 0)
                 {
                     <form asp-controller="ReportScheduler" asp-action="ClearReports" method="post" class="m-0"
@@ -508,5 +567,102 @@
         document.getElementById('dateRangeInput').value = 'Today';
         document.getElementById('customDateSection').style.display = 'none';
     }
+
+    // ── Select all / Clear on every multi-select filter ───────────────────
+    document.addEventListener('click', function (e) {
+        const a = e.target.closest('.sel-all, .sel-none');
+        if (!a) return;
+        e.preventDefault();
+        const sel = document.querySelector('select[name="' + a.dataset.target + '"]');
+        if (!sel) return;
+        const on = a.classList.contains('sel-all');
+        Array.from(sel.options).forEach(o => o.selected = on);
+        if (sel.classList.contains('select2-hidden-accessible')) $(sel).trigger('change');
+    });
+
+    // ── Live filter for the scheduled-reports (download) table ────────────
+    function filterReportRows(q) {
+        q = (q || '').trim().toLowerCase();
+        const rows = document.querySelectorAll('.table-card tbody tr');
+        let visible = 0;
+        rows.forEach(tr => {
+            const hit = !q || tr.innerText.toLowerCase().includes(q);
+            tr.style.display = hit ? '' : 'none';
+            if (hit) visible++;
+        });
+        const badge = document.getElementById('reportCountBadge');
+        if (badge) badge.textContent = q ? (visible + ' shown') : (rows.length + ' items');
+    }
+
+    // ── Report-completion notification ────────────────────────────────────
+    // Polls report statuses while any report of this type is Pending/Processing;
+    // on transition to Completed (or Failed) plays a chime (Web Audio — no
+    // assets, CSP-safe), shows a toast, and refreshes the list.
+    (function () {
+        const reportType = '@Model.ReportType';
+        const known = {};              // id -> last status
+        let timer = null, polls = 0;
+
+        function chime(ok) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = ok ? [[880, 0], [1174.66, 0.14], [1567.98, 0.28]] : [[440, 0], [330, 0.18]];
+                notes.forEach(([freq, at]) => {
+                    const o = ctx.createOscillator(), g = ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = freq;
+                    o.connect(g); g.connect(ctx.destination);
+                    const t = ctx.currentTime + at;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+                    o.start(t); o.stop(t + 0.6);
+                });
+                setTimeout(() => ctx.close(), 1500);
+            } catch (_) { /* audio unavailable — toast still shows */ }
+        }
+
+        function toast(msg, ok) {
+            const el = document.createElement('div');
+            el.textContent = msg;
+            el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2000;padding:12px 18px;' +
+                'border-radius:10px;font-weight:600;font-size:.9rem;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25);' +
+                'background:' + (ok ? '#006884' : '#B94A3F') + ';cursor:pointer;';
+            el.onclick = () => location.reload();
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 12000);
+        }
+
+        async function poll() {
+            if (++polls > 360) { clearInterval(timer); return; }   // ~30 min cap
+            try {
+                const r = await fetch('/ReportScheduler/GetReports?reportType=' + encodeURIComponent(reportType) + '&page=1&pageSize=10');
+                if (!r.ok) return;
+                const d = await r.json();
+                let anyRunning = false;
+                (d.data || []).forEach(row => {
+                    const prev = known[row.id];
+                    if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Completed') {
+                        chime(true);
+                        toast('Report ' + row.reportId + ' is ready — click to refresh & download', true);
+                    } else if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Failed') {
+                        chime(false);
+                        toast('Report ' + row.reportId + ' failed — click to refresh', false);
+                    }
+                    known[row.id] = row.status;
+                    if (row.status === 'Processing' || row.status === 'Pending') anyRunning = true;
+                });
+                // Idle fast when nothing is generating; keep watching lightly so a
+                // submit from another tab still notifies here.
+                if (!anyRunning && polls > 3) polls = Math.max(polls, 300);
+            } catch (_) { }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            poll();
+            timer = setInterval(poll, 5000);
+        });
+    })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+<script src="~/js/shader-bg.js" asp-append-version="true"></script>
 }

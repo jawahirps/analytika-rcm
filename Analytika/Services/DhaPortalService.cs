@@ -392,7 +392,7 @@ public class DhaPortalService : IDhaPortalService
         if (TryGetCooldownError(login, out var cooldownError))
             return (0, null, null, cooldownError);
 
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body);
         if (doc == null) return (0, null, null, "Connection failed");
 
@@ -426,7 +426,7 @@ public class DhaPortalService : IDhaPortalService
         if (TryGetCooldownError(login, out var cooldownError))
             return (0, null, null, cooldownError);
 
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body, useArchive: true);
         if (doc == null) return (0, null, null, "Connection failed (Archive)");
 
@@ -462,7 +462,7 @@ public class DhaPortalService : IDhaPortalService
         if (TryGetCooldownError(login, out var cooldownError))
             return (0, cooldownError);
 
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileID>{fileId}</tns:fileID>";
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("SetTransactionDownloaded", body);
         if (doc == null) return (0, "Connection failed");
 

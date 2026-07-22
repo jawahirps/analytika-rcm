@@ -1,0 +1,90 @@
+/* ================================================================
+   Loaders — faithful ports of two React components to vanilla CSS.
+   No framer-motion / styled-components runtime needed.
+
+   1) .pulsating-dots  — general "loading" sign (was PulsatingDots,
+      framer-motion). Timing/keyframes identical; colour uses the
+      app accent so it fits the Deep-Teal palette (swap --dot-color
+      to #ef4444 for the original red).
+   2) .sev-loader      — fetch/sync animation (was loader-12,
+      styled-components). Scoped keyframes preserved verbatim.
+   ================================================================ */
+
+/* ── 1) Pulsating dots ─────────────────────────────────────────── */
+.pulsating-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  --dot-color: var(--theme-accent, #0FB5AE);
+}
+.pulsating-dots > span {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--dot-color);
+  animation: pulsating-dot 1s ease-in-out infinite;
+}
+.pulsating-dots > span:nth-child(2) { animation-delay: .3s; }
+.pulsating-dots > span:nth-child(3) { animation-delay: .6s; }
+
+/* Compact inline variant for buttons */
+.pulsating-dots.is-sm { gap: 5px; }
+.pulsating-dots.is-sm > span { width: 7px; height: 7px; }
+.pulsating-dots.on-accent { --dot-color: #ffffff; }
+
+@keyframes pulsating-dot {
+  0%   { transform: scale(1);   opacity: .5; }
+  50%  { transform: scale(1.5); opacity: 1;  }
+  100% { transform: scale(1);   opacity: .5; }
+}
+
+/* ── 2) Sev / server-sync loader (loader-12) ───────────────────── */
+.sev-loader .container_SevMini {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.sev-loader .Ghost {
+  transform: translate(0px, -25px);
+  z-index: -1;
+  animation: sev-opacidad 4s infinite ease-in-out;
+}
+.sev-loader .SevMini { animation: sev-rebote 4s infinite ease-in-out; }
+.sev-loader #strobe_led1  { animation: sev-estroboscopico 0.5s infinite; }
+.sev-loader #strobe_color1 { animation: sev-estroboscopico2 0.8s infinite; }
+.sev-loader #strobe_color3 { animation: sev-estroboscopico1 0.8s infinite; animation-delay: 3s; }
+
+@keyframes sev-opacidad {
+  0%   { opacity: 1;   scale: 1;   }
+  50%  { opacity: .5;  scale: .9;  }
+  100% { opacity: 1;   scale: 1;   }
+}
+@keyframes sev-estroboscopico {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  51%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes sev-rebote {
+  0%, 100% { transform: translateY(0);     }
+  50%      { transform: translateY(-10px); }
+}
+@keyframes sev-estroboscopico1 {
+  0%, 50%, 100% { fill: rgb(255, 95, 74);  }
+  25%, 75%      { fill: rgb(16, 53, 115);  }
+}
+@keyframes sev-estroboscopico2 {
+  0%, 50%, 100% { fill: #17e300;   }
+  25%, 75%      { fill: #17e300b4; }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .pulsating-dots > span,
+  .sev-loader .Ghost, .sev-loader .SevMini,
+  .sev-loader #strobe_led1, .sev-loader #strobe_color1, .sev-loader #strobe_color3 {
+    animation: none;
+  }
+}

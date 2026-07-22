@@ -7,7 +7,7 @@
 <div class="container-fluid py-4 px-4">
     <div class="page-header mb-4 d-flex justify-content-between align-items-end flex-wrap gap-2">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Data Validation</h4>
+            <h4 class="mb-0 fw-bold text-navy">Data Validation</h4>
             <small class="text-muted">One-click integrity check of fetched &amp; downloaded data in the database</small>
         </div>
         <a asp-action="DataValidation" class="btn btn-primary btn-sm">
@@ -36,22 +36,22 @@
         <div class="card-body">
             <div class="d-flex align-items-center gap-2 mb-2">
                 <i class="fas fa-@(dupOk ? "circle-check" : "triangle-exclamation")" style="color:@(dupOk ? "var(--mint)" : "var(--danger)");"></i>
-                <span class="fw-bold" style="color:var(--navy);">Duplicate check</span>
+                <span class="fw-bold text-navy">Duplicate check</span>
             </div>
             @if (dupOk)
             {
-                <p class="text-muted mb-0" style="font-size:.85rem;">
+                <p class="text-muted mb-0 fs-85">
                     No duplicate records found. Uniqueness is enforced at the database level on
                     <code>(Portal, FacilityId, TransactionId)</code>.
                 </p>
             }
             else
             {
-                <p class="text-danger mb-2" style="font-size:.85rem;">
+                <p class="text-danger mb-2 fs-85">
                     @Model.Duplicates.Count duplicate group(s) found (showing up to 200):
                 </p>
                 <div class="table-responsive">
-                    <table class="table table-sm mb-0" style="font-size:.8rem;">
+                    <table class="table table-sm mb-0 fs-80">
                         <thead><tr><th>Portal</th><th>Facility</th><th>Transaction ID</th><th class="text-end">Count</th></tr></thead>
                         <tbody>
                         @foreach (var d in Model.Duplicates)
@@ -70,21 +70,21 @@
         <div class="col-lg-7">
             <div class="card h-100">
                 <div class="card-body">
-                    <div class="fw-bold mb-3" style="color:var(--navy);">Coverage by facility</div>
+                    <div class="fw-bold mb-3 text-navy">Coverage by facility</div>
                     @if (Model.Facilities.Count == 0)
                     {
-                        <p class="text-muted mb-0" style="font-size:.85rem;">No records yet.</p>
+                        <p class="text-muted mb-0 fs-85">No records yet.</p>
                     }
                     else
                     {
                         <div class="table-responsive">
-                            <table class="table table-hover table-sm mb-0" style="font-size:.82rem;">
+                            <table class="table table-hover table-sm mb-0 fs-82">
                                 <thead><tr><th>Facility</th><th class="text-end">Total</th><th class="text-end">Downloaded</th><th class="text-end">Pending</th></tr></thead>
                                 <tbody>
                                 @foreach (var f in Model.Facilities)
                                 {
                                     <tr>
-                                        <td class="fw-semibold" style="color:var(--navy);">@f.FacilityName</td>
+                                        <td class="fw-semibold text-navy">@f.FacilityName</td>
                                         <td class="text-end">@f.Total.ToString("N0")</td>
                                         <td class="text-end" style="color:var(--mint);">@f.Downloaded.ToString("N0")</td>
                                         <td class="text-end" style="color:@(f.Pending > 0 ? "var(--gold)" : "var(--text-muted)");">@f.Pending.ToString("N0")</td>
@@ -102,14 +102,14 @@
         <div class="col-lg-5">
             <div class="card mb-4">
                 <div class="card-body">
-                    <div class="fw-bold mb-3" style="color:var(--navy);">By transaction type</div>
+                    <div class="fw-bold mb-3 text-navy">By transaction type</div>
                     @if (Model.ByType.Count == 0)
                     {
-                        <p class="text-muted mb-0" style="font-size:.85rem;">No records yet.</p>
+                        <p class="text-muted mb-0 fs-85">No records yet.</p>
                     }
                     else
                     {
-                        <table class="table table-sm mb-0" style="font-size:.82rem;">
+                        <table class="table table-sm mb-0 fs-82">
                             <thead><tr><th>Type</th><th class="text-end">Total</th><th class="text-end">Downloaded</th></tr></thead>
                             <tbody>
                             @foreach (var t in Model.ByType)
@@ -123,20 +123,20 @@
             </div>
             <div class="card">
                 <div class="card-body">
-                    <div class="fw-bold mb-2" style="color:var(--navy);">Parse coverage</div>
-                    <p class="mb-1" style="font-size:.85rem;">
+                    <div class="fw-bold mb-2 text-navy">Parse coverage</div>
+                    <p class="mb-1 fs-85">
                         <span class="fw-semibold">@Model.DistinctParsedFiles.ToString("N0")</span> of
                         <span class="fw-semibold">@Model.TotalDownloaded.ToString("N0")</span> downloaded files parsed.
                     </p>
                     @if (Model.DownloadedNotParsed > 0)
                     {
-                        <p class="mb-0" style="font-size:.82rem;color:var(--gold);">
+                        <p class="mb-0 fs-82" style="color:var(--gold);">
                             <i class="fas fa-triangle-exclamation me-1"></i>@Model.DownloadedNotParsed.ToString("N0") downloaded file(s) not yet parsed — run XML Parsing.
                         </p>
                     }
                     else
                     {
-                        <p class="mb-0" style="font-size:.82rem;color:var(--mint);">
+                        <p class="mb-0 fs-82" style="color:var(--mint);">
                             <i class="fas fa-circle-check me-1"></i>All downloaded files are parsed.
                         </p>
                     }

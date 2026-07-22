@@ -3,9 +3,11 @@ using Analytika.Models.ViewModels;
 using Analytika.Services;
 using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Analytika.Controllers;
 
@@ -15,28 +17,84 @@ public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
-    private readonly IWebHostEnvironment _env;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService, IWebHostEnvironment env)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService,
+        UserManager<ApplicationUser> userManager, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
     {
         _context = context;
         _reportService = reportService;
-        _env = env;
+        _userManager = userManager;
+        _cache = cache;
+    }
+
+    // Returns the single facility ID for Facility-type users, null for Global users.
+    private async Task<int?> GetUserFacilityIdAsync()
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser?.UserType != "Facility") return null;
+        var uf = await _context.Set<UserFacility>()
+            .Where(x => x.UserId == appUser.Id)
+            .FirstOrDefaultAsync();
+        return uf?.FacilityId;
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityId);
+
+        var facilitiesQuery = _context.Facilities.Where(f => f.IsActive);
+        if (facilityId.HasValue)
+            facilitiesQuery = facilitiesQuery.Where(f => f.Id == facilityId.Value);
+
+        // Scope filter dropdowns to codes that actually appear in this facility's
+        // parsed data. These DISTINCT scans walk ~776k rows for Global users and
+        // took minutes per page load — cache the resulting SelectList items for
+        // 15 minutes per facility scope. (Receiver/Department filters are hidden
+        // for this pass, so their scans are gone entirely.)
+        var scopeKey = facilityId?.ToString() ?? "all";
+        var (payerItems, clinicianItems) = await _cache.GetOrCreateAsync(
+            $"report-filter-options:{scopeKey}",
+            async entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
+                var parsedScope = _context.XmlParsedRecords.AsNoTracking();
+                if (facilityId.HasValue)
+                    parsedScope = parsedScope.Where(r => r.FacilityId == facilityId.Value);
+
+                var payerCodes = await parsedScope
+                    .Where(r => r.PayerId != null && r.PayerId != "")
+                    .Select(r => r.PayerId!).Distinct().ToListAsync();
+                var clinicianCodes = await parsedScope
+                    .Where(r => r.Clinician != null && r.Clinician != "")
+                    .Select(r => r.Clinician!).Distinct().ToListAsync();
+
+                var payers = await _context.Payers
+                    .Where(p => p.IsActive && payerCodes.Contains(p.Name))
+                    .OrderBy(p => p.Name)
+                    .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
+                    .ToListAsync();
+                var clinicians = await _context.Clinicians
+                    .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
+                    .OrderBy(c => c.Name)
+                    .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+                    .ToListAsync();
+                return (payers, clinicians);
+            });
+
         return new ReportSchedulerViewModel
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
-            SearchCriteria = "EncounterStartDate",
-            Facilities = new SelectList(await _context.Facilities.Where(f => f.IsActive).ToListAsync(), "Id", "Name"),
-            Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
-            Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
-            Clinicians = new SelectList(await _context.Clinicians.Where(c => c.IsActive).ToListAsync(), "Id", "Name"),
-            Departments = new SelectList(await _context.Departments.Where(d => d.IsActive).ToListAsync(), "Id", "Name"),
+            // Remittance-based reports filter by the remittance (settlement/payment)
+            // date; claim reports default to encounter start date.
+            SearchCriteria = reportType is "RemittanceActivity" or "DenialReport"
+                ? "RemittanceDate" : "EncounterStartDate",
+            Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
+            Payers    = new SelectList(payerItems, "Value", "Text"),
+            Clinicians = new SelectList(clinicianItems, "Value", "Text"),
             RecentReports = reports,
             TotalReports = total,
             CurrentPage = page
@@ -67,6 +125,12 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> ClaimLifeCycleReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("ClaimLifeCycle", "Claim Life Cycle Report", page));
 
+    public async Task<IActionResult> SubmissionXMLReport(int page = 1)
+        => View("ReportPage", await BuildViewModelAsync("SubmissionXML", "Submission XML File Report", page));
+
+    public async Task<IActionResult> LiveSubmissionReport(int page = 1)
+        => View("ReportPage", await BuildViewModelAsync("LiveSubmission", "Live Submission Report", page));
+
     [HttpGet("/ReportScheduler/SubmitReport")]
     public IActionResult SubmitReport()
         => RedirectToAction(nameof(ClaimSummaryReport));
@@ -76,6 +140,36 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
         var user = User.Identity?.Name ?? "system";
+
+        // Multi-select is the source of truth; the single *Id fields stay populated
+        // with the first selected value for backward-compatible list display.
+        static string? JsonIds(IEnumerable<int>? ids)
+        {
+            var v = (ids ?? Enumerable.Empty<int>()).Where(i => i != 0).Distinct().ToList();
+            return v.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(v) : null;
+        }
+        static string? JsonStrings(IEnumerable<string>? vals)
+        {
+            var v = (vals ?? Enumerable.Empty<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+            return v.Count > 0 ? System.Text.Json.JsonSerializer.Serialize(v) : null;
+        }
+
+        var encounterTypes = (model.SelectedEncounterTypes != null && model.SelectedEncounterTypes.Count > 0)
+            ? model.SelectedEncounterTypes
+            : (string.IsNullOrWhiteSpace(model.EncounterType) ? new List<string>() : new List<string> { model.EncounterType });
+
+        // Authoritative date window — computed server-side from the DateRange label,
+        // or parsed from the RAW dd/MM/yyyy form strings for Custom. The culture-bound
+        // model.DateFrom/DateTo are never trusted (see ReportDateWindow docs: they
+        // silently null out or transpose day/month, which produced empty reports).
+        if (!ReportDateWindow.TryResolve(model.DateRange,
+                Request.Form["DateFrom"].ToString(), Request.Form["DateTo"].ToString(),
+                DateTime.Today, out var dateFrom, out var dateTo))
+        {
+            TempData["Error"] = "Please select a valid date range (custom dates must be DD/MM/YYYY).";
+            return RedirectToAction(GetActionName(model.ReportType));
+        }
+
         var request = new ReportRequest
         {
             ReportType = model.ReportType,
@@ -84,12 +178,20 @@ public class ReportSchedulerController : Controller
             PayerId = model.SelectedPayers.FirstOrDefault() == 0 ? null : model.SelectedPayers.FirstOrDefault(),
             ClinicianId = model.SelectedClinicians.FirstOrDefault() == 0 ? null : model.SelectedClinicians.FirstOrDefault(),
             DepartmentId = model.SelectedDepartments.FirstOrDefault() == 0 ? null : model.SelectedDepartments.FirstOrDefault(),
-            EncounterType = model.EncounterType,
-            DateFrom = model.DateFrom ?? DateTime.Now.AddMonths(-1),
-            DateTo = model.DateTo ?? DateTime.Now,
+            EncounterType = encounterTypes.FirstOrDefault(),
+
+            FacilityIdsJson    = JsonIds(model.SelectedFacilities),
+            ReceiverIdsJson    = JsonIds(model.SelectedReceivers),
+            PayerIdsJson       = JsonIds(model.SelectedPayers),
+            ClinicianIdsJson   = JsonIds(model.SelectedClinicians),
+            DepartmentIdsJson  = JsonIds(model.SelectedDepartments),
+            EncounterTypesJson = JsonStrings(encounterTypes),
+
+            DateFrom = dateFrom,
+            DateTo = dateTo,
             SearchCriteria = model.SearchCriteria,
             Template = model.Template,
-            FileFormat = model.FileFormat,
+            FileFormat = "Excel",   // Excel-only export for this pass
             RequestedBy = user,
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
@@ -103,7 +205,8 @@ public class ReportSchedulerController : Controller
     [HttpGet]
     public async Task<IActionResult> GetReports(string reportType, int page = 1, int pageSize = 10)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize);
+        var facilityId = await GetUserFacilityIdAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityId);
         return Json(new
         {
             data = reports.Select(r => new
@@ -140,12 +243,8 @@ public class ReportSchedulerController : Controller
             return NotFound("File not found on server.");
 
         var fileName = Path.GetFileName(filePath);
-        var contentType = report.FileFormat switch
-        {
-            "CSV" => "text/csv",
-            "PDF" => "application/pdf",
-            _ => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        };
+        // Excel-only export for this pass.
+        const string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
         return PhysicalFile(filePath, contentType, fileName);
     }
@@ -212,17 +311,23 @@ public class ReportSchedulerController : Controller
         return RedirectToAction(GetActionName(reportType));
     }
 
+    // Reports are stored in a persistent folder next to the DB (survives redeploys);
+    // resolve by file name against that folder, with a traversal guard.
     private string? ResolveReportFilePath(string? reportFilePath)
     {
         if (string.IsNullOrWhiteSpace(reportFilePath))
             return null;
 
-        var webRoot = Path.GetFullPath(_env.WebRootPath);
-        var filePath = Path.GetFullPath(Path.Combine(
-            _env.WebRootPath,
-            reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+        var fileName = Path.GetFileName(reportFilePath.Replace('/', Path.DirectorySeparatorChar));
+        if (string.IsNullOrWhiteSpace(fileName))
+            return null;
 
-        return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;
+        var reportsDir = Path.GetFullPath(Analytika.Services.ReportService.ResolveReportsDirectory(
+            _context.Database.GetDbConnection().ConnectionString,
+            Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
+        var filePath = Path.GetFullPath(Path.Combine(reportsDir, fileName));
+
+        return filePath.StartsWith(reportsDir, StringComparison.OrdinalIgnoreCase) ? filePath : null;
     }
 
     private static void DeleteReportFile(string? filePath)
@@ -251,6 +356,8 @@ public class ReportSchedulerController : Controller
         "FinanceTAT" => "FinanceTATReport",
         "DenialReport" => "DenialReport",
         "ClaimLifeCycle" => "ClaimLifeCycleReport",
+        "SubmissionXML" => "SubmissionXMLReport",
+        "LiveSubmission" => "LiveSubmissionReport",
         _ => "ClaimSummaryReport"
     };
 }

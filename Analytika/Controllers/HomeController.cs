@@ -35,30 +35,45 @@ public class HomeController : Controller
         _logger = logger;
     }
 
+    // Public marketing landing page. Authenticated users skip straight to the dashboard.
     [HttpGet("/")]
-    [HttpGet("/Home/Index")]
     public IActionResult Index()
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Dashboard");
-        return View(new LoginViewModel());
+        return View("Landing");
     }
 
-    [HttpPost("/Home/Index")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(LoginViewModel model)
+    // Login form. Lives at /login now that / is the marketing landing.
+    // /Home/Index and /Home/Login are kept for back-compat (old bookmarks,
+    // Program.cs inactive-user redirect, LogOut redirect).
+    [HttpGet("/login")]
+    [HttpGet("/Home/Index")]
+    [HttpGet("/Home/Login")]
+    public IActionResult Login()
     {
-        if (!ModelState.IsValid) return View(model);
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectToAction("Dashboard");
+        return View("Index", new LoginViewModel());
+    }
+
+    [HttpPost("/login")]
+    [HttpPost("/Home/Index")]
+    [HttpPost("/Home/Login")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginViewModel model)
+    {
+        if (!ModelState.IsValid) return View("Index", model);
 
         var user = await _userManager.FindByEmailAsync(model.Email);
         if (user != null && !user.IsActive)
         {
             ModelState.AddModelError(string.Empty, "This account is inactive. Please contact an administrator.");
-            return View(model);
+            return View("Index", model);
         }
 
         var result = await _signInManager.PasswordSignInAsync(
-            model.Email, model.Password, isPersistent: true, lockoutOnFailure: false);
+            model.Email, model.Password, isPersistent: true, lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
@@ -66,8 +81,14 @@ public class HomeController : Controller
             return RedirectToAction("Dashboard");
         }
 
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty, "Account locked due to multiple failed attempts. Try again in 15 minutes.");
+            return View("Index", model);
+        }
+
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-        return View(model);
+        return View("Index", model);
     }
 
     // ── Facility Status Dashboard ─────────────────────────────────
@@ -76,6 +97,8 @@ public class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> Dashboard()
     {
+        if (User.IsInRole(AppRoles.Reporter))
+            return RedirectToAction("ClaimSummaryReport", "ReportScheduler");
         return View(await _dashboard.BuildFacilityStatusAsync());
     }
 
@@ -158,10 +181,11 @@ public class HomeController : Controller
 
     [HttpPost]
     [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> LogOut()
     {
         await _signInManager.SignOutAsync();
-        return RedirectToAction("Index");
+        return RedirectToAction("Login");
     }
 
     [HttpGet]

@@ -1,0 +1,343 @@
+openapi: 3.0.3
+info:
+  title: BIX AI Assistant API
+  version: 1.0.0
+  description: |
+    API surface of the BIX (Ghaf Business Intelligence) AI analytics assistant.
+
+    ## Architecture
+    Two providers sit behind one endpoint contract; the server picks per request:
+
+    1. **BIX local assistant (Ollama)** — preferred when the local Ollama server
+       (`http://localhost:11434`, model `qwen2.5:7b-instruct`) is reachable.
+       Controlled *intent-to-query* design: the model only classifies the question
+       into an approved intent + parameters (structured JSON output); ASP.NET
+       validates deterministically, executes a fixed parameterized **read-only**
+       SQL query, and the model explains the result. The model never supplies SQL,
+       table names, or column names. Zero external API cost; data stays on-prem.
+    2. **NVIDIA analyst (fallback)** — hosted model text-to-SQL with a guarded
+       validator (SELECT-only, blocked identifiers, PHI masking, row caps).
+
+    ## Approved intent catalogue (local assistant)
+    `TOTAL_BILLED`, `TOTAL_PAID`, `TOTAL_DENIED`, `PAYER_DENIAL_RATE`,
+    `TOP_PAYERS_BY_PAID`, `TOP_CLINICIANS_BY_BILLED`, `CLAIMS_BY_MONTH`,
+    `PAID_BY_MONTH`, `FACILITY_COMPARISON`, `TOP_DENIAL_CODES`,
+    `OUTSTANDING_BY_PAYER`, `CLAIM_STATUS_LOOKUP`.
+
+    ## Guardrails
+    - Confidence gate ≥ 0.60, else the request is refused with guidance.
+    - Facility scope comes from the **authenticated session** (Facility-type
+      users are hard-locked to their branch); never from the model or client.
+    - Date-range cap ~3 years; result rows capped at 200; DB opened read-only
+      with `PRAGMA query_only`.
+    - No patient identifiers in any intent output.
+    - Every request is audited (user, question, intent+parameters, rows,
+      tokens, latency, outcome).
+
+    ## Authentication
+    Cookie session auth (ASP.NET Identity). All POSTs additionally require the
+    anti-forgery token as form field `__RequestVerificationToken`, obtainable
+    from any authenticated page render.
+servers:
+  - url: https://bix.ghafservices.com
+    description: Production (Cloudflare tunnel)
+  - url: http://localhost:5000
+    description: Local server
+tags:
+  - name: Assistant
+    description: Chat endpoints used by the AI Analyst page (`/Ai`)
+  - name: Admin
+    description: Admin-only configuration & governance (role `Admin`)
+  - name: Diagnostics
+    description: Self-service health & data-coverage checks
+
+security:
+  - cookieAuth: []
+
+paths:
+  /Ai/Ask:
+    post:
+      tags: [Assistant]
+      summary: Ask a question (non-streaming)
+      description: >
+        Synchronous variant. Requires an RCM role
+        (Admin/FacilityAdmin/Analyst/Billing/Finance/Auditor).
+      operationId: ask
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [question, __RequestVerificationToken]
+              properties:
+                question:
+                  type: string
+                  example: Which payer had the highest rejection rate last month?
+                __RequestVerificationToken:
+                  type: string
+      responses:
+        "200":
+          description: Answer envelope (ok=false carries `error`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AskResult"
+        "302":
+          description: Not authenticated (redirect to login)
+
+  /Ai/AskStream:
+    post:
+      tags: [Assistant]
+      summary: Ask a question (Server-Sent Events stream)
+      description: |
+        Streams progress stages, the executed source + result rows, then the
+        answer token-by-token. Content type `text/event-stream`; each event is a
+        `data: <json>\n\n` frame. Event order:
+
+        1. `{"stage":"understanding"}`
+        2. `{"stage":"querying"}`
+        3. `{"stage":"answering", "sql":…, "columns":[…], "rows":[[…]], "rowCount":n, "redacted":true}`
+           — for the local assistant, `sql` carries a human-readable source label
+           (report name, period, facility), not SQL.
+        4. `{"token":"…"}` — repeated; concatenate for the answer text.
+        5. `{"done":true, "tokens":n}` — terminal on success.
+
+        `{"error":"…"}` may arrive at any point and is terminal.
+      operationId: askStream
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [question, __RequestVerificationToken]
+              properties:
+                question:
+                  type: string
+                __RequestVerificationToken:
+                  type: string
+      responses:
+        "200":
+          description: SSE stream of AssistantEvent frames
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Sequence of `data:` frames, each an AssistantEvent JSON object
+              examples:
+                stream:
+                  summary: Successful streamed answer
+                  value: |
+                    data: {"stage":"understanding"}
+
+                    data: {"stage":"querying"}
+
+                    data: {"stage":"answering","sql":"Report: Rejection rate by payer\nPeriod: 01 Jun 2026 – 30 Jun 2026\nFacility: All facilities","columns":["PayerName","Claims","Denied","DenialRatePct"],"rows":[["NAS","1737","215","12.38"]],"rowCount":1,"redacted":true}
+
+                    data: {"token":"NAS had the highest"}
+
+                    data: {"token":" rejection rate at 12.38%."}
+
+                    data: {"done":true,"tokens":1412}
+        "302":
+          description: Not authenticated (redirect to login)
+
+  /Admin/Ai:
+    get:
+      tags: [Admin]
+      summary: AI agent admin page (HTML)
+      description: Configuration + usage governance UI (model, key, limits, audit table).
+      responses:
+        "200": { description: HTML page }
+        "302": { description: Not authenticated / not Admin }
+
+  /Admin/SaveAiSettings:
+    post:
+      tags: [Admin]
+      summary: Save hosted-AI (NVIDIA) settings
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                apiBaseUrl: { type: string, example: https://integrate.api.nvidia.com/v1 }
+                model: { type: string, example: nvidia/llama-3.3-nemotron-super-49b-v1.5 }
+                apiKey:
+                  type: string
+                  description: Blank keeps the stored key (encrypted at rest)
+                maxOutputTokens: { type: integer, minimum: 64, maximum: 8192 }
+                temperature: { type: number, minimum: 0, maximum: 2 }
+                rowLimit: { type: integer, minimum: 1, maximum: 5000 }
+                dailyRequestLimit: { type: integer, description: 0 = unlimited }
+                monthlyTokenLimit: { type: integer, description: 0 = unlimited }
+                allowFullData:
+                  type: boolean
+                  description: false (default) = aggregate-only + PHI masked
+                timeoutSeconds: { type: integer, minimum: 5, maximum: 300 }
+                __RequestVerificationToken: { type: string }
+      responses:
+        "302": { description: Redirect back to /Admin/Ai with status message }
+
+  /Admin/TestAiConnection:
+    post:
+      tags: [Admin]
+      summary: Probe the hosted-AI connection
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [__RequestVerificationToken]
+              properties:
+                __RequestVerificationToken: { type: string }
+      responses:
+        "200":
+          description: Probe outcome
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  message: { type: string }
+
+  /Support/RunDiagnostics:
+    post:
+      tags: [Diagnostics]
+      summary: Run self-diagnostics (health + 24-month data coverage per facility)
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [__RequestVerificationToken]
+              properties:
+                __RequestVerificationToken: { type: string }
+      responses:
+        "200":
+          description: Health snapshot and per-facility monthly coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnosticsResult"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: .AspNetCore.Identity.Application
+      description: ASP.NET Identity session cookie (login via /Home/Index form)
+
+  schemas:
+    AskResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        answer: { type: string, nullable: true }
+        sql:
+          type: string
+          nullable: true
+          description: Executed SQL (NVIDIA provider) or source label (local assistant)
+        columns:
+          type: array
+          items: { type: string }
+        rows:
+          type: array
+          items:
+            type: array
+            items: { type: string, nullable: true }
+        rowCount: { type: integer }
+        redacted:
+          type: boolean
+          description: true when patient-identifier masking is active
+        tokens: { type: integer }
+        error: { type: string, nullable: true }
+
+    AssistantEvent:
+      description: One SSE frame payload (exactly one variant applies)
+      oneOf:
+        - $ref: "#/components/schemas/StageEvent"
+        - $ref: "#/components/schemas/AnsweringEvent"
+        - $ref: "#/components/schemas/TokenEvent"
+        - $ref: "#/components/schemas/DoneEvent"
+        - $ref: "#/components/schemas/ErrorEvent"
+    StageEvent:
+      type: object
+      required: [stage]
+      properties:
+        stage: { type: string, enum: [understanding, querying] }
+    AnsweringEvent:
+      type: object
+      required: [stage, columns, rows, rowCount]
+      properties:
+        stage: { type: string, enum: [answering] }
+        sql: { type: string, description: Source label or executed SQL }
+        columns: { type: array, items: { type: string } }
+        rows:
+          type: array
+          items: { type: array, items: { type: string, nullable: true } }
+        rowCount: { type: integer }
+        redacted: { type: boolean }
+    TokenEvent:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, description: Next answer text fragment }
+    DoneEvent:
+      type: object
+      required: [done]
+      properties:
+        done: { type: boolean, enum: [true] }
+        tokens: { type: integer, description: Total model tokens used }
+    ErrorEvent:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+
+    DiagnosticsResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        generatedAtUtc: { type: string, format: date-time }
+        health:
+          type: object
+          properties:
+            dbOk: { type: boolean }
+            dbError: { type: string, nullable: true }
+            totalRecords: { type: integer }
+            totalRemittances: { type: integer }
+            connectedFacilities: { type: integer }
+            lastSyncUtc: { type: string, format: date-time, nullable: true }
+            windowFrom: { type: string, example: "2024-08" }
+            windowTo: { type: string, example: "2026-07" }
+        facilities:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              isActive: { type: boolean }
+              portals: { type: array, items: { type: string, enum: [DHA, RHA] } }
+              recordsInWindow: { type: integer }
+              coveredMonths: { type: integer }
+              totalMonths: { type: integer, example: 24 }
+              gapMonths:
+                type: array
+                items: { type: string, example: "2025-11" }
+              lastFetchUtc: { type: string, format: date-time, nullable: true }
+              monthly:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ym: { type: string, example: "2026-05" }
+                    count: { type: integer }

@@ -8,33 +8,36 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ghaf Bi Analytix — Login</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-<style>
+    <title>Ghaf Business Intelligence — Login</title>
+    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
+    <link rel="stylesheet" href="/vendor/fa/css/all.min.css" />
+    <script>
+        /* Apply the skin chosen on the landing page (or the in-app skin picker)
+           before first paint. Shares 'analytika-skin' with the app skin system
+           (themes.css) so the choice is consistent end-to-end. The login only
+           renders the 3 dark directions, so classic/fable fall back to obsidian. */
+        (function () {
+            try {
+                var d = localStorage.getItem('analytika-skin') || 'obsidian';
+                if (d === 'classic' || d === 'fable') d = 'obsidian';
+                document.documentElement.setAttribute('data-direction', d);
+            } catch (e) { document.documentElement.setAttribute('data-direction', 'obsidian'); }
+        })();
+    </script>
+    <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
             min-height: 100vh;
             display: flex;
-            background: #080810 !important;
-            color: var(--text-sec);
+            background: #f8fafc;
             -webkit-font-smoothing: antialiased;
-            position: relative;
-            z-index: 1;
         }
 
-        /* ── Left panel — translucent glass over the canvas ── */
+        /* ── Left panel ── */
         .login-left {
             width: 40%;
-            background: linear-gradient(160deg, rgba(255,255,255,.05) 0%, rgba(255,255,255,.02) 100%);
-            backdrop-filter: blur(22px) saturate(180%);
-            -webkit-backdrop-filter: blur(22px) saturate(180%);
-            border-right: 1px solid rgba(255,255,255,.08);
+            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -48,7 +51,7 @@
             position: absolute;
             width: 380px; height: 380px;
             border-radius: 50%;
-            border: 1px solid rgba(0,242,195,0.10);
+            border: 1px solid rgba(84,172,191,0.12);
             bottom: -140px; right: -120px;
         }
         .login-left::after {
@@ -56,14 +59,14 @@
             position: absolute;
             width: 220px; height: 220px;
             border-radius: 50%;
-            border: 1px solid rgba(29,140,248,0.10);
+            border: 1px solid rgba(84,172,191,0.08);
             top: 40px; right: 40px;
         }
         .accent-ring {
             position: absolute;
             width: 160px; height: 160px;
             border-radius: 50%;
-            border: 1px solid rgba(0,242,195,0.08);
+            border: 1px solid rgba(84,172,191,0.06);
             bottom: 120px; left: -50px;
         }
         .brand-logo {
@@ -83,7 +86,7 @@
         }
         .brand-sub {
             font-size: 0.62rem;
-            color: #00f2c3;
+            color: #54ACBF;
             font-weight: 600;
             letter-spacing: 1.6px;
             text-transform: uppercase;
@@ -100,86 +103,31 @@
             margin-bottom: 14px;
             letter-spacing: -0.5px;
         }
-        .left-tagline h2 span {
-            background: linear-gradient(90deg, #1d8cf8 0%, #00f2c3 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
+        .left-tagline h2 span { color: #54ACBF; }
         .left-tagline p {
             font-size: 0.875rem;
             color: rgba(255,255,255,0.45);
             line-height: 1.65;
         }
-        /* Feature dropdowns */
-        .feature-dropdowns {
+        /* Feature pills */
+        .feature-pills {
             display: flex;
-            flex-direction: row;
-            gap: 6px;
-            margin-top: 22px;
             flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
         }
-        .feat-drop {
-            position: relative;
-            flex: 1 1 auto;
-            min-width: 0;
-        }
-        .feat-drop-btn {
-            display: flex;
+        .feature-pill {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
-            width: 100%;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 7px 11px;
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.65);
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.2s, border-color 0.2s;
+            border-radius: 100px;
+            padding: 5px 12px;
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.6);
         }
-        .feat-drop-btn:hover,
-        .feat-drop.open .feat-drop-btn {
-            background: rgba(29,140,248,0.12);
-            border-color: rgba(29,140,248,0.4);
-            color: #fff;
-        }
-        .feat-drop-btn .fi { color: #1d8cf8; font-size: 0.62rem; flex-shrink: 0; }
-        .feat-drop-btn .fchev {
-            margin-left: auto;
-            font-size: 0.55rem;
-            opacity: 0.5;
-            transition: transform 0.2s;
-            flex-shrink: 0;
-        }
-        .feat-drop.open .feat-drop-btn .fchev { transform: rotate(180deg); }
-        .feat-drop-panel {
-            display: none;
-            position: absolute;
-            bottom: calc(100% + 6px);
-            left: 0;
-            min-width: 170px;
-            background: rgba(8,8,16,.9);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border: 1px solid rgba(0,242,195,0.2);
-            border-radius: 10px;
-            padding: 8px 0;
-            z-index: 20;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-        }
-        .feat-drop.open .feat-drop-panel { display: block; }
-        .feat-drop-panel li {
-            list-style: none;
-            padding: 5px 14px;
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.55);
-            display: flex;
-            align-items: center;
-            gap: 7px;
-        }
-        .feat-drop-panel li i { color: #1d8cf8; font-size: 0.6rem; }
+        .feature-pill i { color: #54ACBF; font-size: 0.65rem; }
         .left-footer {
             font-size: 0.72rem;
             color: rgba(255,255,255,0.22);
@@ -187,13 +135,10 @@
             z-index: 1;
         }
 
-        /* ── Right panel — glass surface ── */
+        /* ── Right panel ── */
         .login-right {
             flex: 1;
-            background: rgba(255,255,255,.04);
-            backdrop-filter: blur(28px) saturate(180%);
-            -webkit-backdrop-filter: blur(28px) saturate(180%);
-            border-left: 1px solid rgba(255,255,255,.08);
+            background: #ffffff;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -205,127 +150,110 @@
         .login-right h1 {
             font-size: 1.55rem;
             font-weight: 700;
-            color: #ffffff;
+            color: #011C40;
             margin-bottom: 6px;
             letter-spacing: -0.4px;
         }
         .login-right .subtitle {
             font-size: 0.85rem;
-            color: rgba(255,255,255,.5);
+            color: #94a3b8;
             margin-bottom: 32px;
         }
 
         .form-label {
             font-size: 0.73rem;
             font-weight: 600;
-            color: rgba(255,255,255,.5);
+            color: #475569;
             margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.4px;
         }
         .form-control {
             font-family: 'Inter', system-ui, sans-serif;
-            border: 1px solid rgba(255,255,255,.1);
-            border-radius: 10px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 9px;
             padding: 10px 14px;
             font-size: 0.9rem;
-            color: #ffffff;
-            background: rgba(255,255,255,.04);
-            transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+            color: #011C40;
+            background: #f8fafc;
+            transition: border-color 0.18s, box-shadow 0.18s;
         }
         .form-control:focus {
-            border-color: rgba(29,140,248,.5);
-            box-shadow: 0 0 0 3px rgba(29,140,248,.15);
-            background: rgba(255,255,255,.06);
-            color: #ffffff;
+            border-color: #54ACBF;
+            box-shadow: 0 0 0 3px rgba(84,172,191,0.12);
+            background: #fff;
             outline: none;
         }
-        .form-control::placeholder { color: rgba(255,255,255,.3); }
-        .input-group .form-control { border-right: none; border-radius: 10px 0 0 10px; }
+        .form-control::placeholder { color: #cbd5e1; }
+        .input-group .form-control { border-right: none; border-radius: 9px 0 0 9px; }
         .input-group-text {
-            background: rgba(255,255,255,.04);
-            border: 1px solid rgba(255,255,255,.1);
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
             border-left: none;
-            color: rgba(255,255,255,.4);
-            border-radius: 0 10px 10px 0;
+            color: #94a3b8;
+            border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: border-color 0.18s, color 0.18s;
+            transition: border-color 0.18s;
         }
-        .input-group-text:hover { color: rgba(255,255,255,.7); }
-        .input-group:focus-within .input-group-text { border-color: rgba(29,140,248,.5); }
+        .input-group:focus-within .input-group-text { border-color: #54ACBF; }
         .input-icon {
-            background: rgba(255,255,255,.04);
-            border: 1px solid rgba(255,255,255,.1);
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
             border-right: none;
-            color: rgba(255,255,255,.4);
-            border-radius: 10px 0 0 10px;
+            color: #94a3b8;
+            border-radius: 9px 0 0 9px;
             padding: 10px 12px;
             font-size: 0.8rem;
             display: flex;
             align-items: center;
-            transition: border-color 0.18s, color 0.18s;
+            transition: border-color 0.18s;
         }
-        .input-group:focus-within .input-icon { border-color: rgba(29,140,248,.5); color: #1d8cf8; }
-
-        /* Autofill override — keep glass when Chrome paints autofill */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover,
-        input:-webkit-autofill:focus {
-            -webkit-text-fill-color: #ffffff;
-            -webkit-box-shadow: 0 0 0 30px rgba(8,8,16,1) inset !important;
-            caret-color: #ffffff;
-        }
+        .input-group:focus-within .input-icon { border-color: #54ACBF; }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
-            background: linear-gradient(135deg, #1d8cf8 0%, #00f2c3 100%);
-            color: #08101b;
+            background: linear-gradient(135deg, #011C40 0%, #54ACBF 100%);
+            color: #fff;
             border: none;
             border-radius: 11px;
             padding: 12px 24px;
             font-size: 0.875rem;
-            font-weight: 700;
+            font-weight: 600;
             width: 100%;
             letter-spacing: 0.1px;
-            box-shadow: 0 8px 24px rgba(0,242,195,.18), 0 0 0 1px rgba(255,255,255,.08) inset;
-            transition: filter 0.2s, transform 0.18s cubic-bezier(.22,.68,0,1.2), box-shadow 0.2s;
+            box-shadow: 0 6px 16px rgba(1,28,64,0.18);
+            transition: filter 0.2s, transform 0.18s cubic-bezier(0.32,0.72,0,1), box-shadow 0.2s;
             cursor: pointer;
-            will-change: transform;
         }
         .btn-signin:hover {
-            filter: brightness(1.08);
-            transform: translate3d(0,-1px,0);
-            box-shadow: 0 12px 32px rgba(0,242,195,.28), 0 0 0 1px rgba(255,255,255,.12) inset;
+            filter: brightness(1.06);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(1,28,64,0.24);
         }
-        .btn-signin:active { transform: translate3d(0,0,0); }
+        .btn-signin:active { transform: translateY(0); }
 
         .forgot-link {
             font-size: 0.78rem;
-            color: #1d8cf8;
+            color: #54ACBF;
             text-decoration: none;
             font-weight: 500;
         }
-        .forgot-link:hover { color: #00f2c3; text-decoration: underline; }
+        .forgot-link:hover { text-decoration: underline; }
 
-        .form-check-input {
-            background-color: rgba(255,255,255,.05);
-            border-color: rgba(255,255,255,.2);
-        }
         .form-check-input:checked {
-            background-color: #1d8cf8;
-            border-color: #1d8cf8;
+            background-color: #54ACBF;
+            border-color: #54ACBF;
         }
-        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(29,140,248,.18); }
-        .form-check-label { color: rgba(255,255,255,.65); }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(84,172,191,0.15); }
 
         .alert-danger {
             font-size: 0.82rem;
-            border-radius: 10px;
-            background: rgba(253,93,147,.08);
-            border: 1px solid rgba(253,93,147,.18);
-            border-left: 3px solid #fd5d93;
-            color: #fd5d93;
+            border-radius: 9px;
+            background: rgba(239,68,68,0.07);
+            border: none;
+            border-left: 3px solid #ef4444;
+            color: #b91c1c;
             padding: 10px 14px;
         }
         .right-footer {
@@ -334,7 +262,7 @@
             left: 50%;
             transform: translateX(-50%);
             font-size: 0.72rem;
-            color: rgba(255,255,255,.3);
+            color: #cbd5e1;
             white-space: nowrap;
         }
 
@@ -351,34 +279,58 @@
         .lang-btn {
             padding: 4px 12px;
             border-radius: 999px;
-            border: 1px solid rgba(255,255,255,.1);
-            background: rgba(255,255,255,.04);
-            backdrop-filter: blur(8px);
+            border: 1.5px solid #e2e8f0;
+            background: #f8fafc;
             font-size: 0.72rem;
             font-weight: 600;
-            color: rgba(255,255,255,.5);
+            color: #94a3b8;
             cursor: pointer;
-            transition: background .15s, border-color .15s, color .15s;
+            transition: all 0.16s;
             font-family: 'Inter', system-ui, sans-serif;
         }
         .lang-btn.active {
-            background: rgba(29,140,248,.18);
-            border-color: rgba(29,140,248,.4);
-            color: #1d8cf8;
+            background: #011C40;
+            border-color: #011C40;
+            color: #fff;
         }
-        .lang-btn:hover:not(.active) {
-            border-color: rgba(255,255,255,.2);
-            color: rgba(255,255,255,.85);
-            background: rgba(255,255,255,.06);
+        .lang-btn:hover:not(.active) { border-color: #54ACBF; color: #011C40; }
+
+        /* ── Design-direction selector (bottom of brand panel) ── */
+        .dir-picker { position: relative; z-index: 2; margin-top: 22px; }
+        .dir-picker-label {
+            font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+            font-weight: 700; color: rgba(167,235,242,0.65); margin-bottom: 9px;
         }
+        .dir-opts { display: flex; gap: 7px; }
+        .dir-opt {
+            font-family: 'Inter', system-ui, sans-serif; font-size: 0.72rem; font-weight: 600;
+            cursor: pointer; padding: 6px 14px; border-radius: 999px;
+            border: 1px solid rgba(167,235,242,0.22); background: rgba(255,255,255,0.05);
+            color: rgba(234,244,251,0.7); transition: all 0.16s;
+        }
+        .dir-opt:hover { background: rgba(167,235,242,0.14); color: #EAF4FB; }
+        .dir-opt.active { background: linear-gradient(135deg, #54ACBF, #006884); color: #fff; border-color: transparent; }
+
+        /* ── Per-direction palette for the login brand panel ── */
+        html[data-direction="ledger"] .login-left {
+            background: linear-gradient(160deg, #050B14 0%, #0A1622 100%);
+        }
+        html[data-direction="aurora"] .login-left {
+            background:
+                radial-gradient(600px 400px at 80% 10%, rgba(124,141,240,0.30), transparent 60%),
+                linear-gradient(160deg, #071023 0%, #0d1633 55%, #071023 100%);
+        }
+        html[data-direction="aurora"] .brand-sub,
+        html[data-direction="aurora"] .left-tagline h2 span { color: #A7EBF2; }
+        html[data-direction="aurora"] .dir-opt.active { background: linear-gradient(120deg, #7C8DF0, #54ACBF); }
 
         /* AR overrides */
         html[dir="rtl"] body { font-family: 'Segoe UI', 'Noto Sans Arabic', system-ui, sans-serif; }
         html[dir="rtl"] .login-left { order: 2; }
         html[dir="rtl"] .login-right { order: 1; }
-        html[dir="rtl"] .input-icon { border-radius: 0 10px 10px 0; border-right: none; border-left: 1px solid rgba(255,255,255,.1); }
-        html[dir="rtl"] .input-group .form-control { border-radius: 10px 0 0 10px; border-right: 1px solid rgba(255,255,255,.1); border-left: none; }
-        html[dir="rtl"] .input-group-text { border-radius: 10px 0 0 10px; border-right: none; border-left: 1px solid rgba(255,255,255,.1); }
+        html[dir="rtl"] .input-icon { border-radius: 0 9px 9px 0; border-right: none; border-left: 1.5px solid #e2e8f0; }
+        html[dir="rtl"] .input-group .form-control { border-radius: 9px 0 0 9px; border-right: 1.5px solid #e2e8f0; border-left: none; }
+        html[dir="rtl"] .input-group-text { border-radius: 9px 0 0 9px; border-right: none; border-left: 1.5px solid #e2e8f0; }
 
         @@media (max-width: 900px) {
             .login-left { width: 44%; padding: 40px 36px; }
@@ -389,14 +341,14 @@
             .login-right-inner { max-width: 100%; }
         }
 
-/* Aceternity Spotlight — tracks mouse on the left panel */
+        /* Aceternity Spotlight — tracks mouse on the left panel */
         .spotlight {
             position: absolute;
             pointer-events: none;
             z-index: 1;
             width: 480px; height: 480px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(29,140,248,0.22) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(84,172,191,0.18) 0%, transparent 70%);
             transform: translate(-50%, -50%);
             transition: opacity 0.3s;
             opacity: 0;
@@ -420,9 +372,7 @@
         .courtesy-logo { height: 20px; width: auto; opacity: .9; }
     </style>
 </head>
-<body class="bix-canvas">
-    <partial name="_GlassCanvas" />
-
+<body>
     <!-- Left Brand Panel -->
     <div class="login-left">
         <div class="accent-ring"></div>
@@ -430,24 +380,24 @@
         <!-- Spotlight (tracks mouse) -->
         <div class="spotlight" id="loginSpotlight"></div>
 
-<div class="brand-logo">
+        <div class="brand-logo">
             <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <!-- Ghaf tree + data (light, for the dark brand panel) -->
-                <path d="M22 21 C22 14 17 10 11 10" stroke="#1d8cf8" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 12 28 8 34 10" stroke="#00f2c3" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 16 18 14 14 15" stroke="#1d8cf8" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 C22 15 26 13 30 15" stroke="#00f2c3" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 C22 14 17 10 11 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 12 28 8 34 10" stroke="#A7EBF2" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
                 <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
                 <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
-                <circle cx="11" cy="10" r="2"   fill="#1d8cf8"/>
-                <circle cx="34" cy="10" r="2"   fill="#00f2c3"/>
-                <circle cx="14" cy="15" r="1.5" fill="#00f2c3"/>
-                <circle cx="30" cy="15" r="1.5" fill="#1d8cf8"/>
+                <circle cx="11" cy="10" r="2"   fill="#54ACBF"/>
+                <circle cx="34" cy="10" r="2"   fill="#A7EBF2"/>
+                <circle cx="14" cy="15" r="1.5" fill="#A7EBF2"/>
+                <circle cx="30" cy="15" r="1.5" fill="#54ACBF"/>
                 <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
-                <path d="M15 38 H29" stroke="#1d8cf8" stroke-width="2" stroke-linecap="round"/>
+                <path d="M15 38 H29" stroke="#54ACBF" stroke-width="2" stroke-linecap="round"/>
             </svg>
             <div>
-                <div class="brand-name">Ghaf Bi Analytix</div>
+                <div class="brand-name">Ghaf Business Intelligence</div>
                 <div class="brand-sub">Business Intelligence</div>
             </div>
         </div>
@@ -455,51 +405,20 @@
         <div class="left-tagline">
             <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
             <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
-            <div class="feature-dropdowns">
-                <div class="feat-drop">
-                    <button class="feat-drop-btn" onclick="toggleFeat(this)">
-                        <i class="fas fa-chart-line fi"></i> RCM Analytics
-                        <i class="fas fa-chevron-down fchev"></i>
-                    </button>
-                    <ul class="feat-drop-panel">
-                        <li><i class="fas fa-circle-dot"></i> Claim lifecycle tracking</li>
-                        <li><i class="fas fa-circle-dot"></i> Denial management</li>
-                        <li><i class="fas fa-circle-dot"></i> Finance TAT reports</li>
-                    </ul>
-                </div>
-                <div class="feat-drop">
-                    <button class="feat-drop-btn" onclick="toggleFeat(this)">
-                        <i class="fas fa-cloud-download-alt fi"></i> DHA · RHA
-                        <i class="fas fa-chevron-down fchev"></i>
-                    </button>
-                    <ul class="feat-drop-panel">
-                        <li><i class="fas fa-circle-dot"></i> Auto portal sync</li>
-                        <li><i class="fas fa-circle-dot"></i> XML fetch & parse</li>
-                        <li><i class="fas fa-circle-dot"></i> Remittance matching</li>
-                    </ul>
-                </div>
-                <div class="feat-drop">
-                    <button class="feat-drop-btn" onclick="toggleFeat(this)">
-                        <i class="fas fa-file-chart-column fi"></i> Reports
-                        <i class="fas fa-chevron-down fchev"></i>
-                    </button>
-                    <ul class="feat-drop-panel">
-                        <li><i class="fas fa-circle-dot"></i> Excel &amp; PDF export</li>
-                        <li><i class="fas fa-circle-dot"></i> Scheduled delivery</li>
-                        <li><i class="fas fa-circle-dot"></i> 8 report types</li>
-                    </ul>
-                </div>
-                <div class="feat-drop">
-                    <button class="feat-drop-btn" onclick="toggleFeat(this)">
-                        <i class="fas fa-hospital fi"></i> Multi-facility
-                        <i class="fas fa-chevron-down fchev"></i>
-                    </button>
-                    <ul class="feat-drop-panel" style="left:auto;right:0;">
-                        <li><i class="fas fa-circle-dot"></i> DHA &amp; RHA facilities</li>
-                        <li><i class="fas fa-circle-dot"></i> Role-based access</li>
-                        <li><i class="fas fa-circle-dot"></i> Per-facility dashboards</li>
-                    </ul>
-                </div>
+            <div class="feature-pills">
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
+                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
+            </div>
+        </div>
+
+        <div class="dir-picker">
+            <div class="dir-picker-label">Interface Theme</div>
+            <div class="dir-opts">
+                <button type="button" class="dir-opt" data-dir="obsidian">Obsidian</button>
+                <button type="button" class="dir-opt" data-dir="ledger">Ledger</button>
+                <button type="button" class="dir-opt" data-dir="aurora">Aurora</button>
             </div>
         </div>
 
@@ -520,9 +439,9 @@
 
         <div class="login-right-inner">
             <h1 data-i18n="welcome">Welcome back</h1>
-            <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Bi Analytix account</p>
+            <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Business Intelligence account</p>
 
-            <form asp-controller="Home" asp-action="Index" method="post">
+            <form asp-controller="Home" asp-action="Login" method="post">
                 @Html.AntiForgeryToken()
 
                 @if (!ViewData.ModelState.IsValid)
@@ -571,7 +490,7 @@
         const I18N = {
             en: {
                 welcome:  'Welcome back',
-                subtitle: 'Sign in to your Ghaf Bi Analytix account',
+                subtitle: 'Sign in to your Ghaf Business Intelligence account',
                 email:    'Email address',
                 password: 'Password',
                 forgot:   'Forgot password?',
@@ -581,7 +500,7 @@
             },
             ar: {
                 welcome:  'أهلاً بعودتك',
-                subtitle: 'سجّل دخولك إلى حساب Ghaf Bi Analytix',
+                subtitle: 'سجّل دخولك إلى حساب Ghaf Business Intelligence',
                 email:    'البريد الإلكتروني',
                 password: 'كلمة المرور',
                 forgot:   'نسيت كلمة المرور؟',
@@ -609,7 +528,7 @@
             document.getElementById('btnEN').classList.toggle('active', lang === 'en');
             document.getElementById('btnAR').classList.toggle('active', lang === 'ar');
             // Persist so _Layout.cshtml picks it up after login
-            try { localStorage.setItem('analytika-lang', lang); } catch(e) {}
+            try { localStorage.setItem('bix-lang', lang); } catch(e) {}
         }
 
         function setLang(lang) { applyLang(lang); }
@@ -625,23 +544,10 @@
         /* ── On load: restore saved locale ── */
         (function () {
             try {
-                const saved = localStorage.getItem('analytika-lang');
+                const saved = localStorage.getItem('bix-lang');
                 if (saved === 'ar') applyLang('ar');
             } catch(e) {}
         })();
-
-        /* ── Feature dropdowns ── */
-        function toggleFeat(btn) {
-            const drop = btn.closest('.feat-drop');
-            const isOpen = drop.classList.contains('open');
-            document.querySelectorAll('.feat-drop.open').forEach(d => d.classList.remove('open'));
-            if (!isOpen) drop.classList.add('open');
-        }
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.feat-drop')) {
-                document.querySelectorAll('.feat-drop.open').forEach(d => d.classList.remove('open'));
-            }
-        });
 
         /* ── Spotlight: follow mouse on the left panel ── */
         (function () {
@@ -652,6 +558,24 @@
                 const rect = panel.getBoundingClientRect();
                 spot.style.left = (e.clientX - rect.left) + 'px';
                 spot.style.top  = (e.clientY - rect.top)  + 'px';
+            });
+        })();
+
+        /* ── Design-direction selector ── */
+        (function () {
+            var current = document.documentElement.getAttribute('data-direction') || 'obsidian';
+            var opts = document.querySelectorAll('.dir-opt');
+            function paint(dir) {
+                document.documentElement.setAttribute('data-direction', dir);
+                opts.forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-dir') === dir); });
+            }
+            paint(current);
+            opts.forEach(function (b) {
+                b.addEventListener('click', function () {
+                    var dir = b.getAttribute('data-dir');
+                    try { localStorage.setItem('analytika-skin', dir); } catch (e) {}
+                    paint(dir);
+                });
             });
         })();
     </script>

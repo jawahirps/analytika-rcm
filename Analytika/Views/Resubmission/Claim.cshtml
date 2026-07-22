@@ -32,8 +32,8 @@
 <div class="container-fluid py-3 px-4" style="max-width:1100px;">
 
     <!-- ── Breadcrumb ─────────────────────────────────────────────────────── -->
-    <nav style="font-size:.78rem;" class="mb-3">
-        <a href="/Resubmission" class="text-decoration-none" style="color:#35577D;">
+    <nav class="mb-3 fs-78">
+        <a href="/Resubmission" class="text-decoration-none text-slate">
             <i class="fas fa-tasks me-1"></i>Resubmission
         </a>
         <span class="mx-2 text-muted">/</span>
@@ -49,10 +49,10 @@
             <div class="detail-card">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                     <div>
-                        <h5 class="fw-bold mb-1" style="color:#011C40;">@Model.ClaimId</h5>
+                        <h5 class="fw-bold mb-1 text-navy">@Model.ClaimId</h5>
                         @if (!string.IsNullOrEmpty(Model.PayerClaimId))
                         {
-                            <div class="text-muted" style="font-size:.78rem;">
+                            <div class="text-muted fs-78">
                                 Payer Ref: <strong>@Model.PayerClaimId</strong>
                             </div>
                         }
@@ -77,7 +77,7 @@
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="detail-label">Clinician</div>
-                        <div class="detail-value" style="font-size:.8rem;">@(Model.ClinicianLicense ?? "—")</div>
+                        <div class="detail-value fs-80">@(Model.ClinicianLicense ?? "—")</div>
                     </div>
                     <div class="col-6 col-md-3">
                         <div class="detail-label">Original Amount</div>
@@ -112,7 +112,7 @@
                 {
                     <div class="mt-3">
                         <div class="detail-label mb-1">Payer Comments</div>
-                        <div class="p-2 rounded" style="background:#EAF4FB; font-size:.8rem; color:#92400e;">
+                        <div class="p-2 rounded bg-sky-wash fs-80" style="color:#92400e;">
                             <i class="fas fa-exclamation-triangle me-1"></i>@Model.Comments
                         </div>
                     </div>
@@ -121,17 +121,17 @@
 
             <!-- Source remittance file -->
             <div class="detail-card">
-                <h6 class="fw-semibold mb-2"><i class="fas fa-file-code me-2" style="color:#35577D;"></i>Source File</h6>
+                <h6 class="fw-semibold mb-2"><i class="fas fa-file-code me-2 text-slate"></i>Source File</h6>
                 <div class="row g-2">
                     <div class="col-md-8">
                         <div class="detail-label">File Name</div>
-                        <div style="font-size:.78rem; word-break:break-all; color:#374151;">
+                        <div class="fs-78 break-all text-gray-700">
                             @(Model.RemittanceTransaction?.FileName ?? "—")
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="detail-label">Synced At</div>
-                        <div style="font-size:.78rem; color:#374151;">
+                        <div class="fs-78 text-gray-700">
                             @(Model.RemittanceTransaction?.SyncedAt.ToString("dd MMM yyyy HH:mm") ?? "—")
                         </div>
                     </div>
@@ -143,38 +143,38 @@
             {
                 <div class="detail-card">
                     <h6 class="fw-semibold mb-3">
-                        <i class="fas fa-pencil-alt me-2" style="color:#35577D;"></i>
+                        <i class="fas fa-pencil-alt me-2 text-slate"></i>
                         @(isAdmin ? "Task Details" : "My Work")
                     </h6>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Update Status</label>
+                        <label class="form-label fw-semibold fs-82">Update Status</label>
                         <select id="newStatus" class="form-select form-select-sm" style="max-width:220px;">
                             @foreach (var s in (string[])ViewBag.Statuses)
                             {
-                                <option value="@s" selected="@(status == s)">@s</option>
+                                <option value="@s" selected="@(status == s ? "selected" : null)">@s</option>
                             }
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Action Taken / Resubmission Reference</label>
+                        <label class="form-label fw-semibold fs-82">Action Taken / Resubmission Reference</label>
                         <input id="actionTaken" class="form-control form-control-sm"
                                value="@(task?.ActionTaken ?? "")"
                                placeholder="e.g. Re-coded activity 3 with CPT 85027 — ref RES-2026-4411" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                        <label class="form-label fw-semibold fs-82">Notes</label>
                         <textarea id="workNotes" class="form-control form-control-sm" rows="3"
                                   placeholder="Add notes, findings, or escalation reasons…">@(task?.Notes ?? "")</textarea>
                     </div>
-                    <button class="btn btn-sm btn-primary" style="background:#011C40;border-color:#011C40;"
+                    <button class="btn btn-sm btn-navy" style="border-color:#011C40;"
                             onclick="saveStatus()">
                         <i class="fas fa-save me-1"></i>Save
                     </button>
 
                     @if (task != null)
                     {
-                        <div class="mt-3 pt-3 border-top d-flex gap-4 flex-wrap" style="font-size:.75rem; color:#35577D;">
+                        <div class="mt-3 pt-3 border-top d-flex gap-4 flex-wrap fs-75 text-slate">
                             @if (task.StartedAt.HasValue)
                             {
                                 <span><i class="fas fa-play me-1"></i>Started: @task.StartedAt.Value.ToString("dd MMM HH:mm")</span>
@@ -196,31 +196,31 @@
         <!-- ── Right: Assignment Panel ────────────────────────────────────── -->
         <div class="col-lg-4">
             <div class="detail-card">
-                <h6 class="fw-semibold mb-3"><i class="fas fa-user-tag me-2" style="color:#35577D;"></i>Assignment</h6>
+                <h6 class="fw-semibold mb-3"><i class="fas fa-user-tag me-2 text-slate"></i>Assignment</h6>
 
                 @if (task != null)
                 {
                     <div class="mb-3 p-2 rounded" style="background:#f0fdf4; border:1px solid #bbf7d0;">
                         <div class="detail-label">Assigned To</div>
-                        <div class="fw-semibold" style="font-size:.88rem;">
+                        <div class="fw-semibold fs-88">
                             @(task.AssignedTo?.FullName ?? task.AssignedTo?.Email ?? "—")
                         </div>
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <div class="detail-label">Priority</div>
-                            <div class="fw-semibold prio-@(task.Priority)" style="font-size:.85rem;">@task.Priority</div>
+                            <div class="fw-semibold prio-@(task.Priority) fs-85">@task.Priority</div>
                         </div>
                         <div class="col-6">
                             <div class="detail-label">Due Date</div>
-                            <div class="fw-semibold" style="font-size:.85rem;">
+                            <div class="fw-semibold fs-85">
                                 @(task.DueDate.HasValue ? task.DueDate.Value.ToString("dd MMM yyyy") : "—")
                             </div>
                         </div>
                     </div>
                     <div class="mb-2">
                         <div class="detail-label">Assigned By</div>
-                        <div style="font-size:.78rem; color:#374151;">
+                        <div class="fs-78 text-gray-700">
                             @(task.AssignedBy?.FullName ?? task.AssignedBy?.Email ?? "—")
                             &nbsp;on @task.AssignedAt.ToString("dd MMM yyyy")
                         </div>
@@ -228,44 +228,44 @@
                 }
                 else
                 {
-                    <p class="text-muted" style="font-size:.8rem;">This claim has not been assigned yet.</p>
+                    <p class="text-muted fs-80">This claim has not been assigned yet.</p>
                 }
 
                 @if (isAdmin)
                 {
                     <hr />
                     <div class="mb-2">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">@(task != null ? "Re-assign To" : "Assign To")</label>
+                        <label class="form-label fw-semibold fs-82">@(task != null ? "Re-assign To" : "Assign To")</label>
                         <select id="assigneeSelect" class="form-select form-select-sm">
                             @foreach (var u in coders)
                             {
-                                <option value="@u.Id" selected="@(task?.AssignedToUserId == u.Id)">@(u.FullName ?? u.Email)</option>
+                                <option value="@u.Id" selected="@(task?.AssignedToUserId == u.Id ? "selected" : null)">@(u.FullName ?? u.Email)</option>
                             }
                         </select>
                     </div>
                     <div class="row g-2 mb-2">
                         <div class="col-6">
-                            <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                            <label class="form-label fw-semibold fs-82">Priority</label>
                             <select id="prioritySelect" class="form-select form-select-sm">
                                 @foreach (var p in (string[])ViewBag.Priorities)
                                 {
-                                    <option value="@p" selected="@(task?.Priority == p || (task == null && p == "Normal"))">@p</option>
+                                    <option value="@p" selected="@(task?.Priority == p || (task == null && p == "Normal") ? "selected" : null)">@p</option>
                                 }
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                            <label class="form-label fw-semibold fs-82">Due Date</label>
                             <input type="date" id="dueDate" class="form-control form-control-sm"
                                    value="@(task?.DueDate?.ToString("yyyy-MM-dd") ?? "")" />
                         </div>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                        <label class="form-label fw-semibold fs-82">Notes</label>
                         <textarea id="assignNotes" class="form-control form-control-sm" rows="2"
                                   placeholder="Instructions for coder…"></textarea>
                     </div>
-                    <button class="btn btn-sm w-100 fw-semibold"
-                            style="background:#011C40;border-color:#011C40;color:#fff;"
+                    <button class="btn btn-sm w-100 fw-semibold btn-navy"
+                            style="border-color:#011C40;"
                             onclick="saveAssign()">
                         <i class="fas fa-user-plus me-1"></i>@(task != null ? "Update Assignment" : "Assign")
                     </button>
@@ -274,8 +274,8 @@
 
             <!-- Parsed at info -->
             <div class="detail-card">
-                <h6 class="fw-semibold mb-2" style="font-size:.8rem;"><i class="fas fa-info-circle me-1 text-muted"></i>Record Info</h6>
-                <div class="row g-1" style="font-size:.75rem; color:#35577D;">
+                <h6 class="fw-semibold mb-2 fs-80"><i class="fas fa-info-circle me-1 text-muted"></i>Record Info</h6>
+                <div class="row g-1 fs-75 text-slate">
                     <div class="col-5">Payment Ref</div>
                     <div class="col-7 fw-semibold text-dark">@(Model.PaymentReference ?? "—")</div>
                     <div class="col-5">Parsed At</div>

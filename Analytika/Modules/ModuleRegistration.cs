@@ -29,6 +29,7 @@ public static class ModuleRegistration
         services.AddDashboardModule();
         services.AddPortalModule();
         services.AddReportingModule();
+        services.AddAiModule();
         services.AddJobsModule(configuration, hangfireServerEnabled, recurringJobsEnabled, pendingDownloadHostedServiceEnabled);
         return services;
     }
@@ -88,8 +89,13 @@ public static class ModuleRegistration
         {
             options.SignIn.RequireConfirmedAccount = false;
             options.Password.RequireDigit = true;
-            options.Password.RequiredLength = 6;
-            options.Password.RequireNonAlphanumeric = false;
+            options.Password.RequiredLength = 8;
+            options.Password.RequireNonAlphanumeric = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireLowercase = true;
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.AllowedForNewUsers = true;
         })
         .AddEntityFrameworkStores<AppDbContext>()
         .AddDefaultTokenProviders();
@@ -99,9 +105,9 @@ public static class ModuleRegistration
             options.LoginPath = "/Home/Index";
             options.LogoutPath = "/Home/LogOut";
             options.AccessDeniedPath = "/Home/Index";
-            options.ExpireTimeSpan = TimeSpan.FromDays(30);
+            options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
-            options.Cookie.MaxAge = TimeSpan.FromDays(30);
+            options.Cookie.MaxAge = TimeSpan.FromHours(8);
         });
 
         services.AddMemoryCache();
@@ -181,6 +187,22 @@ public static class ModuleRegistration
     private static IServiceCollection AddReportingModule(this IServiceCollection services)
     {
         // Reporting logic is already represented by the existing service graph.
+        return services;
+    }
+
+    private static IServiceCollection AddAiModule(this IServiceCollection services)
+    {
+        // NVIDIA (OpenAI-compatible) analyst agent. Timeout is governed per-request
+        // by the service (settings.TimeoutSeconds); keep the client timeout generous.
+        services.AddHttpClient("nvidia", c => c.Timeout = TimeSpan.FromSeconds(300));
+        services.AddScoped<IAiSettingsService, AiSettingsService>();
+        services.AddScoped<INvidiaAnalystService, NvidiaAnalystService>();
+
+        // Local Ollama assistant (intent-catalogue architecture; preferred when the
+        // local server is up — zero external API cost, data stays on-prem).
+        services.AddHttpClient("ollama", c => c.Timeout = TimeSpan.FromSeconds(300));
+        services.AddSingleton<IOllamaClient, OllamaClient>();
+        services.AddScoped<IBixAssistantService, BixAssistantService>();
         return services;
     }
 

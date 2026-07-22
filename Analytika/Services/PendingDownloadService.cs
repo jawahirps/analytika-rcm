@@ -76,7 +76,7 @@ public class PendingDownloadService : BackgroundService
 
         var pending = await db.PortalTransactions
             .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA")
-            .Select(t => new { t.Id, t.FacilityId, t.FileId, t.Type, t.TransactionId })
+            .Select(t => new { t.Id, t.FacilityId, t.FileId, t.FileName, t.Type, t.TransactionId })
             .OrderBy(t => t.FacilityId)
             .ThenBy(t => t.Id)
             .Take(batchSize)
@@ -129,7 +129,8 @@ public class PendingDownloadService : BackgroundService
                 continue;
             }
 
-            // Download file
+            // Download file by transaction GUID. (The six-week download outage
+            // from Jun 9 was the SOAP param casing — DHPO requires <fileId>.)
             try
             {
                 var (_, _, dlBytes, dlErr) = await dha.DownloadTransactionFileAsync(
@@ -151,13 +152,16 @@ public class PendingDownloadService : BackgroundService
                 }
                 else
                 {
-                    _logger.LogDebug("[PendingDownload] Skipped {tid}: {err}", tx.TransactionId, dlErr ?? "no bytes");
+                    // Warning, not Debug: silent per-file failures hid a total
+                    // download outage (0/762) behind a "Success" bulk log.
+                    _logger.LogWarning("[PendingDownload] Download refused for {tid} ({type}): {err}",
+                        tx.TransactionId, tx.Type, dlErr ?? "no bytes returned");
                     failed++;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogDebug(ex, "[PendingDownload] Error downloading {tid}", tx.TransactionId);
+                _logger.LogWarning(ex, "[PendingDownload] Error downloading {tid}", tx.TransactionId);
                 failed++;
             }
 

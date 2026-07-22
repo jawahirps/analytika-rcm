@@ -6,7 +6,7 @@
 <div class="container-fluid py-4 px-4">
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Email Settings</h4>
+            <h4 class="mb-0 fw-bold text-navy">Email Settings</h4>
             <small class="text-muted">SMTP configuration for automated report delivery</small>
         </div>
     </div>
@@ -23,8 +23,8 @@
         <div class="col-lg-7">
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:var(--navy);">
-                        <i class="fas fa-server me-2" style="color:#A7EBF2;"></i>SMTP Server
+                    <h6 class="fw-bold mb-3 text-navy">
+                        <i class="fas fa-server me-2 text-cyan-light"></i>SMTP Server
                     </h6>
                     <form asp-action="SaveEmailSettings" method="post">
                         @Html.AntiForgeryToken()
@@ -59,7 +59,7 @@
                             <div class="col-md-6">
                                 <label class="form-label">From Name</label>
                                 <input name="fromName" class="form-control" value="@Model.FromName"
-                                       placeholder="GhafBI Reports" />
+                                       placeholder="Ghaf Business Intelligence" />
                             </div>
                             <div class="col-12">
                                 <div class="form-check">
@@ -82,10 +82,10 @@
         <div class="col-lg-5">
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:var(--navy);">
+                    <h6 class="fw-bold mb-3 text-navy">
                         <i class="fas fa-paper-plane me-2" style="color:var(--amber);"></i>Test Connection
                     </h6>
-                    <p class="text-muted mb-3" style="font-size:.82rem;">
+                    <p class="text-muted mb-3 fs-82">
                         Send a test message to verify the SMTP settings are working.
                     </p>
                     <div class="input-group mb-2">
@@ -96,16 +96,16 @@
                             <i class="fas fa-paper-plane me-1"></i> Send Test
                         </button>
                     </div>
-                    <div id="testResult" style="font-size:.8rem;display:none;"></div>
+                    <div id="testResult" class="fs-80 d-none"></div>
                 </div>
             </div>
 
             <div class="card border-0 shadow-sm mt-3">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-2" style="color:var(--navy);">
-                        <i class="fas fa-info-circle me-2" style="color:#A7EBF2;"></i>Common SMTP Hosts
+                    <h6 class="fw-bold mb-2 text-navy">
+                        <i class="fas fa-info-circle me-2 text-cyan-light"></i>Common SMTP Hosts
                     </h6>
-                    <table class="table table-sm mb-0" style="font-size:.78rem;">
+                    <table class="table table-sm mb-0 fs-78">
                         <tbody>
                             <tr><td class="fw-semibold">Office 365</td><td>smtp.office365.com : 587</td></tr>
                             <tr><td class="fw-semibold">Gmail</td><td>smtp.gmail.com : 587</td></tr>
@@ -121,7 +121,6 @@
 
 @section Scripts {
 <script>
-@Html.AntiForgeryToken()
 function getToken() {
     return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
 }

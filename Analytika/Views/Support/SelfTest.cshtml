@@ -1,0 +1,143 @@
+@{
+    ViewData["Title"] = "Self-Diagnostics";
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-4 d-flex justify-content-between align-items-start">
+        <div>
+            <h4 class="mb-0 fw-bold text-navy">
+                <i class="fas fa-stethoscope me-2 text-cyan-light"></i>Self-Diagnostics
+            </h4>
+            <small class="text-muted">Live health &amp; status checks, plus a 2-year data-coverage scan for every connected branch</small>
+        </div>
+        <button id="runBtn" class="btn btn-primary" onclick="runDiagnostics()">
+            <i class="fas fa-play me-1"></i> Run diagnostics
+        </button>
+    </div>
+
+    @Html.AntiForgeryToken()
+
+    <div id="placeholder" class="card border-0 shadow-sm d-flex align-items-center justify-content-center" style="border-radius:12px;min-height:240px;">
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-stethoscope fa-3x mb-3" style="color:#EAF4FB;"></i>
+            <p class="mb-0">Click <strong>Run diagnostics</strong> to check system health and scan the last 24 months of data for each branch.</p>
+        </div>
+    </div>
+
+    <div id="results" style="display:none;">
+        <!-- Health -->
+        <div class="row g-3 mb-4" id="healthCards"></div>
+
+        <!-- Per-facility coverage -->
+        <div class="card border-0 shadow-sm" style="border-radius:12px;">
+            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-navy"><i class="fas fa-calendar-check me-2 text-cyan-light"></i>2-Year Data Coverage by Branch</span>
+                <span class="fs-80 text-muted" id="windowLabel"></span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size:.85rem;">
+                        <thead style="background:#EAF4FB;">
+                            <tr>
+                                <th class="ps-4 py-2 border-0 text-muted fw-semibold">Branch</th>
+                                <th class="py-2 border-0 text-muted fw-semibold">Portals</th>
+                                <th class="py-2 border-0 text-muted fw-semibold text-end">Records (24 mo)</th>
+                                <th class="py-2 border-0 text-muted fw-semibold text-center">Coverage</th>
+                                <th class="py-2 border-0 text-muted fw-semibold">Missing months</th>
+                                <th class="pe-4 py-2 border-0 text-muted fw-semibold">Last fetch</th>
+                            </tr>
+                        </thead>
+                        <tbody id="facRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+const token = () => document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+function esc(s){ const d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+function fmtUtc(s){ if(!s) return '—'; const d=new Date(s); return isNaN(d)?'—':d.toISOString().slice(0,16).replace('T',' ')+' UTC'; }
+
+function healthCard(label, value, ok, icon){
+    const color = ok === null ? '#54ACBF' : (ok ? '#0f9d58' : '#dc3545');
+    return `<div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm h-100" style="border-radius:12px;">
+          <div class="card-body p-3">
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <i class="fas ${icon}" style="color:${color};"></i>
+              <span class="fs-80 text-muted">${esc(label)}</span>
+            </div>
+            <div class="fw-bold fs-5 text-navy">${value}</div>
+          </div>
+        </div></div>`;
+}
+
+function coverageBar(monthly){
+    // 24 little cells, green = has data, red = gap
+    return '<div style="display:flex;gap:2px;">' + monthly.map(m =>
+        `<span title="${esc(m.ym)}: ${m.count} records" style="width:8px;height:16px;border-radius:2px;display:inline-block;background:${m.count>0?'#0f9d58':'#e5686f'};"></span>`
+    ).join('') + '</div>';
+}
+
+async function runDiagnostics(){
+    const btn = document.getElementById('runBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running…';
+    try {
+        const fd = new FormData(); fd.append('__RequestVerificationToken', token());
+        const r = await fetch('/Support/RunDiagnostics', { method:'POST', body: fd });
+        const d = await r.json();
+        render(d);
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('results').style.display = '';
+    } catch(e) {
+        alert('Diagnostics failed: ' + e.message);
+    }
+    btn.disabled = false; btn.innerHTML = orig;
+}
+
+function render(d){
+    const h = d.health;
+    const cards = [
+        healthCard('Database', h.dbOk ? 'Healthy' : 'Error', h.dbOk, h.dbOk ? 'fa-database' : 'fa-triangle-exclamation'),
+        healthCard('Claim records', Number(h.totalRecords).toLocaleString(), null, 'fa-file-medical'),
+        healthCard('Connected branches', h.connectedFacilities, h.connectedFacilities>0, 'fa-hospital'),
+        healthCard('Last portal sync', fmtUtc(h.lastSyncUtc), h.lastSyncUtc!=null, 'fa-cloud-arrow-down'),
+    ].join('');
+    document.getElementById('healthCards').innerHTML = cards;
+    document.getElementById('windowLabel').textContent = `${h.windowFrom} → ${h.windowTo} · scanned ${new Date(d.generatedAtUtc).toISOString().slice(0,16).replace('T',' ')} UTC`;
+
+    if (!h.dbOk) {
+        document.getElementById('facRows').innerHTML =
+            `<tr><td colspan="6" class="text-danger p-4"><i class="fas fa-triangle-exclamation me-2"></i>Database error: ${esc(h.dbError)}</td></tr>`;
+        return;
+    }
+    if (!d.facilities.length) {
+        document.getElementById('facRows').innerHTML =
+            `<tr><td colspan="6" class="text-muted p-4">No connected branches (no active portal credentials found).</td></tr>`;
+        return;
+    }
+
+    document.getElementById('facRows').innerHTML = d.facilities.map(f => {
+        const gapCount = f.gapMonths.length;
+        const cov = `${f.coveredMonths}/${f.totalMonths}`;
+        const covColor = gapCount === 0 ? '#0f9d58' : (gapCount <= 3 ? '#e0a800' : '#dc3545');
+        const gapBadges = gapCount === 0
+            ? '<span class="badge bg-success-subtle text-success">Complete</span>'
+            : f.gapMonths.map(m => `<span class="badge bg-danger-subtle text-danger me-1 mb-1">${esc(m)}</span>`).join('');
+        const inactive = f.isActive ? '' : ' <span class="badge bg-secondary-subtle text-secondary">inactive</span>';
+        return `<tr>
+            <td class="ps-4 fw-semibold text-navy">${esc(f.name)}${inactive}</td>
+            <td>${f.portals.map(p=>`<span class="badge rounded-pill" style="background:#EAF4FB;color:#54ACBF;">${esc(p)}</span>`).join(' ')}</td>
+            <td class="text-end">${Number(f.recordsInWindow).toLocaleString()}</td>
+            <td class="text-center"><div class="fw-semibold" style="color:${covColor};">${cov}</div>${coverageBar(f.monthly)}</td>
+            <td style="max-width:340px;">${gapBadges}</td>
+            <td class="pe-4 text-muted">${fmtUtc(f.lastFetchUtc)}</td>
+        </tr>`;
+    }).join('');
+}
+</script>
+}
