@@ -77,6 +77,12 @@ if (builder.Configuration.GetValue("Keepalive:Enabled", true))
     builder.Services.AddHostedService<Analytika.Services.BixKeepaliveService>();
 }
 
+// Warm-up — periodically rebuilds the heavy dashboard aggregation cache and keeps the
+// SQLite hot-page cache resident, so the app stays fast after idle (not only while actively
+// used). /healthz keepalive alone does no DB work. Disable via Warmup:Enabled=false.
+if (builder.Configuration.GetValue("Warmup:Enabled", true))
+    builder.Services.AddHostedService<Analytika.Services.WarmupHostedService>();
+
 // Respect PORT env variable (set by preview/hosting environment)
 var port = Environment.GetEnvironmentVariable("PORT");
 if (!string.IsNullOrEmpty(port))
