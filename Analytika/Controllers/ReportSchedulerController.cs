@@ -19,14 +19,17 @@ public class ReportSchedulerController : Controller
     private readonly IReportService _reportService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
+    private readonly Analytika.Security.FacilityScopeService _scope;
 
     public ReportSchedulerController(AppDbContext context, IReportService reportService,
-        UserManager<ApplicationUser> userManager, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
+        UserManager<ApplicationUser> userManager, Microsoft.Extensions.Caching.Memory.IMemoryCache cache,
+        Analytika.Security.FacilityScopeService scope)
     {
         _context = context;
         _reportService = reportService;
         _userManager = userManager;
         _cache = cache;
+        _scope = scope;
     }
 
     // Returns the single facility ID for Facility-type users, null for Global users.
@@ -143,6 +146,16 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
         var user = User.Identity?.Name ?? "system";
+
+        // SECURITY: never trust the posted facility list. Filtering the dropdown is not
+        // enough — a scoped user could tamper with the form to request another facility's
+        // data. Clamp to what this user is actually allowed to see.
+        model.SelectedFacilities = await _scope.ClampAsync(User, model.SelectedFacilities);
+        if (model.SelectedFacilities.Count == 0 && !await _scope.IsUnrestrictedAsync(User))
+        {
+            TempData["Error"] = "You don't have access to the selected facility.";
+            return RedirectToAction(GetActionName(model.ReportType));
+        }
 
         // Multi-select is the source of truth; the single *Id fields stay populated
         // with the first selected value for backward-compatible list display.

@@ -75,6 +75,12 @@ public static class SqliteSchemaService
 
         if (!ColumnExists(db, "XmlParsedRecords", "ClaimCategory"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""XmlParsedRecords"" ADD COLUMN ""ClaimCategory"" TEXT NULL");
+
+        // Official DHPO facility license identity, matched from the imported facility list.
+        if (!ColumnExists(db, "Facilities", "FullName"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Facilities"" ADD COLUMN ""FullName"" TEXT NULL");
+        if (!ColumnExists(db, "Facilities", "LicenseCode"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Facilities"" ADD COLUMN ""LicenseCode"" TEXT NULL");
     }
 
     private static void CreateTables(AppDbContext db)

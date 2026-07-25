@@ -181,6 +181,7 @@ public static class ModuleRegistration
         services.AddScoped<ReconciliationService>();
         services.AddScoped<RemittanceParserService>();
         services.AddScoped<XmlParsingService>();
+        services.AddScoped<Analytika.Security.FacilityScopeService>();
         return services;
     }
 

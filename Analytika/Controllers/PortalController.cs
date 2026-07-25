@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -24,9 +25,11 @@ public class PortalController : Controller
     private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly Analytika.Security.FacilityScopeService _scope;
     private readonly ILogger<PortalController> _logger;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, ILogger<PortalController> logger)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, IServiceScopeFactory scopeFactory, Analytika.Security.FacilityScopeService scope, ILogger<PortalController> logger)
     {
         _db = db;
         _dha = dha;
@@ -36,6 +39,8 @@ public class PortalController : Controller
         _xmlParsing = xmlParsing;
         _cache = cache;
         _credentials = credentials;
+        _scopeFactory = scopeFactory;
+        _scope = scope;
         _logger = logger;
     }
 
@@ -57,6 +62,26 @@ public class PortalController : Controller
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(60);
             return await BuildDataValidationAsync();
         });
+
+        // Facility isolation: non-admins see only their facilities' rows. The cached VM is
+        // shared, so build a scoped copy (never mutate the cache); cross-facility ByType and
+        // the parse-coverage figure are dropped since they can't be re-derived per facility.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowedFac is not null && vm is not null)
+        {
+            var names = (await _db.Facilities.AsNoTracking().Where(f => allowedFac.Contains(f.Id))
+                .Select(f => f.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var scopedRows = vm.Facilities.Where(f => names.Contains(f.FacilityName)).ToList();
+            vm = new DataValidationViewModel
+            {
+                Facilities = scopedRows,
+                ByType = new(),
+                TotalTransactions = scopedRows.Sum(f => f.Total),
+                TotalDownloaded = scopedRows.Sum(f => f.Downloaded),
+                TotalPending = scopedRows.Sum(f => f.Pending),
+                DownloadedNotParsed = 0,
+            };
+        }
         return View(vm);
     }
 
@@ -606,6 +631,7 @@ public class PortalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SyncNew(int facilityId)
     {
+        if (!await _scope.CanAccessAsync(User, facilityId)) return Forbid();
         var (credNullable, pwdNullable, credErr) = await GetActiveCredentialAsync("DHA", facilityId);
         if (credErr != null)
             return Json(new { ok = false, message = credErr });
@@ -654,9 +680,14 @@ public class PortalController : Controller
     [HttpGet]
     public async Task<IActionResult> SyncedData(string? portal, List<int>? facilityId, string? dateFrom, string? dateTo, string? search, int page = 1)
     {
-        var facilities = await GetFacilitySelectListAsync();
+        // Facility isolation: non-admins only ever see their own facilities' records.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        facilityId = await _scope.ClampAsync(User, facilityId);
+
+        var facilities = await GetFacilitySelectListAsync(allowedFac);
 
         var query = _db.PortalTransactions.Include(t => t.Facility).AsNoTracking().AsQueryable();
+        if (allowedFac is not null) query = query.Where(t => allowedFac.Contains(t.FacilityId));
 
         if (!string.IsNullOrEmpty(portal)) query = query.Where(t => t.Portal == portal);
         if (facilityId != null && facilityId.Count > 0) query = query.Where(t => facilityId.Contains(t.FacilityId));
@@ -874,7 +905,13 @@ public class PortalController : Controller
     public async Task<IActionResult> XmlParsing(List<int>? facilityId, string? search, string? kind)
     {
         await _xmlParsing.EnsureSchemaAsync();
-        var vm = await _reconciliation.GetXmlParsingStatsAsync(facilityId, search, kind);
+        // Facility isolation: non-admins are constrained to their own facilities. An empty
+        // request for a scoped user resolves to their facilities (never "all").
+        var scoped = await _scope.ClampAsync(User, facilityId);
+        if (!await _scope.IsUnrestrictedAsync(User) && scoped.Count == 0)
+            return View("NoFacilityAccess");
+        var effective = await _scope.IsUnrestrictedAsync(User) ? facilityId : scoped;
+        var vm = await _reconciliation.GetXmlParsingStatsAsync(effective, search, kind);
         return View(vm);
     }
 
@@ -1269,6 +1306,7 @@ public class PortalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DownloadSelected(string portal, int facilityId, string rowsJson)
     {
+        if (!await _scope.CanAccessAsync(User, facilityId)) return Forbid();
         if (string.IsNullOrWhiteSpace(rowsJson)) return Json(new { error = "No rows selected." });
 
         List<SelectedDlRow>? sel;
@@ -1403,6 +1441,7 @@ public class PortalController : Controller
     [HttpGet]
     public async Task SyncFacilityStream(int facilityId, string? from = null, string? to = null, int resumeMonthIdx = 0)
     {
+        if (!await _scope.CanAccessAsync(User, facilityId)) { Response.StatusCode = 403; return; }
         var ct = HttpContext.RequestAborted;
         Response.ContentType = "text/event-stream; charset=utf-8";
         Response.Headers["Cache-Control"] = "no-cache";
@@ -1435,7 +1474,7 @@ public class PortalController : Controller
         try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
         catch { await Send(new { status = "error", message = "Corrupted password." }); return; }
 
-        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
+        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo, newestFirst: true);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         var grandByType = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -1491,6 +1530,23 @@ public class PortalController : Controller
         });
         await _db.SaveChangesAsync(ct);
 
+        // Sync now runs the WHOLE pipeline: search + download + parse. After the
+        // files are downloaded, parse them so records are immediately report-ready
+        // (no separate XML-Parsing step). The heartbeat is still running here, so a
+        // long parse won't drop the SSE connection.
+        await Send(new { status = "parsing", stage = "start", message = "Parsing downloaded files…", done = 0, total = 0, records = 0 });
+        try
+        {
+            var parseResult = await _xmlParsing.ParseDownloadedXmlAsync(cred.FacilityId, rebuild: false,
+                onProgress: p => Send(new { status = "parsing", stage = p.Status, message = p.Message, done = p.Done, total = p.Total, records = p.Result.RecordsSaved }));
+            await Send(new { status = "parse_done", parsed = parseResult.FilesParsed, records = parseResult.RecordsSaved, submissions = parseResult.SubmissionRows, remittances = parseResult.RemittanceRows, matched = parseResult.MatchedClaimRefs });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Auto-parse after sync failed for facility {FacilityId}", cred.FacilityId);
+            await Send(new { status = "parse_error", message = "Files downloaded, but parsing failed — retry from XML Parsing." });
+        }
+
         heartbeatCts.Cancel();
         _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
@@ -1536,19 +1592,25 @@ public class PortalController : Controller
             catch { }
         }
 
+        // Facility isolation: "sync all" only ever touches facilities the user may access.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
         var credsQuery = _db.PortalCredentials.Include(c => c.Facility).Where(c => c.IsActive && c.Portal == "DHA");
         if (facilityIds?.Count > 0)
             credsQuery = credsQuery.Where(c => facilityIds.Contains(c.FacilityId));
+        if (allowedFac is not null)
+            credsQuery = credsQuery.Where(c => allowedFac.Contains(c.FacilityId));
         var creds = await credsQuery.ToListAsync(ct);
 
         if (!creds.Any())
         { await Send(new { status = "error", message = "No active DHA credentials found." }); return; }
 
-        var parsedFrom = new DateTime(2024, 1, 1);
+        // Rolling 2-year window (first of the month, 2 years back → today), processed
+        // newest month first per "prioritize last month, back-date 2 years".
+        var parsedFrom = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddYears(-2);
         var parsedTo = DateTime.Today;
         int[] effectiveTxTypes = (txTypes?.Count > 0) ? txTypes.ToArray() : DhaPortalService.DefaultTxTypes;
 
-        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo);
+        var monthChunks = BuildMonthChunks(parsedFrom, parsedTo, newestFirst: true);
 
         int grandTotal = 0, grandSaved = 0, grandDups = 0, grandFiles = 0;
         int facilityIndex = 0;
@@ -1636,6 +1698,28 @@ public class PortalController : Controller
             await Send(new { status = "facility_done", message = $"[{facName}] ✓ {facSaved} new, {facDups} dup, {facFiles} files", facilityIndex, facilityFi = fi, facilityName = facName, saved = facSaved, dups = facDups, files = facFiles, pct = (int)((double)stepsDone / totalSteps * 100) });
         }
 
+        // Sync-All uses a DETACHED background parse: the fetch+download above finishes
+        // fast, then parsing runs in its own DI scope (the request scope is disposed
+        // with this SSE stream) so a 2-year all-facility backfill isn't blocked on the
+        // slow parse+match. Single-facility sync still parses inline.
+        var facilitiesToParse = creds.Select(c => c.FacilityId).Distinct().ToList();
+        var scopeFactory = _scopeFactory;
+        var bgLogger = _logger;
+        _ = Task.Run(async () =>
+        {
+            foreach (var fid in facilitiesToParse)
+            {
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var parser = scope.ServiceProvider.GetRequiredService<XmlParsingService>();
+                    await parser.ParseDownloadedXmlAsync(fid, rebuild: false);
+                }
+                catch (Exception ex) { bgLogger.LogError(ex, "Background parse after Sync-All failed for facility {FacilityId}", fid); }
+            }
+        });
+        await Send(new { status = "parsing_bg", message = $"Download complete — parsing {facilitiesToParse.Count} facility(ies) in the background; records become report-ready as each finishes." });
+
         heartbeatCts.Cancel();
         _cache.Remove("statusbar_static");
         ActiveSyncState.Finish(grandSaved, grandFiles);
@@ -1676,6 +1760,7 @@ public class PortalController : Controller
     [HttpGet]
     public async Task<IActionResult> DownloadFacilityXml(int facilityId, string? types = "2,8")
     {
+        if (!await _scope.CanAccessAsync(User, facilityId)) return Forbid();
         var typeList = (types ?? "2,8")
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(t => t.Trim()).ToList();
@@ -1937,22 +2022,28 @@ public class PortalController : Controller
 
     private const string FacilitiesCacheKey = "facilities_select_list";
 
-    private async Task<List<SelectListItem>> GetFacilitySelectListAsync()
+    private async Task<List<SelectListItem>> GetFacilitySelectListAsync(List<int>? allowed = null)
     {
-        if (_cache.TryGetValue(FacilitiesCacheKey, out List<SelectListItem>? cached) && cached != null)
-            return cached;
-
-        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking()
-            .Select(f => new { f.Id, f.Name })
-            .ToListAsync();
-        var items = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList();
-        _cache.Set(FacilitiesCacheKey, items, TimeSpan.FromMinutes(5));
+        if (!_cache.TryGetValue(FacilitiesCacheKey, out List<SelectListItem>? items) || items == null)
+        {
+            var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking()
+                .Select(f => new { f.Id, f.Name })
+                .ToListAsync();
+            items = facilities.Select(f => new SelectListItem(f.Name, f.Id.ToString())).ToList();
+            _cache.Set(FacilitiesCacheKey, items, TimeSpan.FromMinutes(5));
+        }
+        // Facility isolation: non-admins only see their own facilities in pickers.
+        if (allowed is not null)
+        {
+            var set = allowed.Select(i => i.ToString()).ToHashSet();
+            items = items.Where(i => set.Contains(i.Value)).ToList();
+        }
         return items;
     }
 
     private async Task<PortalFetchViewModel> BuildFetchVmAsync()
     {
-        var facilities = await GetFacilitySelectListAsync();
+        var facilities = await GetFacilitySelectListAsync(await _scope.GetAllowedFacilityIdsAsync(User));
         var logs = await _db.PortalFetchLogs
             .Include(l => l.Facility)
             .AsNoTracking()
@@ -1969,7 +2060,7 @@ public class PortalController : Controller
 
     private async Task<PortalSyncViewModel> BuildSyncVmAsync()
     {
-        var facilitiesTask = GetFacilitySelectListAsync();
+        var facilitiesTask = GetFacilitySelectListAsync(await _scope.GetAllowedFacilityIdsAsync(User));
         var totalInDbTask  = _db.PortalTransactions.CountAsync();
         var totalFilesTask = _db.PortalTransactions.CountAsync(t => t.FileDownloaded);
         await Task.WhenAll(facilitiesTask, totalInDbTask, totalFilesTask);
@@ -1982,7 +2073,7 @@ public class PortalController : Controller
         };
     }
 
-    private static List<(DateTime Start, DateTime End, string Label)> BuildMonthChunks(DateTime from, DateTime to)
+    private static List<(DateTime Start, DateTime End, string Label)> BuildMonthChunks(DateTime from, DateTime to, bool newestFirst = false)
     {
         var chunks = new List<(DateTime, DateTime, string)>();
         var cur = from;
@@ -1993,6 +2084,9 @@ public class PortalController : Controller
             chunks.Add((cur, end, cur.ToString("MMM yyyy")));
             cur = end.AddDays(1);
         }
+        // newestFirst: process the most recent month first and back-date from there,
+        // so the freshest data lands (and becomes report-ready) before older months.
+        if (newestFirst) chunks.Reverse();
         return chunks;
     }
 }

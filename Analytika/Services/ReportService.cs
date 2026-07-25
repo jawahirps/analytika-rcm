@@ -270,6 +270,14 @@ public class ReportService : IReportService
                 await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
                 return;
             }
+            if (report.ReportType == "ClaimActivity")
+            {
+                // Genuine activity-level report — one row per SUBMISSION activity line,
+                // enriched with the RA outcome (paid/denied) for that activity.
+                await GenerateClaimActivityWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
 
             UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
             UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
@@ -793,12 +801,23 @@ public class ReportService : IReportService
         var q = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
         if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
 
-        // RA-date window (default criteria) applied in SQL.
+        // Date scope honours the report's Search Criteria:
+        //  • RA-side dates (RemittanceDate / SettlementDate) -> filter the RA rows directly.
+        //  • Claim-side dates (Encounter/Submission) -> RA records don't carry them, so
+        //    qualify CLAIMS by their submission date and include ALL of those claims' RAs
+        //    (full lifecycle) regardless of RA date. Applied in-memory after load.
+        var criteria = report.SearchCriteria ?? "RemittanceDate";
         var df = report.DateFrom.ToString("yyyyMMdd");
         var dt = report.DateTo.ToString("yyyyMMdd");
-        q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
-            || (string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), df) >= 0
-             && string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), dt) <= 0));
+        if (criteria == "SettlementDate")
+            q = q.Where(r => r.SettlementDate == null || r.SettlementDate.Length < 10
+                || (string.Compare(r.SettlementDate.Substring(6,4)+r.SettlementDate.Substring(3,2)+r.SettlementDate.Substring(0,2), df) >= 0
+                 && string.Compare(r.SettlementDate.Substring(6,4)+r.SettlementDate.Substring(3,2)+r.SettlementDate.Substring(0,2), dt) <= 0));
+        else if (criteria == "RemittanceDate")
+            q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
+                || (string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), df) >= 0
+                 && string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), dt) <= 0));
+        // else (claim-side): no SQL date filter — narrowed to qualifying claims after load.
 
         var recs = await q.Select(r => new
         {
@@ -808,6 +827,12 @@ public class ReportService : IReportService
             r.IdPayer, r.PaymentReference, r.SettlementDate, r.Clinician, r.FileName, r.FileId,
             r.Comments, r.ResubmissionType
         }).Take(400000).ToListAsync();
+
+        if (!IsRemittanceSideCriteria(criteria))
+        {
+            var qualClaims = await LoadClaimsBySubmissionCriteriaAsync(facilityIds, criteria, report.DateFrom, report.DateTo);
+            recs = recs.Where(r => r.ClaimId != null && qualClaims.Contains(r.ClaimId.Trim())).ToList();
+        }
 
         updateStage("Loading lookups", 40, 0, 0, "Activities, submissions, and eClaimLink code sets.");
         var recIds = recs.Select(r => r.Id).ToList();
@@ -831,6 +856,10 @@ public class ReportService : IReportService
         var clinicianLookup = await LoadClinicianLookupAsync();
         var denialLookup = await LoadDenialLookupAsync();
         var subFull = await LoadSubmissionFullAsync(facilityIds);
+        // RA round number per remittance record, computed over each claim's ENTIRE RA
+        // timeline (NOT the report's date window) — so a July RA that is really a claim's
+        // 2nd/3rd RA is labelled correctly even when its earlier RAs fall outside the window.
+        var raRoundOrdinal = await LoadRaRoundOrdinalAsync(facilityIds);
         SubFull S(string? claimId) => subFull.TryGetValue(claimId ?? "", out var s) ? s : SubFull.Empty;
         string PayerName(string? code) => code != null && payerLookup.TryGetValue(code, out var n) ? n : (code ?? "");
         string ClinName(string? code) => code != null && clinicianLookup.TryGetValue(code, out var n) ? n : (code ?? "");
@@ -865,7 +894,8 @@ public class ReportService : IReportService
             foreach (var a in acts)
             {
                 rn++;
-                var raPaymentFor = string.IsNullOrWhiteSpace(r.ResubmissionType) ? "1st RA" : $"Resubmission RA ({r.ResubmissionType})";
+                // Round number from the claim's full RA sequence (window-independent).
+                var raPaymentFor = OrdinalRa(raRoundOrdinal.TryGetValue(r.Id, out var raOrd) ? raOrd : 1);
                 ws.Cell(rn, 1).Value = facCodeByFacility.TryGetValue(r.FacilityId, out var fc) ? fc : FacCode(FirstNonBlank(r.FileName, s.FileName));
                 ws.Cell(rn, 2).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
                 ws.Cell(rn, 3).Value = D(FirstNonBlank(r.ReceiverId, s.ReceiverId));
@@ -949,6 +979,195 @@ public class ReportService : IReportService
         wb.SaveAs(filePath);
     }
 
+    private static readonly string[] ClaimActivityHeaders =
+    {
+        "Facility","Claim Number","Payer ID","Payer Name","Patient ID","Member Id","Emirates Id",
+        "Encounter Type","Encounter Start Date","Submission Date","Service Year","Service Month",
+        "Clinician","Ordering Clinician","Activity Code","Activity Type","Activity Type Name",
+        "No Of Unit","Gross Amt","Net Amt (Billed)","RA Payment Amt","Activity Status",
+        "Denial Code","Denial Description","Denial Catgeory","Denial Type",
+        "Claim Submission File Name"
+    };
+
+    // Activity-level CLAIM report: one row per submission <Activity> line (the billed
+    // activities), enriched with the matching RA outcome (paid / denied) for that
+    // (ClaimId, ActivityCode). Sourced entirely from parsed XML.
+    private async Task GenerateClaimActivityWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying submissions", 15, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission.");
+        var q = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+
+        var df = report.DateFrom.ToString("yyyyMMdd");
+        var dt = report.DateTo.ToString("yyyyMMdd");
+        switch (report.SearchCriteria)
+        {
+            case "EncounterStartDate":
+                q = q.Where(r => r.TreatmentDate == null || r.TreatmentDate.Length < 10
+                    || (string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), df) >= 0
+                     && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), dt) <= 0));
+                break;
+            case "EncounterEndDate":
+                q = q.Where(r => r.TreatmentDateEnd == null || r.TreatmentDateEnd.Length < 10
+                    || (string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), df) >= 0
+                     && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), dt) <= 0));
+                break;
+            default: // SubmissionDate
+                q = q.Where(r => r.SubmissionDate == null || r.SubmissionDate.Length < 10
+                    || (string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), df) >= 0
+                     && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), dt) <= 0));
+                break;
+        }
+
+        var recs = await q.Select(r => new {
+            r.Id, r.FacilityId, r.ClaimId, r.PayerId, r.PayerName, r.PatientId, r.MemberId, r.PatientNationalId,
+            r.EncounterType, r.TreatmentDate, r.SubmissionDate, r.ServiceYear, r.ServiceMonth, r.Clinician, r.FileName
+        }).Take(400000).ToListAsync();
+
+        updateStage("Loading activities", 40, 0, 0, "Submission activities, RA outcomes, and eClaimLink code sets.");
+        var recIds = recs.Select(r => r.Id).ToList();
+        var subActs = new Dictionary<int, List<dynamic>>();
+        for (int i = 0; i < recIds.Count; i += 20000)
+        {
+            var chunk = recIds.Skip(i).Take(20000).ToList();
+            var acts = await _context.XmlParsedActivities.AsNoTracking()
+                .Where(a => chunk.Contains(a.XmlParsedRecordId))
+                .Select(a => new { a.XmlParsedRecordId, a.ActivityCode, a.ActivityType, a.Quantity, a.Net, a.Gross, a.Clinician, a.OrderingClinician })
+                .ToListAsync();
+            foreach (var a in acts)
+            {
+                if (!subActs.TryGetValue(a.XmlParsedRecordId, out var list)) { list = new(); subActs[a.XmlParsedRecordId] = list; }
+                list.Add(a);
+            }
+        }
+
+        // RA outcome per (ClaimId + ActivityCode): summed payment + any denial code — from
+        // remittance activities of the same claims. Scoped to the report's claim set.
+        var claimSet = recs.Select(r => (r.ClaimId ?? "").Trim())
+            .Where(c => c.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var remQ = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
+        if (facilityIds.Count > 0) remQ = remQ.Where(r => facilityIds.Contains(r.FacilityId));
+        var remRecs = await remQ.Select(r => new { r.Id, r.ClaimId }).Take(400000).ToListAsync();
+        var relRemIdToClaim = remRecs
+            .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId) && claimSet.Contains(r.ClaimId!.Trim()))
+            .ToDictionary(r => r.Id, r => r.ClaimId!.Trim());
+        var raOutcome = new Dictionary<string, (decimal Paid, string? Denial)>(StringComparer.OrdinalIgnoreCase);
+        var relRemIds = relRemIdToClaim.Keys.ToList();
+        for (int i = 0; i < relRemIds.Count; i += 20000)
+        {
+            var chunk = relRemIds.Skip(i).Take(20000).ToList();
+            var acts = await _context.XmlParsedActivities.AsNoTracking()
+                .Where(a => chunk.Contains(a.XmlParsedRecordId))
+                .Select(a => new { a.XmlParsedRecordId, a.ActivityCode, a.PaymentAmount, a.DenialCode })
+                .ToListAsync();
+            foreach (var a in acts)
+            {
+                if (!relRemIdToClaim.TryGetValue(a.XmlParsedRecordId, out var cid)) continue;
+                var key = cid + "" + (a.ActivityCode ?? "").Trim();
+                raOutcome.TryGetValue(key, out var cur);
+                var denial = !string.IsNullOrWhiteSpace(a.DenialCode) ? a.DenialCode : cur.Denial;
+                raOutcome[key] = (cur.Paid + a.PaymentAmount, denial);
+            }
+        }
+
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+        var payerLookup = await LoadPayerLookupAsync();
+        var clinicianLookup = await LoadClinicianLookupAsync();
+        var denialLookup = await LoadDenialLookupAsync();
+        string PayerName(string? code) => code != null && payerLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        string ClinName(string? code) => code != null && clinicianLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        static string D(string? s) => string.IsNullOrWhiteSpace(s) ? "" : s!.Trim();
+
+        updateStage("Generating workbook", 80, recs.Count, recs.Count, $"Writing activity rows for {recs.Count:N0} submission claim(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Calibri";
+        var ws = wb.Worksheets.Add(GetWorksheetName(report.ReportType));
+        const int hr = 1;
+        WriteReportHeaderRow(ws, ClaimActivityHeaders, hr);
+        ws.SheetView.FreezeRows(1);
+        ws.SheetView.FreezeColumns(2);
+
+        int rn = hr; int written = 0;
+        foreach (var r in recs)
+        {
+            var acts = subActs.TryGetValue(r.Id, out var al) ? al : new List<dynamic>();
+            foreach (var a in acts)
+            {
+                rn++;
+                var actCode = (string?)a.ActivityCode;
+                var net = Math.Round((decimal)a.Net, 2); var gross = Math.Round((decimal)a.Gross, 2);
+                raOutcome.TryGetValue((r.ClaimId ?? "").Trim() + "" + (actCode ?? "").Trim(), out var ra);
+                var hasRa = raOutcome.ContainsKey((r.ClaimId ?? "").Trim() + "" + (actCode ?? "").Trim());
+                var paid = Math.Round(ra.Paid, 2);
+                var dcode = ra.Denial;
+                var status = !hasRa ? "Pending"
+                           : (!string.IsNullOrWhiteSpace(dcode) || paid <= 0.009m) ? "Denied"
+                           : (paid < net - 0.009m) ? "Partial" : "Paid";
+
+                ws.Cell(rn,1).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
+                ws.Cell(rn,2).Value = D(r.ClaimId);
+                ws.Cell(rn,3).Value = D(r.PayerId);
+                ws.Cell(rn,4).Value = D(PayerName(r.PayerId) ?? FirstNonBlank(r.PayerName));
+                ws.Cell(rn,5).Value = D(r.PatientId);
+                ws.Cell(rn,6).Value = D(r.MemberId);
+                ws.Cell(rn,7).Value = D(r.PatientNationalId);
+                ws.Cell(rn,8).Value = D(r.EncounterType);
+                ws.Cell(rn,9).Value = D(r.TreatmentDate);
+                ws.Cell(rn,10).Value = D(r.SubmissionDate);
+                ws.Cell(rn,11).Value = D(r.ServiceYear);
+                ws.Cell(rn,12).Value = D(r.ServiceMonth);
+                ws.Cell(rn,13).Value = D(ClinName(FirstNonBlank((string?)a.Clinician, r.Clinician)));
+                ws.Cell(rn,14).Value = D(ClinName((string?)a.OrderingClinician));
+                ws.Cell(rn,15).Value = D(actCode);
+                ws.Cell(rn,16).Value = D((string?)a.ActivityType);
+                ws.Cell(rn,17).Value = ActivityTypeName((string?)a.ActivityType);
+                ws.Cell(rn,18).Value = (double)(decimal)a.Quantity;
+                ws.Cell(rn,19).Value = (double)gross; ws.Cell(rn,19).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,20).Value = (double)net;   ws.Cell(rn,20).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,21).Value = (double)paid;  ws.Cell(rn,21).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,22).Value = status;
+                ws.Cell(rn,23).Value = D(dcode);
+                ws.Cell(rn,24).Value = D(dcode != null && denialLookup.TryGetValue(dcode, out var dd) ? dd : null);
+                var (denCat, denType) = DenialClassify(dcode);
+                ws.Cell(rn,25).Value = denCat;
+                ws.Cell(rn,26).Value = denType;
+                ws.Cell(rn,27).Value = D(r.FileName);
+                if (status == "Denied")
+                {
+                    ws.Cell(rn,22).Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                    ws.Cell(rn,22).Style.Font.Bold = true;
+                }
+                if (!string.IsNullOrWhiteSpace(dcode))
+                {
+                    ws.Cell(rn,23).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+                    ws.Cell(rn,23).Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                    ws.Cell(rn,23).Style.Font.Bold = true;
+                }
+                if (written % 2 == 1)
+                    ws.Range(rn, 1, rn, ClaimActivityHeaders.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+                written++;
+            }
+        }
+
+        if (written == 0)
+        {
+            ws.Range(hr + 1, 1, hr + 1, ClaimActivityHeaders.Length).Merge();
+            ws.Cell(hr + 1, 1).Value = "No data available for the selected filters.";
+            ws.Cell(hr + 1, 1).Style.Font.Italic = true;
+            ws.Cell(hr + 1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        ws.Range(hr, 1, Math.Max(hr, rn), ClaimActivityHeaders.Length).SetAutoFilter();
+        ws.Columns(1, ClaimActivityHeaders.Length).AdjustToContents(1, Math.Min(rn, hr + 400));
+        for (var c = 1; c <= ClaimActivityHeaders.Length; c++)
+            { var w = ws.Column(c).Width; if (w > 34) ws.Column(c).Width = 34; if (w < 10) ws.Column(c).Width = 10; }
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.FitToPages(0, 0);
+        ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
+        wb.SaveAs(filePath);
+    }
+
     // ── Remittance Denial report — sourced from the complete parsed
     //    remittance data in XmlParsedRecords (the RemittanceClaims table is only
     //    ~9% populated). Denial = Net > Paid, or a denial code is present. ──
@@ -981,36 +1200,23 @@ public class ReportService : IReportService
         // DEFAULT to RA Date (the RA record's DHPO TransactionDate) but the user may
         // pick another header. All source columns are dd/MM/yyyy text; rows with a
         // missing/short value pass through.
+        // RA-side dates (RemittanceDate/SettlementDate) filter the RA rows directly.
+        // Claim-side dates (Encounter/Submission) can't — RA records don't carry them,
+        // so those qualify CLAIMS by submission date and pull the claim's FULL RA history
+        // (applied after load). This replaces the old switch whose Encounter/Submission
+        // cases matched on always-null RA columns and leaked every row through.
+        var criteria = report.SearchCriteria ?? "RemittanceDate";
         var df = report.DateFrom.ToString("yyyyMMdd");
         var dt = report.DateTo.ToString("yyyyMMdd");
-        switch (report.SearchCriteria)
-        {
-            case "EncounterStartDate":
-                q = q.Where(r => r.TreatmentDate == null || r.TreatmentDate.Length < 10
-                    || (string.Compare(r.TreatmentDate.Substring(6, 4) + r.TreatmentDate.Substring(3, 2) + r.TreatmentDate.Substring(0, 2), df) >= 0
-                     && string.Compare(r.TreatmentDate.Substring(6, 4) + r.TreatmentDate.Substring(3, 2) + r.TreatmentDate.Substring(0, 2), dt) <= 0));
-                break;
-            case "EncounterEndDate":
-                q = q.Where(r => r.TreatmentDateEnd == null || r.TreatmentDateEnd.Length < 10
-                    || (string.Compare(r.TreatmentDateEnd.Substring(6, 4) + r.TreatmentDateEnd.Substring(3, 2) + r.TreatmentDateEnd.Substring(0, 2), df) >= 0
-                     && string.Compare(r.TreatmentDateEnd.Substring(6, 4) + r.TreatmentDateEnd.Substring(3, 2) + r.TreatmentDateEnd.Substring(0, 2), dt) <= 0));
-                break;
-            case "SubmissionDate":
-                q = q.Where(r => r.SubmissionDate == null || r.SubmissionDate.Length < 10
-                    || (string.Compare(r.SubmissionDate.Substring(6, 4) + r.SubmissionDate.Substring(3, 2) + r.SubmissionDate.Substring(0, 2), df) >= 0
-                     && string.Compare(r.SubmissionDate.Substring(6, 4) + r.SubmissionDate.Substring(3, 2) + r.SubmissionDate.Substring(0, 2), dt) <= 0));
-                break;
-            case "SettlementDate":
-                q = q.Where(r => r.SettlementDate == null || r.SettlementDate.Length < 10
-                    || (string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), df) >= 0
-                     && string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), dt) <= 0));
-                break;
-            default: // RemittanceDate (RA Date) — the default
-                q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
-                    || (string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), df) >= 0
-                     && string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), dt) <= 0));
-                break;
-        }
+        if (criteria == "SettlementDate")
+            q = q.Where(r => r.SettlementDate == null || r.SettlementDate.Length < 10
+                || (string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), df) >= 0
+                 && string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), dt) <= 0));
+        else if (IsRemittanceSideCriteria(criteria))   // RemittanceDate (RA Date) — the default
+            q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
+                || (string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), df) >= 0
+                 && string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), dt) <= 0));
+        // else (claim-side): no SQL date filter — narrowed to qualifying claims after load.
 
         // Project only the columns this layout needs — the full entity carries
         // 40+ columns (diagnosis JSON, comments, patient fields) we never write.
@@ -1021,6 +1227,12 @@ public class ReportService : IReportService
                 r.PaidAmount, r.DenialCodesJson, r.PaymentReference,
                 r.SettlementDate, r.TransactionDate, r.FileName))
             .ToListAsync();
+
+        if (!IsRemittanceSideCriteria(criteria))
+        {
+            var qualClaims = await LoadClaimsBySubmissionCriteriaAsync(facilityIds, criteria, report.DateFrom, report.DateTo);
+            list = list.Where(r => r.ClaimId != null && qualClaims.Contains(r.ClaimId.Trim())).ToList();
+        }
         var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
         var encTypes = ResolveEncounterTypes(report);
         // Denial reports append the human description to each denial code (from the
@@ -1034,6 +1246,9 @@ public class ReportService : IReportService
         var clinicianLookup = await LoadClinicianLookupAsync();
         var subMeta = await LoadSubmissionMetaAsync(facilityIds);
         SubMeta Enrich(RemitReportRow r) => subMeta.TryGetValue(r.ClaimId ?? "", out var s) ? s : SubMeta.Empty;
+        // RA History: the full remittance cascade per claim (every RA in date order),
+        // so a claim that was part-paid then later denied/resubmitted reads as a sequence.
+        var raHistory = await LoadRaHistoryAsync(facilityIds);
 
         var rows = new List<RemitReportRow>();
         foreach (var r in list)
@@ -1052,14 +1267,15 @@ public class ReportService : IReportService
         updateStage("Generating workbook", 80, rows.Count, rows.Count, $"Writing {rows.Count:N0} remittance row(s).");
         using var wb = new XLWorkbook();
         wb.Style.Font.FontName = "Calibri";
-        var ws = wb.Worksheets.Add(denialsOnly ? "Denial Activity" : "Remittance Activity");
+        var ws = wb.Worksheets.Add(denialsOnly ? "Denial Activity"
+            : (report.ReportType == "RemittanceClaim" ? "Remittance Claim" : "Remittance Activity"));
         var headers = new[]
         {
             "Facility", "Claim ID", "Payer", "Payer Name", "Clinician", "Encounter Type",
             "Service Year", "Service Month", "Original (Net) Amt", "Paid Amt", "Denied Amt",
-            "Denial Codes", "Payment Ref", "Settlement Date", "RA File"
+            "Denial Codes", "Payment Ref", "Settlement Date", "RA File", "RA History"
         };
-        const int cols = 15;
+        const int cols = 16;
 
         // ── Executive header: title band, summary block, KPI cards. Data is
         //    untouched; this is presentation only. Table header lands at row 11. ──
@@ -1075,7 +1291,8 @@ public class ReportService : IReportService
         double denialRate = totOrig != 0 ? (double)(totDenied / totOrig) : 0d;
 
         var facilityLabel = report.Branch?.Name ?? "All Facilities";
-        var title = denialsOnly ? "REMITTANCE DENIAL REPORT" : "REMITTANCE ACTIVITY REPORT";
+        var title = denialsOnly ? "REMITTANCE DENIAL REPORT"
+            : (report.ReportType == "RemittanceClaim" ? "REMITTANCE CLAIM REPORT" : "REMITTANCE ACTIVITY REPORT");
 
         // Title band (rows 1-3)
         ws.Range(1, 1, 3, cols).Style.Fill.BackgroundColor = XLColor.FromHtml(Navy);
@@ -1132,7 +1349,7 @@ public class ReportService : IReportService
         Kpi(1, 4, "Total Original Amount", (double)totOrig, Navy);
         Kpi(5, 8, "Total Paid Amount", (double)totPaid, Teal);
         Kpi(9, 11, "Total Denied Amount", (double)totDenied, RedDk);
-        Kpi(12, 15, "Denial Rate", denialRate, Slate, percent: true);
+        Kpi(12, cols, "Denial Rate", denialRate, Slate, percent: true);
         ws.Row(9).Height = 16;
         ws.Row(10).Height = 24;
 
@@ -1177,6 +1394,7 @@ public class ReportService : IReportService
             ws.Cell(rn, 13).Value = D((r.PaymentReference ?? "").TrimStart('\''));
             ws.Cell(rn, 14).Value = D(r.SettlementDate);
             ws.Cell(rn, 15).Value = D(r.FileName);
+            ws.Cell(rn, 16).Value = D(raHistory.TryGetValue(r.ClaimId ?? "", out var rah) ? rah : null);
             foreach (var col in new[] { 9, 10, 11 })
             {
                 ws.Cell(rn, col).Style.NumberFormat.Format = "#,##0.00";
@@ -1235,7 +1453,7 @@ public class ReportService : IReportService
         FinishReportSheet(ws, hr, cols, rows.Count);
 
         // Readable, capped column widths (override autofit where it runs wide)
-        double[] widths = { 24, 16, 10, 26, 22, 14, 11, 12, 16, 16, 16, 20, 20, 18, 40 };
+        double[] widths = { 24, 16, 10, 26, 22, 14, 11, 12, 16, 16, 16, 20, 20, 18, 40, 60 };
         for (int c = 0; c < cols; c++) ws.Column(c + 1).Width = widths[c];
 
         // Print-friendly: landscape, fit width, repeat title+header, margins, footer.
@@ -1964,6 +2182,111 @@ public class ReportService : IReportService
             if (!string.IsNullOrWhiteSpace(r.ClaimId))
                 map[r.ClaimId!.Trim()] = new SubMeta(r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth);
         return map;
+    }
+
+    // ClaimId -> the full remittance cascade in chronological order, e.g.
+    //   "1) 29/04/2026 · Paid 164.46  →  2) 02/07/2026 · Denied 0.00"
+    // Every RA for the claim within the facility scope is included (not just the
+    // ones in the report's date window) so the column reads as a complete history.
+    private async Task<IReadOnlyDictionary<string, string>> LoadRaHistoryAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Remittance" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q
+            .Select(r => new { r.ClaimId, r.TransactionDate, r.PaidAmount, r.NetAmount })
+            .Take(1000000)
+            .ToListAsync();
+
+        // dd/MM/yyyy[ HH:mm] -> yyyyMMddHHmm sortable key; missing/short dates sort last.
+        static string SortKey(string? td)
+            => td != null && td.Length >= 10
+                ? td.Substring(6, 4) + td.Substring(3, 2) + td.Substring(0, 2)
+                    + (td.Length >= 16 ? td.Substring(11, 2) + td.Substring(14, 2) : "0000")
+                : "999999999999";
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var g in rows.GroupBy(r => r.ClaimId!.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            var parts = new List<string>();
+            int i = 1;
+            foreach (var e in g.OrderBy(x => SortKey(x.TransactionDate)))
+            {
+                var d = (e.TransactionDate ?? "").Length >= 10 ? e.TransactionDate!.Substring(0, 10) : "—";
+                var paid = Math.Round(e.PaidAmount, 2);
+                var net = Math.Round(e.NetAmount, 2);
+                var st = paid <= 0.009m ? "Denied" : (paid < net - 0.009m ? "Partial" : "Paid");
+                parts.Add($"{i}) {d} · {st} {paid.ToString("#,##0.00", CultureInfo.InvariantCulture)}");
+                i++;
+            }
+            map[g.Key] = string.Join("  →  ", parts);
+        }
+        return map;
+    }
+
+    // remittance record Id -> its 1-based round number within the claim's FULL RA
+    // timeline (ordered by RA date), computed WITHOUT any date-window filter so the
+    // count is correct even when a claim's earlier RAs sit outside the report window.
+    private async Task<IReadOnlyDictionary<int, int>> LoadRaRoundOrdinalAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Remittance" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q.Select(r => new { r.Id, r.ClaimId, r.TransactionDate }).Take(1000000).ToListAsync();
+
+        static string SortKey(string? td)
+            => td != null && td.Length >= 10
+                ? td.Substring(6, 4) + td.Substring(3, 2) + td.Substring(0, 2)
+                    + (td.Length >= 16 ? td.Substring(11, 2) + td.Substring(14, 2) : "0000")
+                : "999999999999";
+
+        var map = new Dictionary<int, int>();
+        foreach (var g in rows.GroupBy(r => r.ClaimId!.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            int i = 1;
+            foreach (var e in g.OrderBy(x => SortKey(x.TransactionDate)).ThenBy(x => x.Id))
+                map[e.Id] = i++;
+        }
+        return map;
+    }
+
+    // 1 -> "1st RA", 2 -> "2nd RA", 3 -> "3rd RA", 4 -> "4th RA", ...
+    private static string OrdinalRa(int n)
+    {
+        var suffix = (n % 100) is >= 11 and <= 13 ? "th"
+            : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
+        return $"{n}{suffix} RA";
+    }
+
+    private static bool IsRemittanceSideCriteria(string? criteria)
+        => criteria is null or "RemittanceDate" or "SettlementDate";
+
+    // Claim-side date criteria on a remittance report (Encounter/Submission dates): RA
+    // records don't carry those dates, so qualify the CLAIMS by their SUBMISSION date;
+    // the caller then includes ALL of those claims' RAs regardless of RA date (so a
+    // claim whose June encounter had RAs in Aug/Sep still shows its full RA history).
+    private async Task<HashSet<string>> LoadClaimsBySubmissionCriteriaAsync(
+        List<int> facilityIds, string criteria, DateTime from, DateTime to)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var df = from.ToString("yyyyMMdd");
+        var dt = to.ToString("yyyyMMdd");
+        q = criteria switch
+        {
+            "EncounterStartDate" => q.Where(r => r.TreatmentDate != null && r.TreatmentDate.Length >= 10
+                && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), df) >= 0
+                && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), dt) <= 0),
+            "EncounterEndDate" => q.Where(r => r.TreatmentDateEnd != null && r.TreatmentDateEnd.Length >= 10
+                && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), df) >= 0
+                && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), dt) <= 0),
+            _ => q.Where(r => r.SubmissionDate != null && r.SubmissionDate.Length >= 10   // SubmissionDate (default)
+                && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), df) >= 0
+                && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), dt) <= 0),
+        };
+        var ids = await q.Select(r => r.ClaimId!).Distinct().Take(1000000).ToListAsync();
+        return ids.Select(x => x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     // Denial code -> human description, from the imported eClaimLink denial-code set.

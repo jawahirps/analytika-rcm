@@ -16,18 +16,24 @@ public class AiController : Controller
     private readonly IBixAssistantService _bix;
     private readonly Microsoft.AspNetCore.Identity.UserManager<Models.ApplicationUser> _userManager;
     private readonly Models.AppDbContext _db;
+    private readonly FacilityScopeService _scope;
 
     public AiController(INvidiaAnalystService analyst, IAiSettingsService settings,
         IBixAssistantService bix,
         Microsoft.AspNetCore.Identity.UserManager<Models.ApplicationUser> userManager,
-        Models.AppDbContext db)
+        Models.AppDbContext db, FacilityScopeService scope)
     {
         _analyst = analyst;
         _settings = settings;
         _bix = bix;
         _userManager = userManager;
         _db = db;
+        _scope = scope;
     }
+
+    private const string AnalystScopeMsg =
+        "The advanced data analyst runs unrestricted queries, so it's limited to administrators. " +
+        "Your account is scoped to specific facilities — please use the standard reports, which are filtered to your facilities.";
 
     // Facility-type users are hard-scoped to their facility; Global users see all.
     // The scope comes from the authenticated session — never from the model or client.
@@ -56,6 +62,12 @@ public class AiController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Ask(string question)
     {
+        // Facility isolation: the NVIDIA analyst emits unrestricted SQL, so only admins may
+        // use it. Scoped users get their (facility-filtered) answers via the streaming
+        // local assistant instead.
+        if (!await _scope.IsUnrestrictedAsync(User))
+            return Json(new { ok = false, error = AnalystScopeMsg });
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var userName = User.Identity?.Name;
         var result = await _analyst.AskAsync(question ?? "", userId, userName, HttpContext.RequestAborted);
@@ -105,6 +117,12 @@ public class AiController : Controller
             return;
         }
 
+        // NVIDIA fallback is unscoped — restrict it to admins.
+        if (!await _scope.IsUnrestrictedAsync(User))
+        {
+            await EmitAsync(new { stage = "error", error = AnalystScopeMsg });
+            return;
+        }
         await _analyst.AskStreamAsync(question ?? "", userId, userName, EmitAsync, ct);
     }
 }

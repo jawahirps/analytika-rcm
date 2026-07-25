@@ -18,6 +18,7 @@ public class HomeController : Controller
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
     private readonly ILogger<HomeController> _logger;
+    private readonly FacilityScopeService _scope;
 
     public HomeController(
         SignInManager<ApplicationUser> signInManager,
@@ -25,7 +26,8 @@ public class HomeController : Controller
         IDashboardService dashboard,
         AppDbContext db,
         IMemoryCache cache,
-        ILogger<HomeController> logger)
+        ILogger<HomeController> logger,
+        FacilityScopeService scope)
     {
         _signInManager = signInManager;
         _userManager = userManager;
@@ -33,6 +35,7 @@ public class HomeController : Controller
         _db = db;
         _cache = cache;
         _logger = logger;
+        _scope = scope;
     }
 
     // Public marketing landing page. Authenticated users skip straight to the dashboard.
@@ -99,7 +102,21 @@ public class HomeController : Controller
     {
         if (User.IsInRole(AppRoles.Reporter))
             return RedirectToAction("ClaimSummaryReport", "ReportScheduler");
-        return View(await _dashboard.BuildFacilityStatusAsync());
+
+        var vm = await _dashboard.BuildFacilityStatusAsync();
+
+        // Facility isolation: everyone except Admin sees ONLY their assigned facilities.
+        // The underlying aggregate is cached globally, so narrow the view per user here
+        // and recompute the roll-ups from the visible rows.
+        var allowed = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowed is not null)
+        {
+            vm.Facilities = vm.Facilities.Where(f => allowed.Contains(f.FacilityId)).ToList();
+            vm.TotalRecords = vm.Facilities.Sum(f => f.RecordCount);
+            vm.TotalClaimCount = vm.Facilities.Sum(f => f.ClaimCount);
+            vm.TotalFiles = vm.Facilities.Sum(f => f.DownloadedFilesCount);
+        }
+        return View(vm);
     }
 
     [Authorize(Roles = AppRoles.RcmAccess)]
@@ -113,6 +130,18 @@ public class HomeController : Controller
         DateOnly? dateFrom = null,
         DateOnly? dateTo = null)
     {
+        // Facility isolation: the facilityId arrives from the query string, so it must be
+        // validated — a scoped user must not be able to view another facility by editing
+        // the URL. Non-admins are forced onto one of their own facilities.
+        var allowed = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowed is not null)
+        {
+            if (allowed.Count == 0)
+                return View("NoFacilityAccess");
+            if (facilityId is null || !allowed.Contains(facilityId.Value))
+                facilityId = allowed[0];
+        }
+
         var filters = new RcmDashboardFilters
         {
             FacilityId = facilityId,

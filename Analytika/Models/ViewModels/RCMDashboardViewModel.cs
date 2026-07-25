@@ -91,6 +91,8 @@ public class FacilityStatusRow
 {
     public int FacilityId { get; set; }
     public string FacilityName { get; set; } = "";
+    public string? FullName { get; set; }        // official DHPO license name
+    public string? LicenseCode { get; set; }     // DHA-F-xxxxx
     public bool HasCredential { get; set; }   // any active credential
     public string? Portal { get; set; }   // DHA / RHA / both
     public string? LastSyncTime { get; set; }
@@ -100,6 +102,7 @@ public class FacilityStatusRow
     public int FileCount { get; set; }
     public int DownloadedFilesCount { get; set; }  // files where FileDownloaded = true
     public int PendingFilesCount { get; set; }  // files where FileDownloaded = false
+    public int ParsedFilesCount { get; set; }  // transactions parsed into XmlParsedRecords (report-ready)
     public int TotalFilesWithStatus => DownloadedFilesCount + PendingFilesCount;
 
     public FacilityConnectionStatus Status

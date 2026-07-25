@@ -447,15 +447,15 @@
                 @if (!ViewData.ModelState.IsValid)
                 {
                     <div class="alert alert-danger mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid email or password.</span>
+                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid username or password.</span>
                     </div>
                 }
 
                 <div class="mb-3">
-                    <label asp-for="Email" class="form-label" data-i18n="email">Email address</label>
+                    <label asp-for="Email" class="form-label" data-i18n="email">Username</label>
                     <div class="input-group">
-                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
-                        <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
+                        <span class="input-icon"><i class="fas fa-user"></i></span>
+                        <input asp-for="Email" class="form-control" placeholder="Enter your username" autocomplete="username" />
                     </div>
                 </div>
 
@@ -491,22 +491,22 @@
             en: {
                 welcome:  'Welcome back',
                 subtitle: 'Sign in to your Ghaf Business Intelligence account',
-                email:    'Email address',
+                email:    'Username',
                 password: 'Password',
                 forgot:   'Forgot password?',
                 remember: 'Keep me signed in',
                 signin:   'Sign In  →',
-                error:    'Invalid email or password.'
+                error:    'Invalid username or password.'
             },
             ar: {
                 welcome:  'أهلاً بعودتك',
                 subtitle: 'سجّل دخولك إلى حساب Ghaf Business Intelligence',
-                email:    'البريد الإلكتروني',
+                email:    'اسم المستخدم',
                 password: 'كلمة المرور',
                 forgot:   'نسيت كلمة المرور؟',
                 remember: 'ابقَ متصلاً',
                 signin:   'تسجيل الدخول ←',
-                error:    'البريد الإلكتروني أو كلمة المرور غير صحيحة.'
+                error:    'اسم المستخدم أو كلمة المرور غير صحيحة.'
             }
         };
 

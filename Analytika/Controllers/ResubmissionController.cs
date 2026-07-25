@@ -15,13 +15,15 @@ public class ResubmissionController : Controller
     private readonly AppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RemittanceParserService _parser;
+    private readonly Analytika.Security.FacilityScopeService _scope;
 
     public ResubmissionController(AppDbContext db, UserManager<ApplicationUser> userManager,
-        RemittanceParserService parser)
+        RemittanceParserService parser, Analytika.Security.FacilityScopeService scope)
     {
         _db = db;
         _userManager = userManager;
         _parser = parser;
+        _scope = scope;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────────────
@@ -45,6 +47,10 @@ public class ResubmissionController : Controller
         // Non-admin coders see only their assigned tasks
         if (!isAdmin)
             query = query.Where(rc => rc.Task != null && rc.Task.AssignedToUserId == userId);
+
+        // Facility isolation: restrict to the user's facilities regardless of the requested id.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowedFac is not null) query = query.Where(rc => allowedFac.Contains(rc.FacilityId));
 
         if (facilityId.HasValue) query = query.Where(rc => rc.FacilityId == facilityId.Value);
         if (!string.IsNullOrWhiteSpace(status))
@@ -355,9 +361,15 @@ public class ResubmissionController : Controller
         var byUserId = _userManager.GetUserId(User);
         var due = string.IsNullOrWhiteSpace(dueDate) ? (DateTime?)null : DateTime.Parse(dueDate);
 
+        // Facility isolation: only distribute within the user's facilities.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (facilityId.HasValue && !await _scope.CanAccessAsync(User, facilityId.Value))
+            return Json(new { ok = false, message = "You don't have access to that facility." });
+
         // Pull unassigned claims ordered by denied amount desc (highest priority first)
         var unassigned = await _db.RemittanceClaims
-            .Where(rc => rc.Task == null && (facilityId == null || rc.FacilityId == facilityId))
+            .Where(rc => rc.Task == null && (facilityId == null || rc.FacilityId == facilityId)
+                      && (allowedFac == null || allowedFac.Contains(rc.FacilityId)))
             .OrderByDescending(rc => (double)rc.OriginalAmount - (double)rc.PaidAmount)
             .ToListAsync();
 
@@ -407,6 +419,11 @@ public class ResubmissionController : Controller
 
         if (!isAdmin)
             claims = claims.Where(rc => rc.Task?.AssignedToUserId == userId).ToList();
+
+        // Facility isolation: non-admins see only their facilities' denials.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowedFac is not null)
+            claims = claims.Where(rc => allowedFac.Contains(rc.FacilityId)).ToList();
 
         // Facility summary
         var facilities = claims

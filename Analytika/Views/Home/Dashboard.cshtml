@@ -161,6 +161,7 @@
     .fac-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
     .fac-title-wrap { min-width: 0; }
     .fac-name   { font-size: .92rem; font-weight: 700; color: #011C40; line-height: 1.3; max-width: 190px; }
+    .fac-fullname { font-size: .66rem; font-weight: 500; color: #64748B; line-height: 1.25; margin-top: 2px; max-width: 220px; }
     .fac-portal { font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: #011C40; background: rgba(216,232,243,.92); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
     .fac-status-wrap {
         display: flex;
@@ -195,6 +196,20 @@
     .fac-status-counts { font-size: .65rem; color: #4B6B73; font-weight: 600; }
     .fac-status-counts .downloaded { color: #059669; font-weight: 600; }
     .fac-status-counts .pending { color: #ca8a04; font-weight: 600; }
+    .fac-status-counts .parsed { color: #059669; font-weight: 700; }
+
+    /* Download / Parse pipeline status — 3-segment stacked bar per facility */
+    .fac-pipe-bar { display: flex; width: 100%; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(216,232,243,.92); }
+    .fac-pipe-bar .seg { height: 100%; transition: width .3s ease; }
+    .fac-pipe-bar .seg.parsed  { background: linear-gradient(90deg,#10b981,#059669); }
+    .fac-pipe-bar .seg.toparse { background: #f59e0b; }
+    .fac-pipe-bar .seg.pending { background: #cbd5e1; }
+    .fac-pipe-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font-size: .62rem; color: #4B6B73; font-weight: 600; }
+    .fac-pipe-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .fac-pipe-legend .pdot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+    .fac-pipe-legend .pdot.parsed  { background: #059669; }
+    .fac-pipe-legend .pdot.toparse { background: #f59e0b; }
+    .fac-pipe-legend .pdot.pending { background: #cbd5e1; }
 
     .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(8,20,35,.10); }
     .fac-stat  { text-align: center; flex: 1; }
@@ -327,6 +342,7 @@
         border-color: rgba(0,255,133,.25);
     }
     html[data-theme="dark"] .fac-name { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-fullname { color: #9fb3c6; }
     html[data-theme="dark"] .fac-portal {
         background: rgba(0,255,133,.10);
         color: #00FF85;
@@ -336,6 +352,10 @@
     html[data-theme="dark"] .fac-status-label { color: rgba(234,244,251,.45); }
     html[data-theme="dark"] .fac-status-counts { color: rgba(234,244,251,.50); }
     html[data-theme="dark"] .fac-progress-container { background: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-pipe-bar { background: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-pipe-legend { color: rgba(234,244,251,.55); }
+    html[data-theme="dark"] .fac-pipe-bar .seg.pending,
+    html[data-theme="dark"] .fac-pipe-legend .pdot.pending { background: #475569; }
     html[data-theme="dark"] .fac-stats { border-top-color: rgba(255,255,255,.06); }
     html[data-theme="dark"] .fac-stat .n { color: #EAF4FB; }
     html[data-theme="dark"] .fac-stat .l { color: rgba(234,244,251,.45); }
@@ -374,6 +394,11 @@
     </div>
 
     <!-- Summary row -->
+    @{
+        var totalDownloaded = Model.Facilities.Sum(f => f.DownloadedFilesCount);
+        var totalParsed     = Model.Facilities.Sum(f => Math.Min(f.ParsedFilesCount, f.DownloadedFilesCount));
+        var totalPending    = Model.Facilities.Sum(f => f.PendingFilesCount);
+    }
     <div class="status-summary">
         <div class="ss-card">
             <div class="ss-icon green"><i class="fas fa-check-circle"></i></div>
@@ -400,15 +425,16 @@
             <div class="ss-icon blue"><i class="fas fa-file-alt"></i></div>
             <div>
                 <div class="ss-num">@Model.TotalRecords.ToString("N0")</div>
-                <div class="ss-lbl">Total Records</div>
+                <div class="ss-lbl">Records Found</div>
                 <div class="text-muted small mt-1">Claims @Model.TotalClaimCount.ToString("N0")</div>
             </div>
         </div>
         <div class="ss-card">
             <div class="ss-icon purple"><i class="fas fa-download"></i></div>
             <div>
-                <div class="ss-num">@Model.TotalFiles.ToString("N0")</div>
-                <div class="ss-lbl">Files Downloaded</div>
+                <div class="ss-num">@totalDownloaded.ToString("N0")</div>
+                <div class="ss-lbl">Records Downloaded / Parsed / Pending</div>
+                <div class="text-muted small mt-1">Parsed @totalParsed.ToString("N0") · Pending @totalPending.ToString("N0")</div>
             </div>
         </div>
     </div>
@@ -455,6 +481,10 @@
                 <div class="fac-header">
                     <div class="fac-title-wrap">
                         <div class="fac-name">@f.FacilityName</div>
+                        @if (!string.IsNullOrWhiteSpace(f.FullName))
+                        {
+                            <div class="fac-fullname" title="@(f.LicenseCode ?? "")">@f.FullName@(string.IsNullOrWhiteSpace(f.LicenseCode) ? "" : $" · {f.LicenseCode}")</div>
+                        }
                         @if (f.Portal != null)
                         {
                             <span class="fac-portal mt-1 d-inline-block">@f.Portal</span>
@@ -490,20 +520,31 @@
 
                 @if (f.TotalFilesWithStatus > 0)
                 {
-                    var downloadProgress = f.DownloadedFilesCount + f.PendingFilesCount > 0
-                        ? Math.Round((double)f.DownloadedFilesCount / (f.DownloadedFilesCount + f.PendingFilesCount) * 100)
-                        : 0;
+                    var pipeTotal  = f.DownloadedFilesCount + f.PendingFilesCount;
+                    var parsedCnt  = Math.Min(f.ParsedFilesCount, f.DownloadedFilesCount);
+                    var toParseCnt = f.DownloadedFilesCount - parsedCnt;
+                    var pendingCnt = f.PendingFilesCount;
+                    Func<int, string> W = n => pipeTotal > 0
+                        ? (Math.Round((double)n / pipeTotal * 1000) / 10).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        : "0";
                     <div class="fac-status-bar">
                         <div class="fac-status-label">
-                            <span>File Download Status</span>
+                            <span>Download / Parse Status</span>
                             <span class="fac-status-counts">
-                                <span class="downloaded">@f.DownloadedFilesCount</span>
+                                <span class="parsed">@parsedCnt.ToString("N0")</span>
                                 <span>/</span>
-                                <span class="pending">@f.PendingFilesCount</span>
+                                <span>@pipeTotal.ToString("N0")</span>
                             </span>
                         </div>
-                        <div class="fac-progress-container">
-                            <div class="fac-progress-bar" style="width: @downloadProgress%;" title="@f.DownloadedFilesCount downloaded, @f.PendingFilesCount pending"></div>
+                        <div class="fac-pipe-bar" title="Parsed @parsedCnt · Downloaded, not parsed @toParseCnt · Pending download @pendingCnt">
+                            <div class="seg parsed"  style="width:@W(parsedCnt)%"></div>
+                            <div class="seg toparse" style="width:@W(toParseCnt)%"></div>
+                            <div class="seg pending" style="width:@W(pendingCnt)%"></div>
+                        </div>
+                        <div class="fac-pipe-legend">
+                            <span><i class="pdot parsed"></i>Parsed @parsedCnt.ToString("N0")</span>
+                            <span><i class="pdot toparse"></i>To&#8209;parse @toParseCnt.ToString("N0")</span>
+                            <span><i class="pdot pending"></i>Pending @pendingCnt.ToString("N0")</span>
                         </div>
                     </div>
                 }

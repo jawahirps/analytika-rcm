@@ -18,9 +18,9 @@
             } catch (_) {}
         })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" />
+    @* Self-hosted webfonts — served from our origin (behind Cloudflare, edge-cached,
+       immutable), so no third-party request on the critical path. *@
+    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/fontawesome.min.css" />
     <link rel="stylesheet" href="~/lib/select2.min.css" />

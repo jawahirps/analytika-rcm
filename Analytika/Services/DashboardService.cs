@@ -171,6 +171,25 @@ public class DashboardService : IDashboardService
             })
             .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
 
+        // Parsed = distinct downloaded transactions that made it into XmlParsedRecords
+        // (i.e. are report-ready). Compared against DownloadedFilesCount this shows the
+        // download -> parse progress per facility.
+        var parsedMap = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Join(
+                _db.PortalTransactions.AsNoTracking(),
+                r => r.PortalTransactionId,
+                t => t.Id,
+                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.PortalTransactionId })
+            .GroupBy(r => new { r.FacilityId, r.Portal })
+            .Select(g => new
+            {
+                g.Key.FacilityId,
+                g.Key.Portal,
+                ParsedCount = g.Select(r => r.PortalTransactionId).Distinct().Count()
+            })
+            .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ParsedCount);
+
         var rows = facilities.SelectMany(f =>
         {
             var activePortals = credentials
@@ -190,6 +209,7 @@ public class DashboardService : IDashboardService
                 var key = new { FacilityId = f.Id, Portal = portal };
                 txMap.TryGetValue(key, out var tx);
                 claimMap.TryGetValue(key, out var claimCount);
+                parsedMap.TryGetValue(key, out var parsedCount);
                 latestMeaningful.TryGetValue(key, out var mLog);
                 latestAny.TryGetValue(key, out var anyLog);
                 var displayLog = mLog ?? anyLog;
@@ -201,6 +221,8 @@ public class DashboardService : IDashboardService
                 {
                     FacilityId = f.Id,
                     FacilityName = portal == "RHA" ? $"{f.Name} RHA" : f.Name,
+                    FullName = f.FullName,
+                    LicenseCode = f.LicenseCode,
                     HasCredential = portal.Length > 0,
                     Portal = portal.Length > 0 ? portal : null,
                     LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
@@ -210,6 +232,7 @@ public class DashboardService : IDashboardService
                     FileCount = tx?.DownloadedFiles ?? 0,
                     DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
                     PendingFilesCount = tx?.PendingFiles ?? 0,
+                    ParsedFilesCount = parsedCount,
                 };
             });
         })
