@@ -134,7 +134,11 @@ public class XmlParsingService
         int? facilityId = null,
         bool rebuild = false,
         Func<XmlParsingRunProgress, Task>? onProgress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        // When false, skip the pre-count. On a large DB the count is a full-table
+        // scan that must finish before any row streams; skipping it lets parsing
+        // begin immediately (total is reported as 0/unknown). Used for big backfills.
+        bool preCount = true)
     {
         await EnsureSchemaAsync(ct);
 
@@ -148,37 +152,53 @@ public class XmlParsingService
 
         var payerLookup = await LoadPayerLookupAsync(ct);
 
-        var txQuery = _db.PortalTransactions
+        // Base filter WITHOUT the per-blob length guard. `IS NOT NULL` is answered from
+        // the row header alone, whereas `length(text)` must read the whole XML blob —
+        // so counting with the length guard forces a multi-GB read of the entire table
+        // just to produce a progress denominator (and the parse loop then reads the same
+        // blobs again). The exact length guard is applied to the streaming query below.
+        var baseQuery = _db.PortalTransactions
             .AsNoTracking()
             .Where(t => (t.Portal == "DHA"
                             && t.FileDownloaded
-                            && t.FileContentXml != null
-                            && t.FileContentXml.Length > 10)
+                            && t.FileContentXml != null)
                      // RHA/Riyati delivers JSON inline (no file download) — parse from RawXml
                      || (t.Portal == "RHA"
-                            && t.RawXml != null
-                            && t.RawXml.Length > 2));
+                            && t.RawXml != null));
 
         if (facilityId.HasValue)
-            txQuery = txQuery.Where(t => t.FacilityId == facilityId.Value);
+            baseQuery = baseQuery.Where(t => t.FacilityId == facilityId.Value);
 
         if (!rebuild)
         {
-            // Pre-load already-parsed transaction IDs into a HashSet to avoid a correlated subquery per row
-            var alreadyParsedQuery = _db.XmlParsedRecords.AsNoTracking()
-                .Select(r => r.PortalTransactionId)
-                .Distinct();
-            if (facilityId.HasValue)
-                alreadyParsedQuery = _db.XmlParsedRecords.AsNoTracking()
-                    .Where(r => r.FacilityId == facilityId.Value)
-                    .Select(r => r.PortalTransactionId)
-                    .Distinct();
-            var alreadyParsedIds = (await alreadyParsedQuery.ToListAsync(ct)).ToHashSet();
-            txQuery = txQuery.Where(t => !alreadyParsedIds.Contains(t.Id));
+            // Exclude already-parsed transactions with a correlated NOT EXISTS. This is
+            // a per-row index seek against IX_XmlParsedRecords_PortalTransactionId, so
+            // rows start streaming immediately. (Two earlier approaches were worse: a
+            // materialised id list blows SQLite's parameter limit — "too many SQL
+            // variables" — on a large backfill, and a NOT IN (SELECT …) forces SQLite to
+            // build an ephemeral set of all ~1M parsed ids before the first row streams.)
+            // A parsed record's PortalTransactionId maps to exactly one transaction, so
+            // no facility scoping is needed here even for a single-facility run.
+            baseQuery = baseQuery.Where(t =>
+                !_db.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id));
         }
 
-        var total = await txQuery.CountAsync(ct);
+        // Progress denominator only — cheap, header-only count. A few tiny/placeholder
+        // files counted here are skipped during parsing, which is fine for a total.
+        // Skipped entirely (total unknown) when preCount is false so a big backfill can
+        // start streaming without first scanning the whole table.
+        var total = preCount ? await baseQuery.CountAsync(ct) : 0;
         var result = new XmlParsingRunResult { FilesScanned = total };
+
+        // Stream straight from baseQuery with NO length predicate in the WHERE. Putting
+        // FileContentXml.Length in the filter forces SQLite to read every candidate blob
+        // — including already-parsed rows that the NOT EXISTS clause then discards — just
+        // to evaluate the guard, which is what makes an all-facilities backfill crawl.
+        // Without it, blobs are materialised only in the projection below, i.e. only for
+        // the pending rows that survive the header-only (IS NOT NULL) + index-seek
+        // (NOT EXISTS) filter. Empty/placeholder files still stream, but ParseTransaction
+        // yields nothing for them and they are tallied as skipped.
+        var txQuery = baseQuery;
 
         if (onProgress != null)
             await onProgress(new XmlParsingRunProgress("start", "Preparing downloaded XML records", 0, total, result));
@@ -246,6 +266,102 @@ public class XmlParsingService
             await _db.SaveChangesAsync(ct);
 
         var match = await MatchParsedRecordsAsync(facilityId, ct);
+        result.MatchedClaimRefs = match.MatchedClaimRefs;
+        result.UnmatchedSubmissions = match.UnmatchedSubmissions;
+        result.UnmatchedRemittances = match.UnmatchedRemittances;
+
+        if (onProgress != null)
+            await onProgress(new XmlParsingRunProgress("done", "Parsed XML cache is ready for reports", total, total, result));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Parses a caller-supplied set of PortalTransaction ids in primary-key batches.
+    /// Unlike <see cref="ParseDownloadedXmlAsync"/>, this never scans the (huge, inline-blob)
+    /// PortalTransactions table with a streaming predicate — the caller has already worked out
+    /// which ids are pending (a cheap id-only join), so here we fetch strictly those rows by
+    /// PK and read each XML blob exactly once. That makes a large backfill I/O-bound only on
+    /// the blobs that actually need parsing, instead of on a full-table scan. Skips ids already
+    /// present in XmlParsedRecords so it is safe to re-run. Runs one match pass at the end.
+    /// </summary>
+    public async Task<XmlParsingRunResult> ParsePendingByIdsAsync(
+        IReadOnlyList<int> transactionIds,
+        Func<XmlParsingRunProgress, Task>? onProgress = null,
+        CancellationToken ct = default)
+    {
+        await EnsureSchemaAsync(ct);
+        var payerLookup = await LoadPayerLookupAsync(ct);
+
+        var total = transactionIds.Count;
+        var result = new XmlParsingRunResult { FilesScanned = total };
+        if (onProgress != null)
+            await onProgress(new XmlParsingRunProgress("start", "Parsing pending transactions by id", 0, total, result));
+
+        const int batchSize = 300; // keep Id IN (…) well under SQLite's parameter limit
+        var processed = 0;
+
+        for (var offset = 0; offset < transactionIds.Count; offset += batchSize)
+        {
+            ct.ThrowIfCancellationRequested();
+            var batch = transactionIds.Skip(offset).Take(batchSize).ToList();
+
+            var rows = await _db.PortalTransactions
+                .AsNoTracking()
+                .Where(t => batch.Contains(t.Id))
+                .Select(t => new PortalTransaction
+                {
+                    Id = t.Id,
+                    Portal = t.Portal,
+                    FacilityId = t.FacilityId,
+                    TransactionId = t.TransactionId,
+                    Type = t.Type,
+                    Status = t.Status,
+                    Direction = t.Direction,
+                    FileId = t.FileId,
+                    FileName = t.FileName,
+                    FileContentXml = t.FileContentXml,
+                    RawXml = t.RawXml,
+                    TransactionDate = t.TransactionDate,
+                    Payer = t.Payer,
+                    Amount = t.Amount
+                })
+                .ToListAsync(ct);
+
+            foreach (var tx in rows)
+            {
+                processed++;
+                try
+                {
+                    var records = ParseTransaction(tx, payerLookup).ToList();
+                    if (records.Count == 0)
+                    {
+                        result.FilesSkipped++;
+                    }
+                    else
+                    {
+                        _db.XmlParsedRecords.AddRange(records);
+                        result.FilesParsed++;
+                        result.RecordsSaved += records.Count;
+                        result.SubmissionRows += records.Count(r => r.RecordKind == SubmissionKind);
+                        result.RemittanceRows += records.Count(r => r.RecordKind == RemittanceKind);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Errors++;
+                    _logger.LogWarning(ex, "Could not parse XML transaction {PortalTransactionId}", tx.Id);
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            _db.ChangeTracker.Clear();
+
+            if (onProgress != null)
+                await onProgress(new XmlParsingRunProgress("parsing", $"Parsed {processed:N0} of {total:N0} pending transaction(s)", processed, total, result));
+        }
+
+        var match = await MatchParsedRecordsAsync(null, ct);
         result.MatchedClaimRefs = match.MatchedClaimRefs;
         result.UnmatchedSubmissions = match.UnmatchedSubmissions;
         result.UnmatchedRemittances = match.UnmatchedRemittances;

@@ -32,6 +32,13 @@ public static class SqliteSchemaService
                 ON ""PortalTransactions""(""FacilityId"", ""FileDownloaded"");
             CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_SyncedAt""
                 ON ""PortalTransactions""(""SyncedAt"" DESC);
+            -- Pending-download lookup: makes DownloadPendingStream's ""what is still
+            -- pending"" query an index walk over skinny pending rows instead of a full
+            -- table scan through 280k+ fat blob rows (which stalled resume for many
+            -- minutes). Built manually on the live DB first (2026-07-27); this line
+            -- only guards fresh databases, where the table is small.
+            CREATE INDEX IF NOT EXISTS ""IX_PortalTransactions_PendingDl""
+                ON ""PortalTransactions""(""Portal"", ""FileDownloaded"", ""FacilityId"", ""Id"");
             -- NOTE: a covering index (all Live-Submission metadata columns) would
             -- make that report index-only/fast, but BUILDING it reads every row's
             -- post-blob columns once — a multi-hour, I/O-heavy scan on the 48 GB

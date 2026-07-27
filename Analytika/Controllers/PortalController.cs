@@ -1825,13 +1825,18 @@ public class PortalController : Controller
             try { await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct); await Response.Body.FlushAsync(ct); } catch { }
         }
 
-        // Build pending query
-        var query = _db.PortalTransactions.Include(t => t.Facility)
+        // Build pending query — PROJECTION ONLY. Materialising full entities here
+        // (the previous Include(...).ToListAsync()) dragged every column of ~890k rows
+        // through SQLite — on this DB that is a multi-GB read that left the UI stuck on
+        // "Initialising…" for many minutes. The download loop only needs four fields.
+        var query = _db.PortalTransactions.AsNoTracking()
             .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA");
         if (facilityId.HasValue) query = query.Where(t => t.FacilityId == facilityId.Value);
         if (resumeFromId > 0) query = query.Where(t => t.Id > resumeFromId);
 
-        var pending = await query.OrderBy(t => t.FacilityId).ThenBy(t => t.Id).ToListAsync(ct);
+        var pending = await query.OrderBy(t => t.FacilityId).ThenBy(t => t.Id)
+            .Select(t => new { t.Id, t.FacilityId, t.FileId, FacilityName = (string?)t.Facility!.Name })
+            .ToListAsync(ct);
         int total = pending.Count;
 
         if (total == 0)
@@ -1848,40 +1853,83 @@ public class PortalController : Controller
         var credCache = new Dictionary<int, (string username, string pwd)>();
         int done = 0, failed = 0, lastId = resumeFromId;
 
-        foreach (var tx in pending)
+        // Bounded parallel PORTAL fetches. The per-file SOAP round-trip dominates the
+        // sequential loop (~170 files/min), so each chunk fires N downloads concurrently
+        // (DhaPortalService is stateless per call — HttpClientFactory + per-call SOAP;
+        // its auth-throttle cooldown still brakes us if the portal pushes back). DB
+        // writes and SSE stay strictly sequential: DbContext is not thread-safe.
+        const int parallel = 6;
+
+        foreach (var chunk in pending.Chunk(parallel))
         {
             if (ct.IsCancellationRequested) break;
 
-            if (!credCache.TryGetValue(tx.FacilityId, out var cred))
+            // Resolve credentials sequentially (DbContext) before going parallel.
+            foreach (var tx in chunk)
             {
+                if (credCache.ContainsKey(tx.FacilityId)) continue;
                 var cr = await _db.PortalCredentials
                     .FirstOrDefaultAsync(c => c.FacilityId == tx.FacilityId && c.IsActive && c.Portal == "DHA", ct);
-                if (cr == null) { failed++; lastId = tx.Id; await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total }); continue; }
-                try { cred = (cr.Username, _credentials.Unprotect(cr.PasswordEncrypted)); credCache[tx.FacilityId] = cred; }
-                catch (Exception ex) { _logger.LogWarning(ex, "Failed to decrypt credential for facility {FacilityId}", tx.FacilityId); failed++; lastId = tx.Id; continue; }
+                if (cr == null) continue; // handled as a skip below
+                try { credCache[tx.FacilityId] = (cr.Username, _credentials.Unprotect(cr.PasswordEncrypted)); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to decrypt credential for facility {FacilityId}", tx.FacilityId); }
             }
 
-            try
+            // Parallel phase — portal calls + payload parsing ONLY (no DbContext, no Response).
+            var fetches = chunk.Select(async tx =>
             {
-                var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.username, cred.pwd, tx.FileId!);
-                if (dlErr == null && dlBytes?.Length > 0)
+                if (!credCache.TryGetValue(tx.FacilityId, out var cred))
+                    return (tx, xml: (string?)null, size: 0L, ok: false, skip: true, err: (string?)"No credentials");
+                try
                 {
-                    var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
+                    var (dlResult, _, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(cred.username, cred.pwd, tx.FileId!);
+                    if (dlErr == null && dlBytes?.Length > 0)
+                    {
+                        var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
+                        return (tx, xml: contentXml, size: (long)dlBytes.Length, ok: true, skip: false, err: (string?)null);
+                    }
+                    return (tx, xml: (string?)null, size: 0L, ok: false, skip: false,
+                            err: (string?)(dlErr ?? $"result={dlResult}, empty payload"));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Download failed for transaction {TxId}", tx.Id);
+                    return (tx, xml: (string?)null, size: 0L, ok: false, skip: false, err: (string?)ex.Message);
+                }
+            }).ToList();
+            var results = await Task.WhenAll(fetches);
+
+            // Sequential phase — DB writes + progress events, in chunk order.
+            foreach (var (tx, xml, size, ok, skip, err) in results)
+            {
+                if (ct.IsCancellationRequested) break;
+                if (skip)
+                {
+                    failed++; lastId = tx.Id;
+                    await Send(new { status = "skip", txId = tx.Id, facilityId = tx.FacilityId, message = "No credentials", done, failed, total });
+                    continue;
+                }
+                // Surface WHY downloads fail: the portal's error strings were silently
+                // dropped here, which made 60k+ failures undiagnosable. Log a sample
+                // (first few + every 2000th) so the app log answers "cooldown or purge?".
+                if (!ok && err != null && (failed < 10 || failed % 2000 == 0))
+                    _logger.LogWarning("Download refused for tx {TxId} (facility {FacilityId}): {Error}", tx.Id, tx.FacilityId, err);
+                if (ok)
+                {
                     await _db.PortalTransactions.Where(t => t.Id == tx.Id)
                         .ExecuteUpdateAsync(s => s
                             .SetProperty(t => t.FileDownloaded, true)
-                            .SetProperty(t => t.FileContentXml, contentXml)
-                            .SetProperty(t => t.FileSizeBytes, (long?)dlBytes.Length)
+                            .SetProperty(t => t.FileContentXml, xml)
+                            .SetProperty(t => t.FileSizeBytes, (long?)size)
                             .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
                     done++;
                 }
                 else { failed++; }
-            }
-            catch (Exception ex) { _logger.LogWarning(ex, "Download failed for transaction {TxId}", tx.Id); failed++; }
 
-            lastId = tx.Id;
-            int pct = (int)((double)(done + failed) / total * 100);
-            await Send(new { status = "progress", txId = tx.Id, facilityName = tx.Facility?.Name ?? $"Facility {tx.FacilityId}", done, failed, total, pct, lastId });
+                lastId = tx.Id;
+                int pct = (int)((double)(done + failed) / total * 100);
+                await Send(new { status = "progress", txId = tx.Id, facilityName = tx.FacilityName ?? $"Facility {tx.FacilityId}", done, failed, total, pct, lastId });
+            }
         }
 
         heartbeatCts.Cancel();
