@@ -47,7 +47,11 @@ using (var cmd = conn.CreateCommand())
         LEFT JOIN (SELECT DISTINCT PortalTransactionId FROM XmlParsedRecords) x
                ON x.PortalTransactionId = p.Id
         WHERE p.Portal = 'DHA' AND p.FileDownloaded = 1 AND p.FileContentXml IS NOT NULL
-              AND x.PortalTransactionId IS NULL{facFilter}
+              AND x.PortalTransactionId IS NULL
+              -- FOCUS: claim submissions + remittance advice only. Prior files never
+              -- yield parsed records (the parser extracts only Submission/Remittance),
+              -- so re-scanning them every run was pure waste (the 'skip swamp').
+              AND p.Type IN ('Claim','Remittance'){facFilter}
         ORDER BY p.Id;";
     cmd.CommandTimeout = 0;
     using var rdr = cmd.ExecuteReader();

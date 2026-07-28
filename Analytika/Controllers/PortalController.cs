@@ -1830,7 +1830,12 @@ public class PortalController : Controller
         // through SQLite — on this DB that is a multi-GB read that left the UI stuck on
         // "Initialising…" for many minutes. The download loop only needs four fields.
         var query = _db.PortalTransactions.AsNoTracking()
-            .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA");
+            .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA"
+                        // FOCUS: claims submissions + remittance advice only. Prior
+                        // Request / Prior Authorization files are 78% of the pending
+                        // queue (693k of 886k) and are not used by any report — skip
+                        // them entirely instead of spending portal calls on them.
+                        && (t.Type == "Claim" || t.Type == "Remittance"));
         if (facilityId.HasValue) query = query.Where(t => t.FacilityId == facilityId.Value);
         if (resumeFromId > 0) query = query.Where(t => t.Id > resumeFromId);
 
@@ -1858,7 +1863,7 @@ public class PortalController : Controller
         // (DhaPortalService is stateless per call — HttpClientFactory + per-call SOAP;
         // its auth-throttle cooldown still brakes us if the portal pushes back). DB
         // writes and SSE stay strictly sequential: DbContext is not thread-safe.
-        const int parallel = 6;
+        const int parallel = 10;
 
         foreach (var chunk in pending.Chunk(parallel))
         {
@@ -1888,8 +1893,20 @@ public class PortalController : Controller
                         var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes);
                         return (tx, xml: contentXml, size: (long)dlBytes.Length, ok: true, skip: false, err: (string?)null);
                     }
+
+                    // ARCHIVE FALLBACK — DHA moves older files off the normal endpoint,
+                    // which then answers "result=0, empty payload" (a polite nothing, not
+                    // an error). Those files are still served by the Archive endpoint, so
+                    // retry there before declaring the file dead. Recent files never reach
+                    // this path (no extra portal calls on the happy path).
+                    var (arResult, _, arBytes, arErr) = await _dha.DownloadTransactionFileArchiveAsync(cred.username, cred.pwd, tx.FileId!);
+                    if (arErr == null && arBytes?.Length > 0)
+                    {
+                        var (contentXml, _) = DhaPortalService.ParseDownloadedFile(arBytes);
+                        return (tx, xml: contentXml, size: (long)arBytes.Length, ok: true, skip: false, err: (string?)null);
+                    }
                     return (tx, xml: (string?)null, size: 0L, ok: false, skip: false,
-                            err: (string?)(dlErr ?? $"result={dlResult}, empty payload"));
+                            err: (string?)($"normal: {dlErr ?? $"result={dlResult}, empty"} | archive: {arErr ?? $"result={arResult}, empty"}"));
                 }
                 catch (Exception ex)
                 {
@@ -1916,13 +1933,35 @@ public class PortalController : Controller
                     _logger.LogWarning("Download refused for tx {TxId} (facility {FacilityId}): {Error}", tx.Id, tx.FacilityId, err);
                 if (ok)
                 {
-                    await _db.PortalTransactions.Where(t => t.Id == tx.Id)
-                        .ExecuteUpdateAsync(s => s
-                            .SetProperty(t => t.FileDownloaded, true)
-                            .SetProperty(t => t.FileContentXml, xml)
-                            .SetProperty(t => t.FileSizeBytes, (long?)size)
-                            .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
-                    done++;
+                    // Retry the save instead of letting a transient write-lock timeout
+                    // (e.g. a long parse/match transaction elsewhere) throw and kill the
+                    // whole SSE run — that failure mode silently ended entire download
+                    // sessions. After the retries the file stays pending (not failed):
+                    // it was downloaded fine and will save on the next pass.
+                    var saved = false;
+                    for (var attempt = 0; attempt < 3 && !saved; attempt++)
+                    {
+                        try
+                        {
+                            await _db.PortalTransactions.Where(t => t.Id == tx.Id)
+                                .ExecuteUpdateAsync(s => s
+                                    .SetProperty(t => t.FileDownloaded, true)
+                                    .SetProperty(t => t.FileContentXml, xml)
+                                    .SetProperty(t => t.FileSizeBytes, (long?)size)
+                                    .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
+                            saved = true;
+                        }
+                        catch (Exception ex) when (attempt < 2 && !ct.IsCancellationRequested)
+                        {
+                            _logger.LogWarning(ex, "Save of downloaded tx {TxId} failed (attempt {Attempt}) — retrying", tx.Id, attempt + 1);
+                            await Task.Delay(TimeSpan.FromSeconds(10 * (attempt + 1)), ct);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Save of downloaded tx {TxId} failed after retries — leaving pending for next pass", tx.Id);
+                        }
+                    }
+                    if (saved) done++; else failed++;
                 }
                 else { failed++; }
 

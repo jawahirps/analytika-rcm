@@ -257,6 +257,11 @@ public static class SqliteSchemaService
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_PortalTransactionId"" ON ""XmlParsedRecords""(""PortalTransactionId"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Facility_Kind"" ON ""XmlParsedRecords""(""FacilityId"", ""RecordKind"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ClaimId"" ON ""XmlParsedRecords""(""ClaimId"");
+            -- NOCASE variant: MatchParsedRecordsAsync compares ClaimId COLLATE NOCASE,
+            -- which cannot use the plain ClaimId index — without this the match UPDATE
+            -- degrades to an O(n^2) scan (hours/days at 1M+ rows instead of minutes).
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Fac_Claim_NC""
+                ON ""XmlParsedRecords""(""FacilityId"", ""ClaimId"" COLLATE NOCASE, ""RecordKind"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport"" ON ""XmlParsedRecords""(""ReadyForReport"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedActivities_RecordId"" ON ""XmlParsedActivities""(""XmlParsedRecordId"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");

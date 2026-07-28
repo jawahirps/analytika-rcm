@@ -1057,6 +1057,27 @@ label.portal-toggle:has(input:checked) {
 
 label.portal-toggle span { pointer-events: none; }
 
+/* Explicit font colours per state — the label previously inherited the page
+   text colour and had no dark-mode rules, so in dark mode unchecked options
+   rendered near-white text on the white chip (invisible), and toggling the
+   selection made the previously-checked option disappear. */
+label.portal-toggle { color: var(--text-secondary); }
+
+html[data-theme="dark"] label.portal-toggle {
+  background: var(--dt-surface-2, rgba(0,18,30,0.72));
+  border-color: var(--dt-border, rgba(198,226,233,0.13));
+  color: var(--dt-text-2, rgba(234,246,248,0.75));
+}
+html[data-theme="dark"] label.portal-toggle:hover {
+  border-color: var(--dt-border-mid, rgba(198,226,233,0.25));
+  color: var(--dt-text, #eaf6f8);
+}
+html[data-theme="dark"] label.portal-toggle:has(input:checked) {
+  background: rgba(var(--dt-accent-rgb, 84,172,191), 0.16);
+  border-color: rgba(var(--dt-accent-rgb, 84,172,191), 0.45);
+  color: var(--dt-accent, #54ACBF);
+}
+
 /* ----------------------------------------------------------------
    Portal Toggle (button-based)
    ---------------------------------------------------------------- */

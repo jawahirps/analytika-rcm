@@ -436,52 +436,43 @@ public class XmlParsingService
         var now = isNpgsql ? "NOW()" : "datetime('now')";
         var matched = isNpgsql ? "TRUE" : "1";
         var unmatched = isNpgsql ? "FALSE" : "0";
-        // Case-insensitive ClaimId grouping: SQLite uses COLLATE NOCASE, Postgres uses LOWER()
-        var groupByClaimId = isNpgsql ? @"LOWER(m.""ClaimId"")" : @"m.""ClaimId"" COLLATE NOCASE";
-        var matchClaimId   = isNpgsql ? @"LOWER(m.""ClaimId"") = LOWER(""XmlParsedRecords"".""ClaimId"")"
-                                       : @"m.""ClaimId"" = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE";
+        // Two-phase match: build the matched-claim key set ONCE with a single aggregate
+        // pass, then update against that (small, indexed) temp table. The previous
+        // correlated EXISTS-with-GROUP-BY re-aggregated the claim group for every one of
+        // the outer rows; SQLite's planner cannot untangle it even with the NOCASE index,
+        // which degraded the full match to an O(n^2)-style crawl (observed: hours at 1.3M
+        // rows, projected days). This form is planner-proof: one index scan + per-row
+        // seeks into the temp key table — minutes at worst.
+        var facFilter = facilityId.HasValue ? @" WHERE ""FacilityId"" = {0}" : "";
+        var facFilterAnd = facilityId.HasValue ? @" AND ""FacilityId"" = {0}" : "";
+        var args = facilityId.HasValue ? new object[] { facilityId.Value } : Array.Empty<object>();
+        var tempKeyword = isNpgsql ? "TEMPORARY" : "TEMP";
+        var cidExpr = isNpgsql ? @"LOWER(""ClaimId"")" : @"""ClaimId"" COLLATE NOCASE";
+        var cidMatch = isNpgsql ? @"mk_match.cid = LOWER(""XmlParsedRecords"".""ClaimId"")"
+                                : @"mk_match.cid = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE";
 
-        if (facilityId.HasValue)
-        {
-            var fid = facilityId.Value;
-            await _db.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = " + unmatched + @", ""MatchedAt"" = NULL
-                WHERE ""FacilityId"" = {0};
+        await _db.Database.ExecuteSqlRawAsync(
+            @"DROP TABLE IF EXISTS mk_match;
+            CREATE " + tempKeyword + @" TABLE mk_match AS
+                SELECT ""FacilityId"" AS fid, " + cidExpr + @" AS cid
+                FROM ""XmlParsedRecords""" + facFilter + @"
+                GROUP BY ""FacilityId"", " + cidExpr + @"
+                HAVING SUM(CASE WHEN ""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
+                   AND SUM(CASE WHEN ""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0;
+            CREATE INDEX mk_match_ix ON mk_match(fid, cid);
 
-                UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = " + matched + @", ""MatchedAt"" = " + now + @"
-                WHERE ""FacilityId"" = {0}
-                  AND EXISTS (
-                    SELECT 1
-                    FROM ""XmlParsedRecords"" m
-                    WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND " + matchClaimId + @"
-                    GROUP BY m.""FacilityId"", " + groupByClaimId + @"
-                    HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
-                       AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
-                  );
-            ", new object[] { fid }, ct);
-        }
-        else
-        {
-            await _db.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = " + unmatched + @", ""MatchedAt"" = NULL;
+            UPDATE ""XmlParsedRecords""
+            SET ""IsMatched"" = " + unmatched + @", ""MatchedAt"" = NULL" + facFilter + @";
 
-                UPDATE ""XmlParsedRecords""
-                SET ""IsMatched"" = " + matched + @", ""MatchedAt"" = " + now + @"
-                WHERE EXISTS (
-                    SELECT 1
-                    FROM ""XmlParsedRecords"" m
-                    WHERE m.""FacilityId"" = ""XmlParsedRecords"".""FacilityId""
-                      AND " + matchClaimId + @"
-                    GROUP BY m.""FacilityId"", " + groupByClaimId + @"
-                    HAVING SUM(CASE WHEN m.""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
-                       AND SUM(CASE WHEN m.""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0
-                );
-            ", ct);
-        }
+            UPDATE ""XmlParsedRecords""
+            SET ""IsMatched"" = " + matched + @", ""MatchedAt"" = " + now + @"
+            WHERE EXISTS (
+                SELECT 1 FROM mk_match
+                WHERE mk_match.fid = ""XmlParsedRecords"".""FacilityId""
+                  AND " + cidMatch + @"
+            )" + facFilterAnd + @";
+            DROP TABLE IF EXISTS mk_match;
+            ", args, ct);
 
         var query = _db.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport);
         if (facilityId.HasValue)
