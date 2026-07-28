@@ -1,0 +1,264 @@
+<title>Bix Branch Design Review</title>
+<style>
+  :root{
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    --bg:#f6f8f9; --panel:#ffffff; --panel-2:#f0f4f5;
+    --ink:#16232b; --muted:#5a6b73; --faint:#849099;
+    --line:rgba(20,45,55,.12); --line-2:rgba(20,45,55,.07);
+    --accent:#0f766e; --accent-ink:#0b5a54;
+    --shadow:0 1px 2px rgba(16,40,50,.06),0 8px 24px rgba(16,40,50,.06);
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1518; --panel:#16211f; --panel-2:#111a1c;
+      --ink:#e6edf0; --muted:#8ba0a8; --faint:#66787f;
+      --line:rgba(200,225,230,.12); --line-2:rgba(200,225,230,.06);
+      --accent:#2dd4bf; --accent-ink:#7ff0e2;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8f9; --panel:#ffffff; --panel-2:#f0f4f5; --ink:#16232b; --muted:#5a6b73; --faint:#849099;
+    --line:rgba(20,45,55,.12); --line-2:rgba(20,45,55,.07); --accent:#0f766e; --accent-ink:#0b5a54;
+    --shadow:0 1px 2px rgba(16,40,50,.06),0 8px 24px rgba(16,40,50,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0e1518; --panel:#16211f; --panel-2:#111a1c; --ink:#e6edf0; --muted:#8ba0a8; --faint:#66787f;
+    --line:rgba(200,225,230,.12); --line-2:rgba(200,225,230,.06); --accent:#2dd4bf; --accent-ink:#7ff0e2;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+    -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1120px;margin:0 auto;padding:48px 24px 80px}
+
+  header.top{margin-bottom:36px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 10px}
+  h1{font-size:clamp(28px,4vw,40px);line-height:1.1;margin:0 0 12px;letter-spacing:-.02em;text-wrap:balance;font-weight:680}
+  .lede{font-size:17px;color:var(--muted);max-width:64ch;margin:0}
+  .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:18px;font-family:var(--mono);font-size:12.5px;color:var(--faint)}
+  .meta b{color:var(--ink);font-weight:600}
+
+  .families{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:26px 0 8px}
+  .fam{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel);box-shadow:var(--shadow)}
+  .fam .dots{display:flex;gap:5px;margin-bottom:9px}
+  .fam .dots span{width:15px;height:15px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .fam h3{margin:0 0 3px;font-size:14px;font-weight:640}
+  .fam p{margin:0;font-size:12.5px;color:var(--muted)}
+
+  .deck{display:flex;flex-direction:column;gap:18px;margin-top:28px}
+  .card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:0;border:1px solid var(--line);
+    border-radius:var(--radius);background:var(--panel);box-shadow:var(--shadow);overflow:hidden}
+  @media (max-width:760px){.card{grid-template-columns:1fr}}
+  .card .side{padding:20px 22px}
+  .card .side.left{border-right:1px solid var(--line-2)}
+  @media (max-width:760px){.card .side.left{border-right:none;border-bottom:1px solid var(--line-2)}}
+
+  .bname{font-family:var(--mono);font-size:14.5px;font-weight:600;word-break:break-all;margin:0 0 8px;color:var(--ink)}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .badge{font-size:11px;font-weight:600;letter-spacing:.02em;padding:3px 9px;border-radius:999px;
+    background:var(--panel-2);color:var(--muted);border:1px solid var(--line-2)}
+  .badge.hot{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-ink);border-color:transparent}
+  .fam-tag{font-size:12px;color:var(--faint);margin:0 0 16px;display:flex;align-items:center;gap:7px}
+  .fam-tag .sw{display:inline-flex;gap:3px}
+  .fam-tag .sw i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .clabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:0 0 8px}
+  ul.commits{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+  ul.commits li{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:baseline;font-size:13px}
+  ul.commits .h{font-family:var(--mono);font-size:11.5px;color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 12%,transparent);
+    padding:1px 6px;border-radius:5px}
+  ul.commits .d{font-family:var(--mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+  ul.commits .s{color:var(--ink);line-height:1.35}
+
+  .swatches{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 16px}
+  .swatches .s{position:relative;width:34px;height:34px;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.1);cursor:default}
+  .swatches .s::after{content:attr(data-hex);position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);
+    font-family:var(--mono);font-size:10px;background:var(--ink);color:var(--bg);padding:2px 6px;border-radius:4px;white-space:nowrap;
+    opacity:0;transition:opacity .12s;pointer-events:none;z-index:3}
+  .swatches .s:hover::after{opacity:1}
+
+  .preview-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:0 0 8px}
+
+  /* palette-derived mini UI preview */
+  .mock{border-radius:10px;overflow:hidden;border:1px solid var(--line);font-family:var(--sans)}
+  .mock .bar{display:flex;align-items:center;gap:10px;padding:9px 12px}
+  .mock .bar .brand{font-weight:700;font-size:13px;letter-spacing:.02em}
+  .mock .bar .pills{display:flex;gap:5px;margin-left:auto}
+  .mock .bar .pills span{font-size:10px;padding:3px 8px;border-radius:999px}
+  .mock .body{padding:12px}
+  .mock .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+  .mock .kpi{border-radius:8px;padding:9px 10px;position:relative;overflow:hidden}
+  .mock .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+  .mock .kpi .k{font-size:9px;text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+  .mock .kpi .v{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px}
+  .mock .row2{display:flex;align-items:center;gap:9px}
+  .mock .btn{font-size:11px;font-weight:650;padding:6px 13px;border-radius:7px;border:none}
+  .mock .tbl{flex:1;height:26px;border-radius:7px;display:flex;align-items:center;padding:0 10px;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+
+  footer.note{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13.5px;max-width:70ch}
+  footer.note b{color:var(--ink)}
+  a.link{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 40%,transparent)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Bix · Healthcare RCM · Design Review</p>
+    <h1>Branch design &amp; colour review</h1>
+    <p class="lede">Ten design-bearing branches, grouped into four visual directions. Each card shows the branch,
+      its last three commits, its real colour tokens, and a preview synthesized from those tokens — so you can
+      finalize one direction.</p>
+    <div class="meta">
+      <span><b id="mBranches">10</b> branches</span>
+      <span><b>4</b> design families</span>
+      <span>palettes read from <b>site.css</b></span>
+      <span id="mDate"></span>
+    </div>
+  </header>
+
+  <div class="families" id="families"></div>
+
+  <div class="deck" id="deck"></div>
+
+  <footer class="note">
+    <p><b>About the previews:</b> each mini-UI is generated live from that branch's own colour tokens (darkest → top bar
+      &amp; text, lightest → background, most-saturated mid tone → primary action). They are <b>palette-derived</b>, not
+      live screenshots. The four "Teal-Navy Glass" branches share an identical `:root` palette, so their previews match —
+      that itself tells you they're the same design lineage.</p>
+    <p style="margin-top:10px">Want true rendered screenshots of a shortlist (say, the current deploy vs. the skin-enabled
+      <span style="font-family:var(--mono)">origin/main</span> vs. <span style="font-family:var(--mono)">bixlive</span>)?
+      Those need each branch checked out, built and run — tell me which 2–3 and I'll capture them.</p>
+  </footer>
+</div>
+
+<script>
+const FAMILIES = [
+  {name:"Teal-Navy Glass", pal:["#011c40","#54acbf","#b88924","#2f8f72"], desc:"Navy + cyan glassmorphism. The current lineage — deployed, main, production, staging."},
+  {name:"Deep-Teal + Skins", pal:["#003b4d","#006884","#008b8b","#66b2b2"], desc:"Teal-forward with 4 selectable skins: Obsidian, Ledger, Aurora, Fable."},
+  {name:"Dark Ops · BixLive", pal:["#141e30","#a7ebf2","#8eb69b","#daf1de"], desc:"Dark navy operations theme with icy + sage accents."},
+  {name:"Indigo Office", pal:["#1a2e4a","#4f6ef7","#d97706","#059669"], desc:"Indigo/blue 'office host' match with a horizontal menubar."},
+];
+
+const BRANCHES = [
+  {name:"cursor/deploy-bix-cloudflare-0c1a", badges:[["Current",1],["Deployed",1]], family:0,
+   pal:["#011c40","#54acbf","#26658c","#285f84","#35577d","#023859","#eaf4fb","#b88924","#b94a3f","#2f8f72","#f7f8fa","#ffffff","#334e68","#4a617b"],
+   commits:[["ff212a5","2026-07-10","Deploy GhafBI via Cloudflare Tunnel to bix.ghafservices.com"],["c52a038","2026-07-02","Glass-v6 design system: moving-border cards, dashboard perf, guest provisioning"],["db97066","2026-07-02","Upgrade dashboard experience and sync reliability"]]},
+  {name:"main", badges:[["main",0]], family:0,
+   pal:["#011c40","#54acbf","#26658c","#285f84","#35577d","#023859","#eaf4fb","#b88924","#b94a3f","#2f8f72","#f7f8fa","#ffffff","#334e68","#4a617b"],
+   commits:[["c52a038","2026-07-02","Glass-v6 design system: moving-border cards, dashboard perf, guest provisioning"],["db97066","2026-07-02","Upgrade dashboard experience and sync reliability"],["433733a","2026-06-12","fix: unblock concurrent submissions, fix download 404, fix progress tracking"]]},
+  {name:"origin/main", badges:[["Remote main",0],["Selectable skins",1]], family:1, skins:["Obsidian","Ledger","Aurora","Fable"],
+   pal:["#003b4d","#006884","#008b8b","#005a6f","#66b2b2","#002d3d","#eaf6f8","#b88924","#b94a3f","#2f8f72","#f7f9f9","#16313c","#005f70","#36566a"],
+   commits:[["4518043","2026-07-15","Merge: Schema fix, dropdown fixes, and selectable theme skins from Bix Redesign Directions + Fable Velvet"],["7c6d2d1","2026-07-11","Deploy GhafBI via Cloudflare Tunnel to bix.ghafservices.com (#48)"],["21a9657","2026-07-11","Merge origin/main into main"]]},
+  {name:"origin/claude/modest-wiles-b33507-RX2Bb", badges:[["Skins source",1]], family:1, skins:["Obsidian","Ledger","Aurora","Fable"],
+   pal:["#003b4d","#006884","#008b8b","#005a6f","#66b2b2","#002d3d","#eaf6f8","#b88924","#b94a3f","#2f8f72","#f7f9f9","#16313c","#005f70","#36566a"],
+   commits:[["e3902d0","2026-07-07","feat: selectable theme skins from Bix Redesign Directions + Fable Velvet"],["fd1e0ad","2026-07-07","fix: broken dropdown selections across the app"],["f0cffa7","2026-07-07","fix: add 6 missing columns to XmlParsedRecords in SqliteSchemaService"]]},
+  {name:"origin/production", badges:[["Production",0]], family:0,
+   pal:["#011c40","#54acbf","#26658c","#285f84","#35577d","#023859","#eaf4fb","#b88924","#b94a3f","#2f8f72","#f7f8fa","#334e68","#ffffff","#4a617b"],
+   commits:[["f61d5d2","2026-06-09","Modern translucent design system + performance middleware"],["814cbc2","2026-06-09","Restore analytika-lang locale on login page"],["9d66135","2026-04-22","Merge branch 'main' of https://github.com/ghafBI/analytika-rcm"]]},
+  {name:"origin/staging", badges:[["Staging",0]], family:0,
+   pal:["#011c40","#54acbf","#26658c","#285f84","#35577d","#023859","#eaf4fb","#b88924","#b94a3f","#2f8f72","#f7f8fa","#ffffff","#334e68","#4a617b"],
+   commits:[["ba00e57","2026-06-09","Localize failed-login alert to active language"],["a56b179","2026-06-09","Remove stale .NET Core Desktop workflow template"],["d66bd5a","2026-06-09","Remove broken node_modules symlink (codex runtime path)"]]},
+  {name:"origin/claude/rcm-dashboard-rebuild", badges:[["Multi-accent",0]], family:0,
+   pal:["#011c40","#54acbf","#26658c","#285f84","#35577d","#023859","#eaf4fb","#b88924","#b94a3f","#2f8f72","#f7f8fa","#ffffff","#334e68","#4a617b"],
+   commits:[["f32c8b3","2026-06-11","Complete rebuild of RCM (BI Reports) dashboard — multi-accent colorful theme"],["5c85325","2026-06-11","Load DataTables colVis extension (fixes 'colvis' error on listing pages) (#23)"],["54456fc","2026-06-11","Fix sidebar layout: stray git conflict marker broke :root CSS variables (#22)"]]},
+  {name:"origin/codex/bixlive", badges:[["Dark ops",0]], family:2,
+   pal:["#141e30","#54acbf","#26658c","#35577d","#8eb69b","#a7ebf2","#daf1de","#051f20","#4a617b","#023859","#eaf4fb","#011c40","#b45309","#b91c1c"],
+   commits:[["01fd25f","2026-06-04","Redesign shared healthcare ops theme and RHA sync flow"],["35607d1","2026-06-01","Refine commit message generation"],["63360c6","2026-05-27","Redesign dashboards with taskboard and AWSMD themes"]]},
+  {name:"origin/cursor/fix-ui-dark-theme-reports-abb4", badges:[["Indigo dark",0]], family:3,
+   pal:["#1a2e4a","#4f6ef7","#3b5bdb","#4263eb","#364fc7","#1c3461","#eef2ff","#d97706","#dc2626","#059669","#eef2f7","#334e68","#ffffff","#4a617b"],
+   commits:[["7c6d2d1","2026-07-11","Deploy GhafBI via Cloudflare Tunnel to bix.ghafservices.com (#48)"],["21a9657","2026-07-11","Merge origin/main into main"],["c2b02df","2026-07-11","Implement dashboard and Cloudflare workflow updates"]]},
+  {name:"origin/cursor/match-office-bix-ui-abb4", badges:[["Horizontal menubar",1]], family:3,
+   pal:["#1a2e4a","#4f6ef7","#3b5bdb","#4263eb","#364fc7","#1c3461","#eef2ff","#d97706","#dc2626","#059669","#eef2f7","#334e68","#ffffff","#4a617b"],
+   commits:[["6969d99","2026-07-11","Match office host BiX UI: horizontal menubar branding"],["dfdc0aa","2026-07-11","Switch navigation from vertical sidebar to horizontal menubar"],["109296c","2026-07-11","Fix dark-theme card contrast, wire Submission XML report, add favicon"]]},
+];
+
+// ---- colour maths ----
+const hx = h => { h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; };
+const lum = h => { const [r,g,b]=hx(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)}); return .2126*r+.7152*g+.0722*b; };
+const sat = h => { const [r,g,b]=hx(h).map(v=>v/255); const mx=Math.max(r,g,b),mn=Math.min(r,g,b); return mx===0?0:(mx-mn)/mx; };
+const readable = bg => lum(bg) > .42 ? "#0d1b24" : "#ffffff";
+
+function roles(pal){
+  const byLum=[...pal].sort((a,b)=>lum(a)-lum(b));
+  const dark=byLum[0];
+  const light=byLum[byLum.length-1];
+  const bg = lum(light)>.85 ? light : "#ffffff";
+  // primary accent: most saturated in a usable mid range
+  const mids=pal.filter(c=>{const l=lum(c);return l>.12&&l<.78;});
+  const accent=(mids.length?mids:pal).slice().sort((a,b)=>sat(b)-sat(a))[0];
+  // three distinct KPI accents (saturated, distinct hues) fallbacks to accent
+  const sats=[...new Set(pal)].filter(c=>sat(c)>.25).sort((a,b)=>sat(b)-sat(a));
+  const trio=[sats[0]||accent, sats[1]||accent, sats[2]||sats[0]||accent];
+  return {dark,bg,accent,trio,ink:readable(bg)};
+}
+
+function mock(pal){
+  const r=roles(pal);
+  const navInk=readable(r.dark);
+  const btnInk=readable(r.accent);
+  const surface = lum(r.bg)>.5 ? "#ffffff" : "rgba(255,255,255,.06)";
+  const surfInk = readable(surface==="#ffffff"?"#ffffff":r.bg);
+  const kpi=(c,k,v)=>`<div class="kpi" style="background:${surface};color:${surfInk}">
+      <span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${c}"></span>
+      <div class="k">${k}</div><div class="v">${v}</div></div>`;
+  return `<div class="mock" style="background:${r.bg}">
+    <div class="bar" style="background:${r.dark};color:${navInk}">
+      <span class="brand">Bix</span>
+      <span class="pills">
+        <span style="background:${r.accent};color:${btnInk}">Dashboard</span>
+        <span style="background:rgba(255,255,255,.14);color:${navInk}">Portal</span>
+        <span style="background:rgba(255,255,255,.14);color:${navInk}">Reports</span>
+      </span>
+    </div>
+    <div class="body">
+      <div class="kpis">
+        ${kpi(r.trio[0],"Claims","12,480")}
+        ${kpi(r.trio[1],"Paid AED","4.7M")}
+        ${kpi(r.trio[2],"Denials","318")}
+      </div>
+      <div class="row2">
+        <button class="btn" style="background:${r.accent};color:${btnInk}">Fetch Data</button>
+        <div class="tbl" style="background:${surface};color:${surfInk}">Claim ID · Payer · Amount</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ---- render ----
+document.getElementById("mDate").innerHTML = "generated <b>"+new Date().toISOString().slice(0,10)+"</b>";
+document.getElementById("mBranches").textContent = BRANCHES.length;
+
+document.getElementById("families").innerHTML = FAMILIES.map(f=>`
+  <div class="fam">
+    <div class="dots">${f.pal.map(c=>`<span style="background:${c}"></span>`).join("")}</div>
+    <h3>${f.name}</h3><p>${f.desc}</p>
+  </div>`).join("");
+
+document.getElementById("deck").innerHTML = BRANCHES.map(b=>{
+  const fam=FAMILIES[b.family];
+  const badges=b.badges.map(([t,hot])=>`<span class="badge${hot?" hot":""}">${t}</span>`).join("");
+  const commits=b.commits.map(([h,d,s])=>`<li><span class="h">${h}</span><span class="d">${d}</span><span class="s">${s}</span></li>`).join("");
+  const sw=b.pal.map(c=>`<span class="s" style="background:${c}" data-hex="${c}"></span>`).join("");
+  const skins=b.skins?`<div style="margin-top:12px" class="clabel">Selectable skins</div>
+     <div style="display:flex;gap:6px;flex-wrap:wrap">${b.skins.map(s=>`<span class="badge">${s}</span>`).join("")}</div>`:"";
+  return `<div class="card">
+    <div class="side left">
+      <p class="bname">${b.name}</p>
+      <div class="badges">${badges}</div>
+      <div class="fam-tag"><span class="sw">${fam.pal.map(c=>`<i style="background:${c}"></i>`).join("")}</span>${fam.name}</div>
+      <p class="clabel">Last 3 commits</p>
+      <ul class="commits">${commits}</ul>
+      ${skins}
+    </div>
+    <div class="side">
+      <p class="clabel">Colour tokens · site.css <span style="color:var(--faint)">(hover for hex)</span></p>
+      <div class="swatches">${sw}</div>
+      <p class="preview-label">Palette-derived preview</p>
+      ${mock(b.pal)}
+    </div>
+  </div>`;
+}).join("");
+</script>
