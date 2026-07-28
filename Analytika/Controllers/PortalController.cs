@@ -320,7 +320,7 @@ public class PortalController : Controller
                 return (0, new List<PortalFetchResultRow>(), $"No active RHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
             var cred = credNullable!;
             var pwd = pwdNullable!;
-            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://o-tmbapi.riayati.ae:8083", cred.LicenseCode);
             if (authErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"RHA Auth failed: {authErr}");
 
@@ -508,7 +508,7 @@ public class PortalController : Controller
         string? rhaToken = null;
         if (vm.Portal == "RHA")
         {
-            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
+            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://o-tmbapi.riayati.ae:8083", cred.LicenseCode);
             if (authErr != null)
             {
                 freshVm.IsError = true;
@@ -1835,7 +1835,9 @@ public class PortalController : Controller
                         // Request / Prior Authorization files are 78% of the pending
                         // queue (693k of 886k) and are not used by any report — skip
                         // them entirely instead of spending portal calls on them.
-                        && (t.Type == "Claim" || t.Type == "Remittance"));
+                        && (t.Type == "Claim" || t.Type == "Remittance")
+                        // Skip files both portal endpoints have declared gone.
+                        && !t.FileUnavailable);
         if (facilityId.HasValue) query = query.Where(t => t.FacilityId == facilityId.Value);
         if (resumeFromId > 0) query = query.Where(t => t.Id > resumeFromId);
 
@@ -1931,6 +1933,19 @@ public class PortalController : Controller
                 // (first few + every 2000th) so the app log answers "cooldown or purge?".
                 if (!ok && err != null && (failed < 10 || failed % 2000 == 0))
                     _logger.LogWarning("Download refused for tx {TxId} (facility {FacilityId}): {Error}", tx.Id, tx.FacilityId, err);
+
+                // Both endpoints answered "empty" → the file is permanently gone from the
+                // portal. Flag it so it never re-enters the pending queue (each dead file
+                // otherwise costs two portal calls on EVERY future pass, forever).
+                if (!ok && err != null && err.Contains("empty") && err.Contains("archive:") && !err.Contains("Connection failed"))
+                {
+                    try
+                    {
+                        await _db.PortalTransactions.Where(t => t.Id == tx.Id)
+                            .ExecuteUpdateAsync(s => s.SetProperty(t => t.FileUnavailable, true), ct);
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Could not flag tx {TxId} unavailable", tx.Id); }
+                }
                 if (ok)
                 {
                     // Retry the save instead of letting a transient write-lock timeout

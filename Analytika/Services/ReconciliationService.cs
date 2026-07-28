@@ -30,29 +30,19 @@ public class ReconciliationService
         if (facilityIds?.Count > 0)
             txBase = txBase.Where(t => facilityIds.Contains(t.FacilityId));
 
+        // Exact Type match only. The old LIKE-heuristics (Type.Contains + FileName
+        // StartsWith/Contains patterns) forced an unindexable scan across the whole
+        // blob-bearing table; Type is reliably populated ('Claim' is also the sync-time
+        // default for unrecognized filenames, which is what the heuristics approximated).
         var txCounts = await txBase
             .GroupBy(t => t.FacilityId)
             .Select(g => new
             {
                 FacilityId = g.Key,
-                SubmissionTotal = g.Count(t =>
-                    (t.Type.Contains("Claim")
-                     || (t.FileName != null && (t.FileName.StartsWith("CLM") || t.FileName.Contains("Claim"))))
-                    && !(t.Type.Contains("Remittance")
-                         || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance"))))),
-                SubmissionDownloaded = g.Count(t =>
-                    t.FileDownloaded
-                    && (t.Type.Contains("Claim")
-                        || (t.FileName != null && (t.FileName.StartsWith("CLM") || t.FileName.Contains("Claim"))))
-                    && !(t.Type.Contains("Remittance")
-                         || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance"))))),
-                RemittanceTotal = g.Count(t =>
-                    t.Type.Contains("Remittance")
-                    || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance")))),
-                RemittanceDownloaded = g.Count(t =>
-                    t.FileDownloaded
-                    && (t.Type.Contains("Remittance")
-                        || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance")))))
+                SubmissionTotal = g.Count(t => t.Type == "Claim"),
+                SubmissionDownloaded = g.Count(t => t.Type == "Claim" && t.FileDownloaded),
+                RemittanceTotal = g.Count(t => t.Type == "Remittance"),
+                RemittanceDownloaded = g.Count(t => t.Type == "Remittance" && t.FileDownloaded)
             })
             .ToListAsync();
 
@@ -62,40 +52,35 @@ public class ReconciliationService
         if (facilityIds?.Count > 0)
             parsedBase = parsedBase.Where(r => facilityIds.Contains(r.FacilityId));
 
-        var parsedRows = await parsedBase
-            .Select(r => new { r.FacilityId, r.PortalTransactionId, r.RecordKind, r.ClaimId, r.IsMatched })
-            .ToListAsync();
-
-        var parsedByFacility = parsedRows
+        // All aggregation server-side. The previous code materialized EVERY parsed row
+        // (1.3M+ × 5 columns) into memory on EVERY page view and built per-facility
+        // HashSets — the reason this page died with a 5-minute timeout under load.
+        // Matched counts come from the persisted IsMatched flag (maintained by
+        // MatchParsedRecordsAsync) instead of recomputing set intersections per view.
+        var parsedByFacility = (await parsedBase
             .GroupBy(r => r.FacilityId)
-            .ToDictionary(g => g.Key, g =>
+            .Select(g => new
             {
-                var submissionIds = g.Where(r => r.RecordKind == "Submission")
-                    .Select(r => r.ClaimId)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                var remittanceIds = g.Where(r => r.RecordKind == "Remittance")
-                    .Select(r => r.ClaimId)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-                return new
-                {
-                    SubmissionFileCount = g.Where(r => r.RecordKind == "Submission")
-                        .Select(r => r.PortalTransactionId)
-                        .Distinct()
-                        .Count(),
-                    RemittanceFileCount = g.Where(r => r.RecordKind == "Remittance")
-                        .Select(r => r.PortalTransactionId)
-                        .Distinct()
-                        .Count(),
-                    SubmissionRecordCount = g.Count(r => r.RecordKind == "Submission"),
-                    ClaimCount = submissionIds.Count,
-                    RemittanceRecordCount = g.Count(r => r.RecordKind == "Remittance"),
-                    RemittanceClaimRefCount = remittanceIds.Count,
-                    Matched = submissionIds.Count(id => remittanceIds.Contains(id)),
-                    UnmatchedSubmissions = submissionIds.Count(id => !remittanceIds.Contains(id)),
-                    UnmatchedRemittances = remittanceIds.Count(id => !submissionIds.Contains(id))
-                };
-            });
+                FacilityId = g.Key,
+                SubmissionFileCount = g.Where(r => r.RecordKind == "Submission")
+                    .Select(r => r.PortalTransactionId).Distinct().Count(),
+                RemittanceFileCount = g.Where(r => r.RecordKind == "Remittance")
+                    .Select(r => r.PortalTransactionId).Distinct().Count(),
+                SubmissionRecordCount = g.Count(r => r.RecordKind == "Submission"),
+                ClaimCount = g.Where(r => r.RecordKind == "Submission")
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                RemittanceRecordCount = g.Count(r => r.RecordKind == "Remittance"),
+                RemittanceClaimRefCount = g.Where(r => r.RecordKind == "Remittance")
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                Matched = g.Where(r => r.RecordKind == "Submission" && r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                UnmatchedSubmissions = g.Where(r => r.RecordKind == "Submission" && !r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                UnmatchedRemittances = g.Where(r => r.RecordKind == "Remittance" && !r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count()
+            })
+            .ToListAsync())
+            .ToDictionary(x => x.FacilityId, x => x);
 
         var facilityMap = facilities.ToDictionary(f => f.Id, f => f.Name);
         var allFacilityIds = txCounts.Select(x => x.FacilityId)

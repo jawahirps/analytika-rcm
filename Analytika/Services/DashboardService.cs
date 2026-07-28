@@ -45,11 +45,21 @@ public class DashboardService : IDashboardService
             return Task.FromResult(entry.Model);
         }
 
-        // No cache at all — likely pre-warm hasn't completed yet. Kick it off if
-        // no one else is already computing, then return an empty placeholder
-        // model so the user gets an instant response. They can refresh in a
-        // few seconds once the aggregation finishes.
+        // No memory cache — cold start. Before falling back to an empty placeholder,
+        // serve the last snapshot persisted to disk (stale-while-revalidate): after a
+        // restart the full rebuild takes minutes on this DB, and users were staring at
+        // "No active facilities found" the whole time. Slightly stale numbers now,
+        // fresh ones a refresh later, blank screen never.
         _ = Task.Run(() => RefreshInBackgroundAsync());
+
+        var snapshot = TryLoadSnapshot();
+        if (snapshot != null)
+        {
+            // Mark as already-stale so the background refresh continues to run.
+            _cache.Set(CacheKey, new CachedFacilityStatus(snapshot, DateTime.UtcNow - CacheTtl + TimeSpan.FromMinutes(1)), CacheTtl);
+            return Task.FromResult(snapshot);
+        }
+
         return Task.FromResult(new FacilityStatusViewModel
         {
             Facilities = new List<FacilityStatusRow>(),
@@ -58,6 +68,34 @@ public class DashboardService : IDashboardService
             TotalFiles = 0,
             LastSyncTime = null
         });
+    }
+
+    // ── Disk snapshot: survives restarts so the dashboard is never blank ─────────
+    private static string SnapshotPath =>
+        Path.Combine(Environment.GetEnvironmentVariable("DB_DIR") ?? AppContext.BaseDirectory,
+                     "dashboard-snapshot.json");
+
+    private void PersistSnapshot(FacilityStatusViewModel model)
+    {
+        try
+        {
+            File.WriteAllText(SnapshotPath, System.Text.Json.JsonSerializer.Serialize(model));
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Could not persist dashboard snapshot"); }
+    }
+
+    private FacilityStatusViewModel? TryLoadSnapshot()
+    {
+        try
+        {
+            if (!File.Exists(SnapshotPath)) return null;
+            return System.Text.Json.JsonSerializer.Deserialize<FacilityStatusViewModel>(File.ReadAllText(SnapshotPath));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load dashboard snapshot — serving empty until warm");
+            return null;
+        }
     }
 
     public async Task WarmAsync(CancellationToken ct = default)
@@ -69,6 +107,7 @@ public class DashboardService : IDashboardService
 
         var fresh = await BuildFacilityStatusCoreAsync();
         _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+        PersistSnapshot(fresh);
     }
 
     private async Task RefreshInBackgroundAsync()
@@ -85,6 +124,7 @@ public class DashboardService : IDashboardService
                 {
                     var fresh = await concrete.BuildFacilityStatusCoreAsync();
                     _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+                    PersistSnapshot(fresh);
                     _logger.LogInformation("Refreshed dashboard facility status in background");
                 }
             }
@@ -154,41 +194,30 @@ public class DashboardService : IDashboardService
             .ToListAsync();
 
         var txMap = txStats.ToDictionary(x => new { x.FacilityId, x.Portal });
-        var claimMap = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Where(r => r.RecordKind == "Submission")
-            .Join(
-                _db.PortalTransactions.AsNoTracking(),
-                r => r.PortalTransactionId,
-                t => t.Id,
-                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.ClaimId })
-            .GroupBy(r => new { r.FacilityId, r.Portal })
-            .Select(g => new
-            {
-                g.Key.FacilityId,
-                g.Key.Portal,
-                ClaimCount = g.Select(r => r.ClaimId).Distinct().Count()
-            })
-            .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
 
-        // Parsed = distinct downloaded transactions that made it into XmlParsedRecords
-        // (i.e. are report-ready). Compared against DownloadedFilesCount this shows the
-        // download -> parse progress per facility.
-        var parsedMap = await _db.XmlParsedRecords
+        // ONE join over XmlParsedRecords×PortalTransactions computing BOTH the distinct
+        // claim count and the distinct parsed-transaction count. This used to be two
+        // separate full joins over 1.6M+ rows — the dominant cost of the 10-minute cold
+        // dashboard build. Halving the join passes roughly halves the rebuild.
+        var parsedAgg = await _db.XmlParsedRecords
             .AsNoTracking()
             .Join(
                 _db.PortalTransactions.AsNoTracking(),
                 r => r.PortalTransactionId,
                 t => t.Id,
-                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.PortalTransactionId })
-            .GroupBy(r => new { r.FacilityId, r.Portal })
+                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.PortalTransactionId, r.RecordKind, r.ClaimId })
+            .GroupBy(x => new { x.FacilityId, x.Portal })
             .Select(g => new
             {
                 g.Key.FacilityId,
                 g.Key.Portal,
-                ParsedCount = g.Select(r => r.PortalTransactionId).Distinct().Count()
+                ParsedCount = g.Select(x => x.PortalTransactionId).Distinct().Count(),
+                ClaimCount = g.Where(x => x.RecordKind == "Submission")
+                              .Select(x => x.ClaimId.ToUpper()).Distinct().Count()
             })
-            .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ParsedCount);
+            .ToListAsync();
+        var claimMap = parsedAgg.ToDictionary(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
+        var parsedMap = parsedAgg.ToDictionary(x => new { x.FacilityId, x.Portal }, x => x.ParsedCount);
 
         var rows = facilities.SelectMany(f =>
         {

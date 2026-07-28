@@ -161,7 +161,11 @@ public class XmlParsingService
             .AsNoTracking()
             .Where(t => (t.Portal == "DHA"
                             && t.FileDownloaded
-                            && t.FileContentXml != null)
+                            && t.FileContentXml != null
+                            // FOCUS: the parser only extracts Submission/Remittance records,
+                            // so Prior Request/Authorization files always yield 0 rows —
+                            // scanning their blobs every run was pure waste (the skip swamp).
+                            && (t.Type == "Claim" || t.Type == "Remittance"))
                      // RHA/Riyati delivers JSON inline (no file download) — parse from RawXml
                      || (t.Portal == "RHA"
                             && t.RawXml != null));

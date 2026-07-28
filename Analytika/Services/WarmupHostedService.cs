@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Analytika.Services;
@@ -40,6 +41,9 @@ public class WarmupHostedService : BackgroundService
         // Small initial delay so startup's own WarmAsync and pre-warm finish first.
         try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); } catch (OperationCanceledException) { return; }
 
+        var lastCheckpointDay = DateTime.MinValue.Date;
+        var checkpointHour = Math.Clamp(_config.GetValue("Warmup:CheckpointHour", 3), 0, 23);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -47,6 +51,25 @@ public class WarmupHostedService : BackgroundService
                 using var scope = _scopes.CreateScope();
                 var dashboard = scope.ServiceProvider.GetRequiredService<IDashboardService>();
                 await dashboard.WarmAsync(stoppingToken);   // rebuilds facility-status cache + touches the hot parsed/portal tables
+
+                // Nightly WAL checkpoint (default 03:00 local, Warmup:CheckpointHour to
+                // change). Long readers/writers starve SQLite's automatic checkpointing,
+                // so the WAL grew to 4GB+ during heavy days — and a huge WAL slows EVERY
+                // query (each read must merge it). TRUNCATE resets it to zero in the
+                // quietest hour; PASSIVE semantics inside mean it simply does less if
+                // something is active, and we retry the next night.
+                var nowLocal = DateTime.Now;
+                if (nowLocal.Hour == checkpointHour && lastCheckpointDay != nowLocal.Date)
+                {
+                    lastCheckpointDay = nowLocal.Date;
+                    var db = scope.ServiceProvider.GetRequiredService<Analytika.Models.AppDbContext>();
+                    if (db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        await db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE);", stoppingToken);
+                        _logger.LogInformation("[Warmup] nightly WAL checkpoint(TRUNCATE) done in {Ms} ms.", sw.ElapsedMilliseconds);
+                    }
+                }
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)

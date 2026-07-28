@@ -88,6 +88,13 @@ public static class SqliteSchemaService
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Facilities"" ADD COLUMN ""FullName"" TEXT NULL");
         if (!ColumnExists(db, "Facilities", "LicenseCode"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Facilities"" ADD COLUMN ""LicenseCode"" TEXT NULL");
+
+        // Permanent download-failure marker: set when BOTH the normal and the archive
+        // DHPO endpoints return an empty payload for a file. Without it, dead files
+        // (43k+ observed) re-churn through every download pass, costing two portal
+        // calls each, forever. Flagged rows are excluded from the pending queue.
+        if (!ColumnExists(db, "PortalTransactions", "FileUnavailable"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""PortalTransactions"" ADD COLUMN ""FileUnavailable"" INTEGER NOT NULL DEFAULT 0");
     }
 
     private static void CreateTables(AppDbContext db)

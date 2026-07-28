@@ -90,7 +90,15 @@ if (!string.IsNullOrEmpty(port))
 
 var app = builder.Build();
 
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(o =>
+{
+    // /healthz is pinged every 20-60s by the keepalive + health checks — logging each
+    // one is pure churn (thousands of identical lines/day). Log it only when unhealthy.
+    o.GetLevel = (ctx, _, ex) =>
+        ex != null || ctx.Response.StatusCode >= 500 ? Serilog.Events.LogEventLevel.Error :
+        ctx.Request.Path.StartsWithSegments("/healthz") ? Serilog.Events.LogEventLevel.Verbose :
+        Serilog.Events.LogEventLevel.Information;
+});
 
 if (!app.Environment.IsDevelopment())
 {

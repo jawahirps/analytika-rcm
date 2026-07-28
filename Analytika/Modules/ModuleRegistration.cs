@@ -49,7 +49,12 @@ public static class ModuleRegistration
             // Pooled context + WAL/pragmas via interceptor for SQLite installs.
             services.AddDbContextPool<AppDbContext>(options =>
                 options
-                    .UseSqlite($"Data Source={dbPath};Pooling=True;Foreign Keys=True")
+                    // Default Timeout=120: SQLite busy/command timeout. The 30s default made
+                    // every app write die with an unhandled exception whenever a long-running
+                    // job (parse backfill, match pass) held the write lock — dead credential
+                    // saves, killed download streams, Cloudflare 524s. 120s rides out normal
+                    // lock windows; truly long jobs still fail rather than hang forever.
+                    .UseSqlite($"Data Source={dbPath};Pooling=True;Foreign Keys=True;Default Timeout=120")
                     .AddInterceptors(new SqlitePragmaInterceptor()));
         }
 
