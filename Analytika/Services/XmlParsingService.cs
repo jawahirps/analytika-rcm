@@ -437,26 +437,28 @@ public class XmlParsingService
         var matched = isNpgsql ? "TRUE" : "1";
         var unmatched = isNpgsql ? "FALSE" : "0";
         // Two-phase match: build the matched-claim key set ONCE with a single aggregate
-        // pass, then update against that (small, indexed) temp table. The previous
-        // correlated EXISTS-with-GROUP-BY re-aggregated the claim group for every one of
-        // the outer rows; SQLite's planner cannot untangle it even with the NOCASE index,
-        // which degraded the full match to an O(n^2)-style crawl (observed: hours at 1.3M
-        // rows, projected days). This form is planner-proof: one index scan + per-row
-        // seeks into the temp key table — minutes at worst.
+        // pass, then update against that (small, indexed) temp table. Two hard-won
+        // constraints shape this SQL:
+        //  1. The previous correlated EXISTS-with-GROUP-BY re-aggregated the claim group
+        //     for every outer row — an O(n^2)-style crawl at 1M+ rows (observed: hours,
+        //     projected days).
+        //  2. Keys are stored UPPER()-normalized, NOT via COLLATE NOCASE: `CREATE TABLE
+        //     AS SELECT expr COLLATE NOCASE` does not persist the collation on the temp
+        //     column, so its index is binary-ordered and a NOCASE comparison cannot seek
+        //     it — silently reintroducing the full-scan-per-row crawl (observed live).
+        //     UPPER() on both sides makes every comparison plain binary and seekable.
         var facFilter = facilityId.HasValue ? @" WHERE ""FacilityId"" = {0}" : "";
         var facFilterAnd = facilityId.HasValue ? @" AND ""FacilityId"" = {0}" : "";
         var args = facilityId.HasValue ? new object[] { facilityId.Value } : Array.Empty<object>();
         var tempKeyword = isNpgsql ? "TEMPORARY" : "TEMP";
-        var cidExpr = isNpgsql ? @"LOWER(""ClaimId"")" : @"""ClaimId"" COLLATE NOCASE";
-        var cidMatch = isNpgsql ? @"mk_match.cid = LOWER(""XmlParsedRecords"".""ClaimId"")"
-                                : @"mk_match.cid = ""XmlParsedRecords"".""ClaimId"" COLLATE NOCASE";
 
         await _db.Database.ExecuteSqlRawAsync(
             @"DROP TABLE IF EXISTS mk_match;
-            CREATE " + tempKeyword + @" TABLE mk_match AS
-                SELECT ""FacilityId"" AS fid, " + cidExpr + @" AS cid
+            CREATE " + tempKeyword + @" TABLE mk_match (fid INTEGER NOT NULL, cid TEXT NOT NULL);
+            INSERT INTO mk_match
+                SELECT ""FacilityId"", UPPER(""ClaimId"")
                 FROM ""XmlParsedRecords""" + facFilter + @"
-                GROUP BY ""FacilityId"", " + cidExpr + @"
+                GROUP BY ""FacilityId"", UPPER(""ClaimId"")
                 HAVING SUM(CASE WHEN ""RecordKind"" = 'Submission' THEN 1 ELSE 0 END) > 0
                    AND SUM(CASE WHEN ""RecordKind"" = 'Remittance' THEN 1 ELSE 0 END) > 0;
             CREATE INDEX mk_match_ix ON mk_match(fid, cid);
@@ -469,7 +471,7 @@ public class XmlParsingService
             WHERE EXISTS (
                 SELECT 1 FROM mk_match
                 WHERE mk_match.fid = ""XmlParsedRecords"".""FacilityId""
-                  AND " + cidMatch + @"
+                  AND mk_match.cid = UPPER(""XmlParsedRecords"".""ClaimId"")
             )" + facFilterAnd + @";
             DROP TABLE IF EXISTS mk_match;
             ", args, ct);
