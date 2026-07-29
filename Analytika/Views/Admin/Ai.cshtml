@@ -215,6 +215,62 @@
     </div>
 </div>
 
+@* ── Local model (Ollama) ─────────────────────────────────────────────────────
+   Separate brain from the cloud agent above: the Bix Assistant and the
+   Resubmission Analyst read these values (SystemSettings category "Ollama").
+   Previously invisible here, so this page disagreed with what actually ran. *@
+<div class="container-fluid pb-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+        <h5 class="mb-0"><i class="fas fa-microchip me-2"></i>Local Model (Ollama)</h5>
+        @if (Model.Ollama.IsUsingDefaults)
+        {
+          <span class="badge bg-warning text-dark">Using built-in defaults — never saved</span>
+        }
+      </div>
+      <p class="text-muted fs-80 mb-3">
+        Runs on this server. Powers the <b>Bix Assistant</b> and the <b>Resubmission Analyst</b> —
+        independent of the cloud agent configured above.
+      </p>
+
+      <form asp-action="SaveOllamaSettings" method="post" class="row g-3">
+        @Html.AntiForgeryToken()
+        <div class="col-md-3">
+          <label class="form-label fs-80">Base URL</label>
+          <input name="ollamaBaseUrl" class="form-control form-control-sm" value="@Model.Ollama.BaseUrl" />
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fs-80">Model</label>
+          <input name="ollamaModel" class="form-control form-control-sm" value="@Model.Ollama.Model" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fs-80">Temperature</label>
+          <input name="ollamaTemperature" type="number" step="0.1" min="0" max="2" class="form-control form-control-sm" value="@Model.Ollama.Temperature" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fs-80">Context (num_ctx)</label>
+          <input name="ollamaNumCtx" type="number" min="512" max="32768" class="form-control form-control-sm" value="@Model.Ollama.NumCtx" />
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fs-80">Timeout (s)</label>
+          <input name="ollamaTimeoutSeconds" type="number" min="5" max="600" class="form-control form-control-sm" value="@Model.Ollama.TimeoutSeconds" />
+        </div>
+        <div class="col-12 d-flex align-items-center gap-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="ollamaEnabled" value="true" id="ollamaEnabled" @(Model.Ollama.Enabled ? "checked" : "") />
+            <input type="hidden" name="ollamaEnabled" value="false" />
+            <label class="form-check-label fs-85" for="ollamaEnabled">Enabled</label>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>Save local model settings</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="testOllama(this)"><i class="fas fa-plug me-1"></i>Test connection</button>
+          <span id="ollamaTestResult" class="fs-80 align-self-center text-muted"></span>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @section Scripts {
 <script>
 function getToken() {
@@ -236,6 +292,29 @@ async function testAi(btn) {
         el.innerHTML = `<i class="fas fa-${d.ok ? 'check' : 'times'}-circle me-1"></i>${d.message}`;
     } catch {
         el.className = 'fs-80 align-self-center ms-1 text-danger';
+        el.textContent = 'Request failed';
+    }
+    btn.innerHTML = orig; btn.disabled = false;
+}
+
+async function testOllama(btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing…';
+    btn.disabled = true;
+    const el = document.getElementById('ollamaTestResult');
+    el.className = 'fs-80 align-self-center text-muted';
+    el.textContent = '';
+    const form = new FormData();
+    form.append('__RequestVerificationToken', getToken());
+    form.append('baseUrl', document.querySelector('[name=ollamaBaseUrl]').value);
+    form.append('model', document.querySelector('[name=ollamaModel]').value);
+    try {
+        const r = await fetch('/Admin/TestOllamaConnection', { method: 'POST', body: form });
+        const d = await r.json();
+        el.className = 'fs-80 align-self-center ' + (d.ok ? 'text-success' : 'text-danger');
+        el.innerHTML = `<i class="fas fa-${d.ok ? 'check' : 'times'}-circle me-1"></i>${d.message}`;
+    } catch {
+        el.className = 'fs-80 align-self-center text-danger';
         el.textContent = 'Request failed';
     }
     btn.innerHTML = orig; btn.disabled = false;

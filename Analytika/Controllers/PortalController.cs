@@ -847,6 +847,12 @@ public class PortalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> FetchAndSaveAjax([FromForm] PortalFetchViewModel vm)
     {
+        // This endpoint is DHA-only (chunked SearchTransactions + file download). It used
+        // to silently IGNORE vm.Portal and run DHA with the DHA credential even when the
+        // caller asked for RHA — which produced convincingly wrong "RHA works" results.
+        // Refuse loudly instead; RHA sync runs through the Sync flow.
+        if (string.Equals(vm.Portal, "RHA", StringComparison.OrdinalIgnoreCase))
+            return Json(new { error = "Manual fetch supports DHA only. Use Portal → Sync for RHA (Riayati)." });
         if (vm.FacilityId == null)
             return Json(new { error = "Please select a facility." });
 

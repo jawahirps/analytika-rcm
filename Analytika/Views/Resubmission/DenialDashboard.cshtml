@@ -299,6 +299,98 @@ html[data-theme="dark"] .chip-oth { background:rgba(255,255,255,.08); color:#b8c
     }
 }
 
+@{ var an = (Analytika.Services.DenialAnalystViewModel?)ViewBag.Analyst; }
+@if (an != null)
+{
+<div class="container-fluid py-3">
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+        <h5 class="mb-0"><i class="fas fa-microscope me-2"></i>Resubmission Analyst</h5>
+        <small class="text-muted">parsed remittance activities · built @an.BuiltAt.ToString("HH:mm") UTC · refreshes every 15 min</small>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Remittance activities</div><b class="fs-5">@an.TotalActivities.ToString("N0")</b></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Denied activities</div><b class="fs-5 text-danger">@an.DeniedActivities.ToString("N0") (@an.DenialRatePct%)</b></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">Amount at risk</div><b class="fs-5 text-danger">AED @an.DeniedAmount.ToString("N0")</b></div></div>
+        <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-label">% of net billed</div><b class="fs-5">@an.AmountAtRiskPct%</b></div></div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-lg-6">
+          <h6 class="fs-80 text-uppercase text-muted">Top denial codes</h6>
+          <div class="table-responsive"><table class="table table-sm">
+            <thead><tr><th>Code</th><th>Description</th><th class="text-end">Count</th><th class="text-end">Share</th><th class="text-end">AED at risk</th></tr></thead>
+            <tbody>
+            @foreach (var c in an.TopCodes)
+            { <tr><td><code>@c.Code</code></td><td class="fs-80">@(c.Description ?? "—")</td><td class="text-end">@c.Count.ToString("N0")</td><td class="text-end">@c.SharePct%</td><td class="text-end">@c.Amount.ToString("N0")</td></tr> }
+            </tbody></table></div>
+
+          <h6 class="fs-80 text-uppercase text-muted mt-3">Payer × denial hotspots</h6>
+          <div class="table-responsive"><table class="table table-sm">
+            <thead><tr><th>Payer</th><th>Code</th><th class="text-end">Count</th><th class="text-end">AED at risk</th></tr></thead>
+            <tbody>
+            @foreach (var p in an.PayerHotspots)
+            { <tr><td class="fs-80">@p.Payer</td><td><code>@p.Code</code></td><td class="text-end">@p.Count.ToString("N0")</td><td class="text-end">@p.Amount.ToString("N0")</td></tr> }
+            </tbody></table></div>
+        </div>
+
+        <div class="col-lg-6">
+          <h6 class="fs-80 text-uppercase text-muted">Clinician outliers</h6>
+          <div class="table-responsive"><table class="table table-sm">
+            <thead><tr><th>Clinician</th><th class="text-end">Denied / Total</th><th class="text-end">Rate</th><th class="text-end">AED at risk</th></tr></thead>
+            <tbody>
+            @foreach (var c in an.Clinicians)
+            { <tr><td><code>@c.Clinician</code></td><td class="text-end">@c.Denied.ToString("N0") / @c.Total.ToString("N0")</td><td class="text-end">@c.RatePct%</td><td class="text-end">@c.Amount.ToString("N0")</td></tr> }
+            </tbody></table></div>
+
+          <h6 class="fs-80 text-uppercase text-muted mt-3">Most-denied activity codes</h6>
+          <div class="table-responsive"><table class="table table-sm">
+            <thead><tr><th>Activity</th><th class="text-end">Denied</th><th class="text-end">AED at risk</th><th>Top code</th></tr></thead>
+            <tbody>
+            @foreach (var a2 in an.ActivityCodes)
+            { <tr><td><code>@a2.ActivityCode</code></td><td class="text-end">@a2.Denied.ToString("N0")</td><td class="text-end">@a2.Amount.ToString("N0")</td><td>@(a2.TopDenialCode ?? "—")</td></tr> }
+            </tbody></table></div>
+
+          <h6 class="fs-80 text-uppercase text-muted mt-3">Monthly denial rate</h6>
+          <div class="d-flex align-items-end gap-1" style="height:70px;">
+            @foreach (var m in an.Monthly)
+            {
+              <div class="flex-fill text-center" title="@m.Month — @m.RatePct% (@m.Denied.ToString("N0")/@m.Total.ToString("N0"))">
+                <div style="height:@(Math.Max(3, Math.Min(60, m.RatePct * 0.6)))px; background:linear-gradient(180deg,#E2625A,#B94A3F); border-radius:3px 3px 0 0;"></div>
+                <div class="fs-70 text-muted">@m.Month.Substring(0, 2)/@m.Month.Substring(5)</div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3 p-3" style="border:1px dashed var(--border); border-radius:12px;">
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <i class="fas fa-robot"></i><b>AI Analyst</b>
+          <small class="text-muted">local model · reads the aggregates above</small>
+        </div>
+        <div id="analystInsights" class="fs-85 text-muted">Analysing patterns…</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  fetch('@Url.Action("DenialAnalystInsights", "Resubmission")')
+    .then(r => r.json())
+    .then(d => {
+      const el = document.getElementById('analystInsights');
+      el.classList.remove('text-muted');
+      el.innerHTML = (d.insights || '').split('\n').filter(l => l.trim())
+        .map(l => '<div class="mb-1">' + l.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>').join('');
+    })
+    .catch(() => { document.getElementById('analystInsights').textContent = 'AI analyst unavailable.'; });
+})();
+</script>
+}
+
 @section Scripts {
 <script src="~/lib/chart.umd.min.js"></script>
 <script>

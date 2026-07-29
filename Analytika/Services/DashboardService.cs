@@ -180,44 +180,59 @@ public class DashboardService : IDashboardService
             .Select(l => new { l.FacilityId, Portal = l.Portal.ToUpper() })
             .ToHashSet();
 
-        var txStats = await _db.PortalTransactions
-            .AsNoTracking()
-            .GroupBy(t => new { t.FacilityId, Portal = t.Portal.ToUpper() })
-            .Select(g => new
-            {
-                g.Key.FacilityId,
-                g.Key.Portal,
-                Records = g.Count(),
-                DownloadedFiles = g.Count(t => t.FileDownloaded),
-                PendingFiles = g.Count(t => !t.FileDownloaded)
-            })
-            .ToListAsync();
+        // Raw index-only SQL. Two hard-won lessons baked in:
+        //  1. GroupBy(t.Portal.ToUpper()) defeated every index and forced full scans of
+        //     the 40GB blob-bearing table — historical builds took up to 147 MINUTES
+        //     ("Pre-warmed dashboard caches in 8814383 ms"). Portal is stored uppercase
+        //     ('DHA'/'RHA'); grouping on the raw column lets SQLite answer the whole
+        //     aggregate from IX_PortalTransactions_PendingDl (Portal, FileDownloaded,
+        //     FacilityId, …) without touching a single table row.
+        //  2. The XmlParsedRecords→PortalTransactions join existed only to attribute a
+        //     Portal to parsed rows. All parsed rows are DHA today (RHA parses will land
+        //     with FacilityId too); attributing 'DHA' directly removes a 1.6M-row join
+        //     from every rebuild. Revisit when RHA parsing goes live.
+        var conn = _db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
 
-        var txMap = txStats.ToDictionary(x => new { x.FacilityId, x.Portal });
+        var txStats = new List<(int FacilityId, string Portal, int Records, int DownloadedFiles, int PendingFiles)>();
+        using (var cmd = conn.CreateCommand())
+        {
+            // INDEXED BY forces the covering index: left free, the planner preferred
+            // IX_PortalTransactions_FacilityId_FileDownloaded (matches the GROUP BY sort)
+            // and did 1.17M row-fetches into the blob table — the crawl all over again.
+            // With PendingDl (Portal, FileDownloaded, FacilityId, Id) the whole aggregate
+            // is answered inside the index. SQLite-only syntax; prod runs SQLite.
+            cmd.CommandText = @"SELECT ""FacilityId"", ""Portal"", COUNT(*),
+                                       SUM(CASE WHEN ""FileDownloaded"" THEN 1 ELSE 0 END),
+                                       SUM(CASE WHEN ""FileDownloaded"" THEN 0 ELSE 1 END)
+                                FROM ""PortalTransactions"" INDEXED BY ""IX_PortalTransactions_PendingDl""
+                                GROUP BY ""Portal"", ""FacilityId""";
+            cmd.CommandTimeout = 600;
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                txStats.Add((rdr.GetInt32(0), rdr.GetString(1).ToUpperInvariant(), rdr.GetInt32(2), rdr.GetInt32(3), rdr.GetInt32(4)));
+        }
+        var txMap = txStats.ToDictionary(
+            x => new { x.FacilityId, x.Portal },
+            x => new { x.Records, x.DownloadedFiles, x.PendingFiles });
 
-        // ONE join over XmlParsedRecords×PortalTransactions computing BOTH the distinct
-        // claim count and the distinct parsed-transaction count. This used to be two
-        // separate full joins over 1.6M+ rows — the dominant cost of the 10-minute cold
-        // dashboard build. Halving the join passes roughly halves the rebuild.
-        var parsedAgg = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Join(
-                _db.PortalTransactions.AsNoTracking(),
-                r => r.PortalTransactionId,
-                t => t.Id,
-                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.PortalTransactionId, r.RecordKind, r.ClaimId })
-            .GroupBy(x => new { x.FacilityId, x.Portal })
-            .Select(g => new
+        var claimMapTyped = new Dictionary<(int, string), int>();
+        var parsedMapTyped = new Dictionary<(int, string), int>();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = @"SELECT ""FacilityId"",
+                                       COUNT(DISTINCT ""PortalTransactionId""),
+                                       COUNT(DISTINCT CASE WHEN ""RecordKind""='Submission' THEN UPPER(""ClaimId"") END)
+                                FROM ""XmlParsedRecords""
+                                GROUP BY ""FacilityId""";
+            cmd.CommandTimeout = 600;
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
             {
-                g.Key.FacilityId,
-                g.Key.Portal,
-                ParsedCount = g.Select(x => x.PortalTransactionId).Distinct().Count(),
-                ClaimCount = g.Where(x => x.RecordKind == "Submission")
-                              .Select(x => x.ClaimId.ToUpper()).Distinct().Count()
-            })
-            .ToListAsync();
-        var claimMap = parsedAgg.ToDictionary(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
-        var parsedMap = parsedAgg.ToDictionary(x => new { x.FacilityId, x.Portal }, x => x.ParsedCount);
+                parsedMapTyped[(rdr.GetInt32(0), "DHA")] = rdr.GetInt32(1);
+                claimMapTyped[(rdr.GetInt32(0), "DHA")] = rdr.GetInt32(2);
+            }
+        }
 
         var rows = facilities.SelectMany(f =>
         {
@@ -237,8 +252,8 @@ public class DashboardService : IDashboardService
             {
                 var key = new { FacilityId = f.Id, Portal = portal };
                 txMap.TryGetValue(key, out var tx);
-                claimMap.TryGetValue(key, out var claimCount);
-                parsedMap.TryGetValue(key, out var parsedCount);
+                claimMapTyped.TryGetValue((f.Id, portal), out var claimCount);
+                parsedMapTyped.TryGetValue((f.Id, portal), out var parsedCount);
                 latestMeaningful.TryGetValue(key, out var mLog);
                 latestAny.TryGetValue(key, out var anyLog);
                 var displayLog = mLog ?? anyLog;
@@ -274,7 +289,7 @@ public class DashboardService : IDashboardService
         {
             Facilities = rows,
             TotalRecords = txStats.Sum(x => x.Records),
-            TotalClaimCount = claimMap.Values.Sum(),
+            TotalClaimCount = claimMapTyped.Values.Sum(),
             TotalFiles = txStats.Sum(x => x.DownloadedFiles),
             LastSyncTime = logProjection.Count > 0
                 ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")

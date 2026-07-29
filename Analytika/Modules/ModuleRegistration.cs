@@ -182,6 +182,7 @@ public static class ModuleRegistration
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IDhaPortalService, DhaPortalService>();
         services.AddScoped<IRhaPortalService, RhaPortalService>();
+        services.AddScoped<DenialAnalystService>();
         services.AddScoped<PortalSyncService>();
         services.AddScoped<ReconciliationService>();
         services.AddScoped<RemittanceParserService>();

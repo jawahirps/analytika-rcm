@@ -1170,10 +1170,83 @@ public class AdminController : Controller
         return Json(new { ok, message });
     }
 
+    /// <summary>Pings the configured local Ollama server and lists its loaded models.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestOllamaConnection(string? baseUrl, string? model)
+    {
+        var url = (string.IsNullOrWhiteSpace(baseUrl) ? "http://localhost:11434" : baseUrl.Trim()).TrimEnd('/');
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var resp = await http.GetAsync($"{url}/api/tags");
+            if (!resp.IsSuccessStatusCode)
+                return Json(new { ok = false, message = $"Ollama responded {(int)resp.StatusCode}" });
+
+            var body = await resp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var names = doc.RootElement.TryGetProperty("models", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? arr.EnumerateArray().Select(m => m.TryGetProperty("name", out var n) ? n.GetString() : null).Where(n => n != null).ToList()
+                : new List<string?>();
+
+            var hasModel = model != null && names.Any(n => n!.StartsWith(model.Split(':')[0], StringComparison.OrdinalIgnoreCase));
+            var msg = $"Connected — {names.Count} model(s) available"
+                    + (model != null ? (hasModel ? $"; '{model}' present" : $"; WARNING '{model}' not pulled") : "");
+            return Json(new { ok = true, message = msg });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { ok = false, message = $"Unreachable at {url} — {ex.Message}" });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveOllamaSettings(
+        bool ollamaEnabled, string ollamaBaseUrl, string ollamaModel,
+        double ollamaTemperature, int ollamaNumCtx, int ollamaTimeoutSeconds)
+    {
+        var values = new Dictionary<string, string>
+        {
+            ["Enabled"] = ollamaEnabled.ToString(),
+            ["BaseUrl"] = string.IsNullOrWhiteSpace(ollamaBaseUrl) ? "http://localhost:11434" : ollamaBaseUrl.Trim(),
+            ["Model"] = string.IsNullOrWhiteSpace(ollamaModel) ? "qwen2.5:7b-instruct" : ollamaModel.Trim(),
+            ["Temperature"] = Math.Clamp(ollamaTemperature, 0, 2).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["NumCtx"] = Math.Clamp(ollamaNumCtx, 512, 32768).ToString(),
+            ["TimeoutSeconds"] = Math.Clamp(ollamaTimeoutSeconds, 5, 600).ToString()
+        };
+
+        foreach (var kv in values)
+        {
+            var setting = await _db.SystemSettings
+                .FirstOrDefaultAsync(s => s.Category == "Ollama" && s.Key == kv.Key);
+            if (setting == null)
+                _db.SystemSettings.Add(new Models.SystemSetting { Category = "Ollama", Key = kv.Key, Value = kv.Value });
+            else
+                setting.Value = kv.Value;
+        }
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Local model (Ollama) settings saved.";
+        return RedirectToAction(nameof(Ai));
+    }
+
     private async Task<AiAdminViewModel> BuildAiVmAsync()
     {
         var todayUtc = DateTime.UtcNow.Date;
         var monthStart = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Local model settings — same category/keys/defaults BixAssistantService and
+        // DenialAnalystService read, so the page shows what actually runs.
+        var ollamaRows = await _db.SystemSettings.AsNoTracking()
+            .Where(s => s.Category == "Ollama")
+            .ToDictionaryAsync(s => s.Key, s => s.Value);
+        var ollama = new OllamaAdminSettings { IsUsingDefaults = ollamaRows.Count == 0 };
+        if (ollamaRows.TryGetValue("Enabled", out var oe) && bool.TryParse(oe, out var oeb)) ollama.Enabled = oeb;
+        if (ollamaRows.TryGetValue("BaseUrl", out var ob) && !string.IsNullOrWhiteSpace(ob)) ollama.BaseUrl = ob.Trim();
+        if (ollamaRows.TryGetValue("Model", out var om) && !string.IsNullOrWhiteSpace(om)) ollama.Model = om.Trim();
+        if (ollamaRows.TryGetValue("Temperature", out var ot) && double.TryParse(ot, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var otd)) ollama.Temperature = otd;
+        if (ollamaRows.TryGetValue("NumCtx", out var oc) && int.TryParse(oc, out var oci)) ollama.NumCtx = oci;
+        if (ollamaRows.TryGetValue("TimeoutSeconds", out var os) && int.TryParse(os, out var osi)) ollama.TimeoutSeconds = osi;
 
         var total = await _db.AiUsageLogs.CountAsync();
         var succeeded = await _db.AiUsageLogs.CountAsync(l => l.Success);
@@ -1187,7 +1260,8 @@ public class AdminController : Controller
             TotalRequests = total,
             SuccessRate = total == 0 ? 0 : Math.Round(succeeded * 100.0 / total, 1),
             RecentLogs = await _db.AiUsageLogs.AsNoTracking()
-                .OrderByDescending(l => l.CreatedAt).Take(25).ToListAsync()
+                .OrderByDescending(l => l.CreatedAt).Take(25).ToListAsync(),
+            Ollama = ollama
         };
     }
 

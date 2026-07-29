@@ -16,14 +16,17 @@ public class ResubmissionController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RemittanceParserService _parser;
     private readonly Analytika.Security.FacilityScopeService _scope;
+    private readonly DenialAnalystService _analyst;
 
     public ResubmissionController(AppDbContext db, UserManager<ApplicationUser> userManager,
-        RemittanceParserService parser, Analytika.Security.FacilityScopeService scope)
+        RemittanceParserService parser, Analytika.Security.FacilityScopeService scope,
+        DenialAnalystService analyst)
     {
         _db = db;
         _userManager = userManager;
         _parser = parser;
         _scope = scope;
+        _analyst = analyst;
     }
 
     // ─── Dashboard ────────────────────────────────────────────────────────────
@@ -468,7 +471,21 @@ public class ResubmissionController : Controller
             .Select(x => new { Code = x.Key, Count = x.Count(), Category = DenialCategory(x.Key) })
             .ToList();
 
+        // Resubmission Analyst — pattern mining over parsed remittance activities
+        // (cached 15 min inside the service; facility-scoped like everything above).
+        ViewBag.Analyst = await _analyst.BuildAsync(allowedFac);
+
         return View(facilities);
+    }
+
+    /// <summary>AI narration of the denial patterns via the local Ollama model.
+    /// Fetched async by the DenialDashboard view so the page never blocks on the LLM.</summary>
+    [HttpGet]
+    public async Task<IActionResult> DenialAnalystInsights()
+    {
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        var insights = await _analyst.GetAiInsightsAsync(allowedFac, HttpContext.RequestAborted);
+        return Json(new { insights });
     }
 
     private static string DenialCategory(string code)
