@@ -79,10 +79,10 @@ public class DenialAnalystService
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
-    private readonly OllamaClient _ollama;
+    private readonly IOllamaClient _ollama;   // interface — the concrete type is not registered in DI
     private readonly ILogger<DenialAnalystService> _logger;
 
-    public DenialAnalystService(AppDbContext db, IMemoryCache cache, OllamaClient ollama, ILogger<DenialAnalystService> logger)
+    public DenialAnalystService(AppDbContext db, IMemoryCache cache, IOllamaClient ollama, ILogger<DenialAnalystService> logger)
     {
         _db = db;
         _cache = cache;

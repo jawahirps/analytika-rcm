@@ -4,6 +4,7 @@ using Analytika.Services;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -89,6 +90,21 @@ if (!string.IsNullOrEmpty(port))
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
+
+// Honour Cloudflare's X-Forwarded-Proto/-For. Without this the app believes every
+// request arrived over plain HTTP on localhost (which is literally true — the tunnel
+// terminates TLS and forwards to http://localhost:5000), so every redirect and
+// generated absolute URL came out as "http://bix.ghafservices.com/..." — an extra
+// Cloudflare bounce on each one, HSTS decided from the wrong scheme, and client IPs
+// logged as 127.0.0.1. KnownNetworks/Proxies are cleared because the forwarding hop is
+// the loopback tunnel, not a known proxy range.
+var fwd = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedHost
+};
+fwd.KnownNetworks.Clear();
+fwd.KnownProxies.Clear();
+app.UseForwardedHeaders(fwd);
 
 app.UseSerilogRequestLogging(o =>
 {
