@@ -41,17 +41,23 @@ var ids = new List<int>();
 var conn = (SqliteConnection)db.Database.GetDbConnection();
 using (var cmd = conn.CreateCommand())
 {
+    // NOT EXISTS, not LEFT JOIN on a DISTINCT subquery: the latter materialises every
+    // parsed transaction id (1.3M+) into a temp b-tree before joining, which ran the
+    // process out of memory ("Out of memory." mid phase 1). NOT EXISTS is a per-row
+    // index seek against IX_XmlParsedRecords_PortalTransactionId — constant memory.
+    // FileContentXml IS NOT NULL is a header-only check; no blob is read here.
+    // FOCUS: claim submissions + remittance advice only — Prior files never yield
+    // parsed records, so scanning them was pure waste (the 'skip swamp').
     cmd.CommandText = $@"
         SELECT p.Id
         FROM PortalTransactions p
-        LEFT JOIN (SELECT DISTINCT PortalTransactionId FROM XmlParsedRecords) x
-               ON x.PortalTransactionId = p.Id
         WHERE p.Portal = 'DHA' AND p.FileDownloaded = 1 AND p.FileContentXml IS NOT NULL
-              AND x.PortalTransactionId IS NULL
-              -- FOCUS: claim submissions + remittance advice only. Prior files never
-              -- yield parsed records (the parser extracts only Submission/Remittance),
-              -- so re-scanning them every run was pure waste (the 'skip swamp').
               AND p.Type IN ('Claim','Remittance'){facFilter}
+              -- Skip files already proven to contain nothing extractable, otherwise every
+              -- run re-reads them (they write no parsed rows, so NOT EXISTS keeps matching).
+              AND COALESCE(p.ParseYieldedNothing, 0) = 0
+              AND NOT EXISTS (SELECT 1 FROM XmlParsedRecords x
+                              WHERE x.PortalTransactionId = p.Id)
         ORDER BY p.Id;";
     cmd.CommandTimeout = 0;
     using var rdr = cmd.ExecuteReader();

@@ -433,7 +433,7 @@
             <div class="ss-icon purple"><i class="fas fa-download"></i></div>
             <div>
                 <div class="ss-num">@totalDownloaded.ToString("N0")</div>
-                <div class="ss-lbl">Records Downloaded / Parsed / Pending</div>
+                <div class="ss-lbl">Files Downloaded</div>
                 <div class="text-muted small mt-1">Parsed @totalParsed.ToString("N0") · Pending @totalPending.ToString("N0")</div>
             </div>
         </div>
@@ -536,15 +536,15 @@
                                 <span>@pipeTotal.ToString("N0")</span>
                             </span>
                         </div>
-                        <div class="fac-pipe-bar" title="Parsed @parsedCnt · Downloaded, not parsed @toParseCnt · Pending download @pendingCnt">
+                        <div class="fac-pipe-bar" title="Sync pipeline — Parsed @parsedCnt · Downloaded, not yet parsed @toParseCnt · Not yet downloaded @pendingCnt">
                             <div class="seg parsed"  style="width:@W(parsedCnt)%"></div>
                             <div class="seg toparse" style="width:@W(toParseCnt)%"></div>
                             <div class="seg pending" style="width:@W(pendingCnt)%"></div>
                         </div>
                         <div class="fac-pipe-legend">
                             <span><i class="pdot parsed"></i>Parsed @parsedCnt.ToString("N0")</span>
-                            <span><i class="pdot toparse"></i>To&#8209;parse @toParseCnt.ToString("N0")</span>
-                            <span><i class="pdot pending"></i>Pending @pendingCnt.ToString("N0")</span>
+                            <span><i class="pdot toparse"></i>Downloaded @toParseCnt.ToString("N0")</span>
+                            <span><i class="pdot pending"></i>Not downloaded @pendingCnt.ToString("N0")</span>
                         </div>
                     </div>
                 }

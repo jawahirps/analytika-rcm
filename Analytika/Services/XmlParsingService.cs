@@ -304,6 +304,7 @@ public class XmlParsingService
 
         const int batchSize = 300; // keep Id IN (…) well under SQLite's parameter limit
         var processed = 0;
+        var zeroYieldIds = new List<int>();   // files that parsed to 0 records — flagged per batch
 
         for (var offset = 0; offset < transactionIds.Count; offset += batchSize)
         {
@@ -341,6 +342,10 @@ public class XmlParsingService
                     if (records.Count == 0)
                     {
                         result.FilesSkipped++;
+                        // Nothing extractable in this file. Record that fact, otherwise the
+                        // "not yet parsed" test re-selects it on every future run forever
+                        // (79,518 such files were being re-read each pass).
+                        zeroYieldIds.Add(tx.Id);
                     }
                     else
                     {
@@ -360,6 +365,23 @@ public class XmlParsingService
 
             await _db.SaveChangesAsync(ct);
             _db.ChangeTracker.Clear();
+
+            // Flag this batch's zero-yield files in one statement.
+            if (zeroYieldIds.Count > 0)
+            {
+                var flagBatch = zeroYieldIds.ToList();
+                zeroYieldIds.Clear();
+                try
+                {
+                    await _db.PortalTransactions
+                        .Where(t => flagBatch.Contains(t.Id))
+                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.ParseYieldedNothing, true), ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not flag {Count} zero-yield transactions", flagBatch.Count);
+                }
+            }
 
             if (onProgress != null)
                 await onProgress(new XmlParsingRunProgress("parsing", $"Parsed {processed:N0} of {total:N0} pending transaction(s)", processed, total, result));

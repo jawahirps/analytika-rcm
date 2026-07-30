@@ -95,6 +95,14 @@ public static class SqliteSchemaService
         // calls each, forever. Flagged rows are excluded from the pending queue.
         if (!ColumnExists(db, "PortalTransactions", "FileUnavailable"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""PortalTransactions"" ADD COLUMN ""FileUnavailable"" INTEGER NOT NULL DEFAULT 0");
+
+        // Zero-yield marker. A downloaded file that parses cleanly to 0 records writes
+        // nothing to XmlParsedRecords, so the "not yet parsed" test (NOT EXISTS) selects
+        // it again on every future run — 79,518 such files were re-read on each pass,
+        // which was ~97% of the work in a 97-minute parse. Marking them once keeps future
+        // runs proportional to genuinely new files.
+        if (!ColumnExists(db, "PortalTransactions", "ParseYieldedNothing"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""PortalTransactions"" ADD COLUMN ""ParseYieldedNothing"" INTEGER NOT NULL DEFAULT 0");
     }
 
     private static void CreateTables(AppDbContext db)
@@ -269,6 +277,16 @@ public static class SqliteSchemaService
             -- degrades to an O(n^2) scan (hours/days at 1M+ rows instead of minutes).
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Fac_Claim_NC""
                 ON ""XmlParsedRecords""(""FacilityId"", ""ClaimId"" COLLATE NOCASE, ""RecordKind"");
+            -- Dropdown option lists for the RCM dashboard are DISTINCT queries over these
+            -- columns. Without covering indexes each one scans all 1.6M parsed rows, which
+            -- dominated the startup pre-warm (minutes, and ~1h under I/O contention).
+            -- Built manually on the live DB first (2026-07-29); these guard fresh databases.
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Receiver""
+                ON ""XmlParsedRecords""(""ReceiverName"", ""ReceiverId"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Payer""
+                ON ""XmlParsedRecords""(""PayerName"", ""PayerId"");
+            CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_Encounter""
+                ON ""XmlParsedRecords""(""EncounterType"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedRecords_ReadyForReport"" ON ""XmlParsedRecords""(""ReadyForReport"");
             CREATE INDEX IF NOT EXISTS ""IX_XmlParsedActivities_RecordId"" ON ""XmlParsedActivities""(""XmlParsedRecordId"");
             CREATE INDEX IF NOT EXISTS ""IX_ResubmissionTasks_Status"" ON ""ResubmissionTasks""(""Status"");

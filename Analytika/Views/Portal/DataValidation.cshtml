@@ -18,13 +18,13 @@
     <!-- Top stats (canonical _KpiCard partials) -->
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-            @await Html.PartialAsync("_KpiCard", new { Label = "Total Records", Value = Model.TotalTransactions.ToString("N0"), Icon = "fa-database", Tone = "navy" })
+            @await Html.PartialAsync("_KpiCard", new { Label = "Records Found", Value = Model.TotalTransactions.ToString("N0"), Icon = "fa-database", Tone = "navy" })
         </div>
         <div class="col-6 col-lg-3">
-            @await Html.PartialAsync("_KpiCard", new { Label = "Downloaded-ParsingPending", Value = Model.TotalDownloaded.ToString("N0"), Icon = "fa-file-arrow-down", Tone = "success" })
+            @await Html.PartialAsync("_KpiCard", new { Label = "Files Downloaded", Value = Model.TotalDownloaded.ToString("N0"), Icon = "fa-file-arrow-down", Tone = "success" })
         </div>
         <div class="col-6 col-lg-3">
-            @await Html.PartialAsync("_KpiCard", new { Label = "Pending Download", Value = Model.TotalPending.ToString("N0"), Icon = "fa-clock", Tone = Model.TotalPending > 0 ? "warning" : "success" })
+            @await Html.PartialAsync("_KpiCard", new { Label = "Not Yet Downloaded", Value = Model.TotalPending.ToString("N0"), Icon = "fa-clock", Tone = Model.TotalPending > 0 ? "warning" : "success" })
         </div>
         <div class="col-6 col-lg-3">
             @await Html.PartialAsync("_KpiCard", new { Label = "Parsed Files", Value = Model.DistinctParsedFiles.ToString("N0"), Icon = "fa-file-code", Tone = "info" })
@@ -79,7 +79,7 @@
                     {
                         <div class="table-responsive">
                             <table class="table table-hover table-sm mb-0 fs-82">
-                                <thead><tr><th>Facility</th><th class="text-end">Records Found</th><th class="text-end">Downloaded-ParsingPending</th><th class="text-end">Pending</th></tr></thead>
+                                <thead><tr><th>Facility</th><th class="text-end">Records Found</th><th class="text-end">Files Downloaded</th><th class="text-end">Not Yet Downloaded</th></tr></thead>
                                 <tbody>
                                 @foreach (var f in Model.Facilities)
                                 {
@@ -110,7 +110,7 @@
                     else
                     {
                         <table class="table table-sm mb-0 fs-82">
-                            <thead><tr><th>Type</th><th class="text-end">Records Found</th><th class="text-end">Downloaded-ParsingPending</th></tr></thead>
+                            <thead><tr><th>Type</th><th class="text-end">Records Found</th><th class="text-end">Files Downloaded</th></tr></thead>
                             <tbody>
                             @foreach (var t in Model.ByType)
                             {

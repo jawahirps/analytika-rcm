@@ -318,37 +318,56 @@ public class DashboardService : IDashboardService
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
 
-                var receivers = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Select(r => r.ReceiverName ?? r.ReceiverId)
-                    .Where(v => v != null && v != "")
-                    .Select(v => v!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                // Index-backed DISTINCTs. The old form projected `Name ?? Id` BEFORE
+                // DISTINCT, and a COALESCE expression cannot use any index — so each of
+                // these three was a full 1.6M-row table scan. Startup pre-warm timings
+                // showed this dominating everything else (4-6 min typical, 57 min under
+                // I/O contention). Splitting the coalesce into two indexable queries lets
+                // SQLite answer each from a covering index:
+                //   IX_XmlParsedRecords_Receiver (ReceiverName, ReceiverId)
+                //   IX_XmlParsedRecords_Payer    (PayerName, PayerId)
+                //   IX_XmlParsedRecords_Encounter(EncounterType)
+                var conn = _db.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
 
-                var payers = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Select(r => r.PayerName ?? r.PayerId)
-                    .Where(v => v != null && v != "")
-                    .Select(v => v!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                async Task<List<string>> DistinctAsync(string sql)
+                {
+                    var list = new List<string>();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.CommandTimeout = 300;
+                    using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        if (!rdr.IsDBNull(0)) list.Add(rdr.GetString(0));
+                    return list;
+                }
 
-                var encounterTypes = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Where(r => r.EncounterType != null && r.EncounterType != "")
-                    .Select(r => r.EncounterType!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                // Prefer the human-readable name; fall back to the code only for rows
+                // that carry no name (same result the coalesce produced).
+                var receivers = (await DistinctAsync(
+                        @"SELECT DISTINCT ""ReceiverName"" FROM ""XmlParsedRecords""
+                          WHERE ""ReceiverName"" IS NOT NULL AND ""ReceiverName"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Concat(await DistinctAsync(
+                        @"SELECT DISTINCT ""ReceiverId"" FROM ""XmlParsedRecords""
+                          WHERE (""ReceiverName"" IS NULL OR ""ReceiverName"" = '')
+                            AND ""ReceiverId"" IS NOT NULL AND ""ReceiverId"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Distinct().OrderBy(v => v).Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
+
+                var payers = (await DistinctAsync(
+                        @"SELECT DISTINCT ""PayerName"" FROM ""XmlParsedRecords""
+                          WHERE ""PayerName"" IS NOT NULL AND ""PayerName"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Concat(await DistinctAsync(
+                        @"SELECT DISTINCT ""PayerId"" FROM ""XmlParsedRecords""
+                          WHERE (""PayerName"" IS NULL OR ""PayerName"" = '')
+                            AND ""PayerId"" IS NOT NULL AND ""PayerId"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Distinct().OrderBy(v => v).Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
+
+                var encounterTypes = (await DistinctAsync(
+                        @"SELECT DISTINCT ""EncounterType"" FROM ""XmlParsedRecords""
+                          WHERE ""EncounterType"" IS NOT NULL AND ""EncounterType"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
 
                 return (receivers, payers, encounterTypes);
             });
