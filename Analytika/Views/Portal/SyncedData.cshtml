@@ -434,7 +434,8 @@ function startDownloadPending(resumeFromId, seedDone, seedFailed) {
             bar.style.width = (d.pct || 0) + '%';
             pctLbl.textContent = (d.pct || 0) + '%';
             tally.textContent = `${d.done + d.failed} / ${d.total}`;
-            curLbl.textContent = d.facilityName || '';
+            // Prefix the portal so the live label says where the fetch is happening.
+            curLbl.textContent = (d.portal ? `[${String(d.portal).toUpperCase()}] ` : '') + (d.facilityName || '');
             ckpt.lastId  = d.lastId || d.txId;
             ckpt.done    = d.done;
             ckpt.failed  = d.failed;

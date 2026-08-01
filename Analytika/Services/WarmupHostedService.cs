@@ -65,9 +65,14 @@ public class WarmupHostedService : BackgroundService
                     var db = scope.ServiceProvider.GetRequiredService<Analytika.Models.AppDbContext>();
                     if (db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
                     {
+                        // PASSIVE, not TRUNCATE: TRUNCATE takes an exclusive lock and blocks
+                        // every writer until it finishes. On this database that killed a
+                        // long-running parse mid-batch with "database is locked". PASSIVE
+                        // checkpoints as much as it can without blocking anyone; the WAL is
+                        // reclaimed on a quiet cycle instead of at the cost of a running job.
                         var sw = System.Diagnostics.Stopwatch.StartNew();
-                        await db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE);", stoppingToken);
-                        _logger.LogInformation("[Warmup] nightly WAL checkpoint(TRUNCATE) done in {Ms} ms.", sw.ElapsedMilliseconds);
+                        await db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(PASSIVE);", stoppingToken);
+                        _logger.LogInformation("[Warmup] nightly WAL checkpoint(PASSIVE) done in {Ms} ms.", sw.ElapsedMilliseconds);
                     }
                 }
             }

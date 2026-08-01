@@ -58,7 +58,7 @@ public class ReportSchedulerController : Controller
         // 15 minutes per facility scope. (Receiver/Department filters are hidden
         // for this pass, so their scans are gone entirely.)
         var scopeKey = facilityId?.ToString() ?? "all";
-        var (payerItems, clinicianItems) = await _cache.GetOrCreateAsync(
+        var (payerItems, clinicianItems, encounterItems) = await _cache.GetOrCreateAsync(
             $"report-filter-options:{scopeKey}",
             async entry =>
             {
@@ -73,18 +73,67 @@ public class ReportSchedulerController : Controller
                 var clinicianCodes = await parsedScope
                     .Where(r => r.Clinician != null && r.Clinician != "")
                     .Select(r => r.Clinician!).Distinct().ToListAsync();
+                // Encounter types come from the data, not a hard-coded list. The static
+                // list offered Inpatient/Outpatient/Emergency/Dental, but the records hold
+                // "Outpatient" plus raw DHA codes ("12", "6") — so three of the four
+                // options matched nothing and the codes could not be selected at all.
+                var encounterValues = await parsedScope
+                    .Where(r => r.EncounterType != null && r.EncounterType != "")
+                    .Select(r => r.EncounterType!).Distinct().ToListAsync();
 
-                var payers = await _context.Payers
-                    .Where(p => p.IsActive && payerCodes.Contains(p.Name))
-                    .OrderBy(p => p.Name)
-                    .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
+                // The Payers/Clinicians tables store the DHPO *code* in Name (they are
+                // seeded from XmlParsedRecords.PayerId / .Clinician), so this list used to
+                // read "INS001" while the BI dashboard showed "DUBAI INSURANCE COMPANY"
+                // for the same payer — the same concept with two different labels
+                // depending on the screen. Resolve through the coding sets so both agree.
+                // Only the TEXT changes; Value stays the row id, so submitted report
+                // parameters are byte-identical to before.
+                var codeNames = await _context.DhpoCodingSets.AsNoTracking()
+                    .Where(c => c.Category == "Payer" || c.Category == "Clinician")
+                    .Select(c => new { c.Category, c.Code, c.Name })
                     .ToListAsync();
-                var clinicians = await _context.Clinicians
-                    .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
-                    .OrderBy(c => c.Name)
-                    .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
-                    .ToListAsync();
-                return (payers, clinicians);
+                var payerNames = codeNames.Where(c => c.Category == "Payer")
+                    .GroupBy(c => c.Code, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().Name, StringComparer.OrdinalIgnoreCase);
+                var clinicianNames = codeNames.Where(c => c.Category == "Clinician")
+                    .GroupBy(c => c.Code, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().Name, StringComparer.OrdinalIgnoreCase);
+
+                // Unmapped codes keep the raw code rather than being hidden or blanked —
+                // an operator can still find them, and it is obvious they need a mapping.
+                static string Label(string code, IReadOnlyDictionary<string, string> map) =>
+                    map.TryGetValue(code, out var name) && !string.IsNullOrWhiteSpace(name)
+                        ? name.Trim()
+                        : code;
+
+                var payers = (await _context.Payers
+                        .Where(p => p.IsActive && payerCodes.Contains(p.Name))
+                        .Select(p => new { p.Id, Code = p.Name })
+                        .ToListAsync())
+                    .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = Label(p.Code, payerNames) })
+                    .OrderBy(i => i.Text, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+
+                var clinicians = (await _context.Clinicians
+                        .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
+                        .Select(c => new { c.Id, Code = c.Name })
+                        .ToListAsync())
+                    .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = Label(c.Code, clinicianNames) })
+                    .OrderBy(i => i.Text, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+
+                // A bare "12" tells an operator nothing; label unmapped codes explicitly
+                // rather than leaving a naked number beside real words.
+                var encounters = encounterValues
+                    .Select(v => new SelectListItem
+                    {
+                        Value = v,
+                        Text = v.All(char.IsDigit) ? $"Code {v} (unmapped)" : v
+                    })
+                    .OrderBy(i => i.Text, StringComparer.CurrentCultureIgnoreCase)
+                    .ToList();
+
+                return (payers, clinicians, encounters);
             });
 
         return new ReportSchedulerViewModel
@@ -98,6 +147,7 @@ public class ReportSchedulerController : Controller
             Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
             Payers    = new SelectList(payerItems, "Value", "Text"),
             Clinicians = new SelectList(clinicianItems, "Value", "Text"),
+            EncounterTypes = new SelectList(encounterItems, "Value", "Text"),
             RecentReports = reports,
             TotalReports = total,
             CurrentPage = page

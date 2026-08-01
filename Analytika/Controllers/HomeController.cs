@@ -217,6 +217,102 @@ public class HomeController : Controller
         return RedirectToAction("Login");
     }
 
+    // ─── Self-service password reset ──────────────────────────────────────────
+    // Previously only an administrator could reset a password, so every forgotten
+    // password became a support request. Identity already issues single-use,
+    // time-limited reset tokens; this exposes that properly.
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, [FromServices] IEmailService email)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        // Always render the same confirmation, whether or not the account exists.
+        // Diverging here would turn this form into an account-enumeration oracle.
+        var user = await _userManager.FindByEmailAsync(model.Email)
+                   ?? await _userManager.FindByNameAsync(model.Email);
+
+        if (user != null && user.IsActive)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var link = Url.Action(nameof(ResetPassword), "Home",
+                new { email = user.Email ?? user.UserName, token }, Request.Scheme);
+
+            var body = $@"
+                <p>Hello{(string.IsNullOrWhiteSpace(user.FullName) ? "" : " " + user.FullName)},</p>
+                <p>Use the link below to choose a new Bix password. It works once and expires shortly.</p>
+                <p><a href=""{link}"">Choose a new password</a></p>
+                <p>If you did not request this, no action is needed — your current password still works.</p>";
+
+            try { await email.SendEmailAsync(user.Email ?? user.UserName!, "Reset your Bix password", body); }
+            catch (Exception ex)
+            {
+                // Never surface mail-transport detail to an anonymous caller.
+                _logger.LogError(ex, "Password reset email failed for {User}", user.Id);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Password reset requested for unknown or inactive address");
+        }
+
+        return RedirectToAction(nameof(ForgotPasswordSent));
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPasswordSent() => View();
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ResetPassword(string? email, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+            return View("ResetPasswordInvalid");
+        return View(new ResetPasswordViewModel { Email = email, Token = token });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email)
+                   ?? await _userManager.FindByNameAsync(model.Email);
+        if (user == null)
+            return RedirectToAction(nameof(ResetPasswordDone));   // same outcome, no enumeration
+
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+        if (result.Succeeded)
+        {
+            _logger.LogInformation("Password reset completed for {User}", user.Id);
+            return RedirectToAction(nameof(ResetPasswordDone));
+        }
+
+        foreach (var e in result.Errors)
+        {
+            // Identity returns "InvalidToken" for both expired and already-used links;
+            // say that in words a person can act on.
+            ModelState.AddModelError(string.Empty,
+                e.Code == "InvalidToken"
+                    ? "This link has expired or was already used. Request a new one."
+                    : e.Description);
+        }
+        return View(model);
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ResetPasswordDone() => View();
+
     [HttpGet]
     public IActionResult Error()
     {

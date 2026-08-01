@@ -58,3 +58,26 @@ package.json
 package-lock.json
 
 .fake
+# Portal debugging session cookies — never commit
+cookies.txt
+
+# Remote agent runtime: shared access token and logs
+tools/bix-agent/agent-token.txt
+tools/bix-agent/*.log
+
+# Ad-hoc runtime logs written at the repo root
+.cf-*.log
+.claude-run.log
+.codex-*.log
+
+# Tool build output
+tools/*/bin/
+tools/*/obj/
+deploy/output/
+mobile/.expo/
+.idea/
+
+# The blanket package.json / package-lock.json rules above come from the mobile
+# prototype. The remote agent's manifest must be tracked or the tool cannot be rebuilt.
+!tools/bix-agent/package.json
+!tools/bix-agent/package-lock.json

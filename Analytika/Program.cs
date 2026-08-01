@@ -45,11 +45,39 @@ var hangfireDashboardEnabled = builder.Configuration.GetValue("BackgroundJobs:Ha
 builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 3L * 1024 * 1024 * 1024);
 builder.WebHost.ConfigureKestrel(o => o.AddServerHeader = false);
 
-// In Docker the DB lives in /app/data (mounted volume); locally stays beside the app
-var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
+// Where the database lives. Data:Dir (this environment's own appsettings) is checked
+// FIRST, then the DB_DIR variable, then the app folder.
+//
+// The order matters and was learned the hard way: DB_DIR is set machine-wide on the
+// production host, so every process started there inherits it. With DB_DIR winning, a
+// dev instance that pinned its own directory in configuration still opened the
+// production database — silently, because nothing in the startup output said which one
+// it had chosen. An environment that states its directory explicitly outranks an
+// ambient variable it never asked for.
+var dataDir = builder.Configuration["Data:Dir"]
+    ?? Environment.GetEnvironmentVariable("DB_DIR")
     ?? builder.Environment.ContentRootPath;
+
+// Directories this environment must never open, listed in its own appsettings. This
+// turns "quietly ran against the wrong database" into a refusal to start.
+foreach (var refused in builder.Configuration.GetSection("Data:RefuseDirs").Get<string[]>() ?? Array.Empty<string>())
+{
+    if (string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(dataDir)),
+                      Path.TrimEndingDirectorySeparator(Path.GetFullPath(refused)),
+                      StringComparison.OrdinalIgnoreCase))
+        throw new InvalidOperationException(
+            $"Refusing to start: the {builder.Environment.EnvironmentName} environment resolved its data " +
+            $"directory to '{dataDir}', which is listed in Data:RefuseDirs. Check Data:Dir and the DB_DIR " +
+            "environment variable.");
+}
+
 Directory.CreateDirectory(dataDir);
 var dbPath = Path.Combine(dataDir, "analytika.db");
+
+// Publish the resolved directory back into configuration so every service reads the
+// same answer. Re-deriving it from DB_DIR downstream is how the dev console ended up
+// querying the production database while the rest of the app used dev's.
+builder.Configuration["Data:Dir"] = dataDir;
 
 // If a pending DB was uploaded via the migration endpoint, swap it in now (before EF opens the file)
 var pendingDb = dbPath + ".pending";
@@ -284,9 +312,19 @@ using (var startupScope = app.Services.CreateScope())
             await SeedData.InitializeAsync(startupServices);
     }
 
-    // One-time upgrade: legacy Base64-stored portal passwords → encrypted at rest
+    // One-time upgrade: legacy Base64-stored portal passwords → encrypted at rest.
+    // Skipped when the table does not exist yet: on SQLite the schema is created later
+    // by SqliteSchemaService.EnsureSchema, so on a FRESH database this ran first and
+    // crashed startup with "no such table: PortalCredentials" — an install-from-scratch
+    // bug invisible in production, where the tables already exist.
+    var credentialsTableExists = startupDb.Database.IsNpgsql() ||
+        startupDb.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS \"Value\" FROM sqlite_master WHERE type='table' AND name='PortalCredentials'")
+            .AsEnumerable().FirstOrDefault() > 0;
+
     try
     {
+        if (!credentialsTableExists) throw new InvalidOperationException("PortalCredentials table not created yet — skipping legacy password upgrade.");
         var protector = startupServices.GetRequiredService<Analytika.Security.ICredentialProtector>();
         var creds = await startupDb.PortalCredentials.ToListAsync();
         var upgraded = 0;
@@ -365,6 +403,15 @@ catch (Exception ex)
     var guestPwd = app.Configuration["Security:GuestPassword"];
     if (string.IsNullOrEmpty(guestPwd))
         app.Logger.LogWarning("Security:GuestPassword is not configured — guest provisioning will use a default password.");
+
+    // One line that says which instance this is. A dev process that silently picked up
+    // production's port or data directory is otherwise indistinguishable in the log.
+    app.Logger.LogInformation("Bix starting — environment {Environment}, endpoint {Endpoint}, data {DataDir}",
+        app.Environment.EnvironmentName,
+        app.Configuration["Kestrel:Endpoints:Http:Url"]
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_URLS")
+            ?? "(host default)",
+        dataDir);
 }
 
 // Pre-warm dashboard facility status so the first user lands on hot data.

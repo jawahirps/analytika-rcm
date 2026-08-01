@@ -10,7 +10,12 @@ namespace Analytika.Services;
 ///
 /// Auth       : NO token endpoint. Exactly two headers on EVERY request —
 ///              `username` and `password` (Riayati-issued values).
-/// Base URL   : https://o-tmbapi.riayati.ae:8083
+/// Base URL   : https://tmbapi.riayati.ae:8083 (production). Riayati also runs
+///              https://o-tmbapi.riayati.ae:8083 for onboarding, which is what the v2.3
+///              spec documents throughout. A credential issued for one host is rejected
+///              by the other with an identical, generic 401 "Invalid Token or Username or
+///              Password" — that ambiguity cost a long diagnosis, so check the host before
+///              suspecting the values.
 /// Search     : GET /api/Claim/Search?license=&direction=&fromDate=&toDate=&downloaded=
 ///              direction 0=received (RemittanceAdvice for a provider), 1=sent
 ///              (ClaimSubmission/Resubmission); downloaded 0=new,1=downloaded,2=all;
@@ -24,7 +29,9 @@ namespace Analytika.Services;
 /// </summary>
 public class RhaPortalService : IRhaPortalService
 {
-    public const string DefaultBaseUrl = "https://o-tmbapi.riayati.ae:8083";
+    public const string DefaultBaseUrl = "https://tmbapi.riayati.ae:8083";
+    /// <summary>Onboarding host. Credentials are valid on one host or the other, never both.</summary>
+    public const string OnboardingBaseUrl = "https://o-tmbapi.riayati.ae:8083";
     private const string HeaderAuthToken = "header-auth";  // sentinel: no bearer token exists
 
     private readonly IHttpClientFactory _httpClientFactory;

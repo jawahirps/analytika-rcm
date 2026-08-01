@@ -363,24 +363,31 @@ public class XmlParsingService
                 }
             }
 
-            await _db.SaveChangesAsync(ct);
+            // Retry the batch save. A long backfill runs for hours beside the live app, so
+            // it WILL meet a busy writer at some point (a nightly checkpoint took the lock
+            // and killed a run at 120k/182k with "database is locked"). Losing hours of
+            // work to one transient lock is not acceptable; wait and try again instead.
+            for (var attempt = 0; ; attempt++)
+            {
+                try { await _db.SaveChangesAsync(ct); break; }
+                catch (Exception ex) when (attempt < 5 && !ct.IsCancellationRequested)
+                {
+                    var wait = TimeSpan.FromSeconds(15 * (attempt + 1));
+                    _logger.LogWarning(ex, "Batch save failed (attempt {Attempt}) — retrying in {Wait}s", attempt + 1, wait.TotalSeconds);
+                    await Task.Delay(wait, ct);
+                }
+            }
             _db.ChangeTracker.Clear();
 
-            // Flag this batch's zero-yield files in one statement.
+            // Zero-yield files are counted but NOT written back. Setting a flag column on
+            // PortalTransactions makes SQLite rewrite the entire row including its XML
+            // blob, so marking ~150k files drove the WAL to 46GB at 0.03 MB/s before it
+            // was abandoned. If skip-tracking is reintroduced it must live in a skinny
+            // side table keyed by transaction id, never as a column on the blob table.
             if (zeroYieldIds.Count > 0)
             {
-                var flagBatch = zeroYieldIds.ToList();
+                _logger.LogDebug("{Count} file(s) in this batch produced no records", zeroYieldIds.Count);
                 zeroYieldIds.Clear();
-                try
-                {
-                    await _db.PortalTransactions
-                        .Where(t => flagBatch.Contains(t.Id))
-                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.ParseYieldedNothing, true), ct);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not flag {Count} zero-yield transactions", flagBatch.Count);
-                }
             }
 
             if (onProgress != null)
@@ -543,6 +550,12 @@ public class XmlParsingService
         return lookup;
     }
 
+    /// <summary>
+    /// XML documents that could not be parsed, captured so a malformed file is visible
+    /// instead of vanishing into a "skipped" count. Drained by the callers for logging.
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentBag<(int TxId, string Error)> ParseFailures = new();
+
     private static IEnumerable<XmlParsedRecord> ParseTransaction(
         PortalTransaction tx,
         IReadOnlyDictionary<string, string> payerLookup)
@@ -559,9 +572,22 @@ public class XmlParsingService
         if (string.IsNullOrWhiteSpace(tx.FileContentXml))
             yield break;
 
+        // DHPO serves many files with a UTF-8 BOM (and some with leading whitespace)
+        // before the XML declaration. XDocument.Parse throws on that ("Data at the root
+        // level is invalid"), and the silent `catch { yield break; }` below turned every
+        // such file into a no-op: it counted as "skipped", not an error, so nothing ever
+        // surfaced. That silently dropped ~150k downloaded Claim/Remittance files that
+        // contain real data (verified: a 17KB file with 34 Activity elements). Trim the
+        // BOM/whitespace before parsing, and log failures instead of swallowing them.
+        var xml = tx.FileContentXml.TrimStart('﻿', '​', ' ', '\r', '\n', '\t');
+
         XDocument doc;
-        try { doc = XDocument.Parse(tx.FileContentXml); }
-        catch { yield break; }
+        try { doc = XDocument.Parse(xml); }
+        catch (Exception ex)
+        {
+            ParseFailures.Add((tx.Id, ex.Message));
+            yield break;
+        }
 
         var rootName = doc.Root?.Name.LocalName ?? "";
         if (string.Equals(rootName, "Claim.Submission", StringComparison.OrdinalIgnoreCase))

@@ -1,0 +1,319 @@
+@using Analytika.Services
+@{
+    ViewData["Title"] = "Dev Assistant";
+    var commands = (IReadOnlyList<DevCliCommand>)ViewData["Commands"]!;
+    var chatConfigured = (bool)(ViewData["ChatConfigured"] ?? false);
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-3 d-flex justify-content-between align-items-start">
+        <div>
+            <h4 class="mb-0 fw-bold text-navy">
+                <i class="fas fa-comments me-2 text-cyan-light"></i>Dev Assistant
+            </h4>
+            <small class="text-muted">
+                Claude, connected to this dev build. Ask about the data, describe a change while
+                you are testing, and it gets filed. Start a line with <code>/</code> to run a
+                console command directly.
+            </small>
+        </div>
+        <span class="badge rounded-pill text-bg-warning align-self-center">
+            <i class="fas fa-flask me-1"></i>Development only
+        </span>
+    </div>
+
+    @Html.AntiForgeryToken()
+
+    @if (!chatConfigured)
+    {
+        <div class="alert alert-warning py-2 px-3 small mb-2">
+            <i class="fas fa-key me-1"></i>
+            <strong>No Anthropic API key configured</strong> — chat replies will fail until one is set.
+            Add <code>"Anthropic": { "ApiKey": "…" }</code> to
+            <code>J:\GhafAnalytika\bix-dev\appsettings.Development.json</code>
+            (or set the <code>ANTHROPIC_API_KEY</code> environment variable) and restart dev.
+            Console commands below work without it.
+        </div>
+    }
+
+    <div class="devcli-chips mb-2">
+        <span class="devcli-chip-label">try</span>
+        <button type="button" class="devcli-chip" data-send="What is in this dev database right now?">what's in the dev DB?</button>
+        <button type="button" class="devcli-chip" data-send="Any errors in the log since startup?">errors in the log?</button>
+        <button type="button" class="devcli-chip" data-send="Show me the schema of the Facilities table and explain the tenant column.">schema walkthrough</button>
+        <span class="devcli-chip-label ms-2">console</span>
+        @foreach (var c in commands)
+        {
+            <button type="button" class="devcli-chip devcli-chip-cmd" data-cmd="/@c.Name" title="@c.Usage — @c.Summary">@c.Name</button>
+        }
+    </div>
+
+    <div class="devcli" id="devcli">
+        <div class="devcli-out" id="devcliOut" aria-live="polite"></div>
+        <div class="devcli-compose">
+            <textarea id="devcliIn" class="devcli-input" rows="1" autocomplete="off" spellcheck="false"
+                      placeholder="Ask about this build, or describe a change…  (Enter sends, Shift+Enter newline, / for a command)"
+                      aria-label="Message the dev assistant"></textarea>
+            <button type="button" class="devcli-send" id="devcliSend" title="Send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Keeps the app's translucent surface. Chat prose is proportional; anything the
+       console produced stays monospace so its column alignment survives. */
+    .devcli {
+        background: rgba(10, 22, 40, .88);
+        backdrop-filter: blur(14px);
+        border: 1px solid rgba(120, 190, 220, .22);
+        border-radius: 14px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, .28);
+        padding: 14px 16px 12px;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 250px);
+        min-height: 360px;
+    }
+    .devcli-out { flex: 1 1 auto; overflow: auto; color: #d7e6f2; font-size: .86rem; }
+
+    .devcli-msg { margin-bottom: 12px; display: flex; gap: 10px; align-items: flex-start; }
+    .devcli-msg .who {
+        flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+        display: grid; place-items: center; font-size: .7rem; margin-top: 1px;
+    }
+    .devcli-msg.user .who      { background: rgba(120, 190, 220, .22); color: #9fdcff; }
+    .devcli-msg.assistant .who { background: rgba(86, 217, 163, .18); color: #56d9a3; }
+    .devcli-msg.system .who    { background: rgba(255, 157, 157, .16); color: #ff9d9d; }
+    .devcli-msg .body { flex: 1 1 auto; white-space: pre-wrap; line-height: 1.55; word-break: break-word; }
+    .devcli-msg.system .body   { color: #ff9d9d; }
+
+    .devcli-mono {
+        font-family: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+        font-size: .78rem; line-height: 1.5; white-space: pre; overflow-x: auto;
+        background: rgba(0, 0, 0, .28); border-radius: 8px; padding: 8px 10px; margin: 6px 0 0;
+    }
+    .devcli-tool { margin: 6px 0 0; }
+    .devcli-tool > summary {
+        cursor: pointer; list-style: none; font-size: .74rem; color: #7fd7ff;
+        font-family: "Cascadia Code", Consolas, monospace;
+    }
+    .devcli-tool > summary::-webkit-details-marker { display: none; }
+    .devcli-tool > summary::before { content: "▸ "; }
+    .devcli-tool[open] > summary::before { content: "▾ "; }
+
+    .devcli-compose {
+        display: flex; align-items: flex-end; gap: 8px;
+        border-top: 1px solid rgba(120, 190, 220, .18); margin-top: 10px; padding-top: 10px;
+    }
+    .devcli-input {
+        flex: 1 1 auto; background: transparent; border: 0; outline: 0; resize: none;
+        color: #eaf4ff; font-size: .86rem; line-height: 1.5; max-height: 160px;
+        caret-color: #56d9a3;
+    }
+    .devcli-input::placeholder { color: #62778c; }
+    .devcli-send {
+        flex: 0 0 auto; border: 0; border-radius: 8px; padding: 6px 12px;
+        background: rgba(86, 217, 163, .18); color: #56d9a3; transition: background .15s ease;
+    }
+    .devcli-send:hover:not(:disabled) { background: rgba(86, 217, 163, .3); }
+    .devcli-send:disabled { opacity: .45; }
+
+    .devcli-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .devcli-chip-label { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: #7e93a8; }
+    .devcli-chip {
+        border: 1px solid rgba(120, 190, 220, .35); background: rgba(120, 190, 220, .10);
+        color: inherit; border-radius: 999px; padding: 2px 12px; font-size: .74rem;
+        transition: background .15s ease;
+    }
+    .devcli-chip-cmd { font-family: "Cascadia Code", Consolas, monospace; }
+    .devcli-chip:hover { background: rgba(120, 190, 220, .24); }
+</style>
+
+@section Scripts {
+<script>
+(function () {
+    const out    = document.getElementById('devcliOut');
+    const input  = document.getElementById('devcliIn');
+    const send   = document.getElementById('devcliSend');
+    const names  = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(commands.Select(c => c.Name)));
+
+    // Transcript kept in memory and echoed back to the server each turn, so the assistant
+    // has the thread. Console output is NOT part of it — the model re-runs what it needs.
+    const turns = [];
+    const HKEY  = 'devcli.cmdhistory';
+    let cmdHistory = [];
+    try { cmdHistory = JSON.parse(sessionStorage.getItem(HKEY) || '[]'); } catch { cmdHistory = []; }
+    let cursor = cmdHistory.length;
+    let busy = false;
+
+    const token = () =>
+        document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+
+    function bubble(role, text, opts = {}) {
+        const wrap = document.createElement('div');
+        wrap.className = 'devcli-msg ' + role;
+
+        const who = document.createElement('div');
+        who.className = 'who';
+        who.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>'
+                      : role === 'assistant' ? '<i class="fas fa-robot"></i>'
+                      : '<i class="fas fa-triangle-exclamation"></i>';
+
+        const body = document.createElement('div');
+        body.className = 'body';
+        if (opts.mono) {
+            const pre = document.createElement('div');
+            pre.className = 'devcli-mono';
+            pre.textContent = text;
+            body.appendChild(pre);
+        } else {
+            body.textContent = text;
+        }
+
+        wrap.append(who, body);
+        out.appendChild(wrap);
+        out.scrollTop = out.scrollHeight;
+        return body;
+    }
+
+    function toolBlock(parent, command, output) {
+        const d = document.createElement('details');
+        d.className = 'devcli-tool';
+        const s = document.createElement('summary');
+        s.textContent = command;
+        const pre = document.createElement('div');
+        pre.className = 'devcli-mono';
+        pre.textContent = output;
+        d.append(s, pre);
+        parent.appendChild(d);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    async function runCommand(cmd) {
+        const body = bubble('assistant', '');
+        try {
+            const res = await fetch('@Url.Action("Run", "DevCli")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
+                body: JSON.stringify({ command: cmd })
+            });
+            if (!res.ok) { body.textContent = 'HTTP ' + res.status + ' ' + res.statusText; return; }
+            const data = await res.json();
+            if (data.clear) { out.innerHTML = ''; return; }
+            body.parentElement.remove();
+            const holder = bubble(data.isError ? 'system' : 'assistant', data.output || '(no output)',
+                                  { mono: !data.isError });
+            if (data.isError) holder.textContent = data.output;
+        } catch (e) {
+            body.textContent = 'Request failed: ' + e.message;
+        }
+    }
+
+    async function ask(message) {
+        turns.push({ role: 'user', text: message });
+        const body = bubble('assistant', 'thinking…');
+        try {
+            const res = await fetch('@Url.Action("Chat", "DevCli")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token() },
+                body: JSON.stringify({
+                    message,
+                    page: location.pathname,
+                    history: turns.slice(0, -1)
+                })
+            });
+            if (!res.ok) { body.parentElement.className = 'devcli-msg system';
+                           body.textContent = 'HTTP ' + res.status + ' ' + res.statusText; return; }
+
+            const data = await res.json();
+            body.textContent = '';
+            (data.tools || []).forEach(t => toolBlock(body, t.command, t.output));
+
+            if (data.error) {
+                const err = document.createElement('div');
+                err.textContent = data.error;
+                err.style.color = '#ff9d9d';
+                body.appendChild(err);
+                return;
+            }
+
+            const text = document.createElement('div');
+            text.textContent = data.text || '(no reply)';
+            body.appendChild(text);
+            turns.push({ role: 'assistant', text: data.text || '' });
+        } catch (e) {
+            body.parentElement.className = 'devcli-msg system';
+            body.textContent = 'Request failed: ' + e.message;
+        }
+    }
+
+    async function submit(raw) {
+        const value = (raw ?? input.value).trim();
+        if (!value || busy) return;
+
+        busy = true;
+        send.disabled = true;
+        input.value = '';
+        input.style.height = 'auto';
+
+        if (cmdHistory[cmdHistory.length - 1] !== value) cmdHistory.push(value);
+        cmdHistory = cmdHistory.slice(-100);
+        sessionStorage.setItem(HKEY, JSON.stringify(cmdHistory));
+        cursor = cmdHistory.length;
+
+        bubble('user', value);
+        try {
+            // A leading slash bypasses the model entirely — same command engine, no API call.
+            if (value.startsWith('/')) await runCommand(value.slice(1));
+            else await ask(value);
+        } finally {
+            busy = false;
+            send.disabled = false;
+            input.focus();
+        }
+    }
+
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+    });
+
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); return; }
+        if (e.key === 'l' && e.ctrlKey) { e.preventDefault(); out.innerHTML = ''; return; }
+
+        // History and completion apply to the command mode only; prose does not want them.
+        const typed = input.value;
+        if (e.key === 'Tab' && typed.startsWith('/') && !typed.includes(' ')) {
+            e.preventDefault();
+            const hit = names.filter(n => n.startsWith(typed.slice(1).toLowerCase()));
+            if (hit.length === 1) input.value = '/' + hit[0] + ' ';
+            else if (hit.length > 1) bubble('assistant', hit.join('  '), { mono: true });
+        } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && (typed === '' || typed.startsWith('/'))) {
+            e.preventDefault();
+            if (e.key === 'ArrowUp' && cursor > 0) input.value = cmdHistory[--cursor] ?? '';
+            else if (e.key === 'ArrowDown') {
+                if (cursor < cmdHistory.length - 1) input.value = cmdHistory[++cursor] ?? '';
+                else { cursor = cmdHistory.length; input.value = ''; }
+            }
+        }
+    });
+
+    send.addEventListener('click', () => submit());
+
+    document.querySelectorAll('.devcli-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (chip.dataset.send) submit(chip.dataset.send);
+            else { input.value = chip.dataset.cmd + ' '; input.focus(); }
+        });
+    });
+
+    bubble('assistant', 'Connected to the dev build. Ask me about this instance, or tell me what '
+                      + 'needs changing and I will file it. Type /help for console commands.');
+    runCommand('about');
+    input.focus();
+})();
+</script>
+}

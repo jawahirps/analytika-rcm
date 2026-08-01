@@ -462,7 +462,9 @@
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
-                        <a href="#" class="forgot-link" data-i18n="forgot">Forgot password?</a>
+                        @* Was href="#" — the link existed but went nowhere, so the only
+                           route back from a forgotten password was to ask an admin. *@
+                        <a asp-controller="Home" asp-action="ForgotPassword" class="forgot-link" data-i18n="forgot">Forgot password?</a>
                     </div>
                     <div class="input-group">
                         <span class="input-icon"><i class="fas fa-lock"></i></span>

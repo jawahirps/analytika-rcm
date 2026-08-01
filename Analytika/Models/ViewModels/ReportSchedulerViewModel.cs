@@ -25,6 +25,8 @@ public class ReportSchedulerViewModel
     public SelectList? Receivers { get; set; }
     public SelectList? Payers { get; set; }
     public SelectList? Clinicians { get; set; }
+    /// <summary>Encounter types actually present in the data (was a hard-coded list of four).</summary>
+    public SelectList? EncounterTypes { get; set; }
     public SelectList? Departments { get; set; }
 
     public List<ReportRequest> RecentReports { get; set; } = new();

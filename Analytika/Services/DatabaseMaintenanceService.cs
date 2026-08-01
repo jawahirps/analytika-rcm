@@ -22,8 +22,10 @@ public class DatabaseMaintenanceService
         _logger = logger;
     }
 
+    // Data:Dir (set by startup to the directory actually opened) before the ambient
+    // DB_DIR, so backups land beside the database this instance is using.
     private string GetDataDir() =>
-        Environment.GetEnvironmentVariable("DB_DIR") ?? _env.ContentRootPath;
+        _config["Data:Dir"] ?? Environment.GetEnvironmentVariable("DB_DIR") ?? _env.ContentRootPath;
 
     // ── Nightly backup with rotation ───────────────────────────────
 

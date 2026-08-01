@@ -219,10 +219,24 @@ public class AdminController : Controller
         return View(await BuildCreateVmAsync());
     }
 
+    /// <summary>
+    /// Identity's AddToRoleAsync throws when the role does not exist. Unguarded, that has
+    /// three separate costs here: a user created and then left with no role, an edited
+    /// user stripped of every role, and a bulk import that aborts halfway. Callers check
+    /// first and report instead of throwing.
+    /// </summary>
+    private async Task<bool> RoleExistsAsync(string? role) =>
+        !string.IsNullOrWhiteSpace(role) && await _roleManager.RoleExistsAsync(role);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateUser(CreateUserViewModel vm)
     {
+        // Checked before the account is created, so a bad role cannot leave an orphan.
+        if (!await RoleExistsAsync(vm.Role))
+            ModelState.AddModelError(nameof(vm.Role),
+                string.IsNullOrWhiteSpace(vm.Role) ? "Select a role." : $"'{vm.Role}' is not a role in this system.");
+
         if (!ModelState.IsValid)
         {
             var fresh = await BuildCreateVmAsync();
@@ -312,6 +326,16 @@ public class AdminController : Controller
             .Include(u => u.ReportAccesses)
             .FirstOrDefaultAsync(u => u.Id == vm.Id);
         if (user == null) return NotFound();
+
+        // Verified before anything is removed below — the old code stripped every role
+        // first, so an unknown value left the account with no role at all.
+        if (!await RoleExistsAsync(vm.Role))
+        {
+            TempData["Error"] = string.IsNullOrWhiteSpace(vm.Role)
+                ? "Select a role."
+                : $"'{vm.Role}' is not a role in this system — nothing was changed.";
+            return RedirectToAction(nameof(EditUser), new { id = vm.Id });
+        }
 
         user.FullName = vm.FullName;
         user.UserType = vm.UserType;
@@ -526,6 +550,31 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveCredential(PortalCredentialViewModel vm)
     {
+        // ── Catch bad Riayati values at SAVE time, not at auth time ──────────────
+        // Both of these cost a full debugging round: a UUID API key pasted one character
+        // short, and an API URL typed with a zero instead of the letter "o". Riayati
+        // answers both with the same generic "Invalid Token or Username or Password",
+        // which points the blame at the credential and hides the real cause.
+        if (string.Equals(vm.Portal, "RHA", StringComparison.OrdinalIgnoreCase))
+        {
+            // Only judge values that are clearly meant to be UUIDs (they carry hyphens).
+            // A future non-UUID key format is left alone rather than blocked.
+            if (!string.IsNullOrEmpty(vm.Password) && vm.Password.Contains('-') && vm.Password.Trim().Length != 36)
+            {
+                TempData["Error"] = $"That Riayati API key is {vm.Password.Trim().Length} characters — the issued keys are exactly 36. "
+                                  + "A character was probably lost while copying; select the whole value and paste again.";
+                return RedirectToAction(nameof(Credentials));
+            }
+
+            if (!string.IsNullOrWhiteSpace(vm.ApiBaseUrl)
+                && !vm.ApiBaseUrl.Contains("tmbapi.riayati.ae", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "That API URL is not a Riayati host. Use https://tmbapi.riayati.ae:8083 (production) "
+                                  + "or https://o-tmbapi.riayati.ae:8083 (onboarding) — note the letter \"o\", not a zero.";
+                return RedirectToAction(nameof(Credentials));
+            }
+        }
+
         // Auto-create facility if user typed a brand-new name
         if (vm.FacilityId == 0 && !string.IsNullOrWhiteSpace(vm.NewFacilityName))
         {
@@ -820,6 +869,13 @@ public class AdminController : Controller
         var facilities = await _db.Facilities.ToListAsync();
         int added = 0, updated = 0, skipped = 0;
 
+        // A CSV whose columns are one out of step puts something that is not a role name
+        // in the roles column. That used to throw on the first bad row and abandon the
+        // whole import with users already created; now it is reported per row.
+        var knownRoles = (await _roleManager.Roles.Select(r => r.Name!).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknownRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
         await reader.ReadLineAsync(); // skip header
         while (!reader.EndOfStream)
@@ -859,7 +915,11 @@ public class AdminController : Controller
 
                 if (!string.IsNullOrWhiteSpace(roleStr))
                     foreach (var r in roleStr.Split('|', StringSplitOptions.RemoveEmptyEntries))
-                        await _userManager.AddToRoleAsync(newUser, r.Trim());
+                    {
+                        var role = r.Trim();
+                        if (knownRoles.Contains(role)) await _userManager.AddToRoleAsync(newUser, role);
+                        else unknownRoles.Add(role);
+                    }
 
                 foreach (var fn in facNames)
                 {
@@ -882,6 +942,11 @@ public class AdminController : Controller
         }
 
         TempData["Success"] = $"Import complete — {added} added (use Password Reset to set their passwords), {updated} updated, {skipped} skipped.";
+        if (unknownRoles.Count > 0)
+            TempData["Error"] = $"These values in the roles column are not roles and were ignored: "
+                              + $"{string.Join(", ", unknownRoles.Take(5))}"
+                              + (unknownRoles.Count > 5 ? $" (+{unknownRoles.Count - 5} more)" : "")
+                              + ". Expected column order: Email, Full name, Department, User type, Role(s), Active, Facilities.";
         return RedirectToAction(nameof(Users));
     }
 
@@ -1389,7 +1454,10 @@ public class AdminController : Controller
 
     private string GetDbPath()
     {
-        var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
+        // Data:Dir is set by startup to the directory actually opened; DB_DIR is a
+        // machine-wide fallback that does not necessarily belong to this instance.
+        var dataDir = _configuration["Data:Dir"]
+            ?? Environment.GetEnvironmentVariable("DB_DIR")
             ?? System.IO.Path.Combine(AppContext.BaseDirectory);
         return System.IO.Path.Combine(dataDir, "analytika.db");
     }

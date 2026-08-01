@@ -12,6 +12,7 @@ public class DashboardService : IDashboardService
     private readonly IMemoryCache _cache;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DashboardService> _logger;
+    private readonly IConfiguration _config;
 
     private const string CacheKey = "dashboard:facilitystatus:v1";
     private const string CacheKeyRefreshingFlag = "dashboard:facilitystatus:refreshing";
@@ -20,12 +21,14 @@ public class DashboardService : IDashboardService
 
     public DashboardService(AppDbContext db, IMemoryCache cache,
                             IServiceScopeFactory scopeFactory,
-                            ILogger<DashboardService> logger)
+                            ILogger<DashboardService> logger,
+                            IConfiguration config)
     {
         _db = db;
         _cache = cache;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _config = config;
     }
 
     /// <summary>
@@ -60,19 +63,27 @@ public class DashboardService : IDashboardService
             return Task.FromResult(snapshot);
         }
 
+        // No snapshot either (first ever run). Flag it as building so the view renders a
+        // loading state instead of claiming there are no facilities.
         return Task.FromResult(new FacilityStatusViewModel
         {
             Facilities = new List<FacilityStatusRow>(),
             TotalRecords = 0,
             TotalClaimCount = 0,
             TotalFiles = 0,
-            LastSyncTime = null
+            LastSyncTime = null,
+            IsBuilding = true
         });
     }
 
     // ── Disk snapshot: survives restarts so the dashboard is never blank ─────────
-    private static string SnapshotPath =>
-        Path.Combine(Environment.GetEnvironmentVariable("DB_DIR") ?? AppContext.BaseDirectory,
+    // Data:Dir is the directory startup actually opened. Deriving this from DB_DIR
+    // instead put the dev instance's snapshot in production's data folder, because
+    // DB_DIR is set machine-wide on this host.
+    private string SnapshotPath =>
+        Path.Combine(_config["Data:Dir"]
+                     ?? Environment.GetEnvironmentVariable("DB_DIR")
+                     ?? AppContext.BaseDirectory,
                      "dashboard-snapshot.json");
 
     private void PersistSnapshot(FacilityStatusViewModel model)

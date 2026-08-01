@@ -617,6 +617,15 @@
     let syncAllCompleted = false;
     let syncOneCompleted = false;
 
+    // ── Portal prefix for the live log ─────────────────────────────
+    // A run can cover DHA and Riayati credentials, and the facility name alone does not
+    // say which portal a line came from. Every streamed event carries `portal`; older
+    // events without it fall back to no tag rather than printing "[undefined]".
+    function portalTag(d) {
+        const p = (d && d.portal) ? String(d.portal).toUpperCase() : '';
+        return p ? `[${p}] ` : '';
+    }
+
     // ── Per-type download breakdown (Submission / Reconciliation / …) ──
     const TYPE_LABELS = { 'Claim':'Submissions', 'Remittance':'Reconciliation', 'Prior Auth':'Prior Auth', 'Prior Authorization':'Prior Authorization', 'Prior Request':'Prior Request', 'Person Register':'Person Register', 'Prescription':'Prescription' };
     const TYPE_ICONS  = { 'Claim':'fa-file-invoice', 'Remittance':'fa-file-invoice-dollar', 'Prior Auth':'fa-shield-halved', 'Prior Authorization':'fa-shield-halved', 'Prior Request':'fa-clipboard-check' };
@@ -887,8 +896,8 @@
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
 
             } else if (d.status === 'facility_start') {
-                lastFacilityEl = addLog(`\n◆ ${d.facilityName}`, '#011C40');
-                curLbl.textContent = `Facility ${d.facilityIndex}: ${d.facilityName}`;
+                lastFacilityEl = addLog(`\n◆ ${portalTag(d)}${d.facilityName}`, '#011C40');
+                curLbl.textContent = `Facility ${d.facilityIndex}: ${portalTag(d)}${d.facilityName}`;
                 ckpt.facilityIdx = d.facilityIndex || 0;
                 ckpt.lastFacilityName = d.facilityName || '';
                 ckpt.monthIdx = 0;
@@ -897,7 +906,7 @@
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
                 const bd = (d.submissions || d.remittances) ? `  ·  ${(d.submissions||0).toLocaleString()} submitted · ${(d.remittances||0).toLocaleString()} RA` : '';
-                addLog(`${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
+                addLog(`${portalTag(d)}${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 setProgress(d.pct || 0);
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;
                 ckpt.monthIdx = (d.monthIdx ?? 0) + 1;   // next month to resume from
@@ -1067,15 +1076,15 @@
                 addLog(`⏩ Resuming — ${d.message || ''}`, '#35577D');
 
             } else if (d.status === 'facility_start') {
-                addLog(`◆ ${d.facilityName}`, '#011C40');
-                curLbl.textContent = d.facilityName;
+                addLog(`◆ ${portalTag(d)}${d.facilityName}`, '#011C40');
+                curLbl.textContent = `${portalTag(d)}${d.facilityName}`;
                 oneCkpt.lastFacilityName = d.facilityName || '';
                 saveCkpt(oneCkpt);
 
             } else if (d.status === 'month_done') {
                 const found = d.found > 0 ? `+${d.found}` : '—';
                 const bd = (d.submissions || d.remittances) ? `  ·  ${(d.submissions||0).toLocaleString()} submitted · ${(d.remittances||0).toLocaleString()} RA` : '';
-                addLog(`${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
+                addLog(`${portalTag(d)}${d.month}  ${found}${bd}`, d.found > 0 ? '#3aac8a' : '#35577D', true);
                 bar.style.width = (d.pct || 0) + '%';
                 pctLbl.textContent = (d.pct || 0) + '%';
                 grandLbl.textContent = `Found: ${(d.grandTotal||0).toLocaleString()}`;

@@ -564,12 +564,48 @@
         }
     </div>
 
-    @if (!Model.Facilities.Any())
+    @if (!Model.Facilities.Any() && Model.IsBuilding)
+    {
+        @* Still aggregating (cold cache after a restart). Say so, and refresh when it is
+           ready — the previous copy claimed there were no facilities, which was false. *@
+        <div class="text-center text-muted py-5" role="status" aria-live="polite">
+            <div class="skeleton-rows mb-3" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <p class="mb-1 fw-semibold" style="color:var(--text);">Loading facility status…</p>
+            <p class="mb-0 fs-85">Building this view for the first time since restart. It refreshes automatically.</p>
+        </div>
+        <script>
+            // Poll until the aggregation lands, then show it. Backs off so a slow build
+            // does not hammer the server.
+            (function () {
+                var tries = 0;
+                (function check() {
+                    if (++tries > 40) return;                 // ~10 min ceiling
+                    setTimeout(function () {
+                        fetch(window.location.pathname, { headers: { 'X-Requested-With': 'poll' } })
+                            .then(function (r) { return r.text(); })
+                            .then(function (html) {
+                                if (html.indexOf('facility-status-ready') !== -1) window.location.reload();
+                                else check();
+                            })
+                            .catch(check);
+                    }, Math.min(3000 + tries * 500, 15000));
+                })();
+            })();
+        </script>
+    }
+    else if (!Model.Facilities.Any())
     {
         <div class="text-center text-muted py-5">
             <i class="fas fa-hospital fa-3x d-block mb-3 opacity-25"></i>
-            <p class="mb-0">No active facilities found. <a href="/Admin/Credentials">Add credentials</a> to get started.</p>
+            <p class="mb-1 fw-semibold" style="color:var(--text);">No facilities configured yet</p>
+            <p class="mb-0">Add portal credentials to start syncing. <a href="/Admin/Credentials">Add credentials</a></p>
         </div>
+    }
+    else
+    {
+        <span class="d-none">facility-status-ready</span>
     }
 </div>
 

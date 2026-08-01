@@ -23,7 +23,9 @@ var options = new DbContextOptionsBuilder<AppDbContext>()
 
 using var db = new AppDbContext(options);
 db.Database.OpenConnection();
-db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=60000");
+// 5 minutes: this runs for hours next to the live app, so it must ride out a slow
+// writer (a nightly WAL checkpoint held the lock past the old 60s and killed a run).
+db.Database.ExecuteSqlRaw("PRAGMA busy_timeout=300000");
 
 // Optional CLI filter: pass facility IDs to restrict to those branches (default = all).
 var only = args.Select(a => int.TryParse(a, out var v) ? v : -1).Where(v => v > 0).ToList();
@@ -53,9 +55,14 @@ using (var cmd = conn.CreateCommand())
         FROM PortalTransactions p
         WHERE p.Portal = 'DHA' AND p.FileDownloaded = 1 AND p.FileContentXml IS NOT NULL
               AND p.Type IN ('Claim','Remittance'){facFilter}
-              -- Skip files already proven to contain nothing extractable, otherwise every
-              -- run re-reads them (they write no parsed rows, so NOT EXISTS keeps matching).
-              AND COALESCE(p.ParseYieldedNothing, 0) = 0
+              -- NOTE: the ParseYieldedNothing flag is deliberately NOT consulted here.
+              -- The 150,466 rows it marked were not empty at all: they failed because of
+              -- the UTF-8 BOM bug in ParseTransaction (now fixed), so honouring the flag
+              -- would permanently hide real claim/remittance data. Clearing the flag with
+              -- an UPDATE proved impractical - the column lives on the blob-bearing table,
+              -- so flipping one boolean rewrites the whole row INCLUDING its XML blob
+              -- (observed: WAL grew to 46GB at 0.03 MB/s). Ignoring the column costs
+              -- nothing and is correct; skip-tracking should live in a skinny side table.
               AND NOT EXISTS (SELECT 1 FROM XmlParsedRecords x
                               WHERE x.PortalTransactionId = p.Id)
         ORDER BY p.Id;";

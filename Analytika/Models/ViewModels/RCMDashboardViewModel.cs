@@ -85,6 +85,15 @@ public class FacilityStatusViewModel
     public int TotalClaimCount { get; set; }
     public int TotalFiles { get; set; }
     public string? LastSyncTime { get; set; }
+
+    /// <summary>
+    /// True when this model is a placeholder returned while the aggregation is still
+    /// running (cold cache after a restart), rather than a finished result. Without it
+    /// the view cannot tell "still loading" from "genuinely no facilities" and showed
+    /// "No active facilities found. Add credentials to get started." to users who had
+    /// 12 working facilities — a false statement prescribing a wrong action.
+    /// </summary>
+    public bool IsBuilding { get; set; }
 }
 
 public class FacilityStatusRow

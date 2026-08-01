@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Bix Agent</title>
+<style>
+  :root {
+    --bg: #0a1628; --panel: rgba(255,255,255,.04); --line: rgba(120,190,220,.22);
+    --ink: #e6f0f8; --muted: #7e93a8; --accent: #56d9a3; --cyan: #7fd7ff; --err: #ff9d9d;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; border-bottom: 1px solid var(--line);
+  }
+  header .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  header .repo { color: var(--muted); font-size: 12px; margin-left: auto; }
+  header button {
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 8px; padding: 4px 10px; font-size: 12px;
+  }
+
+  #log { flex: 1 1 auto; overflow-y: auto; padding: 14px 16px; -webkit-overflow-scrolling: touch; }
+  .msg { margin-bottom: 14px; }
+  .msg .role { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 3px; }
+  .msg.user .role { color: var(--cyan); }
+  .msg .text { white-space: pre-wrap; word-wrap: break-word; }
+  .msg.error .text { color: var(--err); }
+
+  .tool {
+    border-left: 2px solid var(--line); padding: 4px 0 4px 10px; margin: 8px 0;
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; color: var(--muted);
+  }
+  .tool b { color: var(--cyan); font-weight: 600; }
+  .tool .arg { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer { border-top: 1px solid var(--line); padding: 10px 12px; background: var(--panel); }
+  form { display: flex; gap: 8px; align-items: flex-end; }
+  textarea {
+    flex: 1 1 auto; resize: none; background: transparent; border: 0; outline: 0;
+    color: var(--ink); font: inherit; max-height: 30vh; padding: 8px 4px;
+  }
+  textarea::placeholder { color: var(--muted); }
+  button.send {
+    background: rgba(86,217,163,.18); color: var(--accent); border: 0;
+    border-radius: 10px; padding: 10px 16px; font-weight: 600;
+  }
+  button.send:disabled { opacity: .4; }
+
+  #gate { padding: 24px 16px; }
+  #gate input {
+    width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); font: inherit; margin: 10px 0;
+  }
+  #gate p { color: var(--muted); font-size: 13px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="dot"></span>
+  <h1>Bix Agent</h1>
+  <span class="repo" id="repo"></span>
+  <button id="reset" title="Start a fresh conversation">new</button>
+</header>
+
+<div id="gate">
+  <p>Paste the access token from <code>tools/bix-agent/agent-token.txt</code> on the server.
+     It is stored on this device only.</p>
+  <input id="token" type="password" placeholder="access token" autocomplete="off" />
+  <button class="send" id="unlock">Unlock</button>
+</div>
+
+<div id="log" class="hidden"></div>
+
+<footer class="hidden" id="composer">
+  <form id="form">
+    <textarea id="input" rows="1" placeholder="Ask for a change, a check, a build…"></textarea>
+    <button class="send" id="send" type="submit">Send</button>
+  </form>
+</footer>
+
+<script>
+(function () {
+  // The page is served at /agent, so relative URLs would resolve to /api/… — derive the
+  // mount point from the current path instead of hard-coding it.
+  const BASE = location.pathname.replace(/\/+$/, '');
+  const $ = id => document.getElementById(id);
+  const log = $('log'), gate = $('gate'), composer = $('composer');
+  const input = $('input'), send = $('send');
+  let token = localStorage.getItem('bix.agent.token') || '';
+  let busy = false;
+
+  if (token) unlock();
+
+  $('unlock').addEventListener('click', () => {
+    token = $('token').value.trim();
+    if (!token) return;
+    localStorage.setItem('bix.agent.token', token);
+    unlock();
+  });
+
+  function unlock() {
+    gate.classList.add('hidden');
+    log.classList.remove('hidden');
+    composer.classList.remove('hidden');
+    fetch(BASE + '/api/health').then(r => r.json()).then(d => { $('repo').textContent = d.repo; }).catch(() => {});
+    input.focus();
+  }
+
+  function bubble(role, cls) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (cls || role);
+    const r = document.createElement('div');
+    r.className = 'role';
+    r.textContent = role;
+    const t = document.createElement('div');
+    t.className = 'text';
+    wrap.append(r, t);
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+    return t;
+  }
+
+  function toolLine(parent, name, arg) {
+    const d = document.createElement('div');
+    d.className = 'tool';
+    const b = document.createElement('b');
+    b.textContent = name;
+    const a = document.createElement('span');
+    a.className = 'arg';
+    a.textContent = arg;
+    d.append(b, a);
+    parent.appendChild(d);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function summarise(name, i) {
+    if (!i) return '';
+    return i.file_path || i.pattern || i.command || i.prompt || i.url ||
+           (typeof i.description === 'string' ? i.description : JSON.stringify(i).slice(0, 120));
+  }
+
+  $('reset').addEventListener('click', () => {
+    if (busy) return;
+    log.innerHTML = '';
+    sessionStorage.setItem('bix.agent.reset', '1');
+    bubble('system').textContent = 'Starting a fresh conversation.';
+  });
+
+  $('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const message = input.value.trim();
+    if (!message || busy) return;
+
+    busy = true; send.disabled = true;
+    input.value = ''; input.style.height = 'auto';
+    bubble('you', 'user').textContent = message;
+
+    const body = bubble('claude');
+    body.textContent = '…';
+    let first = true;
+
+    const reset = sessionStorage.getItem('bix.agent.reset') === '1';
+    sessionStorage.removeItem('bix.agent.reset');
+
+    try {
+      const res = await fetch(BASE + '/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token, message, reset })
+      });
+
+      if (res.status === 401) {
+        body.parentElement.className = 'msg error';
+        body.textContent = 'Access token rejected. Tap "new" after fixing it.';
+        localStorage.removeItem('bix.agent.token');
+        return;
+      }
+      if (!res.ok) { body.parentElement.className = 'msg error'; body.textContent = 'HTTP ' + res.status; return; }
+
+      // Server-sent events, parsed by hand so this page needs no dependencies.
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          const ev = /^event: (.+)$/m.exec(chunk)?.[1];
+          const raw = /^data: (.+)$/m.exec(chunk)?.[1];
+          if (!ev || !raw) continue;
+          const data = JSON.parse(raw);
+
+          if (ev === 'text') {
+            if (first) { body.textContent = ''; first = false; }
+            body.appendChild(document.createTextNode(data.text + '\n'));
+          } else if (ev === 'tool') {
+            if (first) { body.textContent = ''; first = false; }
+            toolLine(body, data.name, summarise(data.name, data.input));
+          } else if (ev === 'denied') {
+            toolLine(body, 'denied', data.text);
+          } else if (ev === 'error') {
+            body.parentElement.className = 'msg error';
+            body.textContent = data.text;
+          } else if (ev === 'done') {
+            if (first && data.text) { body.textContent = data.text; first = false; }
+            if (data.isError) body.parentElement.className = 'msg error';
+          }
+          log.scrollTop = log.scrollHeight;
+        }
+      }
+    } catch (err) {
+      body.parentElement.className = 'msg error';
+      body.textContent = 'Connection failed: ' + err.message;
+    } finally {
+      busy = false; send.disabled = false; input.focus();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, window.innerHeight * 0.3) + 'px';
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && window.innerWidth > 700) {
+      e.preventDefault();
+      $('form').requestSubmit();
+    }
+  });
+})();
+</script>
+</body>
+</html>

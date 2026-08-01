@@ -393,11 +393,17 @@
                         <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Encounter Type
                             <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedEncounterTypes">Select all</a> · <a href="#" class="sel-none" data-target="SelectedEncounterTypes">Clear</a></span>
                         </label>
+                        @* Driven by what is actually in the data. The previous hard-coded
+                           four did not match the records: three matched nothing, and the
+                           raw codes present in the data could not be selected at all. *@
                         <select name="SelectedEncounterTypes" class="form-select select2-multi" multiple>
-                            <option value="Inpatient">Inpatient</option>
-                            <option value="Outpatient">Outpatient</option>
-                            <option value="Emergency">Emergency</option>
-                            <option value="Dental">Dental</option>
+                            @if (Model.EncounterTypes != null && Model.EncounterTypes.Any())
+                            {
+                                foreach (var e in Model.EncounterTypes)
+                                {
+                                    <option value="@e.Value">@e.Text</option>
+                                }
+                            }
                         </select>
                     </div>
                     @* Report Template hidden — no template layouts implemented for this pass. *@

@@ -320,7 +320,7 @@ public class PortalController : Controller
                 return (0, new List<PortalFetchResultRow>(), $"No active RHA credentials found for {facilityName}. Please configure credentials in Admin → Credentials.");
             var cred = credNullable!;
             var pwd = pwdNullable!;
-            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://o-tmbapi.riayati.ae:8083", cred.LicenseCode);
+            var (token, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? RhaPortalService.DefaultBaseUrl, cred.LicenseCode);
             if (authErr != null)
                 return (0, new List<PortalFetchResultRow>(), $"RHA Auth failed: {authErr}");
 
@@ -508,7 +508,7 @@ public class PortalController : Controller
         string? rhaToken = null;
         if (vm.Portal == "RHA")
         {
-            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://o-tmbapi.riayati.ae:8083", cred.LicenseCode);
+            var (tok, authErr) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? RhaPortalService.DefaultBaseUrl, cred.LicenseCode);
             if (authErr != null)
             {
                 freshVm.IsError = true;
@@ -1344,7 +1344,7 @@ public class PortalController : Controller
         await Send(new { status = "start", message = $"{facName} · {monthChunks.Count} months ({parsedFrom:yyyy-MM-dd} → {parsedTo:yyyy-MM-dd})", total = 1, months = monthChunks.Count, totalSteps });
         if (resumeMonthIdx > 0)
             await Send(new { status = "resumed", resumeMonthIdx, message = $"Resuming from month {resumeMonthIdx + 1} of {totalSteps}" });
-        await Send(new { status = "facility_start", facilityIndex = 1, facilityName = facName });
+        await Send(new { status = "facility_start", facilityIndex = 1, facilityName = facName, portal = cred.Portal });
 
         for (int mi = 0; mi < monthChunks.Count; mi++)
         {
@@ -1362,7 +1362,7 @@ public class PortalController : Controller
             int pct = totalSteps > 0 ? (int)((double)stepsDone / totalSteps * 100) : 0;
 
             ActiveSyncState.Update(stepsDone, 1, facName, mlabel, grandSaved, grandFiles, pct);
-            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
+            await Send(new { status = "month_done", facilityIndex = 1, facilityName = facName, portal = cred.Portal, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
 
             if (uniqueMonth.Any())
             {
@@ -1496,7 +1496,7 @@ public class PortalController : Controller
             try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
             catch { await Send(new { status = "warning", message = $"[{facName}] Corrupted password — skipped.", facilityIndex }); stepsDone += monthChunks.Count; continue; }
 
-            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityFi = fi, facilityName = facName });
+            await Send(new { status = "facility_start", message = $"[{facilityIndex}/{creds.Count}] {facName}", facilityIndex, facilityFi = fi, facilityName = facName, portal = cred.Portal });
 
             int facSaved = 0, facDups = 0, facFiles = 0;
             int monthStart = (fi == resumeFacilityIdx) ? resumeMonthIdx : 0;
@@ -1521,7 +1521,7 @@ public class PortalController : Controller
                     grandTotal += uniqueMonth.Count;
 
                     ActiveSyncState.Update(stepsDone, facilityIndex, facName, mlabel, grandSaved, grandFiles, pct);
-                    await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
+                    await Send(new { status = "month_done", facilityIndex, facilityFi = fi, facilityName = facName, portal = cred.Portal, month = mlabel, monthIdx = mi, found = uniqueMonth.Count, submissions = uniqueMonth.Count(r => r.Type == "Claim"), remittances = uniqueMonth.Count(r => r.Type == "Remittance"), grandTotal, pct });
 
                     if (uniqueMonth.Any())
                     {
@@ -1711,7 +1711,9 @@ public class PortalController : Controller
             heartbeatCts.Cancel(); return;
         }
 
-        await Send(new { status = "start", message = $"{total} pending files to download", total });
+        // The pending query above is filtered to Portal == "DHA", so the live log can state
+        // the portal outright rather than leaving the operator to infer it.
+        await Send(new { status = "start", message = $"{total} pending files to download", total, portal = "DHA" });
         if (resumeFromId > 0)
             await Send(new { status = "resumed", message = $"Resuming after record #{resumeFromId}", resumeFromId });
 
@@ -1841,7 +1843,7 @@ public class PortalController : Controller
 
                 lastId = tx.Id;
                 int pct = (int)((double)(done + failed) / total * 100);
-                await Send(new { status = "progress", txId = tx.Id, facilityName = tx.FacilityName ?? $"Facility {tx.FacilityId}", done, failed, total, pct, lastId });
+                await Send(new { status = "progress", txId = tx.Id, facilityName = tx.FacilityName ?? $"Facility {tx.FacilityId}", portal = "DHA", done, failed, total, pct, lastId });
             }
         }
 

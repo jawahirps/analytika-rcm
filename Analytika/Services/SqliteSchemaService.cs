@@ -96,6 +96,52 @@ public static class SqliteSchemaService
         if (!ColumnExists(db, "PortalTransactions", "FileUnavailable"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""PortalTransactions"" ADD COLUMN ""FileUnavailable"" INTEGER NOT NULL DEFAULT 0");
 
+        // ── Multi-tenancy ────────────────────────────────────────────────────────
+        // Tenancy hangs off Facility: every clinical table already carries FacilityId, so
+        // no TenantId column is added to the huge blob-bearing tables (back-filling one
+        // there would rewrite ~1.17M rows including their XML — measured at 0.03 MB/s
+        // with a 46GB WAL before that approach was abandoned).
+        db.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS ""Tenants"" (
+                ""Id""            INTEGER NOT NULL CONSTRAINT ""PK_Tenants"" PRIMARY KEY AUTOINCREMENT,
+                ""Name""          TEXT    NOT NULL,
+                ""Slug""          TEXT    NOT NULL,
+                ""LicenseNumber"" TEXT    NULL,
+                ""Status""        TEXT    NOT NULL DEFAULT 'Pending',
+                ""ContactEmail""  TEXT    NULL,
+                ""CreatedAt""     TEXT    NOT NULL,
+                ""ActivatedAt""   TEXT    NULL,
+                ""ApprovedBy""    TEXT    NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Tenants_Slug"" ON ""Tenants""(""Slug"");
+            CREATE INDEX IF NOT EXISTS ""IX_Tenants_License"" ON ""Tenants""(""LicenseNumber"");
+        ");
+
+        if (!ColumnExists(db, "Facilities", "TenantId"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""Facilities"" ADD COLUMN ""TenantId"" INTEGER NULL");
+        if (!ColumnExists(db, "AspNetUsers", "TenantId"))
+            db.Database.ExecuteSqlRaw(@"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TenantId"" INTEGER NULL");
+
+        // Existing installations pre-date tenancy: everything already in the database
+        // belongs to the operator who has been running it. Create that founding tenant
+        // once and adopt any unassigned facility into it, so no data is ever orphaned
+        // (an unassigned facility would be invisible to every tenant-scoped query).
+        var unassigned = db.Database.SqlQueryRaw<int>(
+            @"SELECT COUNT(*) AS ""Value"" FROM ""Facilities"" WHERE ""TenantId"" IS NULL")
+            .AsEnumerable().FirstOrDefault();
+        if (unassigned > 0)
+        {
+            db.Database.ExecuteSqlRaw(@"
+                INSERT INTO ""Tenants"" (""Name"",""Slug"",""Status"",""CreatedAt"",""ActivatedAt"")
+                SELECT 'Ghaf Business Intelligence','ghaf','Active',datetime('now'),datetime('now')
+                WHERE NOT EXISTS (SELECT 1 FROM ""Tenants"" WHERE ""Slug"" = 'ghaf');
+
+                UPDATE ""Facilities""
+                SET ""TenantId"" = (SELECT ""Id"" FROM ""Tenants"" WHERE ""Slug"" = 'ghaf')
+                WHERE ""TenantId"" IS NULL;
+            ");
+        }
+
         // Zero-yield marker. A downloaded file that parses cleanly to 0 records writes
         // nothing to XmlParsedRecords, so the "not yet parsed" test (NOT EXISTS) selects
         // it again on every future run — 79,518 such files were re-read on each pass,

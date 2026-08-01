@@ -188,6 +188,16 @@ public static class ModuleRegistration
         services.AddScoped<RemittanceParserService>();
         services.AddScoped<XmlParsingService>();
         services.AddScoped<Analytika.Security.FacilityScopeService>();
+        // Dev console command engine. Registration is unconditional (it has no side
+        // effects); reachability is decided by DevCliController, which 404s outside
+        // the Development environment.
+        services.AddScoped<IDevCliService, DevCliService>();
+        // Claude-backed assistant on the same screen. Generous timeout: a turn can run
+        // several tool rounds against the database before it answers.
+        services.AddHttpClient("anthropic", c => c.Timeout = TimeSpan.FromSeconds(180));
+        services.AddScoped<IDevChatService, DevChatService>();
+        services.AddHttpContextAccessor();
+        services.AddScoped<Analytika.Security.ITenantContext, Analytika.Security.TenantContext>();
         return services;
     }
 

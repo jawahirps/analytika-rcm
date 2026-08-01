@@ -1,3 +1,5 @@
+@inject IWebHostEnvironment HostEnvironment
+@inject IConfiguration Configuration
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
 <head>
@@ -39,6 +41,11 @@
             var canAccessResubmission = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst);
             var canAccessAdmin = User.IsInRole(AppRoles.Admin);
             var brandAction = canAccessRcm ? "RCMDashboard" : "Dashboard";
+            // Dev console link — only rendered on the development build, matching the
+            // controller's own environment gate.
+            var showDevCli = canAccessAdmin
+                && HostEnvironment.IsDevelopment()
+                && Configuration.GetValue("DevCli:Enabled", false);
         }
 
         <!-- Brand -->
@@ -174,6 +181,15 @@
                         }
                     </ul>
                 </li>
+                @if (showDevCli)
+                {
+                    <li class="nav-item">
+                        <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "DevCli" ? "active" : "")"
+                           asp-controller="DevCli" asp-action="Index">
+                            <i class="fas fa-terminal me-1"></i>Console
+                        </a>
+                    </li>
+                }
             </ul>
 
             <!-- Right side -->

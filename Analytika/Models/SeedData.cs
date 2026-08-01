@@ -137,8 +137,22 @@ public static class SeedData
             }
         }
 
-        // Seed demo report requests
-        if (!context.ReportRequests.Any())
+        // Seed demo report requests.
+        // These carry foreign keys to Branches/Receivers/Payers/Clinicians/Departments,
+        // which are derived from PARSED DATA above — so on a fresh database they are all
+        // empty and the old hard-coded random ids (1..4) violated the FK constraints and
+        // crashed startup. Only seed demo rows when real parents exist, and draw ids from
+        // them rather than assuming 1..4.
+        var branchIds     = await context.Facilities.Select(x => x.Id).ToListAsync();
+        var receiverIds   = await context.Receivers.Select(x => x.Id).ToListAsync();
+        var payerIds      = await context.Payers.Select(x => x.Id).ToListAsync();
+        var clinicianIds  = await context.Clinicians.Select(x => x.Id).ToListAsync();
+        var departmentIds = await context.Departments.Select(x => x.Id).ToListAsync();
+
+        var canSeedDemoReports = branchIds.Count > 0 && receiverIds.Count > 0 && payerIds.Count > 0
+                                 && clinicianIds.Count > 0 && departmentIds.Count > 0;
+
+        if (canSeedDemoReports && !context.ReportRequests.Any())
         {
             var random = new Random(42);
             var statuses = new[] { "Completed", "Pending", "Processing", "Failed" };
@@ -151,11 +165,11 @@ public static class SeedData
                 {
                     ReportId = $"ANA-{3000000 + i:D7}",
                     ReportType = reportTypes[random.Next(reportTypes.Length)],
-                    BranchId = random.Next(1, 4),
-                    ReceiverId = random.Next(1, 4),
-                    PayerId = random.Next(1, 5),
-                    ClinicianId = random.Next(1, 4),
-                    DepartmentId = random.Next(1, 5),
+                    BranchId = branchIds[random.Next(branchIds.Count)],
+                    ReceiverId = receiverIds[random.Next(receiverIds.Count)],
+                    PayerId = payerIds[random.Next(payerIds.Count)],
+                    ClinicianId = clinicianIds[random.Next(clinicianIds.Count)],
+                    DepartmentId = departmentIds[random.Next(departmentIds.Count)],
                     DateFrom = from,
                     DateTo = from.AddDays(random.Next(7, 60)),
                     Status = statuses[random.Next(statuses.Length)],

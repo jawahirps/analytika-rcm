@@ -18,22 +18,60 @@ public class FacilityScopeService
 {
     private readonly AppDbContext _db;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly ITenantContext _tenant;
 
-    public FacilityScopeService(AppDbContext db, UserManager<ApplicationUser> users)
+    public FacilityScopeService(AppDbContext db, UserManager<ApplicationUser> users, ITenantContext tenant)
     {
         _db = db;
         _users = users;
+        _tenant = tenant;
     }
 
     /// <summary>null = unrestricted (Admin). Otherwise the exact facility IDs allowed (possibly empty).</summary>
     public async Task<List<int>?> GetAllowedFacilityIdsAsync(ClaimsPrincipal principal)
     {
+        // ── Tenant boundary, applied before any role logic ───────────────────────
+        // Roles are scoped WITHIN a tenant: a customer's Admin administers their own
+        // organisation, not the platform. Deciding "Admin ⇒ sees everything" before
+        // checking tenancy is precisely how one customer would end up reading another's
+        // claims, so the tenant test comes first and cannot be skipped by a role.
+        var scope = await _tenant.GetScopeAsync();
+
+        if (!scope.CanAccessData)
+            return new List<int>();          // Pending or Suspended tenant: no clinical data
+
+        if (!scope.Unrestricted && scope.TenantId is int tenantId)
+        {
+            var tenantFacilities = await _db.Facilities.AsNoTracking()
+                .Where(f => f.TenantId == tenantId)
+                .Select(f => f.Id)
+                .ToListAsync();
+
+            // A tenant administrator gets every facility their organisation owns.
+            if (principal.IsInRole(AppRoles.Admin))
+                return tenantFacilities;
+
+            var assigned = await GetAssignedFacilityIdsAsync(principal);
+            // Intersect: an assignment that points outside the tenant is never honoured.
+            return assigned.Where(tenantFacilities.Contains).ToList();
+        }
+
+        // Platform operator (no tenant) — unrestricted, as before.
         if (principal.IsInRole(AppRoles.Admin))
             return null;
 
         var user = await _users.GetUserAsync(principal);
         if (user == null)
             return new List<int>();
+
+        return await GetAssignedFacilityIdsAsync(principal);
+    }
+
+    /// <summary>Raw UserFacilities assignments, before any tenant intersection.</summary>
+    private async Task<List<int>> GetAssignedFacilityIdsAsync(ClaimsPrincipal principal)
+    {
+        var user = await _users.GetUserAsync(principal);
+        if (user == null) return new List<int>();
 
         return await _db.UserFacilities.AsNoTracking()
             .Where(x => x.UserId == user.Id)

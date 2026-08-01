@@ -4265,3 +4265,31 @@ html[data-theme="dark"] .badge-sky {
    block that previously lived here was removed to avoid two competing
    theme systems. See themes.css. */
 
+
+/* ----------------------------------------------------------------
+   Loading skeleton — used by state blocks to distinguish "still
+   loading" from "no data". Tokenised, respects reduced motion.
+   ---------------------------------------------------------------- */
+.skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 460px;
+  margin-inline: auto;
+}
+.skeleton-rows span {
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(90deg,
+              var(--surface-alt, rgba(0,59,77,.06)) 25%,
+              var(--border-light, rgba(198,226,233,.6)) 37%,
+              var(--surface-alt, rgba(0,59,77,.06)) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+.skeleton-rows span:nth-child(2) { width: 82%; }
+.skeleton-rows span:nth-child(3) { width: 64%; }
+@keyframes skeleton-sweep { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-rows span { animation: none; }
+}

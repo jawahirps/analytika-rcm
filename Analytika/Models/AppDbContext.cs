@@ -8,6 +8,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<ReportRequest> ReportRequests { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
     public DbSet<Facility> Facilities { get; set; }
     public DbSet<Receiver> Receivers { get; set; }
     public DbSet<Payer> Payers { get; set; }

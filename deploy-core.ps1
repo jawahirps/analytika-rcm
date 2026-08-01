@@ -20,11 +20,12 @@ $HealthUrl   = 'http://127.0.0.1:5000/healthz'
 function Write-Step($msg) { Write-Host "`n=== $msg ===" -ForegroundColor Cyan }
 
 function Get-AppHosts {
-    # Match ONLY the app host (Analytika.dll / Analytika.exe). The old
-    # "SessionId -eq 0" clause force-killed unrelated dotnet processes
-    # (e.g. the long-running ParseAll backfill) on every deploy.
+    # Match ONLY the PRODUCTION app host, by publish path. Two earlier versions were
+    # too broad: "SessionId -eq 0" killed unrelated dotnet processes (the long-running
+    # ParseAll backfill), and matching any Analytika.exe killed the DEV instance running
+    # from J:\GhafAnalytika\bix-dev on port 5001.
     Get-CimInstance Win32_Process -Filter "Name='dotnet.exe' OR Name='Analytika.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -eq 'Analytika.exe' -or $_.CommandLine -like '*Analytika.dll*' }
+        Where-Object { $_.CommandLine -like "*$PublishDir*" }
 }
 
 # ---- Locate nssm --------------------------------------------------------
