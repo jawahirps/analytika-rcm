@@ -18,6 +18,7 @@ public class SupportController : Controller
     private readonly IConfiguration _config;
     private readonly ILogger<SupportController> _logger;
     private readonly AppDbContext _db;
+    private readonly Analytika.Security.FacilityScopeService _scope;
 
     /* Hard limits */
     private const int MaxMessageLength  = 1500;   // chars per user message
@@ -68,12 +69,14 @@ public class SupportController : Controller
         new(@"<\s*(system|SYSTEM)\s*>", RegexOptions.IgnoreCase),
     ];
 
-    public SupportController(IHttpClientFactory http, IConfiguration config, ILogger<SupportController> logger, AppDbContext db)
+    public SupportController(IHttpClientFactory http, IConfiguration config, ILogger<SupportController> logger,
+                             AppDbContext db, Analytika.Security.FacilityScopeService scope)
     {
         _http   = http;
         _config = config;
         _logger = logger;
         _db     = db;
+        _scope  = scope;
     }
 
     // ── Self-Diagnostics ─────────────────────────────────────────────────
@@ -106,19 +109,33 @@ public class SupportController : Controller
         DateTime? lastSyncUtc = null;
         try
         {
-            totalRecords = await _db.XmlParsedRecords.LongCountAsync(ct);
-            totalRemits  = await _db.RemittanceClaims.LongCountAsync(ct);
-            lastSyncUtc  = await _db.PortalFetchLogs.OrderByDescending(l => l.FetchedAt)
+            var scopedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+            var recQ = _db.XmlParsedRecords.AsQueryable();
+            var remQ = _db.RemittanceClaims.AsQueryable();
+            var logQ = _db.PortalFetchLogs.AsQueryable();
+            if (scopedFac != null)
+            {
+                recQ = recQ.Where(r => scopedFac.Contains(r.FacilityId));
+                remQ = remQ.Where(r => scopedFac.Contains(r.FacilityId));
+                logQ = logQ.Where(l => scopedFac.Contains(l.FacilityId));
+            }
+            totalRecords = await recQ.LongCountAsync(ct);
+            totalRemits  = await remQ.LongCountAsync(ct);
+            lastSyncUtc  = await logQ.OrderByDescending(l => l.FetchedAt)
                                     .Select(l => (DateTime?)l.FetchedAt).FirstOrDefaultAsync(ct);
         }
         catch (Exception ex) { dbOk = false; dbError = ex.Message; }
 
         // Connected facilities = active portal credential(s).
-        var connected = await (
+        // Scoped: Self-Diagnostics names each facility and the portals it is wired to,
+        // so an unscoped list told any signed-in user the shape of every other tenant.
+        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
+        var connQuery =
             from c in _db.PortalCredentials.AsNoTracking().Where(c => c.IsActive)
             join f in _db.Facilities.AsNoTracking() on c.FacilityId equals f.Id
-            select new { f.Id, f.Name, f.IsActive, c.Portal })
-            .ToListAsync(ct);
+            select new { f.Id, f.Name, f.IsActive, c.Portal };
+        if (allowedFac != null) connQuery = connQuery.Where(x => allowedFac.Contains(x.Id));
+        var connected = await connQuery.ToListAsync(ct);
 
         var facilityInfo = connected
             .GroupBy(x => new { x.Id, x.Name, x.IsActive })

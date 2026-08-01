@@ -329,6 +329,12 @@
 <script src="~/lib/select2.min.js"></script>
 <script src="~/lib/flatpickr.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>
+@if (canAccessAdmin && !string.Equals(ViewContext.RouteData.Values["controller"]?.ToString(), "Ai", StringComparison.OrdinalIgnoreCase))
+{
+    @* The floating analyst, everywhere except the full analyst page itself. Admin-gated
+       to match /Ai/Ask, which requires an unrestricted scope because it emits raw SQL. *@
+    <partial name="_AiChatHead" />
+}
 @await RenderSectionAsync("Scripts", required: false)
 <script>
 function clearNotifications() {

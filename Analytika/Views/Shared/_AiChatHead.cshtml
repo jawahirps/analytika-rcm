@@ -1,0 +1,232 @@
+@*
+    Floating AI Data Analyst — a launcher bubble on every page that opens a compact chat
+    panel, so asking a question no longer means navigating away from whatever you were
+    looking at. Talks to the same POST /Ai/Ask endpoint as the full page; the full page
+    remains for long sessions and wide result tables.
+
+    Rendered only for users who may actually use the analyst: Ask requires an
+    unrestricted (platform) scope because the analyst emits unfiltered SQL, so showing
+    this to a facility-scoped user would just produce a refusal every time.
+*@
+<div id="aiHead" class="ai-head" data-state="closed">
+  <button type="button" class="ai-head-btn" id="aiHeadBtn" aria-label="Ask the data analyst" title="Ask the data analyst">
+    <i class="fas fa-chart-line"></i>
+  </button>
+
+  <section class="ai-head-panel" id="aiHeadPanel" aria-hidden="true">
+    <header class="ai-head-bar">
+      <span class="ai-head-title"><i class="fas fa-chart-line me-2"></i>Data Analyst</span>
+      <span class="ai-head-model" id="aiHeadModel">@(ViewBag.AiHeadModel as string ?? "")</span>
+      <a class="ai-head-icon" asp-controller="Ai" asp-action="Index" title="Open the full analyst">
+        <i class="fas fa-up-right-and-down-left-from-center"></i>
+      </a>
+      <button type="button" class="ai-head-icon" id="aiHeadClose" aria-label="Close"><i class="fas fa-xmark"></i></button>
+    </header>
+
+    <div class="ai-head-log" id="aiHeadLog"></div>
+
+    <form class="ai-head-compose" id="aiHeadForm" autocomplete="off">
+      @Html.AntiForgeryToken()
+      <textarea id="aiHeadInput" rows="1" placeholder="Ask about your claims data…"
+                aria-label="Question for the data analyst"></textarea>
+      <button type="submit" class="ai-head-send" id="aiHeadSend" aria-label="Send">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </form>
+  </section>
+</div>
+
+<style>
+  .ai-head { position: fixed; right: 20px; bottom: 20px; z-index: 1055; }
+
+  .ai-head-btn {
+    width: 52px; height: 52px; border-radius: 50%; border: 0;
+    background: linear-gradient(145deg, #0A6E7C, #08525C); color: #EAF7F9;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .32); font-size: 1.05rem;
+    transition: transform .16s ease, box-shadow .16s ease;
+  }
+  .ai-head-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0, 0, 0, .4); }
+  .ai-head[data-state="open"] .ai-head-btn { display: none; }
+
+  .ai-head-panel {
+    display: none; flex-direction: column;
+    width: min(390px, calc(100vw - 32px)); height: min(540px, calc(100vh - 120px));
+    background: rgba(10, 22, 40, .94); backdrop-filter: blur(16px);
+    border: 1px solid rgba(120, 190, 220, .24); border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .42); overflow: hidden; color: #dce9f2;
+  }
+  .ai-head[data-state="open"] .ai-head-panel { display: flex; }
+
+  .ai-head-bar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border-bottom: 1px solid rgba(120, 190, 220, .18);
+  }
+  .ai-head-title { font-weight: 600; font-size: .88rem; }
+  .ai-head-model {
+    margin-left: auto; font-size: .66rem; color: #7e93a8;
+    font-family: ui-monospace, Consolas, monospace;
+    max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ai-head-icon { background: none; border: 0; color: #7e93a8; padding: 2px 4px; font-size: .82rem; text-decoration: none; }
+  .ai-head-icon:hover { color: #7fd7ff; }
+
+  .ai-head-log { flex: 1 1 auto; overflow-y: auto; padding: 12px; font-size: .84rem; }
+  .ai-msg { margin-bottom: 11px; }
+  .ai-msg .who { font-size: .64rem; text-transform: uppercase; letter-spacing: .08em; color: #7e93a8; margin-bottom: 2px; }
+  .ai-msg.you .who { color: #7fd7ff; }
+  .ai-msg .body { white-space: pre-wrap; line-height: 1.5; word-break: break-word; }
+  .ai-msg.err .body { color: #ff9d9d; }
+
+  .ai-head-sql {
+    font-family: ui-monospace, Consolas, monospace; font-size: .7rem; color: #9fb6c6;
+    background: rgba(0, 0, 0, .3); border-radius: 6px; padding: 6px 8px; margin-top: 6px;
+    white-space: pre; overflow-x: auto;
+  }
+  .ai-head-tbl { margin-top: 6px; overflow-x: auto; }
+  .ai-head-tbl table { border-collapse: collapse; font-size: .72rem; width: 100%; }
+  .ai-head-tbl th, .ai-head-tbl td { padding: 3px 7px; border-bottom: 1px solid rgba(120, 190, 220, .14); text-align: left; white-space: nowrap; }
+  .ai-head-tbl th { color: #7e93a8; font-weight: 600; }
+
+  .ai-head-compose {
+    display: flex; align-items: flex-end; gap: 6px; padding: 9px 10px;
+    border-top: 1px solid rgba(120, 190, 220, .18);
+  }
+  .ai-head-compose textarea {
+    flex: 1 1 auto; resize: none; background: transparent; border: 0; outline: 0;
+    color: #eaf4ff; font: inherit; font-size: .84rem; max-height: 110px; padding: 5px 2px;
+  }
+  .ai-head-compose textarea::placeholder { color: #62778c; }
+  .ai-head-send { border: 0; border-radius: 8px; padding: 7px 12px; background: rgba(86, 217, 163, .18); color: #56d9a3; }
+  .ai-head-send:disabled { opacity: .45; }
+
+  @@media (max-width: 576px) {
+    .ai-head { right: 12px; bottom: 12px; }
+    .ai-head-panel { height: min(70vh, calc(100vh - 90px)); }
+  }
+  @@media print { .ai-head { display: none; } }
+</style>
+
+<script>
+(function () {
+    const head  = document.getElementById('aiHead');
+    const panel = document.getElementById('aiHeadPanel');
+    const log   = document.getElementById('aiHeadLog');
+    const input = document.getElementById('aiHeadInput');
+    const send  = document.getElementById('aiHeadSend');
+    let busy = false;
+
+    const open = () => {
+        head.dataset.state = 'open';
+        panel.setAttribute('aria-hidden', 'false');
+        sessionStorage.setItem('ai.head.open', '1');
+        input.focus();
+    };
+    const close = () => {
+        head.dataset.state = 'closed';
+        panel.setAttribute('aria-hidden', 'true');
+        sessionStorage.removeItem('ai.head.open');
+    };
+
+    document.getElementById('aiHeadBtn').addEventListener('click', open);
+    document.getElementById('aiHeadClose').addEventListener('click', close);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && head.dataset.state === 'open') close(); });
+
+    function bubble(who, cls) {
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-msg ' + (cls || '');
+        const w = document.createElement('div');
+        w.className = 'who';
+        w.textContent = who;
+        const b = document.createElement('div');
+        b.className = 'body';
+        wrap.append(w, b);
+        log.appendChild(wrap);
+        log.scrollTop = log.scrollHeight;
+        return b;
+    }
+
+    function renderTable(parent, columns, rows) {
+        if (!columns || !columns.length || !rows || !rows.length) return;
+        const box = document.createElement('div');
+        box.className = 'ai-head-tbl';
+        const t = document.createElement('table');
+        const thead = document.createElement('thead');
+        const htr = document.createElement('tr');
+        columns.forEach(c => { const th = document.createElement('th'); th.textContent = c; htr.appendChild(th); });
+        thead.appendChild(htr);
+        const tb = document.createElement('tbody');
+        rows.slice(0, 12).forEach(r => {
+            const tr = document.createElement('tr');
+            (Array.isArray(r) ? r : columns.map(c => r[c])).forEach(v => {
+                const td = document.createElement('td');
+                td.textContent = v === null || v === undefined ? '' : String(v);
+                tr.appendChild(td);
+            });
+            tb.appendChild(tr);
+        });
+        t.append(thead, tb);
+        box.appendChild(t);
+        parent.appendChild(box);
+        if (rows.length > 12) {
+            const more = document.createElement('div');
+            more.className = 'who';
+            more.textContent = `showing 12 of ${rows.length} rows — open the full analyst for all`;
+            parent.appendChild(more);
+        }
+    }
+
+    document.getElementById('aiHeadForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const q = input.value.trim();
+        if (!q || busy) return;
+
+        busy = true; send.disabled = true;
+        input.value = ''; input.style.height = 'auto';
+        bubble('you', 'you').textContent = q;
+        const body = bubble('analyst');
+        body.textContent = 'thinking…';
+
+        try {
+            const token = document.querySelector('#aiHeadForm input[name="__RequestVerificationToken"]')?.value || '';
+            const form = new URLSearchParams();
+            form.append('question', q);
+            form.append('__RequestVerificationToken', token);
+
+            const res = await fetch('@Url.Action("Ask", "Ai")', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: form.toString()
+            });
+            if (!res.ok) { body.parentElement.classList.add('err'); body.textContent = 'HTTP ' + res.status; return; }
+
+            const d = await res.json();
+            if (!d.ok) { body.parentElement.classList.add('err'); body.textContent = d.error || 'The analyst could not answer that.'; return; }
+
+            body.textContent = d.answer || '(no answer returned)';
+            if (d.sql) {
+                const pre = document.createElement('div');
+                pre.className = 'ai-head-sql';
+                pre.textContent = d.sql;
+                body.appendChild(pre);
+            }
+            renderTable(body, d.columns, d.rows);
+        } catch (err) {
+            body.parentElement.classList.add('err');
+            body.textContent = 'Request failed: ' + err.message;
+        } finally {
+            busy = false; send.disabled = false; input.focus();
+        }
+    });
+
+    input.addEventListener('input', () => {
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 110) + 'px';
+    });
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('aiHeadForm').requestSubmit(); }
+    });
+
+    // Stays open across navigation so a train of thought survives changing page.
+    if (sessionStorage.getItem('ai.head.open') === '1') open();
+})();
+</script>
