@@ -29,6 +29,25 @@ public class AdminController : Controller
     private readonly IReportService _reportService;
     private readonly IAiSettingsService _aiSettings;
     private readonly INvidiaAnalystService _aiAnalyst;
+    private readonly Analytika.Security.FacilityScopeService _scope;
+
+    /// <summary>
+    /// Facilities this administrator may act on. Admin used to mean "platform operator",
+    /// so these screens listed every facility and every portal credential in the database.
+    /// Under multi-tenancy a tenant's own administrator must see only their tenant — a
+    /// credential list is the most sensitive screen in the app.
+    /// Returns null for a platform operator, meaning unrestricted.
+    /// </summary>
+    private async Task<List<int>?> ScopedFacilityIdsAsync() => await _scope.GetAllowedFacilityIdsAsync(User);
+
+    /// <summary>Active facilities this administrator may assign, narrowed to their tenant.</summary>
+    private async Task<List<Facility>> ScopedFacilitiesAsync()
+    {
+        var ids = await ScopedFacilityIdsAsync();
+        var q = _db.Facilities.Where(f => f.IsActive);
+        if (ids != null) q = q.Where(f => ids.Contains(f.Id));
+        return await q.OrderBy(f => f.Name).ToListAsync();
+    }
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
@@ -38,8 +57,10 @@ public class AdminController : Controller
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
         IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
         Analytika.Security.ICredentialProtector credentials, IReportService reportService,
-        IAiSettingsService aiSettings, INvidiaAnalystService aiAnalyst)
+        IAiSettingsService aiSettings, INvidiaAnalystService aiAnalyst,
+        Analytika.Security.FacilityScopeService scope)
     {
+        _scope = scope;
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
@@ -296,7 +317,7 @@ public class AdminController : Controller
         if (user == null) return NotFound();
 
         var roles = await _userManager.GetRolesAsync(user);
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await ScopedFacilitiesAsync();
         var allRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
 
         return View(new EditUserViewModel
@@ -418,7 +439,7 @@ public class AdminController : Controller
         if (!await _roleManager.RoleExistsAsync(GuestRole))
             await _roleManager.CreateAsync(new IdentityRole(GuestRole));
 
-        var facilities = await _db.Facilities.Where(f => f.IsActive).OrderBy(f => f.Name).ToListAsync();
+        var facilities = await ScopedFacilitiesAsync();
         var report = new List<(string Facility, string Username, string Password, string Status)>();
 
         foreach (var fac in facilities)
@@ -523,8 +544,17 @@ public class AdminController : Controller
     [HttpGet]
     public async Task<IActionResult> Credentials()
     {
-        var creds = await _db.PortalCredentials.Include(c => c.Facility).AsNoTracking().OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
-        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
+        // Scoped: a tenant administrator must not see another tenant's portal credentials.
+        var scopedIds = await ScopedFacilityIdsAsync();
+        var credQuery = _db.PortalCredentials.Include(c => c.Facility).AsNoTracking().AsQueryable();
+        var facQuery = _db.Facilities.Where(f => f.IsActive).AsNoTracking().AsQueryable();
+        if (scopedIds != null)
+        {
+            credQuery = credQuery.Where(c => scopedIds.Contains(c.FacilityId));
+            facQuery = facQuery.Where(f => scopedIds.Contains(f.Id));
+        }
+        var creds = await credQuery.OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
+        var facilities = await facQuery.ToListAsync();
 
         return View(new CredentialListViewModel
         {
@@ -1562,7 +1592,7 @@ public class AdminController : Controller
     private async Task<CreateUserViewModel> BuildCreateVmAsync()
     {
         var roles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await ScopedFacilitiesAsync();
         return new CreateUserViewModel
         {
             AvailableRoles = roles.Select(r => new SelectListItem(r, r)).ToList(),
