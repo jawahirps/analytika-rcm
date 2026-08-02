@@ -30,6 +30,22 @@ var app = builder.Build();
 using var scope = app.Services.CreateScope();
 var sp = scope.ServiceProvider;
 
+// Resolve the AI service graph before anything else. A compile-time-valid change can
+// still leave an interface unregistered, and that surfaces as a 500 on the first request
+// rather than at startup — which is exactly how a DI regression shipped once before.
+foreach (var (name, type) in new (string, Type)[]
+{
+    ("ILlmChatClient",       typeof(ILlmChatClient)),
+    ("IBixAssistantService", typeof(IBixAssistantService)),
+    ("INvidiaAnalystService",typeof(INvidiaAnalystService)),
+    ("DenialAnalystService", typeof(DenialAnalystService)),
+})
+{
+    try { sp.GetRequiredService(type); Console.WriteLine($"  [OK]   {name} resolves"); }
+    catch (Exception ex) { Console.WriteLine($"  [FAIL] {name}: {ex.Message.Split(Environment.NewLine)[0]}"); return 1; }
+}
+Console.WriteLine();
+
 var settingsSvc = sp.GetRequiredService<IAiSettingsService>();
 var settings = await settingsSvc.GetAsync();
 var key = await settingsSvc.GetApiKeyAsync();

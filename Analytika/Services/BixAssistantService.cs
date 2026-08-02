@@ -8,13 +8,13 @@ using Microsoft.EntityFrameworkCore;
 namespace Analytika.Services;
 
 /// <summary>
-/// BIX Analytics Assistant backed by a LOCAL Ollama model, following the
+/// BIX Analytics Assistant backed by the configured cloud model, following the
 /// controlled intent-to-query architecture:
 ///
-///   Ollama understands the question   (Stage A: structured intent extraction)
+///   The model understands the question (Stage A: structured intent extraction)
 ///   ASP.NET controls the workflow     (validation, permissions, limits, audit)
 ///   Approved queries calculate        (fixed parameterized read-only SQL)
-///   Ollama explains the result        (Stage B: grounded natural language)
+///   The model explains the result      (Stage B: grounded natural language)
 ///
 /// The model NEVER supplies SQL, table names, or column names — it only picks
 /// an intent code and parameters, which are validated deterministically.
@@ -28,41 +28,40 @@ public interface IBixAssistantService
 
 public class BixAssistantService : IBixAssistantService
 {
-    private readonly IOllamaClient _ollama;
+    private readonly ILlmChatClient _llm;
     private readonly AppDbContext _db;
     private readonly ILogger<BixAssistantService> _log;
 
-    public BixAssistantService(IOllamaClient ollama, AppDbContext db, ILogger<BixAssistantService> log)
+    public BixAssistantService(ILlmChatClient llm, AppDbContext db, ILogger<BixAssistantService> log)
     {
-        _ollama = ollama;
+        _llm = llm;
         _db = db;
         _log = log;
     }
 
-    // ── Settings (SystemSettings Category='Ollama'; safe defaults) ────────────
-    private sealed record OllamaSettings(bool Enabled, string BaseUrl, string Model, double Temperature, int NumCtx, int TimeoutSeconds);
+    // ── Settings (SystemSettings Category='AI'; safe defaults) ────────────────
+    internal sealed record AssistantSettings(bool Enabled, string Model, double Temperature, int TimeoutSeconds);
 
-    private async Task<OllamaSettings> GetSettingsAsync()
+    // Settings come from the cloud provider's own category now that the local runtime is
+    // gone. BaseUrl/NumCtx are no longer meaningful (the transport owns the endpoint and
+    // the model owns its context window), so only the knobs that still apply are read.
+    private async Task<AssistantSettings> GetSettingsAsync()
     {
         var map = await _db.SystemSettings.AsNoTracking()
-            .Where(s => s.Category == "Ollama")
+            .Where(s => s.Category == "AI")
             .ToDictionaryAsync(s => s.Key, s => s.Value);
         bool enabled = !map.TryGetValue("Enabled", out var en) || !bool.TryParse(en, out var eb) || eb;
-        var baseUrl = map.TryGetValue("BaseUrl", out var bu) && !string.IsNullOrWhiteSpace(bu) ? bu!.Trim() : "http://localhost:11434";
-        var model = map.TryGetValue("Model", out var m) && !string.IsNullOrWhiteSpace(m) ? m!.Trim() : "qwen2.5:7b-instruct";
-        var temp = map.TryGetValue("Temperature", out var t) && double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var td) ? td : 0.1;
-        // 4096 is ample for the catalogue prompt + aggregate result tables and is
-        // MUCH faster than 8192 (context size dominates per-token latency and was
-        // pushing Stage A past the timeout on the RTX 3060).
-        var ctx = map.TryGetValue("NumCtx", out var nc) && int.TryParse(nc, out var nci) ? nci : 4096;
+        var model = map.TryGetValue("Model", out var m) && !string.IsNullOrWhiteSpace(m) ? m!.Trim() : "";
+        var temp = map.TryGetValue("Temperature", out var t) && double.TryParse(t,
+            System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var td) ? td : 0.2;
         var timeout = map.TryGetValue("TimeoutSeconds", out var ts) && int.TryParse(ts, out var tsi) ? tsi : 120;
-        return new OllamaSettings(enabled, baseUrl, model, temp, ctx, timeout);
+        return new AssistantSettings(enabled, model, temp, timeout);
     }
 
     public async Task<bool> IsEnabledAndAvailableAsync(CancellationToken ct = default)
     {
         var s = await GetSettingsAsync();
-        return s.Enabled && await _ollama.IsAvailableAsync(s.BaseUrl, ct);
+        return s.Enabled && await _llm.IsAvailableAsync(ct);
     }
 
     // ── Approved intent catalogue ─────────────────────────────────────────────
@@ -163,8 +162,8 @@ public class BixAssistantService : IBixAssistantService
 
             // Stage A — understand the question (structured output only)
             await Emit(new { stage = "understanding" });
-            var (raw, t1) = await _ollama.ChatAsync(s.BaseUrl, s.Model, BuildStageAPrompt(DateTime.Today), question,
-                IntentSchema, s.Temperature, s.NumCtx, TimeSpan.FromSeconds(s.TimeoutSeconds), ct);
+            var (raw, t1) = await _llm.ChatAsync(BuildStageAPrompt(DateTime.Today), question,
+                IntentSchema, s.Temperature, TimeSpan.FromSeconds(s.TimeoutSeconds), ct);
             totalTokens += t1;
 
             var parsed = ParseStageA(raw);
@@ -227,18 +226,18 @@ public class BixAssistantService : IBixAssistantService
             // Stage B — explain the database result (grounded, streamed)
             var resultTable = RenderTable(cols, rows);
             var stageBUser = $"Question: {question}\n\n{sourceLabel}\n\nQuery result ({rows.Count} row(s)):\n{resultTable}";
-            var t2 = await _ollama.ChatStreamAsync(s.BaseUrl, s.Model, StageBPrompt, stageBUser,
-                s.Temperature, s.NumCtx, TimeSpan.FromSeconds(s.TimeoutSeconds),
+            var t2 = await _llm.ChatStreamAsync(StageBPrompt, stageBUser,
+                s.Temperature, TimeSpan.FromSeconds(s.TimeoutSeconds),
                 async tok => await Emit(new { token = tok }), ct);
             totalTokens += t2;
 
-            await LogAsync(userId, userName, question, auditDetail, rows.Count, totalTokens, true, null, "ollama:" + s.Model, sw, ct);
+            await LogAsync(userId, userName, question, auditDetail, rows.Count, totalTokens, true, null, "assistant:" + s.Model, sw, ct);
             await Emit(new { done = true, tokens = totalTokens });
         }
         catch (Exception ex)
         {
             _log.LogWarning(ex, "BIX assistant request failed");
-            await LogAsync(userId, userName, question, auditDetail, 0, totalTokens, false, ex.Message, "ollama:" + s.Model, sw, ct);
+            await LogAsync(userId, userName, question, auditDetail, 0, totalTokens, false, ex.Message, "assistant:" + s.Model, sw, ct);
             await Emit(new { error = "The local assistant hit a problem: " + ex.Message });
         }
     }

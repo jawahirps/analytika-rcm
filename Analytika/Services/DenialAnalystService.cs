@@ -71,7 +71,7 @@ public class MonthlyDenialRow
 /// <summary>
 /// Resubmission Analyst — mines the parsed remittance activities for denial
 /// patterns (codes, payers, clinicians, activity codes, monthly trend) and can
-/// narrate the findings through the local Ollama model.
+/// narrate the findings through the configured chat model.
 /// All aggregation is server-side SQL over the skinny XmlParsedActivities /
 /// XmlParsedRecords tables (never the blob table) and cached 15 minutes.
 /// </summary>
@@ -79,14 +79,14 @@ public class DenialAnalystService
 {
     private readonly AppDbContext _db;
     private readonly IMemoryCache _cache;
-    private readonly IOllamaClient _ollama;   // interface — the concrete type is not registered in DI
+    private readonly ILlmChatClient _llm;
     private readonly ILogger<DenialAnalystService> _logger;
 
-    public DenialAnalystService(AppDbContext db, IMemoryCache cache, IOllamaClient ollama, ILogger<DenialAnalystService> logger)
+    public DenialAnalystService(AppDbContext db, IMemoryCache cache, ILlmChatClient llm, ILogger<DenialAnalystService> logger)
     {
         _db = db;
         _cache = cache;
-        _ollama = ollama;
+        _llm = llm;
         _logger = logger;
     }
 
@@ -198,7 +198,7 @@ public class DenialAnalystService
     }
 
     /// <summary>
-    /// Narrates the aggregates through the local Ollama model. Returns plain-text
+    /// Narrates the aggregates through the configured chat model. Returns plain-text
     /// bullet insights; falls back to a clear message when the model is unavailable.
     /// Cached 30 minutes per facility scope — the numbers only change on new parses.
     /// </summary>
@@ -231,13 +231,10 @@ public class DenialAnalystService
 
         try
         {
-            var settings = await _db.SystemSettings.AsNoTracking()
-                .Where(s => s.Category == "Ollama").ToDictionaryAsync(s => s.Key, s => s.Value, ct);
-            var baseUrl = settings.GetValueOrDefault("BaseUrl")?.Trim() is { Length: > 0 } bu ? bu : "http://localhost:11434";
-            var model = settings.GetValueOrDefault("Model")?.Trim() is { Length: > 0 } m ? m : "qwen2.5:7b-instruct";
-
-            var (content, _) = await _ollama.ChatAsync(baseUrl, model, system, sb.ToString(),
-                formatSchema: null, temperature: 0.2, numCtx: 4096, timeout: TimeSpan.FromSeconds(90), ct);
+            // Endpoint and model are owned by the chat transport (cloud provider settings);
+            // this service only supplies the prompt.
+            var (content, _) = await _llm.ChatAsync(system, sb.ToString(),
+                formatSchema: null, temperature: 0.2, timeout: TimeSpan.FromSeconds(90), ct);
 
             if (!string.IsNullOrWhiteSpace(content))
             {
@@ -247,7 +244,7 @@ public class DenialAnalystService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Denial analyst Ollama insights unavailable");
+            _logger.LogWarning(ex, "Denial analyst insights unavailable");
         }
         return "AI analyst unavailable (local model not reachable). The pattern tables above are current.";
     }

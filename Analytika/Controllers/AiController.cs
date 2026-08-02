@@ -51,9 +51,9 @@ public class AiController : Controller
     public async Task<IActionResult> Index()
     {
         var s = await _settings.GetAsync();
-        var ollamaUp = await _bix.IsEnabledAndAvailableAsync(HttpContext.RequestAborted);
-        ViewBag.Enabled = ollamaUp || (s.Enabled && s.HasApiKey);
-        ViewBag.Model = ollamaUp ? "BIX local assistant (Ollama)" : s.Model;
+        var assistantUp = await _bix.IsEnabledAndAvailableAsync(HttpContext.RequestAborted);
+        ViewBag.Enabled = assistantUp || (s.Enabled && s.HasApiKey);
+        ViewBag.Model = s.Model;
         ViewBag.Redacted = true;
         return View();
     }
@@ -107,9 +107,10 @@ public class AiController : Controller
             await Response.Body.FlushAsync(ct);
         }
 
-        // Provider dispatch: prefer the LOCAL Ollama intent-catalogue assistant when
-        // the server is up (zero API cost, data stays on-prem); fall back to the
-        // NVIDIA text-to-SQL analyst otherwise. Same SSE contract either way.
+        // Dispatch: prefer the intent-catalogue assistant. It is the only path a
+        // facility-scoped user may take, because the model chooses an approved intent and
+        // the SQL is predefined — the text-to-SQL analyst below writes its own SQL and is
+        // therefore admin-only. Same SSE contract either way.
         if (await _bix.IsEnabledAndAvailableAsync(ct))
         {
             var facilityId = await GetUserFacilityIdAsync();

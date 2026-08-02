@@ -220,12 +220,15 @@ public static class ModuleRegistration
         services.AddScoped<IAiSettingsService, AiSettingsService>();
         services.AddScoped<INvidiaAnalystService, NvidiaAnalystService>();
 
-        // Local Ollama assistant (intent-catalogue architecture; preferred when the
-        // local server is up — zero external API cost, data stays on-prem).
-        services.AddHttpClient("ollama", c => c.Timeout = TimeSpan.FromSeconds(300));
-        services.AddSingleton<IOllamaClient, OllamaClient>();
+        // Analytics assistant. Keeps its two-stage intent-catalogue architecture — the
+        // model picks an approved intent and never writes SQL — which is what lets
+        // facility-scoped users use it. Only the transport is the cloud provider now.
+        // Scoped, not singleton: it reads settings through the scoped IAiSettingsService,
+        // and a singleton holding a scoped dependency is a captive that fails scope
+        // validation at startup. The old Ollama client only took IHttpClientFactory, so
+        // singleton was safe there and is not here.
+        services.AddScoped<ILlmChatClient, LlmChatClient>();
         services.AddScoped<IBixAssistantService, BixAssistantService>();
-        services.AddHostedService<OllamaWarmupService>();   // pre-warm + pin model
         return services;
     }
 

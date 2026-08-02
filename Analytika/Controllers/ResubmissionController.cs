@@ -478,7 +478,7 @@ public class ResubmissionController : Controller
         return View(facilities);
     }
 
-    /// <summary>AI narration of the denial patterns via the local Ollama model.
+    /// <summary>AI narration of the denial patterns via the configured chat model.
     /// Fetched async by the DenialDashboard view so the page never blocks on the LLM.</summary>
     [HttpGet]
     public async Task<IActionResult> DenialAnalystInsights()
