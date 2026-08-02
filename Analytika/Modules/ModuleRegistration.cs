@@ -94,7 +94,12 @@ public static class ModuleRegistration
         {
             options.SignIn.RequireConfirmedAccount = false;
             options.Password.RequireDigit = true;
-            options.Password.RequiredLength = 8;
+            // Raised from 8 per the onboarding plan. Applies to new passwords and changes
+            // only — Identity does not re-validate at sign-in, so existing accounts keep
+            // working. Seeded accounts read their password from configuration for the same
+            // reason (see SeedData.SeedPassword), otherwise a fresh install could no longer
+            // create its own administrator.
+            options.Password.RequiredLength = 12;
             options.Password.RequireNonAlphanumeric = true;
             options.Password.RequireUppercase = true;
             options.Password.RequireLowercase = true;

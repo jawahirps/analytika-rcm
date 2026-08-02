@@ -5,6 +5,8 @@ using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -36,6 +38,31 @@ if (builder.Configuration.GetValue("Logging:JsonConsole", false))
         o.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
     });
 }
+
+// Rate limiting for the credential-handling endpoints. Sign-in, password-reset request
+// and reset-submit are the app's abuse surfaces: lockout protects one account, but nothing
+// stopped a caller enumerating many accounts or flooding reset mail. Partitioned by client
+// IP (post-ForwardedHeaders, so it is the real client and not the tunnel).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddPolicy("auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Configuration.GetValue("RateLimits:AuthPerWindow", 10),
+            Window = TimeSpan.FromMinutes(builder.Configuration.GetValue("RateLimits:WindowMinutes", 15)),
+            QueueLimit = 0,
+        }));
+
+    options.OnRejected = async (context, ct) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.Response.WriteAsync(
+            "Too many attempts. Wait a few minutes and try again.", ct);
+    };
+});
 
 var hangfireServerEnabled = builder.Configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false);
 var recurringJobsEnabled = builder.Configuration.GetValue("BackgroundJobs:RecurringJobsEnabled", false);
@@ -161,6 +188,7 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 app.UseRouting();
+app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.Use(async (context, next) =>

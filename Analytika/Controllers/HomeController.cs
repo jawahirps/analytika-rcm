@@ -5,6 +5,7 @@ using Analytika.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -64,6 +65,7 @@ public class HomeController : Controller
     [HttpPost("/Home/Index")]
     [HttpPost("/Home/Login")]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login(LoginViewModel model)
     {
         if (!ModelState.IsValid) return View("Index", model);
@@ -229,6 +231,7 @@ public class HomeController : Controller
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, [FromServices] IEmailService email)
     {
         if (!ModelState.IsValid) return View(model);
@@ -281,6 +284,7 @@ public class HomeController : Controller
     [HttpPost]
     [AllowAnonymous]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
     {
         if (!ModelState.IsValid) return View(model);

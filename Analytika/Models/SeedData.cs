@@ -42,7 +42,10 @@ public static class SeedData
                 FullName = "System Administrator",
                 EmailConfirmed = true
             };
-            await userManager.CreateAsync(admin, "Admin@123");
+            // Seed passwords come from configuration so raising the password policy cannot
+            // break a fresh install, and so a deployment can set its own without a rebuild.
+            // The fallbacks satisfy the 12-character minimum and are meant to be changed.
+            await userManager.CreateAsync(admin, SeedPassword(serviceProvider, "SeedAdminPassword", "ChangeMe@Bix-2026"));
             await userManager.AddToRoleAsync(admin, "Admin");
         }
 
@@ -81,7 +84,7 @@ public static class SeedData
                 EmailConfirmed = true,
                 UserType = "Facility"
             };
-            var result = await userManager.CreateAsync(reporter, "ghafbi@1234");
+            var result = await userManager.CreateAsync(reporter, SeedPassword(serviceProvider, "SeedReporterPassword", "ChangeMe@Ghaf-2026"));
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(reporter, "Reporter");
@@ -181,5 +184,20 @@ public static class SeedData
             }
             await context.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// A seed password from Security:&lt;key&gt;, falling back to a placeholder. Logs a warning
+    /// when the fallback is used so an install that never changed it is visible in the log.
+    /// </summary>
+    private static string SeedPassword(IServiceProvider services, string key, string fallback)
+    {
+        var config = services.GetService<IConfiguration>();
+        var configured = config?[$"Security:{key}"];
+        if (!string.IsNullOrWhiteSpace(configured)) return configured!;
+
+        services.GetService<ILoggerFactory>()?.CreateLogger("SeedData")
+            .LogWarning("Security:{Key} is not set — seeding with the default placeholder. Change this account's password.", key);
+        return fallback;
     }
 }
