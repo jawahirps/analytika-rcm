@@ -333,3 +333,51 @@ html[data-direction="ledger"]   .login-right a { color: var(--v2-teal-b); }
 html[data-direction="obsidian"] .login-right a:hover,
 html[data-direction="aurora"]   .login-right a:hover,
 html[data-direction="ledger"]   .login-right a:hover { color: var(--v2-glow); }
+
+/* The two controls that stayed light after the panel was aligned: the inactive
+   language pill (#f8fafc) and the remember-me checkbox, both hardcoded. */
+html[data-direction="obsidian"] .login-right .lang-btn,
+html[data-direction="aurora"]   .login-right .lang-btn,
+html[data-direction="ledger"]   .login-right .lang-btn {
+  background: rgba(255,255,255,.028);
+  border-color: var(--v2-line);
+  color: var(--v2-dim);
+}
+html[data-direction="obsidian"] .login-right .lang-btn.active,
+html[data-direction="aurora"]   .login-right .lang-btn.active,
+html[data-direction="ledger"]   .login-right .lang-btn.active {
+  background: rgba(127,227,221,.11);
+  border-color: var(--v2-line-b);
+  color: var(--v2-glow);
+}
+html[data-direction="obsidian"] .login-right .lang-btn:hover:not(.active),
+html[data-direction="aurora"]   .login-right .lang-btn:hover:not(.active),
+html[data-direction="ledger"]   .login-right .lang-btn:hover:not(.active) {
+  border-color: var(--v2-line-b);
+  color: var(--v2-ink);
+}
+
+html[data-direction="obsidian"] .login-right .form-check-input,
+html[data-direction="aurora"]   .login-right .form-check-input,
+html[data-direction="ledger"]   .login-right .form-check-input {
+  background-color: rgba(255,255,255,.028);
+  border-color: var(--v2-line-b);
+}
+html[data-direction="obsidian"] .login-right .form-check-input:checked,
+html[data-direction="aurora"]   .login-right .form-check-input:checked,
+html[data-direction="ledger"]   .login-right .form-check-input:checked {
+  background-color: var(--v2-teal-b);
+  border-color: var(--v2-teal-b);
+}
+html[data-direction="obsidian"] .login-right .form-check-label,
+html[data-direction="aurora"]   .login-right .form-check-label,
+html[data-direction="ledger"]   .login-right .form-check-label { color: var(--v2-dim); }
+
+/* Field icons sit in their own span, not the input group. */
+html[data-direction="obsidian"] .login-right .input-icon,
+html[data-direction="aurora"]   .login-right .input-icon,
+html[data-direction="ledger"]   .login-right .input-icon {
+  background: rgba(255,255,255,.028);
+  border-color: var(--v2-line);
+  color: var(--v2-faint);
+}
