@@ -30,6 +30,12 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/themes.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/loaders.css" asp-append-version="true" />
+    @* Bix v2 design layer — loaded last so its dark-theme token remap wins over site.css.
+       Fonts are the design's own trio: Sora (display), Inter (body), Space Grotesk (figures). *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/bix-v2.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>

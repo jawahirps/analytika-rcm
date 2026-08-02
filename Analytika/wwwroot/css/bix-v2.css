@@ -1,0 +1,335 @@
+/* ============================================================================
+   Bix v2 design layer
+   ----------------------------------------------------------------------------
+   Ports the "Bix Landing Page v2" design system into the app: its palette,
+   type scale, glass treatment and signature primitives.
+
+   Loaded AFTER site.css so the token remap below wins. Two things happen here:
+
+     1. `[data-theme="dark"]` is realigned to the v2 palette exactly. Because
+        site.css is already token-driven, every existing component — cards,
+        panels, tables, KPI tiles — inherits the new colours without being
+        rewritten.
+     2. The v2 primitives (.bx logo, .glass, .btn, .kick, .chip, .pill,
+        .eyebrow, .band, .p-kpis…) are defined so pages can adopt the landing
+        design directly.
+
+   Light mode is deliberately untouched. The v2 design is dark-only; forcing
+   these values onto the light theme would produce a palette the design never
+   specified.
+   ============================================================================ */
+
+:root {
+  /* v2 palette — the source of truth for this design */
+  --v2-bg:      #04141A;
+  --v2-bg2:     #061E23;
+  --v2-teal:    #1d8888;
+  --v2-teal-d:  #0E6B70;
+  --v2-teal-b:  #2FB3AC;
+  --v2-glow:    #7FE3DD;
+  --v2-ink:     #E8F4F3;
+  --v2-dim:     #93B0AF;
+  --v2-faint:   #5C7C7E;
+  --v2-line:    rgba(127,227,221,0.14);
+  --v2-line-b:  rgba(127,227,221,0.30);
+  --v2-surf:    rgba(10,42,48,0.55);
+  --v2-surf2:   rgba(16,58,62,0.42);
+  --v2-pos:     #3FD3A7;
+  --v2-neg:     #F2836B;
+
+  --v2-display: 'Sora', system-ui, sans-serif;
+  --v2-body:    'Inter', system-ui, sans-serif;
+  --v2-mono:    'Space Grotesk', ui-monospace, monospace;
+}
+
+/* ── Token remap: the app's dark theme becomes the v2 palette ─────────────── */
+/* Two selectors because the app carries two independent dark switches: the in-app
+   theme toggle writes data-theme, while the landing page (Layout = null) writes
+   data-direction for its skin. Aligning only one leaves the other on the old palette. */
+html[data-theme="dark"],
+html[data-direction="obsidian"],
+html[data-direction="aurora"],
+html[data-direction="ledger"] {
+  --deep-navy:      var(--v2-bg);
+  --classic-teal:   var(--v2-teal);
+  --forest-teal:    var(--v2-teal-b);
+  --seafoam-blue:   var(--v2-teal-d);
+  --sage-teal:      var(--v2-glow);
+  --ice-blue:       var(--v2-bg2);
+  --soft-white:     var(--v2-ink);
+  --mint:           var(--v2-pos);
+  --coral:          var(--v2-neg);
+
+  --bg:             var(--v2-bg);
+  --surface:        var(--v2-surf);
+  --surface-strong: var(--v2-surf2);
+  --glass:          var(--v2-surf);
+  --glass-strong:   var(--v2-surf2);
+  --glass-border:   var(--v2-line);
+  --border:         var(--v2-line);
+  --border-light:   var(--v2-line);
+}
+
+/* The ambient field from the landing page: three teal radials over a vertical
+   ramp, plus a masked dot grain. Fixed and non-interactive so it sits behind
+   the whole app rather than scrolling with any one page. */
+html[data-theme="dark"] body,
+html[data-direction="obsidian"] body,
+html[data-direction="aurora"] body,
+html[data-direction="ledger"] body {
+  background: var(--v2-bg);
+  color: var(--v2-ink);
+  -webkit-font-smoothing: antialiased;
+}
+html[data-theme="dark"] body::before,
+html[data-direction="obsidian"] body::before,
+html[data-direction="aurora"] body::before,
+html[data-direction="ledger"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background:
+    radial-gradient(1200px 700px at 82% -10%, rgba(29,136,136,0.34), transparent 62%),
+    radial-gradient(900px 800px at -12% 32%, rgba(47,179,172,0.12), transparent 58%),
+    radial-gradient(700px 600px at 45% 108%, rgba(29,136,136,0.16), transparent 60%),
+    linear-gradient(180deg, var(--v2-bg) 0%, var(--v2-bg2) 50%, var(--v2-bg) 100%);
+}
+html[data-theme="dark"] body::after,
+html[data-direction="obsidian"] body::after,
+html[data-direction="aurora"] body::after,
+html[data-direction="ledger"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .35;
+  background-image: radial-gradient(rgba(127,227,221,0.055) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(1000px 700px at 70% 0%, #000, transparent 75%);
+  mask-image: radial-gradient(1000px 700px at 70% 0%, #000, transparent 75%);
+}
+
+/* ── Type ─────────────────────────────────────────────────────────────────── */
+.v2 { font-family: var(--v2-body); color: var(--v2-ink); }
+.v2 h1, .v2 h2, .v2 h3, .v2 .display { font-family: var(--v2-display); letter-spacing: -0.028em; text-wrap: balance; }
+.v2 h1 { font-size: clamp(36px, 5vw, 60px); line-height: 1.03; letter-spacing: -0.032em; font-weight: 700; }
+.v2 h2 { font-size: clamp(29px, 3.4vw, 38px); line-height: 1.16; font-weight: 700; max-width: 780px; }
+.v2 .lead { font-size: 16.5px; line-height: 1.68; color: var(--v2-dim); max-width: 560px; text-wrap: pretty; }
+.v2 .sub  { font-size: 16px; line-height: 1.65; color: var(--v2-dim); max-width: 660px; margin-top: 16px; text-wrap: pretty; }
+.v2 .eyebrow {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--v2-teal-b); margin-bottom: 16px;
+}
+.v2 .g {
+  background: linear-gradient(100deg, var(--v2-glow), var(--v2-teal-b) 60%, var(--v2-teal));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.v2 .num { font-variant-numeric: tabular-nums; }
+
+/* ── Glass ────────────────────────────────────────────────────────────────── */
+.v2 .glass, .glass-v2 {
+  background: var(--v2-surf);
+  border: 1px solid var(--v2-line);
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+  border-radius: 20px;
+  box-shadow: 0 28px 70px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.07);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn-v2 {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 20px; border-radius: 11px; font-weight: 600; font-size: 14px;
+  border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+  font-family: var(--v2-body);
+  transition: opacity .18s, transform .18s;
+}
+.btn-v2:hover { opacity: .9; transform: translateY(-1px); }
+.btn-v2.pri {
+  background: linear-gradient(135deg, var(--v2-teal-b), var(--v2-teal-d));
+  color: #031316;
+  box-shadow: 0 10px 30px rgba(29,136,136,.4), inset 0 1px 0 rgba(255,255,255,.28);
+}
+.btn-v2.pri:hover { color: #031316; }
+.btn-v2.gh { border-color: var(--v2-line-b); color: var(--v2-glow); background: rgba(127,227,221,.05); }
+.btn-v2.gh:hover { color: var(--v2-glow); }
+.btn-v2 svg { width: 15px; height: 15px; }
+
+/* ── Badges: kick / chip / pill ───────────────────────────────────────────── */
+.kick-v2 {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--v2-glow); padding: 7px 15px; border-radius: 100px;
+  border: 1px solid var(--v2-line-b); background: rgba(127,227,221,.06);
+}
+.kick-v2 i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--v2-glow);
+  box-shadow: 0 0 10px var(--v2-glow); animation: bxBlip 2.4s ease-in-out infinite;
+}
+@keyframes bxBlip { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+
+.chip-v2 {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; font-weight: 500; color: var(--v2-dim);
+  padding: 7px 14px; border-radius: 100px;
+  border: 1px solid var(--v2-line); background: rgba(255,255,255,.028);
+}
+.chip-v2 svg { width: 13px; height: 13px; color: var(--v2-teal-b); }
+
+.pill-v2 {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  padding: 4px 11px; border-radius: 100px;
+  border: 1px solid var(--v2-line-b); color: var(--v2-glow); background: rgba(127,227,221,.07);
+}
+.pill-v2.n { color: var(--v2-dim); border-color: var(--v2-line); background: rgba(255,255,255,.03); }
+
+/* ── Hairline grids: stat band and KPI tiles ──────────────────────────────── */
+.band-v2, .kpis-v2 {
+  display: grid; gap: 1px; background: var(--v2-line);
+  border-radius: 20px; overflow: hidden; border: 1px solid var(--v2-line);
+}
+.band-v2 { grid-template-columns: repeat(4, 1fr); }
+.kpis-v2 { grid-template-columns: repeat(3, 1fr); border-radius: 13px; }
+.band-v2 > div {
+  background: rgba(6,30,35,.6); padding: 30px 28px;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.band-v2 .n {
+  font-family: var(--v2-display); font-size: 38px; font-weight: 700; letter-spacing: -0.03em;
+  background: linear-gradient(120deg, var(--v2-glow), var(--v2-teal-b));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+.band-v2 .l { font-size: 13px; color: var(--v2-dim); margin-top: 8px; line-height: 1.45; }
+.kpis-v2 .kpi { background: rgba(6,30,35,.72); padding: 13px 14px; }
+.kpis-v2 .k { font-size: 10.5px; color: var(--v2-faint); text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+.kpis-v2 .v { font-family: var(--v2-display); font-size: 23px; font-weight: 700; margin-top: 5px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpis-v2 .d { font-size: 10.5px; margin-top: 3px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.up-v2 { color: var(--v2-pos); } .down-v2 { color: var(--v2-neg); }
+
+/* ── Brand mark ───────────────────────────────────────────────────────────── */
+.bx { display: inline-flex; align-items: center; gap: 11px; color: inherit; }
+.bx:hover { color: inherit; }
+.bx svg { display: block; overflow: visible; flex-shrink: 0; }
+.bx .word { font-family: var(--v2-display); font-weight: 800; font-size: 20px; letter-spacing: -0.015em; line-height: 1; display: block; }
+.bx .sub-mark { display: block; font-size: 8.5px; letter-spacing: .2em; font-weight: 600; color: var(--v2-faint); margin-top: 4px; }
+
+.prismPulse .edge  { stroke-dasharray: 23; stroke-dashoffset: 23; animation: bxEdge 7.2s cubic-bezier(.5,0,.4,1) infinite; }
+.prismPulse .e2 { animation-delay: .3s } .prismPulse .e3 { animation-delay: .6s }
+.prismPulse .e4 { animation-delay: .9s } .prismPulse .e5 { animation-delay: 1.2s } .prismPulse .e6 { animation-delay: 1.5s }
+.prismPulse .spoke { stroke-dasharray: 18; stroke-dashoffset: 18; animation: bxSpoke 7.2s cubic-bezier(.55,0,.2,1) infinite; animation-delay: 2.25s; }
+.prismPulse .head  { opacity: 0; animation: 7.2s cubic-bezier(.55,0,.2,1) infinite; animation-delay: 2.25s; }
+.prismPulse .head.h1 { animation-name: bxHead1 } .prismPulse .head.h2 { animation-name: bxHead2 } .prismPulse .head.h3 { animation-name: bxHead3 }
+.prismPulse .ripple { opacity: 0; transform-box: fill-box; transform-origin: center; animation: bxRipple 7.2s ease-out infinite; animation-delay: 2.25s; }
+.prismPulse .core   { transform-box: fill-box; transform-origin: center; animation: bxCore 7.2s ease-in-out infinite; }
+
+@keyframes bxEdge  { 0%{stroke-dashoffset:23;opacity:1} 4.2%{stroke-dashoffset:0;opacity:1} 48.6%{stroke-dashoffset:0;opacity:1} 53.6%{stroke-dashoffset:0;opacity:0} 54.2%{stroke-dashoffset:23;opacity:0} 100%{stroke-dashoffset:23;opacity:0} }
+@keyframes bxSpoke { 0%{stroke-dashoffset:18;opacity:1} 5.6%{stroke-dashoffset:0;opacity:1} 30.6%{stroke-dashoffset:0;opacity:1} 34.7%{stroke-dashoffset:0;opacity:0} 35.4%{stroke-dashoffset:18;opacity:0} 100%{stroke-dashoffset:18;opacity:0} }
+@keyframes bxHead1 { 0%{transform:translate(0,19.5px);opacity:0} 1.4%{opacity:1} 5.6%{transform:translate(0,0)} 30.6%{transform:translate(0,0);opacity:1} 34.7%{transform:translate(0,0);opacity:0} 100%{transform:translate(0,19.5px);opacity:0} }
+@keyframes bxHead2 { 0%{transform:translate(-17.3px,-9.1px);opacity:0} 1.4%{opacity:1} 5.6%{transform:translate(0,0)} 30.6%{transform:translate(0,0);opacity:1} 34.7%{transform:translate(0,0);opacity:0} 100%{transform:translate(-17.3px,-9.1px);opacity:0} }
+@keyframes bxHead3 { 0%{transform:translate(17.3px,-9.1px);opacity:0} 1.4%{opacity:1} 5.6%{transform:translate(0,0)} 30.6%{transform:translate(0,0);opacity:1} 34.7%{transform:translate(0,0);opacity:0} 100%{transform:translate(17.3px,-9.1px);opacity:0} }
+@keyframes bxRipple{ 0%{transform:scale(1);opacity:.55} 6.3%{transform:scale(3.4);opacity:0} 7%{transform:scale(1);opacity:0} 100%{transform:scale(1);opacity:0} }
+@keyframes bxCore  { 0%{transform:scale(1);opacity:.85} 19.4%{transform:scale(1);opacity:.85} 21.5%{transform:scale(1.45);opacity:1} 27.1%{transform:scale(1);opacity:1} 59.7%{transform:scale(1);opacity:1} 65.3%{transform:scale(.85);opacity:.7} 100%{transform:scale(1);opacity:.85} }
+
+.biShimmer {
+  background-image: linear-gradient(110deg, #E8F4F3 42%, var(--v2-glow) 50%, #E8F4F3 58%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: bxShim 7.2s linear infinite; animation-delay: 3.45s;
+}
+@keyframes bxShim { 0%{background-position:130% 0} 10%{background-position:-30% 0} 100%{background-position:-30% 0} }
+
+/* The whole mark is decorative motion; honour the OS preference. */
+@media (prefers-reduced-motion: reduce) {
+  .prismPulse * { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+  .prismPulse .ripple { opacity: 0 !important; }
+  .biShimmer, .kick-v2 i { animation: none !important; }
+}
+
+/* ── Tables in the v2 idiom ───────────────────────────────────────────────── */
+.tbl-v2 { border-radius: 20px; overflow: hidden; border: 1px solid var(--v2-line); }
+.tbl-v2 table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl-v2 thead th {
+  background: rgba(127,227,221,.06); text-align: left; padding: 14px 24px;
+  font-size: 11px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--v2-faint); border-bottom: 1px solid var(--v2-line);
+}
+.tbl-v2 td { padding: 16px 24px; border-bottom: 1px solid var(--v2-line); background: rgba(6,30,35,.5); color: var(--v2-dim); }
+.tbl-v2 tr:last-child td { border-bottom: none; }
+.tbl-v2 tr:hover td { background: rgba(29,136,136,.1); }
+.tbl-v2 td.p { font-family: var(--v2-display); font-weight: 700; color: var(--v2-ink); font-size: 14.5px; letter-spacing: -0.01em; }
+
+@media (max-width: 1080px) { .band-v2 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .band-v2, .kpis-v2 { grid-template-columns: 1fr; } .tbl-v2 { overflow-x: auto; } }
+
+/* ── Sign-in page ─────────────────────────────────────────────────────────────
+   The login view sets Layout = null and styles itself with hardcoded hex
+   (.login-right is literally #ffffff), so it consumes none of the tokens above.
+   Aligning it therefore needs explicit rules rather than a variable remap.
+   Scoped to the dark skins so a light direction is left as its author intended. */
+html[data-direction="obsidian"] .login-right,
+html[data-direction="aurora"]   .login-right,
+html[data-direction="ledger"]   .login-right {
+  background: var(--v2-surf);
+  border-left: 1px solid var(--v2-line);
+  backdrop-filter: blur(20px) saturate(165%);
+  -webkit-backdrop-filter: blur(20px) saturate(165%);
+}
+html[data-direction="obsidian"] .login-right h1,
+html[data-direction="aurora"]   .login-right h1,
+html[data-direction="ledger"]   .login-right h1 {
+  font-family: var(--v2-display);
+  color: var(--v2-ink);
+  letter-spacing: -0.028em;
+}
+html[data-direction="obsidian"] .login-right .subtitle,
+html[data-direction="aurora"]   .login-right .subtitle,
+html[data-direction="ledger"]   .login-right .subtitle { color: var(--v2-dim); }
+
+html[data-direction="obsidian"] .login-right .form-label,
+html[data-direction="aurora"]   .login-right .form-label,
+html[data-direction="ledger"]   .login-right .form-label {
+  color: var(--v2-faint);
+  letter-spacing: .09em;
+}
+
+html[data-direction="obsidian"] .login-right .form-control,
+html[data-direction="aurora"]   .login-right .form-control,
+html[data-direction="ledger"]   .login-right .form-control,
+html[data-direction="obsidian"] .login-right .input-group-text,
+html[data-direction="aurora"]   .login-right .input-group-text,
+html[data-direction="ledger"]   .login-right .input-group-text {
+  background: rgba(255,255,255,.028) !important;
+  border-color: var(--v2-line) !important;
+  color: var(--v2-ink) !important;
+}
+html[data-direction="obsidian"] .login-right .form-control::placeholder,
+html[data-direction="aurora"]   .login-right .form-control::placeholder,
+html[data-direction="ledger"]   .login-right .form-control::placeholder { color: var(--v2-faint) !important; }
+
+html[data-direction="obsidian"] .login-right .form-control:focus,
+html[data-direction="aurora"]   .login-right .form-control:focus,
+html[data-direction="ledger"]   .login-right .form-control:focus {
+  border-color: var(--v2-line-b) !important;
+  box-shadow: 0 0 0 3px rgba(127,227,221,.12) !important;
+}
+
+/* The submit button takes the design's primary gradient. */
+html[data-direction="obsidian"] .login-right .btn-signin,
+html[data-direction="aurora"]   .login-right .btn-signin,
+html[data-direction="ledger"]   .login-right .btn-signin {
+  background: linear-gradient(135deg, var(--v2-teal-b), var(--v2-teal-d)) !important;
+  border: none !important;
+  color: #031316 !important;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(29,136,136,.4), inset 0 1px 0 rgba(255,255,255,.28);
+}
+html[data-direction="obsidian"] .login-right a,
+html[data-direction="aurora"]   .login-right a,
+html[data-direction="ledger"]   .login-right a { color: var(--v2-teal-b); }
+html[data-direction="obsidian"] .login-right a:hover,
+html[data-direction="aurora"]   .login-right a:hover,
+html[data-direction="ledger"]   .login-right a:hover { color: var(--v2-glow); }

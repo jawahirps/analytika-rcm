@@ -11,6 +11,13 @@
     <title>Ghaf Business Intelligence — Login</title>
     <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
     <link rel="stylesheet" href="/vendor/fa/css/all.min.css" />
+    @* This page sets Layout = null and carries its own head, so the v2 design layer has
+       to be linked here as well as in _Layout — a stylesheet added only to the layout
+       never reaches the landing page. *@
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/bix-v2.css" asp-append-version="true" />
     <script>
         /* Apply the skin chosen on the landing page (or the in-app skin picker)
            before first paint. Shares 'analytika-skin' with the app skin system
