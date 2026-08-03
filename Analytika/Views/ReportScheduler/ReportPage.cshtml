@@ -680,6 +680,41 @@
             el.onclick = () => location.reload();
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 12000);
+            return el;
+        }
+
+        // True while the user has something in progress that a reload would destroy:
+        // a focused field, or any form on the page carrying entered values. The refresh
+        // is meant to save a click, not to wipe a half-filled report request.
+        function userIsBusy() {
+            const a = document.activeElement;
+            if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'submit') return true;
+            return [...document.querySelectorAll('form input, form textarea')].some(f =>
+                !/^(hidden|submit|button)$/.test(f.type) && f.value && f.value !== f.defaultValue);
+        }
+
+        // Reload once the report list changes, rather than waiting for a click. Deferred
+        // while the tab is hidden so a background tab does not reload behind the user and
+        // lose their scroll position on return.
+        let reloadQueued = false;
+        function autoRefresh(el) {
+            if (reloadQueued) return;
+            if (userIsBusy()) {
+                if (el) el.textContent += ' (click to refresh)';
+                return;
+            }
+            reloadQueued = true;
+            const go = () => location.reload();
+            if (document.visibilityState === 'hidden') {
+                document.addEventListener('visibilitychange', function once() {
+                    if (document.visibilityState === 'visible') {
+                        document.removeEventListener('visibilitychange', once);
+                        go();
+                    }
+                });
+            } else {
+                setTimeout(go, 1600);   // long enough for the toast to be read
+            }
         }
 
         async function poll() {
@@ -693,10 +728,10 @@
                     const prev = known[row.id];
                     if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Completed') {
                         chime(true);
-                        toast('Report ' + row.reportId + ' is ready — click to refresh & download', true);
+                        autoRefresh(toast('Report ' + row.reportId + ' is ready — refreshing…', true));
                     } else if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Failed') {
                         chime(false);
-                        toast('Report ' + row.reportId + ' failed — click to refresh', false);
+                        autoRefresh(toast('Report ' + row.reportId + ' failed — refreshing…', false));
                     }
                     known[row.id] = row.status;
                     if (row.status === 'Processing' || row.status === 'Pending') anyRunning = true;
