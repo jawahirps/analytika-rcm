@@ -224,6 +224,90 @@ public class HomeController : Controller
     // password became a support request. Identity already issues single-use,
     // time-limited reset tokens; this exposes that properly.
 
+    /// <summary>
+    /// Enquiry form on the public landing page. The design ships this as a mock — its
+    /// script hides the fields and shows a thank-you without sending anything — so it is
+    /// wired to a real delivery path here rather than silently discarding enquiries.
+    ///
+    /// Each submission is appended to landing-enquiries.jsonl in the data directory, and
+    /// the reply reports success only if that write succeeded. Email is a best-effort
+    /// notification on top: IEmailService swallows its own failures and no-ops without
+    /// SMTP, so it cannot be the thing that decides whether the visitor is told "received".
+    /// </summary>
+    [HttpPost("/Home/LandingContact")]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> LandingContact(
+        [FromForm] string? name, [FromForm] string? email, [FromForm] string? facility,
+        [FromForm] string? claims, [FromForm] string? pain,
+        [FromServices] IEmailService mailer, [FromServices] IConfiguration config)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(facility))
+            return Json(new { ok = false, error = "Name, work email and facility are all required." });
+        if (!email.Contains('@') || email.Length > 200)
+            return Json(new { ok = false, error = "That email address does not look right." });
+
+        var portals = Request.Form["portal"].ToString();
+
+        // Persist FIRST, and base the reply on that. IEmailService.SendEmailAsync catches
+        // every failure internally and returns normally — it also no-ops when SMTP is
+        // unconfigured — so a try/catch around it proves nothing. Reporting success on
+        // the mail call would tell the visitor their enquiry was received when it may
+        // have evaporated. The file write is what makes "queued" true.
+        var record = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            at = DateTime.UtcNow.ToString("u"),
+            name, email, facility, claims,
+            portals = portals.Length > 0 ? portals : null,
+            pain,
+            ip = HttpContext.Connection.RemoteIpAddress?.ToString()
+        });
+
+        var dir = config["Data:Dir"] ?? AppContext.BaseDirectory;
+        var path = System.IO.Path.Combine(dir, "landing-enquiries.jsonl");
+        try
+        {
+            await System.IO.File.AppendAllTextAsync(path, record + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            // Nothing durable happened, so do not claim it did.
+            _logger.LogError(ex, "Landing enquiry could not be persisted to {Path}", path);
+            return Json(new { ok = false, error = "We could not record your request just now." });
+        }
+
+        _logger.LogInformation("Landing enquiry recorded - facility={Facility} email={Email} portals={Portals}",
+            facility, email, portals.Length > 0 ? portals : "(none)");
+
+        // Best-effort notification on top of the durable record.
+        var to = config["Alerting:AdminEmails"];
+        if (string.IsNullOrWhiteSpace(to)) to = config["Smtp:FromAddress"];
+        if (!string.IsNullOrWhiteSpace(to))
+        {
+            var portalsLine = portals.Length > 0 ? portals : "(none selected)";
+            var body = $"""
+                New Bix enquiry from the landing page.
+
+                Name:          {name}
+                Email:         {email}
+                Facility:      {facility}
+                Claim types:   {claims}
+                Portals today: {portalsLine}
+
+                Biggest denial category:
+                {pain}
+                """;
+            await mailer.SendEmailAsync(to!, $"Bix enquiry - {facility}", body);
+        }
+        else
+        {
+            _logger.LogWarning("Landing enquiry recorded but no notification recipient is configured (Alerting:AdminEmails).");
+        }
+
+        return Json(new { ok = true });
+    }
+
     [HttpGet]
     [AllowAnonymous]
     public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());

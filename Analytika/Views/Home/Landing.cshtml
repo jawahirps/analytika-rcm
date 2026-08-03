@@ -1,366 +1,356 @@
 @{
     Layout = null;
-    ViewData["Title"] = "Bix — Healthcare Revenue Intelligence for the Gulf";
+    ViewData["Title"] = "Bix — Denied yesterday. Recovered this week.";
 }
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bix — Healthcare Revenue Intelligence</title>
-@* Self-hosted webfonts — origin-served (behind Cloudflare, edge-cached), no third-party request. *@
+<title>Bix — Denied yesterday. Recovered this week.</title>
+<meta name="description" content="Revenue-intelligence platform that finds, names and recovers claim denials across UAE and GCC providers. Built by Ghaf Business Services." />
+<meta name="theme-color" content="#05141A" />
+@* The v4 type stack (Bricolage Grotesque / Instrument Sans / JetBrains Mono) is not in
+   the self-hosted set, so it comes from the CDN as the design specifies. The origin-served
+   sheet is kept alongside it because bix-v4.css falls back to Sora and system-ui, both
+   self-hosted — the page still sets correctly if the CDN is blocked. *@
 <link rel="stylesheet" href="/css/fonts.css" />
-<style>
-  :root { --section-pad: 80px; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; }
-
-  /* ============ OBSIDIAN (A) ============ */
-  body[data-direction="obsidian"] {
-    --bg: #04101F; --bg2: #061829;
-    --surface: rgba(13, 38, 63, 0.55); --surface-brt: rgba(26, 58, 92, 0.5);
-    --stroke: rgba(122, 190, 210, 0.16); --stroke-brt: rgba(167, 235, 242, 0.35);
-    --accent: #54ACBF; --accent-deep: #006884; --accent-glow: #A7EBF2;
-    --text: #EAF4FB; --text-dim: #9FB8CB; --text-faint: #64809A;
-  }
-  /* ============ LEDGER (B) ============ */
-  body[data-direction="ledger"] {
-    --bg: #050B14; --text: #F2F7FA; --text-dim: #8CA3B5; --text-faint: #52697C;
-    --accent: #54ACBF; --accent-glow: #A7EBF2; --accent-deep: #006884;
-    --stroke: rgba(140, 163, 181, 0.18); --stroke-brt: rgba(167, 235, 242, 0.35);
-    --surface: rgba(15, 30, 48, 0.5);
-  }
-  /* ============ AURORA (C) ============ */
-  body[data-direction="aurora"] {
-    --bg: #071023; --text: #EDF3FF; --text-dim: #A3B4D0; --text-faint: #64779A;
-    --accent: #54ACBF; --accent-glow: #A7EBF2; --accent-alt: #7C8DF0; --accent-deep: #006884;
-    --stroke: rgba(163, 180, 208, 0.14); --stroke-brt: rgba(167, 235, 242, 0.35);
-    --surface: linear-gradient(160deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
-  }
-
-  body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg); color: var(--text); overflow-x: hidden;
-    min-height: 100vh;
-  }
-
-  /* ============ BACKGROUNDS ============ */
-  body[data-direction="obsidian"] {
-    background:
-      radial-gradient(1100px 600px at 78% -8%, rgba(0, 104, 132, 0.35), transparent 65%),
-      radial-gradient(900px 700px at -10% 40%, rgba(84, 172, 191, 0.14), transparent 60%),
-      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 55%, var(--bg) 100%);
-  }
-  body[data-direction="ledger"] { background: var(--bg); }
-  body[data-direction="aurora"] {
-    background:
-      radial-gradient(900px 500px at 15% 0%, rgba(124, 141, 240, 0.20), transparent 60%),
-      radial-gradient(1000px 600px at 90% 12%, rgba(84, 172, 191, 0.22), transparent 60%),
-      radial-gradient(800px 700px at 50% 90%, rgba(167, 235, 242, 0.10), transparent 60%),
-      #071023;
-  }
-
-  .glass {
-    background: var(--surface); border: 1px solid var(--stroke);
-    backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
-    border-radius: 20px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  }
-  body[data-direction="aurora"] .glass {
-    background: var(--surface); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 24px;
-    box-shadow: 0 26px 70px rgba(2, 6, 20, 0.5), inset 0 1px 0 rgba(255,255,255,0.14);
-  }
-
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 0 60px; }
-
-  /* ============ LOGO ============ */
-  .bx-brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
-  .bx-mark {
-    width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0;
-    background: linear-gradient(140deg, rgba(167,235,242,0.22), rgba(84,172,191,0.10));
-    border: 1px solid rgba(167,235,242,0.35);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
-    backdrop-filter: blur(11px) saturate(170%); -webkit-backdrop-filter: blur(11px) saturate(170%);
-  }
-  .bx-mark svg { width: 27px; height: 27px; display: block; }
-  .bx-word { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -0.01em; }
-  .bx-sub { display: block; font-size: 9px; letter-spacing: 0.22em; font-weight: 600; opacity: 0.55; font-family: 'Inter', sans-serif; }
-  body[data-direction="ledger"] .bx-mark { border-radius: 10px; }
-  body[data-direction="ledger"] .bx-word { font-family: 'Space Grotesk', sans-serif; }
-
-  /* ============ NAV ============ */
-  .nav { padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; gap: 50px; }
-  body[data-direction="obsidian"] .nav { margin: 24px 40px 0; border-radius: 18px; }
-  body[data-direction="aurora"] .nav { position: relative; margin: 26px auto 0; width: fit-content; border-radius: 100px; padding: 12px 14px 12px 22px; }
-  .nav-links { display: flex; gap: 30px; font-size: 14px; color: var(--text-dim); font-weight: 500; }
-  .nav-links a { color: inherit; text-decoration: none; }
-  .nav-links a:hover { color: var(--accent); }
-  .nav-cta { display: flex; gap: 12px; align-items: center; }
-  .nav-signin { color: var(--text-dim); font-size: 14px; text-decoration: none; font-weight: 500; }
-  .nav-signin:hover { color: var(--accent); }
-
-  .btn { display: inline-flex; align-items: center; gap: 9px; padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 14.5px; text-decoration: none; border: none; cursor: pointer; transition: opacity .15s, transform .15s; }
-  .btn:hover { transform: translateY(-1px); }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%); color: #fff;
-    box-shadow: 0 10px 28px rgba(84, 172, 191, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
-  }
-  body[data-direction="aurora"] .btn-primary { background: linear-gradient(120deg, var(--accent-alt), var(--accent)); box-shadow: 0 8px 26px rgba(124, 141, 240, 0.4); }
-  .btn-primary:hover { opacity: 0.92; }
-
-  /* ============ HERO ============ */
-  .hero { padding: 90px 60px 70px; display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
-  body[data-direction="obsidian"] .hero { padding: 90px 80px 70px; }
-  body[data-direction="aurora"] .hero { text-align: center; grid-template-columns: 1fr; padding: 84px 100px 50px; }
-  .hero-viz { display: block; }
-  body[data-direction="aurora"] .hero-viz { display: none; }
-
-  .kicker {
-    display: inline-flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600;
-    letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-glow);
-    padding: 8px 16px; border-radius: 100px; border: 1px solid var(--stroke-brt); background: rgba(167, 235, 242, 0.06);
-  }
-  h1 { font-family: 'Sora', sans-serif; font-size: 56px; line-height: 1.08; letter-spacing: -0.02em; font-weight: 700; margin: 26px 0 22px; }
-  body[data-direction="ledger"] h1 { font-size: 92px; line-height: 0.98; letter-spacing: -0.035em; max-width: 850px; text-wrap: balance; }
-  body[data-direction="aurora"] h1 { font-size: 62px; line-height: 1.06; letter-spacing: -0.025em; margin: 28px auto 20px; max-width: 850px; text-wrap: balance; }
-  .grad { background: linear-gradient(100deg, var(--accent-glow), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  body[data-direction="aurora"] .grad { background: linear-gradient(95deg, var(--accent-glow) 0%, var(--accent-alt) 55%, var(--accent) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-
-  .lead { font-size: 17.5px; line-height: 1.65; color: var(--text-dim); max-width: 520px; }
-  body[data-direction="aurora"] .lead { font-size: 18px; max-width: 620px; margin: 0 auto; }
-  .actions { display: flex; gap: 14px; margin-top: 34px; flex-wrap: wrap; }
-  body[data-direction="aurora"] .actions { justify-content: center; }
-  .trust { display: flex; gap: 18px; margin-top: 30px; font-size: 13px; color: var(--text-faint); align-items: center; flex-wrap: wrap; }
-  .trust b { color: var(--text-dim); }
-  body[data-direction="aurora"] .trust { display: none; }
-  .trust-alt { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-  body[data-direction="aurora"] .trust-alt { justify-content: center; }
-  .std { font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-dim); padding: 8px 16px; border-radius: 100px; border: 1px solid var(--stroke); background: rgba(255,255,255,0.03); }
-
-  /* ============ HERO VIZ CARD ============ */
-  .viz-main { padding: 26px 28px; border-radius: 20px; }
-  .viz-head { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--text-dim); }
-  .viz-pill { font-size: 11.5px; font-weight: 700; color: var(--accent-glow); padding: 4px 10px; border-radius: 100px; border: 1px solid var(--stroke-brt); background: rgba(167,235,242,0.08); }
-  .bignum { font-family: 'Sora', sans-serif; font-size: 52px; font-weight: 800; letter-spacing: -0.02em; margin: 16px 0 6px; }
-  .bignum .cur { font-size: 22px; color: var(--text-dim); margin-right: 8px; font-weight: 600; }
-  .delta { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--accent-glow); }
-  .bars { display: flex; align-items: flex-end; gap: 8px; height: 90px; margin-top: 22px; }
-  .bars span { flex: 1; border-radius: 6px 6px 3px 3px; background: linear-gradient(180deg, rgba(84,172,191,0.55), rgba(84,172,191,0.12)); }
-  .bars span.hot { background: linear-gradient(180deg, var(--accent-glow), var(--accent)); }
-  .viz-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
-  .chip { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 16px; }
-  .chip .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: var(--accent-glow); background: linear-gradient(135deg, rgba(84,172,191,0.22), rgba(0,104,132,0.14)); border: 1px solid var(--stroke-brt); flex-shrink: 0; }
-  .chip .ic svg { width: 20px; height: 20px; }
-  .chip .tx { display: flex; flex-direction: column; font-size: 12.5px; color: var(--text-faint); }
-  .chip .tx b { font-size: 14px; color: var(--text); }
-  .donut { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 16px; }
-  .donut .ring { position: relative; display: grid; place-items: center; flex-shrink: 0; }
-  .donut .ctr { position: absolute; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 17px; }
-  .donut .cap { font-size: 12px; color: var(--text-faint); line-height: 1.4; }
-
-  /* ============ METRICS ============ */
-  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; padding: 70px 80px 30px; }
-  body[data-direction="ledger"] .metrics { border-bottom: 1px solid var(--stroke); padding: 0 40px; grid-template-columns: 1fr; background: none; border-radius: 0; box-shadow: none; backdrop-filter: none; }
-  .metric { padding: 28px 26px; }
-  body[data-direction="ledger"] .metric { display: grid; grid-template-columns: 90px 1fr 1.2fr; gap: 40px; align-items: baseline; border-top: 1px solid var(--stroke); padding: 42px 24px; }
-  .metric-num { font-family: 'Sora', sans-serif; font-size: 40px; font-weight: 700; color: var(--accent-glow); letter-spacing: -0.02em; }
-  body[data-direction="ledger"] .metric-num { font-size: 56px; }
-  .metric-label { font-size: 14.5px; font-weight: 600; margin-top: 8px; }
-  .metric-desc { font-size: 12.5px; color: var(--text-faint); margin-top: 5px; line-height: 1.5; }
-
-  /* ============ FEATURES ============ */
-  .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 30px 80px 70px; }
-  body[data-direction="ledger"] .features { display: none; }
-  .feature { padding: 28px; }
-  .feature-icon { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(84,172,191,0.25), rgba(0,104,132,0.18)); border: 1px solid var(--stroke-brt); color: var(--accent-glow); margin-bottom: 18px; }
-  .feature-icon svg { width: 22px; height: 22px; }
-  .feature h3 { font-family: 'Sora', sans-serif; font-size: 18px; margin: 0 0 10px; }
-  .feature p { font-size: 14px; color: var(--text-dim); line-height: 1.6; margin: 0; }
-
-  /* ============ LEDGER ROWS (shown only for ledger) ============ */
-  .ledger-rows { display: none; padding: 20px 40px 40px; }
-  body[data-direction="ledger"] .ledger-rows { display: block; }
-  .ledger-row { display: grid; grid-template-columns: 70px 1fr 1.3fr; gap: 40px; align-items: baseline; border-top: 1px solid var(--stroke); padding: 34px 24px; }
-  .ledger-row .n { font-family: 'Space Grotesk', sans-serif; font-size: 22px; color: var(--accent); font-weight: 600; }
-  .ledger-row h3 { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
-  .ledger-row p { font-size: 15px; color: var(--text-dim); line-height: 1.6; }
-
-  /* ============ CTA ============ */
-  .cta { margin: 0 80px 60px; padding: 56px 60px; border-radius: 26px; position: relative; overflow: hidden; text-align: center; background: linear-gradient(135deg, rgba(0,104,132,0.5), rgba(4,16,31,0.7)); border: 1px solid var(--stroke-brt); }
-  .cta::before { content: ''; position: absolute; inset: -40%; background: radial-gradient(600px 300px at 50% 0%, rgba(167,235,242,0.18), transparent 60%); }
-  .cta h2 { font-family: 'Sora', sans-serif; font-size: 34px; letter-spacing: -0.02em; margin: 0 0 14px; position: relative; }
-  .cta p { color: var(--text-dim); font-size: 16px; max-width: 560px; margin: 0 auto 28px; position: relative; }
-  .cta .btn { position: relative; }
-  body[data-direction="aurora"] .cta { margin: 10px 72px 64px; padding: 60px; }
-
-  /* ============ FOOTER ============ */
-  .foot { padding: 40px 80px 60px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; border-top: 1px solid var(--stroke); font-size: 13px; color: var(--text-faint); }
-  .foot a { color: var(--text-dim); text-decoration: none; }
-  .foot a:hover { color: var(--accent); }
-
-  /* ============ DIRECTION TOGGLE ============ */
-  #dir-toggle {
-    position: fixed; bottom: 20px; right: 20px; z-index: 10000; font-family: 'Inter', sans-serif;
-    background: rgba(13, 38, 63, 0.85); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-    border: 1px solid rgba(167, 235, 242, 0.35); border-radius: 16px; padding: 16px 18px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
-  }
-  #dir-toggle .dt-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #A7EBF2; margin-bottom: 10px; text-transform: uppercase; }
-  #dir-toggle .dt-opts { display: flex; gap: 6px; }
-  #dir-toggle button {
-    font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
-    padding: 7px 13px; border-radius: 100px; border: 1px solid rgba(167,235,242,0.2);
-    background: rgba(255,255,255,0.04); color: #C7D9E6; transition: all .15s;
-  }
-  #dir-toggle button:hover { background: rgba(167,235,242,0.12); color: #EAF4FB; }
-  #dir-toggle button.active { background: linear-gradient(135deg, #54ACBF, #006884); color: #fff; border-color: transparent; }
-
-  /* ============ RESPONSIVE ============ */
-  @@media (max-width: 1000px) {
-    .hero { grid-template-columns: 1fr !important; padding: 60px 32px 40px !important; gap: 36px; }
-    .hero-viz { display: none !important; }
-    .metrics { grid-template-columns: repeat(2, 1fr); padding: 30px 32px; }
-    .features { grid-template-columns: 1fr; padding: 20px 32px 50px; }
-    .cta { margin: 0 32px 40px !important; padding: 40px 28px !important; }
-    .nav { flex-wrap: wrap; gap: 16px; margin: 16px 20px 0 !important; padding: 14px 20px; }
-    .nav-links { display: none; }
-    h1 { font-size: 40px !important; }
-    body[data-direction="ledger"] h1 { font-size: 48px !important; }
-    body[data-direction="aurora"] h1 { font-size: 40px !important; }
-    body[data-direction="ledger"] .metric,
-    .ledger-row { grid-template-columns: 1fr !important; gap: 8px; }
-    .foot { padding: 30px 32px 40px; }
-  }
-  @@media (max-width: 560px) {
-    .metrics { grid-template-columns: 1fr; }
-    .nav-cta .nav-signin { display: none; }
-    #dir-toggle { left: 12px; right: 12px; bottom: 12px; }
-    #dir-toggle .dt-opts { justify-content: space-between; }
-  }
-</style>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@@12..96,700;12..96,800&family=Instrument+Sans:wght@@400;500;600&family=JetBrains+Mono:wght@@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/bix-v4.css" asp-append-version="true" />
 </head>
-<body data-direction="obsidian">
+<body>
 
-<nav class="nav glass">
-  <a class="bx-brand" href="/">
-    <span class="bx-mark">
-      <svg viewBox="-13 -13 26 26" aria-hidden="true"><g fill="none" stroke-width="1.1"><ellipse rx="11.5" ry="4.4" stroke="#54ACBF"/><ellipse rx="11.5" ry="4.4" stroke="#006884" transform="rotate(60)"/><ellipse rx="11.5" ry="4.4" stroke="#A7EBF2" transform="rotate(120)"/></g><circle r="2.2" fill="#54ACBF"/></svg>
-    </span>
-    <span><span class="bx-word">Bix</span><span class="bx-sub">BUSINESS INTELLIGENCE</span></span>
-  </a>
-  <div class="nav-links"><a href="#platform">Platform</a><a href="#results">Results</a><a href="#platform">How it works</a><a href="#compliance">Compliance</a></div>
-  <div class="nav-cta"><a class="nav-signin" href="/login">Sign in</a><a class="btn btn-primary" href="/login">Run a Trial</a></div>
-</nav>
-
-<section class="hero glass">
-  <div>
-    <span class="kicker"><i style="width:7px;height:7px;border-radius:50%;background:var(--accent-glow);box-shadow:0 0 10px var(--accent-glow);display:block;"></i>Healthcare Revenue Intelligence · UAE &amp; GCC</span>
-    <h1>Turn claim data into <span class="grad">recovered revenue.</span></h1>
-    <p class="lead">Bix unifies every claim, remittance and denial across your facilities — so finance sees revenue leakage before it becomes lost cash.</p>
-    <div class="actions">
-      <a class="btn btn-primary" href="/login">Run a Trial <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="btn" href="/login" style="border: 1px solid var(--stroke-brt); color: var(--accent-glow); background: rgba(167,235,242,0.05);">See the workspace</a>
-    </div>
-    <div class="trust"><span>Built for <b>DHA</b>, <b>DHPO</b> &amp; <b>eClaimLink</b></span><span>·</span><span>Bilingual <b>EN / AR</b></span></div>
-    <div class="trust-alt">
-      <span class="std">DHA</span><span class="std">DHPO</span><span class="std">eClaimLink</span><span class="std">Riayati</span><span class="std">NPHIES</span><span class="std">Malaffi</span>
-    </div>
-  </div>
-  <div class="hero-viz" aria-hidden="true">
-    <div class="glass viz-main">
-      <div class="viz-head"><span>Net Collections · rolling 90 days</span><span class="viz-pill">▲ On target</span></div>
-      <div class="bignum"><span class="cur">AED</span>48.6M</div>
-      <div class="delta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16l6-6 4 4 6-7"/><path d="M14 7h6v6"/></svg>+AED 7.4M recovered vs. last quarter</div>
-      <div class="bars"><span style="height:42%"></span><span style="height:58%"></span><span style="height:49%"></span><span style="height:72%"></span><span style="height:64%"></span><span class="hot" style="height:88%"></span><span style="height:78%"></span><span class="hot" style="height:96%"></span></div>
-      <div class="viz-row">
-        <div class="glass chip">
-          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.5"/><path d="M21 4v5h-5"/></svg></span>
-          <span class="tx"><b>Daily auto-sync</b><span>DHA · DHPO · RHA</span></span>
-        </div>
-        <div class="glass donut">
-          <span class="ring">
-            <svg viewBox="0 0 100 100" width="64" height="64"><circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="11"/><circle cx="50" cy="50" r="42" fill="none" stroke="#A7EBF2" stroke-width="11" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="60" transform="rotate(-90 50 50)"/></svg>
-            <span class="ctr">82%</span>
-          </span>
-          <span class="cap">Denials worked &amp; resolved this month</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="metrics glass" id="results">
-  <div class="metric"><div class="metric-num">18%</div><div class="metric-label">Denial-recovery uplift</div><div class="metric-desc">More denied claims worked and won back</div></div>
-  <div class="metric"><div class="metric-num">12 days</div><div class="metric-label">Faster to cash</div><div class="metric-desc">Shorter submission-to-remittance cycle</div></div>
-  <div class="metric"><div class="metric-num">2.4M+</div><div class="metric-label">Claims analysed</div><div class="metric-desc">Submissions, resubmissions &amp; remittance</div></div>
-  <div class="metric"><div class="metric-num">30+</div><div class="metric-label">Facilities live</div><div class="metric-desc">One rollup across every branch &amp; payer</div></div>
-</section>
-
-<section class="features" id="platform">
-  <article class="feature glass">
-    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/><path d="M12 8v4l3 2"/></svg></div>
-    <h3>Automated portal sync</h3><p>Submissions and remittances pulled from DHA, DHPO and RHA daily — no manual downloads.</p>
-  </article>
-  <article class="feature glass">
-    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M11 7v4l2.5 1.5"/><path d="m16 16 5 5"/></svg></div>
-    <h3>Denial intelligence</h3><p>Root-cause every rejection by payer, denial code, clinician and facility.</p>
-  </article>
-  <article class="feature glass">
-    <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></div>
-    <h3>Resubmission workflow</h3><p>Allocate denials, track SLAs, and recover what's recoverable before deadlines pass.</p>
-  </article>
-</section>
-
-<!-- Ledger direction renders these numbered rows instead of the feature cards -->
-<section class="ledger-rows" id="compliance">
-  <div class="ledger-row"><span class="n">01</span><h3>Automated portal sync</h3><p>Submissions and remittances pulled from DHA, DHPO and RHA on a daily schedule — no manual downloads, no missed files.</p></div>
-  <div class="ledger-row"><span class="n">02</span><h3>Denial intelligence</h3><p>Root-cause every rejection by payer, denial code, clinician and facility — see exactly which patterns drain revenue.</p></div>
-  <div class="ledger-row"><span class="n">03</span><h3>Resubmission workflow</h3><p>Allocate denied claims, track every touch against SLA timers, and recover what's recoverable before deadlines pass.</p></div>
-  <div class="ledger-row"><span class="n">04</span><h3>Remittance reconciliation</h3><p>Match every payment to its claim, surface short-pays instantly, and reconcile to the last fil.</p></div>
-</section>
-
-<section class="cta glass">
-  <h2>See your revenue leakage in 30 minutes.</h2>
-  <p>Bring a month of your own claims. We'll show you, live, what Bix recovers.</p>
-  <a class="btn btn-primary" href="/login">Run a Trial <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-</section>
-
-<footer class="foot">
-  <span>© @DateTime.Now.Year Ghaf Bi Solutions · Healthcare Revenue Intelligence</span>
-  <span><a href="/login">Sign in</a> &nbsp;·&nbsp; <a href="/login">Run a Trial</a></span>
-</footer>
-
-<div id="dir-toggle">
-  <div class="dt-label">Design Direction</div>
-  <div class="dt-opts">
-    <button type="button" data-dir="obsidian">Obsidian</button>
-    <button type="button" data-dir="ledger">Ledger</button>
-    <button type="button" data-dir="aurora">Aurora</button>
-  </div>
+<div class="util">
+<div class="in">
+<span><i class="blip"></i>ALL PORTALS SYNCED <b>06:00 GST</b></span>
+<span>DENIALS OPEN <b class="h">184</b></span>
+<span>IN RESUBMISSION <b>96</b></span>
+<span>RECOVERED 30D <b class="t">AED 14.8M</b></span>
+<span>v4.2 · CY-26 Q3</span>
+</div>
 </div>
 
+<nav class="mast">
+<div class="in">
+<a class="bx" href="#top">
+<svg class="pr" width="36" height="36" viewBox="0 0 48 48" aria-hidden="true"><path class="e e1" d="M24 3 L43 14" fill="none" stroke="#7FE3DD" stroke-width="2.6" stroke-linecap="round"/><path class="e e2" d="M43 14 L43 34" fill="none" stroke="#2FB3AC" stroke-width="2.6" stroke-linecap="round"/><path class="e e3" d="M43 34 L24 45" fill="none" stroke="#1d8888" stroke-width="2.6" stroke-linecap="round"/><path class="e e4" d="M24 45 L5 34" fill="none" stroke="#1d8888" stroke-width="2.6" stroke-linecap="round"/><path class="e e5" d="M5 34 L5 14" fill="none" stroke="#2FB3AC" stroke-width="2.6" stroke-linecap="round"/><path class="e e6" d="M5 14 L24 3" fill="none" stroke="#7FE3DD" stroke-width="2.6" stroke-linecap="round"/><path class="sp" d="M24 24 L24 9" fill="none" stroke="#2FB3AC" stroke-opacity=".85" stroke-width="1.8" stroke-linecap="round"/><path class="sp" d="M24 24 L37.3 31" fill="none" stroke="#2FB3AC" stroke-opacity=".85" stroke-width="1.8" stroke-linecap="round"/><path class="sp" d="M24 24 L10.7 31" fill="none" stroke="#2FB3AC" stroke-opacity=".85" stroke-width="1.8" stroke-linecap="round"/><path class="hd h1" d="M20 10 L24 4.5 L28 10" fill="none" stroke="#7FE3DD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path class="hd h2" d="M35.2 29.3 L41.3 33.1 L34.2 34.3" fill="none" stroke="#7FE3DD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path class="hd h3" d="M12.8 29.3 L6.7 33.1 L13.8 34.3" fill="none" stroke="#7FE3DD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle class="rp" cx="24" cy="24" r="3.6" fill="none" stroke="#7FE3DD" stroke-width="1"/><circle class="co" cx="24" cy="24" r="3.6" fill="#7FE3DD"/></svg>
+<span><span class="w"><span class="shim">Bi</span>x</span><span class="s">REVENUE INTELLIGENCE</span></span>
+</a>
+<div class="nv"><a href="#workspace">Workspace</a><a href="#platform">Platform</a><a href="#portals">Portals</a><a href="#workflow">Workflow</a></div>
+@* The design has no route into the product; this page fronts a real app, so the
+   masthead carries a sign-in alongside the design's Contact call to action. *@
+<a class="btn o" href="/login">Sign in</a>
+<a class="btn f" href="#contact">Contact</a>
+</div>
+</nav>
+
+<main id="top">
+<div class="wrap">
+
+<section class="hero">
+<div class="grid">
+<div>
+<span class="kick"><i></i>Revenue intelligence · UAE &amp; GCC</span>
+<h1><span class="q">Denied yesterday?</span><br />Identified today.<br /><span class="g">Recovered this week.</span></h1>
+<p class="lead">Every denial has a reason, an owner and a deadline. Bix finds all three — across DHA, DHPO/RHA, Riayati, NPHIES, Malaffi and eClaimLink — and puts each rejection on a clock.</p>
+<div class="acts">
+<a class="btn f" href="#contact">Talk to the Bix team <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+<a class="btn o" href="#workspace">See the workspace</a>
+</div>
+<div class="proof">
+<div><div class="v num">30+</div><div class="k">Live facilities</div></div>
+<div><div class="v num">12d</div><div class="k">Faster to cash</div></div>
+<div><div class="v num">82%</div><div class="k">Resolution rate</div></div>
+</div>
+</div>
+<aside class="dash gl" aria-label="Live denial audit">
+<div class="bar">
+<div class="dots"><i></i><i></i><i></i></div>
+<span class="path">bix / <b>denial-audit</b> / wk-31</span>
+<span class="live"><i class="blip"></i>Live</span>
+</div>
+<div class="body">
+<div class="cell"><div class="k">Denials</div><div class="v num">184</div><div class="d num dn">↑ 12 wk/wk</div></div>
+<div class="cell"><div class="k">Recovered</div><div class="v num">148</div><div class="d num up">↑ 9 wk/wk</div></div>
+<div class="cell"><div class="k">Net AED</div><div class="v num">2.14M</div><div class="d num up">↑ 0.41M wk/wk</div></div>
+</div>
+<div class="chart">
+<div class="hd"><span class="t">Denial volume · 24 wk</span><span class="n">↓ 21.4%</span></div>
+<div class="bars" id="bars"></div>
+</div>
+<div class="queue">
+<div class="qr"><span class="id">CLA-184-22</span><span class="ry"><b>Daman</b> · CO-50 non-covered</span><span class="am">4,820</span><span class="sl dn">2h left</span><span class="st a">Urgent</span></div>
+<div class="qr"><span class="id">CLA-183-07</span><span class="ry"><b>ADNIC</b> · CO-97 bundled</span><span class="am">12,400</span><span class="sl" style="color:var(--warn)">1d 06h</span><span class="st b">Queued</span></div>
+<div class="qr"><span class="id">CLA-182-91</span><span class="ry"><b>Oman Ins.</b> · CO-16 missing info</span><span class="am">2,150</span><span class="sl up">Sent</span><span class="st c">Resubmitted</span></div>
+</div>
+<div class="ft"><span><b>9 more</b> in batch</span><span>·</span><span>avg. close <b>1d 04h</b></span><a href="#workspace">Open queue →</a></div>
+</aside>
+</div>
+<div class="band">
+<div><div class="v num">2.4M+</div><div class="k">Claims analysed</div></div>
+<div><div class="v num">AED 48.6M</div><div class="k">90-day rolling net collection</div></div>
+<div><div class="v num">6</div><div class="k">Mandatory portals synced daily</div></div>
+<div><div class="v num">+18%</div><div class="k">Denial-recovery uplift</div></div>
+</div>
+</section>
+
+<section class="sec" id="workspace">
+<div class="hd2">
+<div><div class="eyeb">The workspace</div><h2>Where your RCM team actually works.</h2></div>
+<p class="sub">Not a report you export on Thursday. A live queue with owners, reasons and clocks — the same view for coding, billing and finance.</p>
+</div>
+<div class="win gl">
+<div class="chrome">
+<div class="dots" style="display:flex;gap:5px"><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,138,76,.55);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,201,107,.5);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(58,217,164,.5);display:block"></i></div>
+<div class="tabs"><span class="on">Denial queue</span><span>Reconciliation</span><span>Patterns</span><span>Payers</span></div>
+<div class="who"><i>LA</i>Layla A. · Al Noor Group</div>
+</div>
+<div class="app">
+<div class="side">
+<div class="grp">Revenue</div>
+<a href="#workspace" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>Denial queue<b>184</b></a>
+<a href="#workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>Resubmissions<b>96</b></a>
+<a href="#workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg>Reconciliation</a>
+<div class="grp">Analysis</div>
+<a href="#platform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 10 10H12Z"/><path d="M12 2v10h10"/></svg>Denial patterns</a>
+<a href="#platform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Clinicians</a>
+<a href="#portals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Payers</a>
+<div class="grp">Sources</div>
+<a href="#portals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>Portal sync</a>
+<a href="#contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Settings</a>
+</div>
+<div class="mid">
+<div class="tool">
+<span class="fchip on">All facilities</span>
+<span class="fchip hot">Denied · 184</span>
+<span class="fchip">SLA &lt; 24h</span>
+<span class="fchip">Daman</span>
+<span class="fchip">CO-50</span>
+<span class="cnt">184 claims · AED 2.41M</span>
+</div>
+<div class="thead"><span>Claim</span><span>Payer</span><span>Denial code</span><span>AED</span><span>Age</span><span>SLA</span></div>
+<div class="trow sel"><span class="cid">CLA-184-22</span><span class="pay">Daman — Thiqa</span><span class="cod dn">CO-50 non-covered</span><span class="amt">4,820</span><span class="age dn">2d 04h</span><span class="stp a"></span></div>
+<div class="trow"><span class="cid">CLA-183-07</span><span class="pay">ADNIC — Enhanced</span><span class="cod" style="color:var(--warn)">CO-97 bundled</span><span class="amt">12,400</span><span class="age">1d 06h</span><span class="stp b"></span></div>
+<div class="trow"><span class="cid">CLA-182-91</span><span class="pay">Oman Insurance</span><span class="cod">CO-16 missing info</span><span class="amt">2,150</span><span class="age">4d 11h</span><span class="stp c"></span></div>
+<div class="trow"><span class="cid">CLA-182-44</span><span class="pay">Daman — Thiqa</span><span class="cod dn">CO-50 non-covered</span><span class="amt">8,960</span><span class="age dn">2d 22h</span><span class="stp a"></span></div>
+<div class="trow"><span class="cid">CLA-181-88</span><span class="pay">AXA — Gulf</span><span class="cod">CO-11 dx mismatch</span><span class="amt">3,275</span><span class="age">6d 02h</span><span class="stp b"></span></div>
+<div class="trow"><span class="cid">CLA-181-30</span><span class="pay">ADNIC — Enhanced</span><span class="cod">CO-197 no pre-auth</span><span class="amt">21,640</span><span class="age">1d 19h</span><span class="stp b"></span></div>
+<div class="trow"><span class="cid">CLA-180-72</span><span class="pay">Daman — Basic</span><span class="cod">CO-29 late filing</span><span class="amt">1,480</span><span class="age">9d 03h</span><span class="stp c"></span></div>
+<div class="trow"><span class="cid">CLA-180-15</span><span class="pay">Oman Insurance</span><span class="cod dn">CO-50 non-covered</span><span class="amt">6,310</span><span class="age dn">3d 08h</span><span class="stp a"></span></div>
+</div>
+<div class="det">
+<div>
+<div class="t">Selected claim</div>
+<div class="cid num">CLA-184-22</div>
+<div class="amt num">AED 4,820</div>
+</div>
+<div class="rsn"><b>CO-50 · NON-COVERED</b>Service not deemed medically necessary by payer. Pre-auth reference present but diagnosis code J06.9 falls outside Thiqa covered list for this facility tier.</div>
+<div class="tl">
+<div class="dn"><i></i><span>Claim submitted to DHPO</span><time>28 Jul</time></div>
+<div class="dn"><i></i><span>Remittance received · denied</span><time>31 Jul</time></div>
+<div class="ac"><i></i><span>Coder review — dx correction</span><time>Now</time></div>
+<div><i></i><span>Resubmit to payer</span><time>Due 2h</time></div>
+</div>
+<div class="act">
+<span class="sla">SLA · 2H 11M REMAINING</span>
+<a class="btn f" href="#contact">Resubmit with correction</a>
+<a class="btn o" href="#contact">Assign to coder</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="sec" id="platform">
+<div class="hd2">
+<div><div class="eyeb">The platform</div><h2>One layer over the portals your team already logs into.</h2></div>
+<p class="sub">Bix does not replace your billing partner. It plugs the leak at the claims layer — where denials actually live — and gives finance, RCM and coding a single working source of truth.</p>
+</div>
+<div class="trio">
+<article class="card gl">
+<div class="tg">Surface</div>
+<h3>Root-cause denial patterns, sliced four ways.</h3>
+<p>Stop hunting across four spreadsheets to find which payer, code, clinician or facility is leaking the most money this week.</p>
+<div class="mini">
+<div class="rk"><span class="i num">01</span><span class="n">Daman — Thiqa</span><span class="p">38.4%</span></div>
+<div class="rk"><span class="bar"><i style="width:96%"></i></span></div>
+<div class="rk"><span class="i num">02</span><span class="n">ADNIC — Enhanced</span><span class="p">24.1%</span></div>
+<div class="rk"><span class="bar"><i style="width:60%"></i></span></div>
+<div class="rk"><span class="i num">03</span><span class="n">Oman Insurance</span><span class="p">14.2%</span></div>
+<div class="rk"><span class="bar"><i style="width:36%"></i></span></div>
+</div>
+</article>
+<article class="card gl">
+<div class="tg">Reconcile</div>
+<h3>Every claim paired with its remittance — automatically.</h3>
+<p>Daily auto-sync replaces the manual &ldquo;log into DHA, log into RHA, compare two CSV exports&rdquo; morning ritual.</p>
+<div class="stat"><b class="num">06:00</b><span>GST daily auto-sync across all six mandatory portals.</span><em>Matched, not guessed</em></div>
+</article>
+<article class="card gl">
+<div class="tg">Recover</div>
+<h3>Resubmissions tracked with owner, SLA and reason.</h3>
+<p>A rejected claim becomes a work item with a clock, not another unmarked folder in the shared drive.</p>
+<div class="stat"><b class="num">+18%</b><span>Denial-recovery uplift on average across live facilities.</span><em>90-day rolling</em></div>
+</article>
+</div>
+</section>
+
+<section class="sec" id="portals">
+<div class="hd2">
+<div><div class="eyeb">Daily auto-sync · 06:00 GST</div><h2>Every mandatory portal, pulled on a schedule.</h2></div>
+<p class="sub">One credential seated per facility. Claims, remittances and denials consolidated into a single reconciled view — no overnight scripts to babysit.</p>
+</div>
+<div class="ptbl gl">
+<table>
+<thead><tr><th>Portal</th><th>Region</th><th>Role</th><th style="text-align:right">Claims 30d</th><th>Sync</th></tr></thead>
+<tbody>
+<tr><td class="p">DHA</td><td>Dubai</td><td><span class="pl">Mandatory</span></td><td class="n">48,210</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">DHPO / RHA</td><td>Abu Dhabi</td><td><span class="pl">Mandatory</span></td><td class="n">39,884</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">Riayati</td><td>UAE Federal</td><td><span class="pl g">National</span></td><td class="n">12,067</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">NPHIES</td><td>Saudi</td><td><span class="pl">Mandatory</span></td><td class="n">27,432</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">Malaffi</td><td>Abu Dhabi</td><td><span class="pl g">Patient record</span></td><td class="n">8,915</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">eClaimLink</td><td>GCC cross-border</td><td><span class="pl">Mandatory</span></td><td class="n">6,240</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section class="sec" id="workflow">
+<div class="hd2">
+<div><div class="eyeb">The resubmission loop</div><h2>Four steps, one ledger.</h2></div>
+<p class="sub">A rejected claim should not vanish into a queue. Bix forces a workflow on every denial: same data, same owner, same clock.</p>
+</div>
+<div class="flow">
+<article class="step gl"><div class="no">01</div><h3>Submit</h3><p>Claim dispatched to the right payer portal with the right attachment and pre-auth reference.</p><div class="m">Median <b>4.2s</b> per claim</div></article>
+<article class="step gl"><div class="no">02</div><h3>Adjudicate</h3><p>Remittance advice pulled and paired with the original claim. Matching is reconciled, not guessed.</p><div class="m">Match rate <b>99.4%</b></div></article>
+<article class="step gl"><div class="no">03</div><h3>Detect</h3><p>Denials categorised by payer, code, clinician and facility the moment they land.</p><div class="m">Same-day <b>100%</b></div></article>
+<article class="step gl"><div class="no">04</div><h3>Resubmit</h3><p>Each rejection lands in a tracked workflow with owner, SLA and reason — nothing sits unseen.</p><div class="m">Avg. close <b>1d 04h</b></div></article>
+</div>
+</section>
+
+<section class="sec" id="contact">
+<div class="hd2">
+<div><div class="eyeb">Talk to us</div><h2>Plug Bix into one facility. See the first pattern before the next pay cycle.</h2></div>
+<p class="sub">We work with provider finance, RCM and coding leaders running hospitals, clinics and provider groups across the UAE and broader GCC.</p>
+</div>
+<div class="cwrap">
+<div class="cmain">
+@* The design's form is a mock — its script hides the fields and shows a thank-you
+   without sending anything. Wired to a real endpoint so an enquiry is not discarded. *@
+<form class="cform" id="bixf" method="post" action="/Home/LandingContact" novalidate>
+@Html.AntiForgeryToken()
+<div class="f2">
+<label><span>Your name</span><input type="text" name="name" required autocomplete="name" placeholder="Layla Al Mansouri" /></label>
+<label><span>Work email</span><input type="email" name="email" required autocomplete="email" placeholder="you@@provider.ae" /></label>
+</div>
+<div class="f2">
+<label><span>Facility or group</span><input type="text" name="facility" required autocomplete="organization" placeholder="Al Noor Medical Group" /></label>
+<label><span>Live claim types</span><select name="claims"><option>1 – 3</option><option selected>4 – 10</option><option>11 – 25</option><option>25+</option></select></label>
+</div>
+<fieldset class="fs">
+<legend>Portals you sync from today</legend>
+<div class="fchips">
+<label class="fc"><input type="checkbox" name="portal" value="DHA" /><span>DHA</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="DHPO / RHA" /><span>DHPO / RHA</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="Riayati" /><span>Riayati</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="NPHIES" /><span>NPHIES</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="Malaffi" /><span>Malaffi</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="eClaimLink" /><span>eClaimLink</span></label>
+<label class="fc"><input type="checkbox" name="portal" value="None yet" /><span>None yet</span></label>
+</div>
+</fieldset>
+<label><span>The denial category hurting you most this quarter</span><textarea name="pain" rows="3" placeholder="e.g. CO-50 non-covered on Daman Thiqa — roughly AED 300k written off last quarter."></textarea></label>
+<button class="btn f" type="submit">Request a walkthrough <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+<p class="rep">We usually reply within one working day, GST.</p>
+</form>
+<p class="ok" id="bixok" hidden>Thanks — your request is queued. A Bix specialist will be in touch within one working day.</p>
+<p class="err" id="bixerr" hidden></p>
+</div>
+<div class="cside">
+<div class="cbox gl" id="privacy">
+<h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Privacy &amp; data handling</h4>
+<p>PHI stays inside the UAE unless a cross-border rule (NPHIES, eClaimLink) sends it there itself. Access is per-facility and per-role; every resubmission action is logged with actor, timestamp and reason.</p>
+<dl><dt>Residency</dt><dd>UAE</dd><dt>Audit log</dt><dd>Immutable</dd><dt>Access</dt><dd>Per-role</dd></dl>
+</div>
+<div class="cbox gl" id="security">
+<h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Security posture</h4>
+<p>Per-facility isolation, signed audit trail on every resubmission, and a break-glass read-only mode used in incident response.</p>
+<dl><dt>Isolation</dt><dd>Per-facility</dd><dt>Encryption</dt><dd>AES-256</dd><dt>Break-glass</dt><dd>Read-only</dd></dl>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+</main>
+
+<footer class="foot">
+<div class="in">
+<span class="cr">© @DateTime.Now.Year Bix · A signature product of <a href="https://ghafservices.com" target="_blank" rel="noopener">ghafservices.com</a></span>
+<nav><a href="#privacy">Privacy</a><a href="#security">Security</a><a href="#contact">Contact</a></nav>
+</div>
+</footer>
+
 <script>
-/* The design choice made here persists to the SAME key the in-app skin
-   system uses ('analytika-skin' → html[data-skin] via themes.css), so the
-   selection follows the user straight through login and into the app. */
 (function () {
-  var body = document.body;
-  var saved = localStorage.getItem('analytika-skin') || 'obsidian';
-  if (saved === 'classic' || saved === 'fable') saved = 'obsidian'; // landing only renders the 3 dark directions
-  function apply(dir) {
-    body.setAttribute('data-direction', dir);
-    document.querySelectorAll('#dir-toggle button').forEach(function (b) {
-      b.classList.toggle('active', b.getAttribute('data-dir') === dir);
+    // Denial-volume sparkline. Bars at or above 80% take the "hot" ramp.
+    var h = [62,71,58,80,66,88,74,95,69,83,61,77,54,70,48,63,52,58,44,50,38,46,32,41],
+        b = document.getElementById('bars');
+    for (var i = 0; i < h.length; i++) {
+        var e = document.createElement('i');
+        e.style.height = h[i] + '%';
+        e.style.animationDelay = (i * 26) + 'ms';
+        if (h[i] >= 80) e.className = 'h';
+        b.appendChild(e);
+    }
+
+    // Real submit: only claims success when the server says so.
+    var f = document.getElementById('bixf'),
+        ok = document.getElementById('bixok'),
+        err = document.getElementById('bixerr'),
+        btn = f.querySelector('button[type=submit]');
+
+    f.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        if (!f.reportValidity()) return;
+        err.hidden = true;
+        btn.disabled = true;
+
+        fetch(f.action, { method: 'POST', body: new FormData(f), headers: { 'Accept': 'application/json' } })
+            .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'HTTP ' + r.status }; }); })
+            .then(function (d) {
+                if (!d.ok) throw new Error(d.error || 'That did not go through.');
+                f.hidden = true;
+                ok.hidden = false;
+            })
+            .catch(function (e) {
+                err.textContent = e.message + ' You can also email bix@polsia.app directly.';
+                err.hidden = false;
+                btn.disabled = false;
+            });
     });
-  }
-  apply(saved);
-  document.querySelectorAll('#dir-toggle button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var dir = b.getAttribute('data-dir');
-      try { localStorage.setItem('analytika-skin', dir); } catch (e) {}
-      apply(dir);
+
+    // Chrome tabs, filter chips and row selection are presentational only.
+    document.querySelectorAll('.win .tabs').forEach(function (g) {
+        g.addEventListener('click', function (e) {
+            var t = e.target.closest('span'); if (!t) return;
+            g.querySelectorAll('span').forEach(function (s) { s.classList.toggle('on', s === t); });
+        });
     });
-  });
+    document.querySelectorAll('.tool').forEach(function (g) {
+        g.addEventListener('click', function (e) {
+            var t = e.target.closest('.fchip'); if (!t || t.classList.contains('hot')) return;
+            t.classList.toggle('on');
+        });
+    });
+    document.querySelectorAll('.mid').forEach(function (g) {
+        g.addEventListener('click', function (e) {
+            var t = e.target.closest('.trow'); if (!t) return;
+            g.querySelectorAll('.trow').forEach(function (r) { r.classList.toggle('sel', r === t); });
+        });
+    });
 })();
 </script>
 </body>
