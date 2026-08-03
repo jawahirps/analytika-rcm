@@ -24,11 +24,13 @@
 
 <div class="util">
 <div class="in">
-<span><i class="blip"></i>ALL PORTALS SYNCED <b>06:00 GST</b></span>
-<span>DENIALS OPEN <b class="h">184</b></span>
-<span>IN RESUBMISSION <b>96</b></span>
-<span>RECOVERED 30D <b class="t">AED 14.8M</b></span>
-<span>v4.2 · CY-26 Q3</span>
+@* This strip reads as live operational data. The application does not publish those
+   figures, so it carries product statements rather than invented counters. *@
+<span><i class="blip"></i>AUTOMATED DAILY SYNC</span>
+<span>DENIALS TRACKED TO <b>SLA</b></span>
+<span>CLAIM &amp; REMITTANCE <b>RECONCILED</b></span>
+<span>FACILITIES LIVE <b class="t">@ViewBag.LiveFacilities</b></span>
+<span>UAE &amp; GCC</span>
 </div>
 </div>
 
@@ -54,22 +56,24 @@
 <div>
 <span class="kick"><i></i>Revenue intelligence · UAE &amp; GCC</span>
 <h1><span class="q">Denied yesterday?</span><br />Identified today.<br /><span class="g">Recovered this week.</span></h1>
-<p class="lead">Every denial has a reason, an owner and a deadline. Bix finds all three — across DHA, DHPO/RHA, Riayati, NPHIES, Malaffi and eClaimLink — and puts each rejection on a clock.</p>
+<p class="lead">Every denial has a reason, an owner and a deadline. Bix finds all three — across DHA, DHPO/RHA and Riayati today, with NPHIES, Malaffi and eClaimLink on the roadmap — and puts each rejection on a clock.</p>
 <div class="acts">
 <a class="btn f" href="#contact">Talk to the Bix team <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 <a class="btn o" href="#workspace">See the workspace</a>
 </div>
+@* Only figures the application can actually source are asserted here. "Faster to
+   cash" and "resolution rate" were design placeholders with no measurement behind
+   them, so they are not claimed. *@
 <div class="proof">
-<div><div class="v num">30+</div><div class="k">Live facilities</div></div>
-<div><div class="v num">12d</div><div class="k">Faster to cash</div></div>
-<div><div class="v num">82%</div><div class="k">Resolution rate</div></div>
+<div><div class="v num">@ViewBag.LiveFacilities</div><div class="k">Live facilities</div></div>
+<div><div class="v num">@ViewBag.LivePortals</div><div class="k">Portals integrated</div></div>
 </div>
 </div>
 <aside class="dash gl" aria-label="Live denial audit">
 <div class="bar">
 <div class="dots"><i></i><i></i><i></i></div>
 <span class="path">bix / <b>denial-audit</b> / wk-31</span>
-<span class="live"><i class="blip"></i>Live</span>
+<span class="live">Illustrative</span>
 </div>
 <div class="body">
 <div class="cell"><div class="k">Denials</div><div class="v num">184</div><div class="d num dn">↑ 12 wk/wk</div></div>
@@ -88,11 +92,15 @@
 <div class="ft"><span><b>9 more</b> in batch</span><span>·</span><span>avg. close <b>1d 04h</b></span><a href="#workspace">Open queue →</a></div>
 </aside>
 </div>
+@* Counts over PortalTransactions / XmlParsedRecords take minutes against the
+   production database, so they are not computed per request. Collection value and
+   recovery uplift are not measured by the application at all and are therefore not
+   stated. *@
 <div class="band">
-<div><div class="v num">2.4M+</div><div class="k">Claims analysed</div></div>
-<div><div class="v num">AED 48.6M</div><div class="k">90-day rolling net collection</div></div>
-<div><div class="v num">6</div><div class="k">Mandatory portals synced daily</div></div>
-<div><div class="v num">+18%</div><div class="k">Denial-recovery uplift</div></div>
+<div><div class="v num">@ViewBag.LiveFacilities</div><div class="k">Facilities live on Bix</div></div>
+<div><div class="v num">@ViewBag.LivePortals</div><div class="k">Portals integrated and syncing</div></div>
+<div><div class="v num">Daily</div><div class="k">Automated claim and remittance sync</div></div>
+<div><div class="v num">SLA</div><div class="k">Every denial tracked to a deadline</div></div>
 </div>
 </section>
 
@@ -105,7 +113,7 @@
 <div class="chrome">
 <div class="dots" style="display:flex;gap:5px"><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,138,76,.55);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,201,107,.5);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(58,217,164,.5);display:block"></i></div>
 <div class="tabs"><span class="on">Denial queue</span><span>Reconciliation</span><span>Patterns</span><span>Payers</span></div>
-<div class="who"><i>LA</i>Layla A. · Al Noor Group</div>
+<div class="who"><i>LA</i>Illustrative workspace</div>
 </div>
 <div class="app">
 <div class="side">
@@ -192,26 +200,26 @@
 <div class="tg">Recover</div>
 <h3>Resubmissions tracked with owner, SLA and reason.</h3>
 <p>A rejected claim becomes a work item with a clock, not another unmarked folder in the shared drive.</p>
-<div class="stat"><b class="num">+18%</b><span>Denial-recovery uplift on average across live facilities.</span><em>90-day rolling</em></div>
+<div class="stat"><b class="num">SLA</b><span>Every rejection carries an owner, a reason and a deadline.</span><em>Tracked to close</em></div>
 </article>
 </div>
 </section>
 
 <section class="sec" id="portals">
 <div class="hd2">
-<div><div class="eyeb">Daily auto-sync · 06:00 GST</div><h2>Every mandatory portal, pulled on a schedule.</h2></div>
+<div><div class="eyeb">Daily auto-sync · 06:00 GST</div><h2>The portals your team logs into, pulled on a schedule.</h2></div>
 <p class="sub">One credential seated per facility. Claims, remittances and denials consolidated into a single reconciled view — no overnight scripts to babysit.</p>
 </div>
 <div class="ptbl gl">
 <table>
-<thead><tr><th>Portal</th><th>Region</th><th>Role</th><th style="text-align:right">Claims 30d</th><th>Sync</th></tr></thead>
+<thead><tr><th>Portal</th><th>Region</th><th>Role</th><th>Status</th></tr></thead>
 <tbody>
-<tr><td class="p">DHA</td><td>Dubai</td><td><span class="pl">Mandatory</span></td><td class="n">48,210</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
-<tr><td class="p">DHPO / RHA</td><td>Abu Dhabi</td><td><span class="pl">Mandatory</span></td><td class="n">39,884</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
-<tr><td class="p">Riayati</td><td>UAE Federal</td><td><span class="pl g">National</span></td><td class="n">12,067</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
-<tr><td class="p">NPHIES</td><td>Saudi</td><td><span class="pl">Mandatory</span></td><td class="n">27,432</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
-<tr><td class="p">Malaffi</td><td>Abu Dhabi</td><td><span class="pl g">Patient record</span></td><td class="n">8,915</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
-<tr><td class="p">eClaimLink</td><td>GCC cross-border</td><td><span class="pl">Mandatory</span></td><td class="n">6,240</td><td><span class="sy"><i></i>06:00 GST</span></td></tr>
+<tr><td class="p">DHA</td><td>Dubai</td><td><span class="pl">Mandatory</span></td><td><span class="sy"><i></i>Integrated · daily sync</span></td></tr>
+<tr><td class="p">DHPO / RHA</td><td>Abu Dhabi</td><td><span class="pl">Mandatory</span></td><td><span class="sy"><i></i>Integrated · daily sync</span></td></tr>
+<tr><td class="p">Riayati</td><td>UAE Federal</td><td><span class="pl g">National</span></td><td><span class="sy"><i></i>Integrated · daily sync</span></td></tr>
+<tr><td class="p">NPHIES</td><td>Saudi</td><td><span class="pl">Mandatory</span></td><td><span class="pl g">On the roadmap</span></td></tr>
+<tr><td class="p">Malaffi</td><td>Abu Dhabi</td><td><span class="pl g">Patient record</span></td><td><span class="pl g">On the roadmap</span></td></tr>
+<tr><td class="p">eClaimLink</td><td>GCC cross-border</td><td><span class="pl">Mandatory</span></td><td><span class="pl g">On the roadmap</span></td></tr>
 </tbody>
 </table>
 </div>
@@ -223,10 +231,10 @@
 <p class="sub">A rejected claim should not vanish into a queue. Bix forces a workflow on every denial: same data, same owner, same clock.</p>
 </div>
 <div class="flow">
-<article class="step gl"><div class="no">01</div><h3>Submit</h3><p>Claim dispatched to the right payer portal with the right attachment and pre-auth reference.</p><div class="m">Median <b>4.2s</b> per claim</div></article>
-<article class="step gl"><div class="no">02</div><h3>Adjudicate</h3><p>Remittance advice pulled and paired with the original claim. Matching is reconciled, not guessed.</p><div class="m">Match rate <b>99.4%</b></div></article>
-<article class="step gl"><div class="no">03</div><h3>Detect</h3><p>Denials categorised by payer, code, clinician and facility the moment they land.</p><div class="m">Same-day <b>100%</b></div></article>
-<article class="step gl"><div class="no">04</div><h3>Resubmit</h3><p>Each rejection lands in a tracked workflow with owner, SLA and reason — nothing sits unseen.</p><div class="m">Avg. close <b>1d 04h</b></div></article>
+<article class="step gl"><div class="no">01</div><h3>Submit</h3><p>Claim dispatched to the right payer portal with the right attachment and pre-auth reference.</p></article>
+<article class="step gl"><div class="no">02</div><h3>Adjudicate</h3><p>Remittance advice pulled and paired with the original claim. Matching is reconciled, not guessed.</p></article>
+<article class="step gl"><div class="no">03</div><h3>Detect</h3><p>Denials categorised by payer, code, clinician and facility the moment they land.</p></article>
+<article class="step gl"><div class="no">04</div><h3>Resubmit</h3><p>Each rejection lands in a tracked workflow with owner, SLA and reason — nothing sits unseen.</p></article>
 </div>
 </section>
 

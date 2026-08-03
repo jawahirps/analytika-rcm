@@ -41,10 +41,37 @@ public class HomeController : Controller
 
     // Public marketing landing page. Authenticated users skip straight to the dashboard.
     [HttpGet("/")]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Dashboard");
+
+        // Real figures for the claims this page makes. Deliberately limited to the small
+        // lookup tables: Facilities and PortalCredentials answer in ~0ms, whereas counts
+        // over PortalTransactions / XmlParsedRecords take minutes on the production file
+        // and would hang a public page. Anything not sourceable from here is not asserted
+        // in the markup rather than being filled with a plausible number.
+        var stats = await _cache.GetOrCreateAsync("landing:stats:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12);
+            try
+            {
+                return new
+                {
+                    Facilities = await _db.Facilities.CountAsync(f => f.IsActive),
+                    Portals = await _db.PortalCredentials.Where(c => c.IsActive)
+                                       .Select(c => c.Portal).Distinct().CountAsync()
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Landing stats unavailable; the page will omit them.");
+                return new { Facilities = 0, Portals = 0 };
+            }
+        });
+
+        ViewBag.LiveFacilities = stats!.Facilities;
+        ViewBag.LivePortals = stats.Portals;
         return View("Landing");
     }
 
