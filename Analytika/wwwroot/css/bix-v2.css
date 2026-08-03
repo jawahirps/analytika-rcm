@@ -381,3 +381,40 @@ html[data-direction="ledger"]   .login-right .input-icon {
   border-color: var(--v2-line);
   color: var(--v2-faint);
 }
+
+/* ── Brand panel ──────────────────────────────────────────────────────────────
+   .login-left kept its original navy gradient (#011C40 → #023859) while the form
+   half moved to the v2 teal glass, leaving the two halves of the same page on
+   different palettes. Both sides now carry the design's ambient field.
+   Specificity (0,2,1) beats the view's own `.login-left` rule regardless of the
+   inline <style> coming later in the document. */
+html[data-direction="obsidian"] .login-left,
+html[data-direction="aurora"]   .login-left,
+html[data-direction="ledger"]   .login-left {
+  background:
+    radial-gradient(900px 600px at 20% -10%, rgba(47,179,172,0.18), transparent 60%),
+    radial-gradient(700px 700px at 90% 110%, rgba(29,136,136,0.22), transparent 62%),
+    linear-gradient(160deg, var(--v2-bg) 0%, var(--v2-bg2) 100%);
+  border-right: 1px solid var(--v2-line);
+}
+
+/* The decorative ring and spotlight were tuned to the old blue accent. */
+html[data-direction="obsidian"] .login-left .accent-ring,
+html[data-direction="aurora"]   .login-left .accent-ring,
+html[data-direction="ledger"]   .login-left .accent-ring {
+  border-color: rgba(127,227,221,0.10);
+}
+html[data-direction="obsidian"] .login-left .spotlight,
+html[data-direction="aurora"]   .login-left .spotlight,
+html[data-direction="ledger"]   .login-left .spotlight {
+  background: radial-gradient(circle, rgba(127,227,221,0.16) 0%, transparent 70%);
+}
+
+/* Brand wordmark picks up the design's display face. */
+html[data-direction="obsidian"] .login-left .brand-logo,
+html[data-direction="aurora"]   .login-left .brand-logo,
+html[data-direction="ledger"]   .login-left .brand-logo {
+  font-family: var(--v2-display);
+  letter-spacing: -0.02em;
+  color: var(--v2-ink);
+}
