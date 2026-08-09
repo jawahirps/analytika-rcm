@@ -246,3 +246,62 @@ these keys, encrypted portal credentials cannot be decrypted.
 | `admin@ghafbi.ae` | `Admin@123` |
 
 **Change this immediately after first login.**
+
+---
+
+## Local HTTPS Development
+
+For local development with HTTPS (required for Secure cookies, CSP testing, etc.):
+
+### Windows/macOS/Linux
+
+```bash
+# 1. Trust the .NET development certificate
+dotnet dev-certs https --trust
+
+# 2. Run the app with HTTPS
+ASPNETCORE_URLS="https://localhost:5001;http://localhost:5000" dotnet run --project Analytika/Analytika.csproj --no-launch-profile
+```
+
+The app will be available at:
+- **HTTPS**: `https://localhost:5001` (secure cookies, CSP enforced)
+- **HTTP**: `http://localhost:5000` (redirects to HTTPS in Production)
+
+### VS Code / Visual Studio
+
+If using VS Code with the C# Dev Kit or Visual Studio:
+1. Open the `Analytika.sln` solution
+2. Set `Analytika` as the startup project
+3. Press `F5` — the debugger will auto-configure HTTPS using the trusted dev cert
+
+### Docker (Local HTTPS)
+
+For container-based local development with HTTPS:
+
+```bash
+# 1. Export the dev cert as PFX
+dotnet dev-certs https -ep %USERPROFILE%\.aspnet\https\aspnetapp.pfx -p "your-password"
+
+# 2. Run with the cert mounted
+docker run --rm -it \
+  -p 8080:8080 -p 8081:8081 \
+  -e ASPNETCORE_URLS="https://+:8081;http://+:8080" \
+  -e ASPNETCORE_Kestrel__Certificates__Default__Password="your-password" \
+  -e ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx \
+  -v %USERPROFILE%\.aspnet\https:/https/ \
+  analytika:latest
+```
+
+### Certificate Locations
+
+| OS | Certificate Store Location |
+|---|---|
+| Windows | `CurrentUser\My` (certmgr.msc) |
+| macOS | `~/Library/Keychains/login.keychain-db` (Keychain Access) |
+| Linux | `~/.dotnet/corefx/cryptography/x509stores/my` |
+
+### Troubleshooting
+
+- **"The SSL connection could not be established"** → Run `dotnet dev-certs https --clean && dotnet dev-certs https --trust`
+- **Browser shows "Not Secure"** → Ensure you're using `https://localhost:5001` not `http://`
+- **Certificate expired** → `dotnet dev-certs https --clean && dotnet dev-certs https --trust`
