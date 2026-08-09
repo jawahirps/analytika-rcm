@@ -145,13 +145,7 @@ public static class ModuleRegistration
             options.Cookie.IsEssential = true;
         });
 
-        // Certificate validation is enforced by default; Portal:AllowInvalidCertificates=true is an
-        // explicit operator opt-out for portals with broken certificate chains.
-        var allowInvalidCerts = configuration.GetValue("Portal:AllowInvalidCertificates", false);
-
-        HttpClientHandler CreatePortalHandler() => allowInvalidCerts
-            ? new HttpClientHandler { ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator }
-            : new HttpClientHandler();
+        HttpClientHandler CreatePortalHandler() => new HttpClientHandler();
 
         void AddPortalHttpClient(string name) =>
             services.AddHttpClient(name, c => c.Timeout = Timeout.InfiniteTimeSpan) // resilience pipeline governs timeouts
@@ -193,6 +187,7 @@ public static class ModuleRegistration
         services.AddScoped<RemittanceParserService>();
         services.AddScoped<XmlParsingService>();
         services.AddScoped<Analytika.Security.FacilityScopeService>();
+        services.AddSingleton<BlobStoreService>();  // XML blob offload (file-based); inert unless BlobStore:Enabled=true
         // Dev console command engine. Registration is unconditional (it has no side
         // effects); reachability is decided by DevCliController, which 404s outside
         // the Development environment.
