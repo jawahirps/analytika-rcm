@@ -1,6 +1,7 @@
 using Analytika.Controllers;
 using Analytika.Models;
 using Analytika.Models.ViewModels;
+using Analytika.Security;
 using Analytika.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -23,6 +24,7 @@ public class HomeControllerTests : IDisposable
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<IDashboardService> _dashboardMock;
     private readonly Mock<ILogger<HomeController>> _loggerMock;
+    private readonly Mock<ITenantContext> _tenantContextMock;
     private readonly IMemoryCache _cache;
     private readonly SqliteConnection _connection;
     private readonly AppDbContext _db;
@@ -47,6 +49,8 @@ public class HomeControllerTests : IDisposable
 
         _dashboardMock = new Mock<IDashboardService>();
         _loggerMock = new Mock<ILogger<HomeController>>();
+        _tenantContextMock = new Mock<ITenantContext>();
+        _tenantContextMock.Setup(t => t.GetScopeAsync()).ReturnsAsync(TenantScope.Platform());
         _cache = new MemoryCache(new MemoryCacheOptions());
 
         _connection = new SqliteConnection("DataSource=:memory:");
@@ -57,13 +61,16 @@ public class HomeControllerTests : IDisposable
         _db = new AppDbContext(options);
         _db.Database.EnsureCreated();
 
+        var scopeService = new FacilityScopeService(_db, _userManagerMock.Object, _tenantContextMock.Object);
+
         _sut = new HomeController(
             _signInManagerMock.Object,
             _userManagerMock.Object,
             _dashboardMock.Object,
             _db,
             _cache,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            scopeService);
     }
 
     public void Dispose()
@@ -89,14 +96,14 @@ public class HomeControllerTests : IDisposable
     }
 
     [Fact]
-    public void Index_Get_UnauthenticatedUser_ReturnsLandingView()
+    public async Task Index_Get_UnauthenticatedUser_ReturnsLandingView()
     {
         // Arrange — "/" serves the marketing landing page since the routing
         // rewire (login moved to /login → Login()).
         SetUser(authenticated: false);
 
         // Act
-        var result = _sut.Index();
+        var result = await _sut.Index();
 
         // Assert
         var viewResult = result.Should().BeOfType<ViewResult>().Subject;
@@ -104,13 +111,13 @@ public class HomeControllerTests : IDisposable
     }
 
     [Fact]
-    public void Index_Get_AuthenticatedUser_RedirectsToDashboard()
+    public async Task Index_Get_AuthenticatedUser_RedirectsToDashboard()
     {
         // Arrange
         SetUser(authenticated: true);
 
         // Act
-        var result = _sut.Index();
+        var result = await _sut.Index();
 
         // Assert
         var redirect = result.Should().BeOfType<RedirectToActionResult>().Subject;
