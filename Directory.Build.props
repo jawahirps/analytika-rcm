@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <!-- Treat warnings as errors in CI builds (Release configuration and CI environment) -->
+    <TreatWarningsAsErrors Condition="'$(Configuration)' == 'Release' Or '$(CI)' == 'true'">true</TreatWarningsAsErrors>
+    
+    <!-- Enable nullable reference types project-wide -->
+    <Nullable>enable</Nullable>
+    
+    <!-- Enable implicit usings for all projects -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- Enforce consistent analyzer settings -->
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <!-- Common analyzers for all projects -->
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.11.10" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
