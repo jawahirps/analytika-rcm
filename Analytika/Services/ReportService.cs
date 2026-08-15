@@ -140,7 +140,7 @@ public class ReportService : IReportService
         return $"{from:yyyyMMdd}-{to:yyyyMMdd}";
     }
 
-    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, int? facilityId = null)
+    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, List<int>? facilityIds = null)
     {
         var query = _context.ReportRequests
             .Include(r => r.Branch)
@@ -148,7 +148,8 @@ public class ReportService : IReportService
             .Include(r => r.Payer)
             .Include(r => r.Clinician)
             .Where(r => r.ReportType == reportType)
-            .Where(r => facilityId == null || r.BranchId == facilityId)
+            // null = global user (no restriction); empty list = facility user with no assignments (no results); non-empty = scope to those facilities
+            .Where(r => facilityIds == null || (facilityIds.Count > 0 && r.BranchId != null && facilityIds.Contains(r.BranchId.Value)))
             .OrderByDescending(r => r.RequestedAt);
 
         var total = await query.CountAsync();
@@ -1923,6 +1924,7 @@ public class ReportService : IReportService
                                      .FirstOrDefault()?.Element("Clinician")?.Value ?? "";
             var principalDiag = string.Join(" | ",
                                      claim.Elements("Diagnosis")
+                                          .Where(d => d.Element("Type")?.Value == "Principal")
                                           .Select(d => d.Element("Code")?.Value)
                                           .Where(c => !string.IsNullOrWhiteSpace(c))
                                           .Distinct(StringComparer.OrdinalIgnoreCase));

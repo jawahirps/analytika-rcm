@@ -1,9 +1,5 @@
-using Analytika.Models;
-using Analytika.Security;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Data.Common;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -17,8 +13,6 @@ public class SupportController : Controller
     private readonly IHttpClientFactory _http;
     private readonly IConfiguration _config;
     private readonly ILogger<SupportController> _logger;
-    private readonly AppDbContext _db;
-    private readonly Analytika.Security.FacilityScopeService _scope;
 
     /* Hard limits */
     private const int MaxMessageLength  = 1500;   // chars per user message
@@ -69,160 +63,11 @@ public class SupportController : Controller
         new(@"<\s*(system|SYSTEM)\s*>", RegexOptions.IgnoreCase),
     ];
 
-    public SupportController(IHttpClientFactory http, IConfiguration config, ILogger<SupportController> logger,
-                             AppDbContext db, Analytika.Security.FacilityScopeService scope)
+    public SupportController(IHttpClientFactory http, IConfiguration config, ILogger<SupportController> logger)
     {
         _http   = http;
         _config = config;
         _logger = logger;
-        _db     = db;
-        _scope  = scope;
-    }
-
-    // ── Self-Diagnostics ─────────────────────────────────────────────────
-    // A self-service troubleshooting page: live health/status checks plus a
-    // 2-year data-coverage scan that flags months with missing data for each
-    // connected facility (facility with an active portal credential).
-
-    [Authorize(Roles = AppRoles.RcmAccess)]
-    [HttpGet]
-    public IActionResult SelfTest() => View();
-
-    [Authorize(Roles = AppRoles.RcmAccess)]
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RunDiagnostics()
-    {
-        var ct = HttpContext.RequestAborted;
-        var nowUtc = DateTime.UtcNow;
-
-        // Build the trailing 24-month window (current month + 23 back).
-        var firstOfThisMonth = new DateTime(nowUtc.Year, nowUtc.Month, 1);
-        var windowMonths = Enumerable.Range(0, 24)
-            .Select(i => firstOfThisMonth.AddMonths(-i).ToString("yyyy-MM"))
-            .ToList();                                   // newest first
-        var cutoff = firstOfThisMonth.AddMonths(-23).ToString("yyyy-MM-01");
-
-        // ── Health checks ───────────────────────────────────────────────
-        bool dbOk = true; string? dbError = null;
-        long totalRecords = 0, totalRemits = 0;
-        DateTime? lastSyncUtc = null;
-        try
-        {
-            var scopedFac = await _scope.GetAllowedFacilityIdsAsync(User);
-            var recQ = _db.XmlParsedRecords.AsQueryable();
-            var remQ = _db.RemittanceClaims.AsQueryable();
-            var logQ = _db.PortalFetchLogs.AsQueryable();
-            if (scopedFac != null)
-            {
-                recQ = recQ.Where(r => scopedFac.Contains(r.FacilityId));
-                remQ = remQ.Where(r => scopedFac.Contains(r.FacilityId));
-                logQ = logQ.Where(l => scopedFac.Contains(l.FacilityId));
-            }
-            totalRecords = await recQ.LongCountAsync(ct);
-            totalRemits  = await remQ.LongCountAsync(ct);
-            lastSyncUtc  = await logQ.OrderByDescending(l => l.FetchedAt)
-                                    .Select(l => (DateTime?)l.FetchedAt).FirstOrDefaultAsync(ct);
-        }
-        catch (Exception ex) { dbOk = false; dbError = ex.Message; }
-
-        // Connected facilities = active portal credential(s).
-        // Scoped: Self-Diagnostics names each facility and the portals it is wired to,
-        // so an unscoped list told any signed-in user the shape of every other tenant.
-        var allowedFac = await _scope.GetAllowedFacilityIdsAsync(User);
-        var connQuery =
-            from c in _db.PortalCredentials.AsNoTracking().Where(c => c.IsActive)
-            join f in _db.Facilities.AsNoTracking() on c.FacilityId equals f.Id
-            select new { f.Id, f.Name, f.IsActive, c.Portal };
-        if (allowedFac != null) connQuery = connQuery.Where(x => allowedFac.Contains(x.Id));
-        var connected = await connQuery.ToListAsync(ct);
-
-        var facilityInfo = connected
-            .GroupBy(x => new { x.Id, x.Name, x.IsActive })
-            .Select(g => new { g.Key.Id, g.Key.Name, g.Key.IsActive, Portals = g.Select(x => x.Portal).Distinct().OrderBy(p => p).ToList() })
-            .OrderBy(x => x.Name)
-            .ToList();
-        var connectedIds = facilityInfo.Select(f => f.Id).ToHashSet();
-
-        // ── Per-facility monthly record counts over the window (one scan) ──
-        // XmlParsedRecords.TransactionDate is ISO text, so a lexical >= filter
-        // and substr(...,1,7) month bucket are safe.
-        var counts = new Dictionary<int, Dictionary<string, long>>();
-        var lastFetch = new Dictionary<int, DateTime>();
-        if (dbOk && connectedIds.Count > 0)
-        {
-            var conn = _db.Database.GetDbConnection();
-            if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync(ct);
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = @"SELECT ""FacilityId"", substr(""TransactionDate"",1,7) AS ym, COUNT(*) AS c
-                                    FROM ""XmlParsedRecords""
-                                    WHERE ""TransactionDate"" >= $cut
-                                    GROUP BY ""FacilityId"", ym";
-                var p = cmd.CreateParameter(); p.ParameterName = "$cut"; p.Value = cutoff; cmd.Parameters.Add(p);
-                using var r = await cmd.ExecuteReaderAsync(ct);
-                while (await r.ReadAsync(ct))
-                {
-                    if (r.IsDBNull(0) || r.IsDBNull(1)) continue;
-                    var fid = Convert.ToInt32(r.GetValue(0));
-                    var ym = r.GetValue(1)?.ToString() ?? "";
-                    var c = Convert.ToInt64(r.GetValue(2));
-                    if (ym.Length != 7) continue;
-                    if (!counts.TryGetValue(fid, out var m)) { m = new(); counts[fid] = m; }
-                    m[ym] = c;
-                }
-            }
-
-            // Last fetch time per connected facility.
-            lastFetch = (await _db.PortalFetchLogs.AsNoTracking()
-                    .Where(l => connectedIds.Contains(l.FacilityId))
-                    .GroupBy(l => l.FacilityId)
-                    .Select(g => new { FacilityId = g.Key, Last = g.Max(l => l.FetchedAt) })
-                    .ToListAsync(ct))
-                .ToDictionary(x => x.FacilityId, x => x.Last);
-        }
-
-        var facilities = facilityInfo.Select(f =>
-        {
-            counts.TryGetValue(f.Id, out var m);
-            m ??= new();
-            var gaps = windowMonths.Where(ym => !m.TryGetValue(ym, out var c) || c == 0)
-                                   .OrderBy(x => x).ToList();
-            var recordsInWindow = m.Values.Sum();
-            lastFetch.TryGetValue(f.Id, out var lf);
-            return new
-            {
-                id = f.Id,
-                name = f.Name,
-                isActive = f.IsActive,
-                portals = f.Portals,
-                recordsInWindow,
-                coveredMonths = 24 - gaps.Count,
-                totalMonths = 24,
-                gapMonths = gaps,
-                lastFetchUtc = lf == default ? (DateTime?)null : lf,
-                monthly = windowMonths.OrderBy(x => x)
-                    .Select(ym => new { ym, count = m.TryGetValue(ym, out var c) ? c : 0 }).ToList()
-            };
-        }).ToList();
-
-        return Json(new
-        {
-            ok = dbOk,
-            generatedAtUtc = nowUtc,
-            health = new
-            {
-                dbOk,
-                dbError,
-                totalRecords,
-                totalRemittances = totalRemits,
-                connectedFacilities = facilityInfo.Count,
-                lastSyncUtc,
-                windowFrom = cutoff[..7],
-                windowTo = windowMonths.First()
-            },
-            facilities
-        });
     }
 
     [HttpPost]
@@ -233,7 +78,8 @@ public class SupportController : Controller
             return BadRequest(new { error = "No messages provided." });
 
         /* ── Validate & sanitise history ─────────────────────────────── */
-        var allowed = new[] { "user", "assistant" };
+        // Only accept user-role messages from the client. Assistant turns are not trusted
+        // because they could plant false context in the Anthropic request.
         var sanitised = new List<(string role, string content)>();
 
         foreach (var m in req.Messages)
@@ -241,7 +87,7 @@ public class SupportController : Controller
             var role    = m.Role?.Trim().ToLowerInvariant() ?? "";
             var content = (m.Content ?? "").Trim();
 
-            if (!allowed.Contains(role))         continue;   // drop unknown roles
+            if (role != "user") continue;   // drop assistant/unknown turns from client
             if (content.Length == 0)             continue;   // drop empty
             if (content.Length > MaxMessageLength)
                 content = content[..MaxMessageLength];        // truncate oversized input
@@ -249,9 +95,11 @@ public class SupportController : Controller
             /* Detect prompt injection in user turns */
             if (role == "user" && IsInjectionAttempt(content))
             {
+                var snippet = content[..Math.Min(80, content.Length)]
+                    .Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
                 _logger.LogWarning("Prompt injection detected from user {User}: {Snippet}",
-                    User.Identity?.Name, content[..Math.Min(80, content.Length)]);
-                return Ok(new { reply = "I can only help with Bix. Please describe an issue with the app." });
+                    User.Identity?.Name, snippet);
+                return Ok(new { reply = "I can only help with Analytika RCM. Please describe an issue with the app." });
             }
 
             sanitised.Add((role, content));

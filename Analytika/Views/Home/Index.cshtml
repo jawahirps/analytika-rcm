@@ -1,4 +1,4 @@
-@model Analytika.Models.ViewModels.LoginViewModel
+﻿@model Analytika.Models.ViewModels.LoginViewModel
 @{
     Layout = null;
     ViewData["Title"] = "Login";
@@ -9,28 +9,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ghaf Business Intelligence — Login</title>
-    <link rel="stylesheet" href="/vendor/bootstrap.min.css" />
-    <link rel="stylesheet" href="/vendor/fa/css/all.min.css" />
-    @* This page sets Layout = null and carries its own head, so the v2 design layer has
-       to be linked here as well as in _Layout — a stylesheet added only to the layout
-       never reaches the landing page. *@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="~/css/bix-v2.css" asp-append-version="true" />
-    <script>
-        /* Apply the skin chosen on the landing page (or the in-app skin picker)
-           before first paint. Shares 'analytika-skin' with the app skin system
-           (themes.css) so the choice is consistent end-to-end. The login only
-           renders the 3 dark directions, so classic/fable fall back to obsidian. */
-        (function () {
-            try {
-                var d = localStorage.getItem('analytika-skin') || 'obsidian';
-                if (d === 'classic' || d === 'fable') d = 'obsidian';
-                document.documentElement.setAttribute('data-direction', d);
-            } catch (e) { document.documentElement.setAttribute('data-direction', 'obsidian'); }
-        })();
-    </script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/fontawesome.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -43,8 +26,11 @@
 
         /* ── Left panel ── */
         .login-left {
-            width: 40%;
-            background: linear-gradient(160deg, #011C40 0%, #023859 100%);
+            width: 42%;
+            background: linear-gradient(160deg, rgba(0,255,133,0.04) 0%, rgba(8,9,13,0.72) 100%);
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border-right: 1px solid var(--dt-border-glow);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -58,8 +44,8 @@
             position: absolute;
             width: 380px; height: 380px;
             border-radius: 50%;
-            border: 1px solid rgba(84,172,191,0.12);
-            bottom: -140px; right: -120px;
+            border: 1px solid rgba(0,255,133,0.08); bottom: -160px; right: -130px;
+            pointer-events: none;
         }
         .login-left::after {
             content: '';
@@ -116,15 +102,16 @@
             color: rgba(255,255,255,0.45);
             line-height: 1.65;
         }
-        /* Feature pills */
-        .feature-pills {
+        /* Feature pills / dropdowns */
+        .feature-pills,
+        .feature-dropdowns {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             margin-top: 22px;
         }
-        .feature-pill {
-            display: inline-flex;
+        .feat-drop-btn {
+            display: flex;
             align-items: center;
             gap: 6px;
             background: rgba(255,255,255,0.05);
@@ -134,18 +121,63 @@
             font-size: 0.72rem;
             color: rgba(255,255,255,0.6);
         }
-        .feature-pill i { color: #54ACBF; font-size: 0.65rem; }
+        .feature-pill i { color: var(--dt-accent); font-size: 0.65rem; }
+
+        .feat-drop {
+            position: relative;
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .feat-drop-btn {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 7px 11px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.65);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .feature-pill i { color: var(--dt-accent); font-size: 0.65rem; }
+
+        .left-footer {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .feat-drop-panel li i { color: #1d8cf8; font-size: 0.6rem; }
         .left-footer {
             font-size: 0.72rem;
             color: rgba(255,255,255,0.22);
             position: relative;
             z-index: 1;
         }
+        .courtesy-logo { height: 20px; width: auto; opacity: .6; }
+
+        /* Spotlight */
+        .spotlight {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+            width: 480px; height: 480px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(84,172,191,0.18) 0%, transparent 70%);
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s;
+            opacity: 0;
+            filter: blur(2px);
+        }
+        .login-left:hover .spotlight { opacity: 1; }
 
         /* ── Right panel ── */
         .login-right {
             flex: 1;
-            background: #ffffff;
+            background: rgba(13,16,23,0.80);
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            border-left: 1px solid rgba(255,255,255,.08);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -201,7 +233,12 @@
             border-radius: 0 9px 9px 0;
             cursor: pointer;
             font-size: 0.85rem;
-            transition: border-color 0.18s;
+            transition: border-color 0.18s, color 0.18s;
+        }
+        .input-group-text:hover { color: rgba(255,255,255,.7); }
+        .input-group:focus-within .input-group-text {
+            border-color: var(--dt-accent);
+            color: var(--dt-accent);
         }
         .input-group:focus-within .input-group-text { border-color: #54ACBF; }
         .input-icon {
@@ -217,6 +254,15 @@
             transition: border-color 0.18s;
         }
         .input-group:focus-within .input-icon { border-color: #54ACBF; }
+
+        /* Autofill override — keep glass when Chrome paints autofill */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #ffffff;
+            -webkit-box-shadow: 0 0 0 30px rgba(8,8,16,1) inset !important;
+            caret-color: #ffffff;
+        }
 
         .btn-signin {
             font-family: 'Inter', system-ui, sans-serif;
@@ -252,7 +298,8 @@
             background-color: #54ACBF;
             border-color: #54ACBF;
         }
-        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(84,172,191,0.15); }
+        .form-check-input:focus { box-shadow: 0 0 0 3px rgba(0,255,133,0.15); }
+        .form-check-label { color: rgba(255,255,255,.65); }
 
         .alert-danger {
             font-size: 0.82rem;
@@ -302,35 +349,6 @@
         }
         .lang-btn:hover:not(.active) { border-color: #54ACBF; color: #011C40; }
 
-        /* ── Design-direction selector (bottom of brand panel) ── */
-        .dir-picker { position: relative; z-index: 2; margin-top: 22px; }
-        .dir-picker-label {
-            font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
-            font-weight: 700; color: rgba(167,235,242,0.65); margin-bottom: 9px;
-        }
-        .dir-opts { display: flex; gap: 7px; }
-        .dir-opt {
-            font-family: 'Inter', system-ui, sans-serif; font-size: 0.72rem; font-weight: 600;
-            cursor: pointer; padding: 6px 14px; border-radius: 999px;
-            border: 1px solid rgba(167,235,242,0.22); background: rgba(255,255,255,0.05);
-            color: rgba(234,244,251,0.7); transition: all 0.16s;
-        }
-        .dir-opt:hover { background: rgba(167,235,242,0.14); color: #EAF4FB; }
-        .dir-opt.active { background: linear-gradient(135deg, #54ACBF, #006884); color: #fff; border-color: transparent; }
-
-        /* ── Per-direction palette for the login brand panel ── */
-        html[data-direction="ledger"] .login-left {
-            background: linear-gradient(160deg, #050B14 0%, #0A1622 100%);
-        }
-        html[data-direction="aurora"] .login-left {
-            background:
-                radial-gradient(600px 400px at 80% 10%, rgba(124,141,240,0.30), transparent 60%),
-                linear-gradient(160deg, #071023 0%, #0d1633 55%, #071023 100%);
-        }
-        html[data-direction="aurora"] .brand-sub,
-        html[data-direction="aurora"] .left-tagline h2 span { color: #A7EBF2; }
-        html[data-direction="aurora"] .dir-opt.active { background: linear-gradient(120deg, #7C8DF0, #54ACBF); }
-
         /* AR overrides */
         html[dir="rtl"] body { font-family: 'Segoe UI', 'Noto Sans Arabic', system-ui, sans-serif; }
         html[dir="rtl"] .login-left { order: 2; }
@@ -368,7 +386,60 @@
             from { opacity: 0; transform: translateY(22px); }
             to   { opacity: 1; transform: translateY(0); }
         }
-        .login-right-inner { animation: slideUp 0.55s cubic-bezier(0.32,0.72,0,1) both; }
+
+        /* ── GooeyText loading overlay ── */
+        .gooey-loader {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--dt-bg);
+            transition: opacity 0.7s ease, visibility 0.7s ease;
+        }
+        .gooey-loader.hidden { opacity: 0; visibility: hidden; }
+        .gooey-container {
+            position: relative;
+            height: 80px;
+            width: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gooey-svg { position: absolute; width: 0; height: 0; }
+        .gooey-texts {
+            filter: url(#gooey-threshold);
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .gooey-text1,
+        .gooey-text2 {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1.4rem, 4vw, 2.2rem);
+            font-weight: 700;
+            color: var(--dt-accent);
+            letter-spacing: -0.5px;
+            text-align: center;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .gooey-text1 { opacity: 0; }
+        .gooey-text2 { opacity: 1; }
+
+        @@media (max-width: 900px) {
+            .login-left { width: 44%; padding: 40px 36px; }
+        }
+        @@media (max-width: 768px) {
+            .login-left { display: none; }
+            .login-right { padding: 40px 28px; backdrop-filter: none; background: var(--dt-bg); }
+            .login-right-inner { max-width: 100%; }
+        }
 
         @@media (prefers-reduced-motion: reduce) {
             .login-right-inner { animation: none; }
@@ -384,48 +455,118 @@
     <div class="login-left">
         <div class="accent-ring"></div>
 
-        <!-- Spotlight (tracks mouse) -->
-        <div class="spotlight" id="loginSpotlight"></div>
+    <div class="login-wrap">
+        <!-- Left Brand Panel -->
+        <div class="login-left">
+            <div class="login-left-neon-top"></div>
+            <div class="accent-ring"></div>
+            <div class="spotlight" id="loginSpotlight"></div>
 
-        <div class="brand-logo">
-            <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Ghaf tree + data (light, for the dark brand panel) -->
-                <path d="M22 21 C22 14 17 10 11 10" stroke="#54ACBF" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 12 28 8 34 10" stroke="#A7EBF2" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M22 21 C22 16 18 14 14 15" stroke="#54ACBF" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 C22 15 26 13 30 15" stroke="#A7EBF2" stroke-width="1.8" stroke-linecap="round"/>
-                <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
-                <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
-                <circle cx="11" cy="10" r="2"   fill="#54ACBF"/>
-                <circle cx="34" cy="10" r="2"   fill="#A7EBF2"/>
-                <circle cx="14" cy="15" r="1.5" fill="#A7EBF2"/>
-                <circle cx="30" cy="15" r="1.5" fill="#54ACBF"/>
-                <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
-                <path d="M15 38 H29" stroke="#54ACBF" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <div>
-                <div class="brand-name">Ghaf Business Intelligence</div>
-                <div class="brand-sub">Business Intelligence</div>
+            <!-- GooeyText loading overlay -->
+            <div class="gooey-loader" id="gooeyLoader" aria-live="polite" aria-label="Loading">
+                <svg class="gooey-svg" aria-hidden="true" focusable="false">
+                    <defs>
+                        <filter id="gooey-threshold">
+                            <feColorMatrix in="SourceGraphic" type="matrix"
+                                values="1 0 0 0 0
+                                        0 1 0 0 0
+                                        0 0 1 0 0
+                                        0 0 0 255 -140" />
+                        </filter>
+                    </defs>
+                </svg>
+                <div class="gooey-container">
+                    <div class="gooey-texts">
+                        <span class="gooey-text1" id="gooeyText1"></span>
+                        <span class="gooey-text2" id="gooeyText2"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="brand-logo">
+                <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22 21 C22 14 17 10 11 10" stroke="#00FF85" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M22 21 C22 12 28 8 34 10" stroke="rgba(0,255,133,0.55)" stroke-width="2.2" stroke-linecap="round"/>
+                    <path d="M22 21 C22 16 18 14 14 15" stroke="#00FF85" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M22 21 C22 15 26 13 30 15" stroke="rgba(0,255,133,0.55)" stroke-width="1.8" stroke-linecap="round"/>
+                    <path d="M22 21 V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="22" cy="7"  r="2.3" fill="#ffffff"/>
+                    <circle cx="11" cy="10" r="2"   fill="#00FF85"/>
+                    <circle cx="34" cy="10" r="2"   fill="rgba(0,255,133,0.55)"/>
+                    <circle cx="14" cy="15" r="1.5" fill="rgba(0,255,133,0.55)"/>
+                    <circle cx="30" cy="15" r="1.5" fill="#00FF85"/>
+                    <path d="M22 21 V36" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+                    <path d="M15 38 H29" stroke="#00FF85" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <div>
+                    <div class="brand-name">Ghaf Bi Analytix</div>
+                    <div class="brand-sub">Business Intelligence</div>
+                </div>
+            </div>
+
+            <div class="left-tagline">
+                <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
+                <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
+                <div class="feature-dropdowns">
+                    <div class="feat-drop">
+                        <button class="feat-drop-btn" onclick="toggleFeat(this)">
+                            <i class="fas fa-chart-line fi"></i> RCM Analytics
+                            <i class="fas fa-chevron-down fchev"></i>
+                        </button>
+                        <ul class="feat-drop-panel">
+                            <li><i class="fas fa-circle-dot"></i> Claim lifecycle tracking</li>
+                            <li><i class="fas fa-circle-dot"></i> Denial management</li>
+                            <li><i class="fas fa-circle-dot"></i> Finance TAT reports</li>
+                        </ul>
+                    </div>
+                    <div class="feat-drop">
+                        <button class="feat-drop-btn" onclick="toggleFeat(this)">
+                            <i class="fas fa-cloud-download-alt fi"></i> DHA · RHA
+                            <i class="fas fa-chevron-down fchev"></i>
+                        </button>
+                        <ul class="feat-drop-panel">
+                            <li><i class="fas fa-circle-dot"></i> Auto portal sync</li>
+                            <li><i class="fas fa-circle-dot"></i> XML fetch &amp; parse</li>
+                            <li><i class="fas fa-circle-dot"></i> Remittance matching</li>
+                        </ul>
+                    </div>
+                    <div class="feat-drop">
+                        <button class="feat-drop-btn" onclick="toggleFeat(this)">
+                            <i class="fas fa-file-chart-column fi"></i> Reports
+                            <i class="fas fa-chevron-down fchev"></i>
+                        </button>
+                        <ul class="feat-drop-panel">
+                            <li><i class="fas fa-circle-dot"></i> Excel &amp; PDF export</li>
+                            <li><i class="fas fa-circle-dot"></i> Scheduled delivery</li>
+                            <li><i class="fas fa-circle-dot"></i> 8 report types</li>
+                        </ul>
+                    </div>
+                    <div class="feat-drop">
+                        <button class="feat-drop-btn" onclick="toggleFeat(this)">
+                            <i class="fas fa-hospital fi"></i> Multi-facility
+                            <i class="fas fa-chevron-down fchev"></i>
+                        </button>
+                        <ul class="feat-drop-panel" style="left:auto;right:0;">
+                            <li><i class="fas fa-circle-dot"></i> DHA &amp; RHA facilities</li>
+                            <li><i class="fas fa-circle-dot"></i> Role-based access</li>
+                            <li><i class="fas fa-circle-dot"></i> Per-facility dashboards</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="left-footer">
+                <img src="~/images/ghaf-logo-soft-78C2C2.png" alt="Ghaf" class="courtesy-logo" />
+                <span>&copy; 2026 Ghaf Bi Solutions. All rights reserved.</span>
             </div>
         </div>
 
-        <div class="left-tagline">
-            <h2>Smarter decisions,<br/><span>faster insights.</span></h2>
-            <p>A unified analytics platform for healthcare revenue cycle management — built for UAE-based facilities.</p>
-            <div class="feature-pills">
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> RCM Analytics</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> DHA · RHA Portals</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Real-time Reports</span>
-                <span class="feature-pill"><i class="fas fa-circle-check"></i> Multi-facility</span>
-            </div>
-        </div>
-
-        <div class="dir-picker">
-            <div class="dir-picker-label">Interface Theme</div>
-            <div class="dir-opts">
-                <button type="button" class="dir-opt" data-dir="obsidian">Obsidian</button>
-                <button type="button" class="dir-opt" data-dir="ledger">Ledger</button>
-                <button type="button" class="dir-opt" data-dir="aurora">Aurora</button>
+        <!-- Right Login Form -->
+        <div class="login-right">
+            <!-- Language toggle -->
+            <div class="lang-toggle-wrap">
+                <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+                <button class="lang-btn" id="btnAR" onclick="setLang('ar')">AR</button>
             </div>
         </div>
 
@@ -448,30 +589,28 @@
             <h1 data-i18n="welcome">Welcome back</h1>
             <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Business Intelligence account</p>
 
-            <form asp-controller="Home" asp-action="Login" method="post">
+            <form asp-controller="Home" asp-action="Index" method="post">
                 @Html.AntiForgeryToken()
 
                 @if (!ViewData.ModelState.IsValid)
                 {
                     <div class="alert alert-danger mb-4" role="alert">
-                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid username or password.</span>
+                        <i class="fas fa-exclamation-circle me-2"></i><span data-i18n="error">Invalid email or password.</span>
                     </div>
                 }
 
                 <div class="mb-3">
-                    <label asp-for="Email" class="form-label" data-i18n="email">Username</label>
+                    <label asp-for="Email" class="form-label" data-i18n="email">Email address</label>
                     <div class="input-group">
-                        <span class="input-icon"><i class="fas fa-user"></i></span>
-                        <input asp-for="Email" class="form-control" placeholder="Enter your username" autocomplete="username" />
+                        <span class="input-icon"><i class="fas fa-envelope"></i></span>
+                        <input asp-for="Email" class="form-control" placeholder="you@example.com" autocomplete="username" />
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <label asp-for="Password" class="form-label mb-0" data-i18n="password">Password</label>
-                        @* Was href="#" — the link existed but went nowhere, so the only
-                           route back from a forgotten password was to ask an admin. *@
-                        <a asp-controller="Home" asp-action="ForgotPassword" class="forgot-link" data-i18n="forgot">Forgot password?</a>
+                        <a href="#" class="forgot-link" data-i18n="forgot">Forgot password?</a>
                     </div>
                     <div class="input-group">
                         <span class="input-icon"><i class="fas fa-lock"></i></span>
@@ -500,22 +639,22 @@
             en: {
                 welcome:  'Welcome back',
                 subtitle: 'Sign in to your Ghaf Business Intelligence account',
-                email:    'Username',
+                email:    'Email address',
                 password: 'Password',
                 forgot:   'Forgot password?',
                 remember: 'Keep me signed in',
                 signin:   'Sign In  →',
-                error:    'Invalid username or password.'
+                error:    'Invalid email or password.'
             },
             ar: {
                 welcome:  'أهلاً بعودتك',
                 subtitle: 'سجّل دخولك إلى حساب Ghaf Business Intelligence',
-                email:    'اسم المستخدم',
+                email:    'البريد الإلكتروني',
                 password: 'كلمة المرور',
                 forgot:   'نسيت كلمة المرور؟',
                 remember: 'ابقَ متصلاً',
                 signin:   'تسجيل الدخول ←',
-                error:    'اسم المستخدم أو كلمة المرور غير صحيحة.'
+                error:    'البريد الإلكتروني أو كلمة المرور غير صحيحة.'
             }
         };
 
@@ -558,6 +697,92 @@
             } catch(e) {}
         })();
 
+        /* ── GooeyText morph loader ── */
+        (function () {
+            var TEXTS = [
+                'Ghaf Bi Analytix',
+                'Connecting portals…',
+                'Loading workspace…',
+                'Syncing data…',
+                'Almost ready…'
+            ];
+            var MORPH_TIME    = 1.0;
+            var COOLDOWN_TIME = 0.25;
+
+            var el1    = document.getElementById('gooeyText1');
+            var el2    = document.getElementById('gooeyText2');
+            if (!el1 || !el2) return;
+
+            var textIndex = TEXTS.length - 1;
+            var time      = Date.now();
+            var morph     = 0;
+            var cooldown  = COOLDOWN_TIME;
+
+            el1.textContent = TEXTS[textIndex % TEXTS.length];
+            el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+
+            function setMorph(fraction) {
+                el2.style.filter  = 'blur(' + Math.min(8 / fraction - 8, 100) + 'px)';
+                el2.style.opacity = Math.pow(fraction, 0.4);
+                var inv = 1 - fraction;
+                el1.style.filter  = 'blur(' + Math.min(8 / inv - 8, 100) + 'px)';
+                el1.style.opacity = Math.pow(inv, 0.4);
+            }
+
+            function doCooldown() {
+                morph = 0;
+                el2.style.filter  = '';
+                el2.style.opacity = '1';
+                el1.style.filter  = '';
+                el1.style.opacity = '0';
+            }
+
+            function doMorph() {
+                morph   -= cooldown;
+                cooldown = 0;
+                var fraction = morph / MORPH_TIME;
+                if (fraction > 1) {
+                    cooldown = COOLDOWN_TIME;
+                    fraction = 1;
+                }
+                setMorph(fraction);
+            }
+
+            function animate() {
+                window._gooeyRaf = requestAnimationFrame(animate);
+                var now = Date.now();
+                var dt  = (now - time) / 1000;
+                time = now;
+                var shouldIncrement = cooldown > 0;
+                cooldown -= dt;
+                if (cooldown <= 0) {
+                    if (shouldIncrement) {
+                        textIndex = (textIndex + 1) % TEXTS.length;
+                        el1.textContent = TEXTS[textIndex % TEXTS.length];
+                        el2.textContent = TEXTS[(textIndex + 1) % TEXTS.length];
+                    }
+                    doMorph();
+                } else {
+                    doCooldown();
+                }
+            }
+
+            animate();
+        })();
+
+        /* ── Feature dropdowns ── */
+        function toggleFeat(btn) {
+            const drop = btn.closest('.feat-drop');
+            const isOpen = drop.classList.contains('open');
+            document.querySelectorAll('.feat-drop.open').forEach(d => d.classList.remove('open'));
+            if (!isOpen) drop.classList.add('open');
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.feat-drop')) {
+                document.querySelectorAll('.feat-drop.open').forEach(d => d.classList.remove('open'));
+            }
+        });
+
         /* ── Spotlight: follow mouse on the left panel ── */
         (function () {
             const panel = document.querySelector('.login-left');
@@ -567,24 +792,6 @@
                 const rect = panel.getBoundingClientRect();
                 spot.style.left = (e.clientX - rect.left) + 'px';
                 spot.style.top  = (e.clientY - rect.top)  + 'px';
-            });
-        })();
-
-        /* ── Design-direction selector ── */
-        (function () {
-            var current = document.documentElement.getAttribute('data-direction') || 'obsidian';
-            var opts = document.querySelectorAll('.dir-opt');
-            function paint(dir) {
-                document.documentElement.setAttribute('data-direction', dir);
-                opts.forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-dir') === dir); });
-            }
-            paint(current);
-            opts.forEach(function (b) {
-                b.addEventListener('click', function () {
-                    var dir = b.getAttribute('data-dir');
-                    try { localStorage.setItem('analytika-skin', dir); } catch (e) {}
-                    paint(dir);
-                });
             });
         })();
     </script>

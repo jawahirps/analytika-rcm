@@ -42,10 +42,7 @@ public static class SeedData
                 FullName = "System Administrator",
                 EmailConfirmed = true
             };
-            // Seed passwords come from configuration so raising the password policy cannot
-            // break a fresh install, and so a deployment can set its own without a rebuild.
-            // The fallbacks satisfy the 12-character minimum and are meant to be changed.
-            await userManager.CreateAsync(admin, SeedPassword(serviceProvider, "SeedAdminPassword", "ChangeMe@Bix-2026"));
+            await userManager.CreateAsync(admin, "Admin@123");
             await userManager.AddToRoleAsync(admin, "Admin");
         }
 
@@ -81,10 +78,13 @@ public static class SeedData
                 UserName = email,
                 Email = email,
                 FullName = facilityName,
-                EmailConfirmed = true,
+                EmailConfirmed = false,   // requires admin to confirm / reset before first login
+                LockoutEnabled = true,
+                LockoutEnd = DateTimeOffset.MaxValue,
                 UserType = "Facility"
             };
-            var result = await userManager.CreateAsync(reporter, SeedPassword(serviceProvider, "SeedReporterPassword", "ChangeMe@Ghaf-2026"));
+            // Random one-time password — account is locked, so it cannot be used until admin resets it.
+            var result = await userManager.CreateAsync(reporter, Guid.NewGuid().ToString("N") + "Aa1!");
             if (result.Succeeded)
             {
                 await userManager.AddToRoleAsync(reporter, "Reporter");
@@ -101,11 +101,11 @@ public static class SeedData
         // Runs once: detects stale dummy data and replaces it; no-ops on clean DB.
         if (await context.XmlParsedRecords.AnyAsync())
         {
+            // Only replace data if known legacy dummy rows are present — never wipe operator-managed data.
             bool stale =
                 await context.Payers.AnyAsync(p => p.Name == "Dewa - Dha" || p.Name == "Dubai Health Authority") ||
                 await context.Receivers.AnyAsync(r => r.Name == "Neuron LLC - Dha" || r.Name == "Mednet UAE") ||
-                await context.Clinicians.AnyAsync(c => c.Name == "Dr. Ahmed Al Mansoori") ||
-                await context.Departments.AnyAsync();
+                await context.Clinicians.AnyAsync(c => c.Name == "Dr. Ahmed Al Mansoori");
 
             if (stale)
             {
@@ -140,22 +140,8 @@ public static class SeedData
             }
         }
 
-        // Seed demo report requests.
-        // These carry foreign keys to Branches/Receivers/Payers/Clinicians/Departments,
-        // which are derived from PARSED DATA above — so on a fresh database they are all
-        // empty and the old hard-coded random ids (1..4) violated the FK constraints and
-        // crashed startup. Only seed demo rows when real parents exist, and draw ids from
-        // them rather than assuming 1..4.
-        var branchIds     = await context.Facilities.Select(x => x.Id).ToListAsync();
-        var receiverIds   = await context.Receivers.Select(x => x.Id).ToListAsync();
-        var payerIds      = await context.Payers.Select(x => x.Id).ToListAsync();
-        var clinicianIds  = await context.Clinicians.Select(x => x.Id).ToListAsync();
-        var departmentIds = await context.Departments.Select(x => x.Id).ToListAsync();
-
-        var canSeedDemoReports = branchIds.Count > 0 && receiverIds.Count > 0 && payerIds.Count > 0
-                                 && clinicianIds.Count > 0 && departmentIds.Count > 0;
-
-        if (canSeedDemoReports && !context.ReportRequests.Any())
+        // Seed demo report requests
+        if (!context.ReportRequests.Any())
         {
             var random = new Random(42);
             var statuses = new[] { "Completed", "Pending", "Processing", "Failed" };
@@ -168,11 +154,11 @@ public static class SeedData
                 {
                     ReportId = $"ANA-{3000000 + i:D7}",
                     ReportType = reportTypes[random.Next(reportTypes.Length)],
-                    BranchId = branchIds[random.Next(branchIds.Count)],
-                    ReceiverId = receiverIds[random.Next(receiverIds.Count)],
-                    PayerId = payerIds[random.Next(payerIds.Count)],
-                    ClinicianId = clinicianIds[random.Next(clinicianIds.Count)],
-                    DepartmentId = departmentIds[random.Next(departmentIds.Count)],
+                    BranchId = null,      // omit FK ids — lookup rows may not exist on fresh databases
+                    ReceiverId = null,
+                    PayerId = null,
+                    ClinicianId = null,
+                    DepartmentId = null,
                     DateFrom = from,
                     DateTo = from.AddDays(random.Next(7, 60)),
                     Status = statuses[random.Next(statuses.Length)],
@@ -184,20 +170,5 @@ public static class SeedData
             }
             await context.SaveChangesAsync();
         }
-    }
-
-    /// <summary>
-    /// A seed password from Security:&lt;key&gt;, falling back to a placeholder. Logs a warning
-    /// when the fallback is used so an install that never changed it is visible in the log.
-    /// </summary>
-    private static string SeedPassword(IServiceProvider services, string key, string fallback)
-    {
-        var config = services.GetService<IConfiguration>();
-        var configured = config?[$"Security:{key}"];
-        if (!string.IsNullOrWhiteSpace(configured)) return configured!;
-
-        services.GetService<ILoggerFactory>()?.CreateLogger("SeedData")
-            .LogWarning("Security:{Key} is not set — seeding with the default placeholder. Change this account's password.", key);
-        return fallback;
     }
 }
