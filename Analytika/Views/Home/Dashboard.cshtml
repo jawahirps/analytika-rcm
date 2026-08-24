@@ -240,6 +240,80 @@
         </div>
     </div>
 
+    <!-- Data Analyst Agent -->
+    <div class="agent-card" onclick="document.getElementById('agentModal').style.display='flex'">
+        <div class="agent-icon">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="agent-info">
+            <div class="agent-name">
+                Data Analyst
+                <span class="agent-badge">AI Agent</span>
+            </div>
+            <div class="agent-desc">Load, explore, and visualize data; build reports and answer questions from datasets.</div>
+            <div class="agent-model"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-4-6</div>
+        </div>
+        <div class="agent-actions">
+            <button class="agent-btn agent-btn-primary" onclick="event.stopPropagation();document.getElementById('agentModal').style.display='flex'">
+                <i class="fas fa-play" style="font-size:.65rem;"></i> Launch Agent
+            </button>
+            <button class="agent-btn agent-btn-ghost" onclick="event.stopPropagation();">
+                <i class="fas fa-info-circle" style="font-size:.65rem;"></i> About
+            </button>
+        </div>
+    </div>
+
+    <!-- Agent modal -->
+    <div id="agentModal" class="agent-modal" onclick="if(event.target===this)this.style.display='none'">
+        <div class="agent-modal-card agent-modal-card--wide">
+            <div class="agent-modal-head">
+                <div class="agent-modal-icon"><i class="fas fa-robot"></i></div>
+                <div style="flex:1;">
+                    <div class="agent-modal-title">Data Analyst <span class="agent-badge">AI Agent</span></div>
+                    <div class="agent-modal-model"><i class="fas fa-microchip" style="font-size:.65rem;"></i> tabular reports from your RCM data</div>
+                </div>
+                <button class="agent-modal-close" onclick="document.getElementById('agentModal').style.display='none'" aria-label="Close">&times;</button>
+            </div>
+            <div class="agent-modal-body">
+                @Html.AntiForgeryToken()
+                <form id="agentQueryForm" class="agent-query-row" autocomplete="off">
+                    <input id="agentPrompt" class="form-control agent-query-input" type="text"
+                           placeholder="Ask for a report… e.g. denials by payer" maxlength="600" />
+                    <button type="submit" class="agent-btn agent-btn-primary" id="agentRunBtn">
+                        <i class="fas fa-play" style="font-size:.65rem;"></i> Run
+                    </button>
+                </form>
+                <div class="agent-suggestions">
+                    <button type="button" class="agent-chip" data-q="Claims by facility">Claims by facility</button>
+                    <button type="button" class="agent-chip" data-q="Denials by payer">Denials by payer</button>
+                    <button type="button" class="agent-chip" data-q="Remittance summary">Remittance summary</button>
+                    <button type="button" class="agent-chip" data-q="Monthly transaction volume">Monthly volume</button>
+                    <button type="button" class="agent-chip" data-q="Claims by clinician">Claims by clinician</button>
+                    <button type="button" class="agent-chip" data-q="File download status">File downloads</button>
+                </div>
+                <div id="agentResult" class="agent-result" hidden>
+                    <div class="agent-result-head">
+                        <div>
+                            <div class="agent-result-title" id="agentResultTitle"></div>
+                            <div class="agent-result-sub" id="agentResultSummary"></div>
+                        </div>
+                        <button type="button" class="agent-btn agent-btn-ghost" id="agentCsvBtn">
+                            <i class="fas fa-download" style="font-size:.65rem;"></i> CSV
+                        </button>
+                    </div>
+                    <div class="agent-table-wrap">
+                        <table class="agent-table" id="agentResultTable"></table>
+                    </div>
+                    <div class="agent-result-meta" id="agentResultMeta"></div>
+                </div>
+                <div id="agentEmpty" class="agent-modal-note">
+                    <i class="fas fa-info-circle"></i>
+                    Ask a question or pick a suggestion — the agent queries your synced portal data and returns a table you can export.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary row -->
     <div class="status-summary">
         <div class="ss-card">
@@ -374,3 +448,182 @@
         </div>
     }
 </div>
+
+@section Scripts {
+<script>document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(document.getElementById('agentModal')));</script>
+<script>
+(function () {
+    var form    = document.getElementById('agentQueryForm');
+    var input   = document.getElementById('agentPrompt');
+    var runBtn  = document.getElementById('agentRunBtn');
+    var result  = document.getElementById('agentResult');
+    var empty   = document.getElementById('agentEmpty');
+    var titleEl = document.getElementById('agentResultTitle');
+    var sumEl   = document.getElementById('agentResultSummary');
+    var tableEl = document.getElementById('agentResultTable');
+    var metaEl  = document.getElementById('agentResultMeta');
+    var csvBtn  = document.getElementById('agentCsvBtn');
+    if (!form) return;
+
+    var lastData = null;
+
+    document.querySelectorAll('.agent-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            input.value = chip.dataset.q;
+            form.requestSubmit();
+        });
+    });
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var prompt = input.value.trim();
+        if (!prompt) return;
+
+        runBtn.disabled = true;
+        runBtn.innerHTML = window.bixSpinnerMarkup('bix-spinner-xs', 'bix-spinner-white') + ' Running';
+        var csrf = document.querySelector('#agentModal input[name="__RequestVerificationToken"]');
+
+        fetch('/Agent/Query', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': csrf ? csrf.value : '',
+                'X-No-Loader': '1'
+            },
+            body: JSON.stringify({ prompt: prompt })
+        })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="fas fa-play" style="font-size:.65rem;"></i> Run';
+            if (!res.ok) {
+                renderError((res.j && res.j.error) || 'The agent could not answer that. Try a different question.');
+                return;
+            }
+            render(res.j);
+        })
+        .catch(function () {
+            runBtn.disabled = false;
+            runBtn.innerHTML = '<i class="fas fa-play" style="font-size:.65rem;"></i> Run';
+            renderError('Network error — please try again.');
+        });
+    });
+
+    function render(data) {
+        lastData = data;
+        empty.hidden = true;
+        result.hidden = false;
+        titleEl.textContent = data.title || 'Report';
+        sumEl.textContent = data.summary || '';
+
+        var cols = data.columns || [];
+        var rows = data.rows || [];
+        var html = '<thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>';
+        if (rows.length === 0) {
+            html += '<tr><td colspan="' + Math.max(1, cols.length) + '" class="agent-table-empty">No matching data yet — sync portal data first.</td></tr>';
+        } else {
+            rows.forEach(function (r) {
+                html += '<tr>' + r.map(function (v) {
+                    var num = typeof v === 'number';
+                    return '<td class="' + (num ? 'num' : '') + '">' + (v == null ? '—' : esc(num ? v.toLocaleString() : String(v))) + '</td>';
+                }).join('') + '</tr>';
+            });
+        }
+        html += '</tbody>';
+        tableEl.innerHTML = html;
+        metaEl.textContent = rows.length + ' row' + (rows.length === 1 ? '' : 's') +
+            ' · engine: ' + (data.engine === 'claude' ? 'Claude' : 'built-in reports');
+    }
+
+    function renderError(msg) {
+        lastData = null;
+        empty.hidden = true;
+        result.hidden = false;
+        titleEl.textContent = 'Could not run report';
+        sumEl.textContent = msg;
+        tableEl.innerHTML = '';
+        metaEl.textContent = '';
+    }
+
+    csvBtn.addEventListener('click', function () {
+        if (!lastData || !lastData.columns) return;
+        var lines = [lastData.columns.join(',')];
+        (lastData.rows || []).forEach(function (r) {
+            lines.push(r.map(function (v) {
+                var s = v == null ? '' : String(v);
+                return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }).join(','));
+        });
+        var blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = (lastData.title || 'report').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.csv';
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+
+    function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+})();
+</script>
+<script>
+(function() {
+    var isDark = document.documentElement.dataset.theme === 'dark';
+    var textColor  = isDark ? '#EAF4FB' : '#011C40';
+    var mutedColor = isDark ? 'rgba(234,244,251,0.4)' : '#334E68';
+    var gridColor  = isDark ? 'rgba(84,172,191,0.10)' : 'rgba(1,28,64,0.07)';
+
+    fetch('/api/dashboard/summary')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            // KPI badge
+            var kpi = data.kpi;
+            var badge = document.getElementById('kpiBadge');
+            if (badge && kpi) {
+                var sign = kpi.trend >= 0 ? '+' : '';
+                badge.textContent = sign + kpi.trend + '% vs prev 30d';
+                badge.style.background = kpi.trend >= 0 ? 'rgba(47,143,114,0.15)' : 'rgba(185,74,63,0.15)';
+                badge.style.color      = kpi.trend >= 0 ? '#2F8F72' : '#B94A3F';
+            }
+            var totalEl = document.getElementById('kpiTotal');
+            if (totalEl && kpi) totalEl.textContent = (kpi.currentCount || 0).toLocaleString();
+
+            // Volume bar chart
+            var volEl = document.getElementById('chartVolume');
+            if (volEl && data.daily && data.daily.length > 0) {
+                var volChart = new ApexCharts(volEl, {
+                    series: [{ name: 'Transactions', data: data.daily.map(function(d) { return d.count; }) }],
+                    chart: { type: 'bar', height: 160, toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+                    colors: ['#54ACBF'],
+                    xaxis: { categories: data.daily.map(function(d) { return d.date; }), labels: { style: { colors: mutedColor, fontSize: '10px' }, rotate: -30 }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { labels: { style: { colors: mutedColor, fontSize: '10px' } } },
+                    grid: { borderColor: gridColor, strokeDashArray: 3 },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                volChart.render();
+            }
+
+            // Type donut chart
+            var typeEl = document.getElementById('chartTypes');
+            if (typeEl && data.byType && data.byType.length > 0) {
+                var typeChart = new ApexCharts(typeEl, {
+                    series: data.byType.map(function(x) { return x.count; }),
+                    labels: data.byType.map(function(x) { return x.type || 'Unknown'; }),
+                    chart: { type: 'donut', height: 160, background: 'transparent', toolbar: { show: false } },
+                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#2F8F72'],
+                    plotOptions: { pie: { donut: { size: '65%' } } },
+                    legend: { position: 'right', fontSize: '11px', labels: { colors: textColor } },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                typeChart.render();
+            }
+        })
+        .catch(function() { /* no data — charts simply don't render */ });
+})();
+</script>
+}
