@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using System.Diagnostics;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -257,6 +258,36 @@ app.MapControllerRoute(
 
 // Liveness/readiness probe for hosting platforms (checks DB connectivity)
 app.MapHealthChecks("/healthz").AllowAnonymous();
+
+// Public liveness and deployment identity endpoint. Keep this independent of
+// database and portal readiness so supervisors only restart a dead web process.
+app.MapGet("/api/health", (HttpContext context) =>
+{
+    var assembly = Assembly.GetExecutingAssembly();
+    var informationalVersion = assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+        .InformationalVersion ?? "unknown";
+    var version = assembly.GetName().Version?.ToString() ?? "unknown";
+    var revisionFromVersion = informationalVersion.Contains('+')
+        ? informationalVersion[(informationalVersion.LastIndexOf('+') + 1)..]
+        : null;
+    var commitSha = Environment.GetEnvironmentVariable("BIX_COMMIT_SHA")
+        ?? revisionFromVersion
+        ?? "unknown";
+
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new
+    {
+        status = "ok",
+        service = "Bix Analytika RCM",
+        version,
+        informationalVersion,
+        commitSha,
+        environment = app.Environment.EnvironmentName,
+        startedAtUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime(),
+        timestampUtc = DateTimeOffset.UtcNow
+    });
+}).AllowAnonymous();
 
 using (var startupScope = app.Services.CreateScope())
 {

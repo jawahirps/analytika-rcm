@@ -7,6 +7,9 @@ $ErrorActionPreference = "Stop"
 
 $ProjectPath = "$PSScriptRoot\..\Analytika\Analytika.csproj"
 $OutputPath  = "$PSScriptRoot\output"
+$RepoRoot    = (Resolve-Path "$PSScriptRoot\..").Path
+$GitSha      = (git -C $RepoRoot rev-parse HEAD 2>$null)
+if (-not $GitSha) { $GitSha = "unknown" }
 
 Write-Host "`n=== GhafBI Publish ===" -ForegroundColor Cyan
 
@@ -19,6 +22,7 @@ dotnet publish $ProjectPath `
     -r win-x64 `
     --self-contained true `
     -p:PublishSingleFile=false `
+    -p:SourceRevisionId=$GitSha `
     -o $OutputPath
 
 if ($LASTEXITCODE -ne 0) { Write-Error "Publish failed."; exit 1 }
@@ -33,6 +37,13 @@ Copy-Item "$PSScriptRoot\3_cloudflared_config.yml" $OutputPath
 Copy-Item "$PSScriptRoot\3b_install_tunnel_service.ps1" $OutputPath
 Copy-Item "$PSScriptRoot\4_uninstall.ps1" $OutputPath
 
+@{
+    sourceRepository = "https://github.com/jawahirps/analytika-rcm"
+    commitSha = $GitSha
+    publishedAtUtc = [DateTime]::UtcNow.ToString("o")
+} | ConvertTo-Json | Set-Content "$OutputPath\deployment-manifest.json" -Encoding UTF8
+
 Write-Host "`n=== Done ===" -ForegroundColor Green
 Write-Host "Output folder: $OutputPath"
+Write-Host "Source commit: $GitSha"
 Write-Host "Copy this folder to the office server, then run 2_install_service.ps1 as Administrator.`n"

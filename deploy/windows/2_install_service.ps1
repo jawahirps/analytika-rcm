@@ -43,6 +43,7 @@ $binPath = "`"$AppExe`" --urls $AppUrl"
 sc.exe create $ServiceName binPath= $binPath start= auto DisplayName= $DisplayName | Out-Null
 sc.exe description $ServiceName "GhafBI Analytika RCM Portal — Healthcare Revenue Cycle Management" | Out-Null
 sc.exe failure $ServiceName reset= 86400 actions= restart/5000/restart/10000/restart/30000 | Out-Null
+sc.exe failureflag $ServiceName 1 | Out-Null
 Write-Host "[OK] Service registered"
 
 # 5. Set environment variables on the service itself (sc.exe env method for .NET)
