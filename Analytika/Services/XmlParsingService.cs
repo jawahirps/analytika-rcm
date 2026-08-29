@@ -186,6 +186,16 @@ public class XmlParsingService
         var processed = 0;
         var pendingRows = 0;
 
+        // Bulk-load hygiene: we only ever Add new rows here (never mutate tracked
+        // entities), so DetectChanges is pure overhead — and because the change
+        // tracker is Cleared after every batch below, it never grows. Without this
+        // the tracker accumulates every parsed row for the whole run, turning each
+        // SaveChanges into an O(n^2) graph scan. That quadratic CPU cost is why a
+        // slower machine was ~10x behind a fast one on the same data.
+        var autoDetect = _db.ChangeTracker.AutoDetectChangesEnabled;
+        _db.ChangeTracker.AutoDetectChangesEnabled = false;
+        try
+        {
         await foreach (var tx in txQuery
             .Select(t => new PortalTransaction
             {
@@ -235,6 +245,8 @@ public class XmlParsingService
             if (pendingRows >= 1000 || processed % 50 == 0 || processed == total)
             {
                 await _db.SaveChangesAsync(ct);
+                // Detach the just-saved rows so the tracker stays flat (see note above).
+                _db.ChangeTracker.Clear();
                 pendingRows = 0;
 
                 if (onProgress != null)
@@ -243,7 +255,15 @@ public class XmlParsingService
         }
 
         if (pendingRows > 0)
+        {
             await _db.SaveChangesAsync(ct);
+            _db.ChangeTracker.Clear();
+        }
+        }
+        finally
+        {
+            _db.ChangeTracker.AutoDetectChangesEnabled = autoDetect;
+        }
 
         var match = await MatchParsedRecordsAsync(facilityId, ct);
         result.MatchedClaimRefs = match.MatchedClaimRefs;
