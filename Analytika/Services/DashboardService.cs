@@ -2,6 +2,8 @@ using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Data;
+using System.Data.Common;
 using System.Xml.Linq;
 
 namespace Analytika.Services;
@@ -408,52 +410,105 @@ public class DashboardService : IDashboardService
             _ => "Used to keep reporting aligned across dashboards."
         };
 
-        // ── Build filtered base query ──
-        var q = _db.XmlParsedRecords.AsNoTracking().AsQueryable();
+        // ── Build WHERE clause for filtered base query ──
+        var whereClauses = new List<string>();
+        var parameters = new List<(string Name, object Value)>();
 
         if (filters.FacilityId.HasValue)
-            q = q.Where(r => r.FacilityId == filters.FacilityId.Value);
+        {
+            whereClauses.Add("\"FacilityId\" = @facilityId");
+            parameters.Add(("@facilityId", filters.FacilityId.Value));
+        }
         if (!string.IsNullOrWhiteSpace(filters.Receiver))
-            q = q.Where(r => (r.ReceiverName ?? r.ReceiverId) == filters.Receiver);
+        {
+            whereClauses.Add("(\"ReceiverName\" IS NOT NULL AND \"ReceiverName\" <> '' AND \"ReceiverName\" = @receiver OR \"ReceiverName\" IS NULL OR \"ReceiverName\" = '') AND \"ReceiverId\" = @receiver)");
+            parameters.Add(("@receiver", filters.Receiver));
+        }
         if (!string.IsNullOrWhiteSpace(filters.Payer))
-            q = q.Where(r => (r.PayerName ?? r.PayerId) == filters.Payer);
+        {
+            whereClauses.Add("(\"PayerName\" IS NOT NULL AND \"PayerName\" <> '' AND \"PayerName\" = @payer OR \"PayerName\" IS NULL OR \"PayerName\" = '') AND \"PayerId\" = @payer)");
+            parameters.Add(("@payer", filters.Payer));
+        }
         if (!string.IsNullOrWhiteSpace(filters.EncounterType))
-            q = q.Where(r => r.EncounterType == filters.EncounterType);
+        {
+            whereClauses.Add("\"EncounterType\" = @encounterType");
+            parameters.Add(("@encounterType", filters.EncounterType));
+        }
         if (filters.DateFrom.HasValue)
         {
             var from = filters.DateFrom.Value.ToString("yyyy-MM-dd");
-            q = q.Where(r => string.Compare(r.TreatmentDate ?? "", from) >= 0);
+            whereClauses.Add("(\"TreatmentDate\" IS NOT NULL AND \"TreatmentDate\" <> '' AND \"TreatmentDate\" >= @dateFrom)");
+            parameters.Add(("@dateFrom", from));
         }
         if (filters.DateTo.HasValue)
         {
             var to = filters.DateTo.Value.ToString("yyyy-MM-dd");
-            q = q.Where(r => string.Compare(r.TreatmentDate ?? "", to) <= 0);
+            whereClauses.Add("(\"TreatmentDate\" IS NOT NULL AND \"TreatmentDate\" <> '' AND \"TreatmentDate\" <= @dateTo)");
+            parameters.Add(("@dateTo", to));
         }
 
         // Tab-specific record kind filter
-        var tabQuery = activeTab switch
+        var tabFilter = activeTab switch
         {
-            "Submissions" => q.Where(r => r.RecordKind == "Submission"),
-            "Resubmissions" => q.Where(r => r.RecordKind == "Submission" && r.ResubmissionType != null && r.ResubmissionType != ""),
-            "Remittance" => q.Where(r => r.RecordKind == "Remittance"),
-            "Denials" => q.Where(r => r.RecordKind == "Remittance" && r.DenialCodesJson != null && r.DenialCodesJson != "" && r.DenialCodesJson != "[]"),
-            _ => q
+            "Submissions" => "\"RecordKind\" = 'Submission'",
+            "Resubmissions" => "\"RecordKind\" = 'Submission' AND \"ResubmissionType\" IS NOT NULL AND \"ResubmissionType\" <> ''",
+            "Remittance" => "\"RecordKind\" = 'Remittance'",
+            "Denials" => "\"RecordKind\" = 'Remittance' AND \"DenialCodesJson\" IS NOT NULL AND \"DenialCodesJson\" <> '' AND \"DenialCodesJson\" <> '[]'",
+            _ => "1=1"
         };
+        whereClauses.Add(tabFilter);
 
-        // ── Aggregate KPI metrics from real data ──
-        var totalClaims = await tabQuery.CountAsync();
-        var netTotal = await tabQuery.SumAsync(r => r.NetAmount);
-        var grossTotal = await tabQuery.SumAsync(r => r.GrossAmount);
-        var paidTotal = await tabQuery.SumAsync(r => r.PaidAmount);
+        var whereSql = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
 
-        // Compute prior-period comparison (last 30d vs prev 30d)
+        // ── Aggregate KPI metrics from real data (single query) ──
+        var kpiSql = @"
+            SELECT
+                COUNT(*) AS TotalClaims,
+                SUM(""NetAmount"") AS NetTotal,
+                SUM(""GrossAmount"") AS GrossTotal,
+                SUM(""PaidAmount"") AS PaidTotal,
+                SUM(CASE WHEN ""TreatmentDate"" IS NOT NULL AND ""TreatmentDate"" <> '' AND ""TreatmentDate"" >= @thirtyDaysAgo THEN 1 ELSE 0 END) AS CurrentPeriod,
+                SUM(CASE WHEN ""TreatmentDate"" IS NOT NULL AND ""TreatmentDate"" <> '' AND ""TreatmentDate"" >= @sixtyDaysAgo AND ""TreatmentDate"" < @thirtyDaysAgo THEN 1 ELSE 0 END) AS PriorPeriod,
+                SUM(CASE WHEN ""IsMatched"" THEN 1 ELSE 0 END) AS MatchedCount
+            FROM ""XmlParsedRecords""
+            " + whereSql;
+
         var now = DateTime.UtcNow;
         var thirtyDaysAgo = now.AddDays(-30).ToString("yyyy-MM-dd");
         var sixtyDaysAgo = now.AddDays(-60).ToString("yyyy-MM-dd");
-        var currentPeriod = await tabQuery.CountAsync(r => string.Compare(r.TreatmentDate ?? "", thirtyDaysAgo) >= 0);
-        var priorPeriod = await tabQuery.CountAsync(r =>
-            string.Compare(r.TreatmentDate ?? "", sixtyDaysAgo) >= 0 &&
-            string.Compare(r.TreatmentDate ?? "", thirtyDaysAgo) < 0);
+        parameters.Add(("@thirtyDaysAgo", thirtyDaysAgo));
+        parameters.Add(("@sixtyDaysAgo", sixtyDaysAgo));
+
+        int totalClaims = 0;
+        decimal netTotal = 0, grossTotal = 0, paidTotal = 0;
+        int currentPeriod = 0, priorPeriod = 0, matchedCount = 0;
+
+        using (var conn = _db.Database.GetDbConnection())
+        {
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = kpiSql;
+            cmd.CommandTimeout = 300;
+            foreach (var p in parameters)
+            {
+                var param = cmd.CreateParameter();
+                param.ParameterName = p.Name;
+                param.Value = p.Value;
+                cmd.Parameters.Add(param);
+            }
+            using var rdr = await cmd.ExecuteReaderAsync();
+            if (await rdr.ReadAsync())
+            {
+                totalClaims = rdr.IsDBNull(0) ? 0 : rdr.GetInt32(0);
+                netTotal = rdr.IsDBNull(1) ? 0 : rdr.GetDecimal(1);
+                grossTotal = rdr.IsDBNull(2) ? 0 : rdr.GetDecimal(2);
+                paidTotal = rdr.IsDBNull(3) ? 0 : rdr.GetDecimal(3);
+                currentPeriod = rdr.IsDBNull(4) ? 0 : rdr.GetInt32(4);
+                priorPeriod = rdr.IsDBNull(5) ? 0 : rdr.GetInt32(5);
+                matchedCount = rdr.IsDBNull(6) ? 0 : rdr.GetInt32(6);
+            }
+        }
+
         var claimDelta = priorPeriod > 0
             ? ((currentPeriod - priorPeriod) * 100.0 / priorPeriod)
             : 0;
@@ -491,8 +546,8 @@ public class DashboardService : IDashboardService
                 new DashboardMetric
                 {
                     Label = "Matched",
-                    Value = $"{await tabQuery.CountAsync(r => r.IsMatched):N0}",
-                    Delta = totalClaims > 0 ? $"{(await tabQuery.CountAsync(r => r.IsMatched) * 100.0 / totalClaims):F0}%" : "",
+                    Value = $"{matchedCount:N0}",
+                    Delta = totalClaims > 0 ? $"{(matchedCount * 100.0 / totalClaims):F0}%" : "",
                     Icon = "fa-link",
                     Tone = "blue"
                 }
@@ -543,40 +598,58 @@ public class DashboardService : IDashboardService
             metric4
         };
 
-        // ── Trend: monthly claim counts over last 6 months ──
+        // ── Trend: monthly claim counts over last 6 months (single SQL query) ──
+        var trend = new List<DashboardTrendPoint>();
         var sixMonthsAgo = now.AddMonths(-6);
-        var trendData = await tabQuery
-            .Where(r => r.ServiceYear != null && r.ServiceMonth != null)
-            .GroupBy(r => new { r.ServiceYear, r.ServiceMonth })
-            .Select(g => new { g.Key.ServiceYear, g.Key.ServiceMonth, Count = g.Count() })
-            .ToListAsync();
+        var trendSql = @"
+            SELECT ""ServiceYear"", ""ServiceMonth"", COUNT(*) AS Count
+            FROM ""XmlParsedRecords""
+            " + whereSql + @"
+            AND ""ServiceYear"" IS NOT NULL AND ""ServiceMonth"" IS NOT NULL
+            GROUP BY ""ServiceYear"", ""ServiceMonth""
+            ORDER BY ""ServiceYear"", ""ServiceMonth""";
 
-        var trend = Enumerable.Range(0, 6)
-            .Select(i =>
-            {
-                var month = sixMonthsAgo.AddMonths(i + 1);
-                var yr = month.Year.ToString();
-                var mo = month.Month.ToString("D2");
-                var count = trendData
-                    .Where(t => t.ServiceYear == yr && t.ServiceMonth == mo)
-                    .Sum(t => t.Count);
-                return new DashboardTrendPoint
-                {
-                    Label = month.ToString("MMM"),
-                    Value = count
-                };
-            })
-            .ToList();
-
-        // ── Breakdown: top categories by tab ──
-        var breakdown = activeTab switch
+        var trendData = new List<(string Year, string Month, int Count)>();
+        using (var conn = _db.Database.GetDbConnection())
         {
-            "Denials" => await BuildBreakdownByDenialCategory(tabQuery),
-            "Clinicians" => await BuildBreakdownByField(q, r => r.Clinician ?? "Unknown"),
-            "Insurance" => await BuildBreakdownByField(tabQuery, r => r.PayerName ?? r.PayerId ?? "Unknown"),
-            "Department" => await BuildBreakdownByField(tabQuery, r => r.EncounterType ?? "Unknown"),
-            _ => await BuildBreakdownByField(tabQuery, r => r.EncounterType ?? "Unknown")
-        };
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = trendSql;
+            cmd.CommandTimeout = 300;
+            foreach (var p in parameters)
+            {
+                var param = cmd.CreateParameter();
+                param.ParameterName = p.Name;
+                param.Value = p.Value;
+                cmd.Parameters.Add(param);
+            }
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                var year = rdr.IsDBNull(0) ? "" : rdr.GetString(0);
+                var month = rdr.IsDBNull(1) ? "" : rdr.GetString(1);
+                var count = rdr.IsDBNull(2) ? 0 : rdr.GetInt32(2);
+                trendData.Add((year, month, count));
+            }
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            var month = sixMonthsAgo.AddMonths(i + 1);
+            var yr = month.Year.ToString();
+            var mo = month.Month.ToString("D2");
+            var count = trendData
+                .Where(t => t.Year == yr && t.Month == mo)
+                .Sum(t => t.Count);
+            trend.Add(new DashboardTrendPoint
+            {
+                Label = month.ToString("MMM"),
+                Value = count
+            });
+        }
+
+        // ── Breakdown: top categories by tab (SQL for all tabs) ──
+        var breakdown = await GetBreakdownByTabAsync(activeTab, whereClauses, parameters);
 
         // ── Insights: data-driven observations ──
         var insights = BuildInsights(activeTab, totalClaims, netTotal, paidTotal, grossTotal, claimDelta, breakdown);
@@ -711,5 +784,149 @@ public class DashboardService : IDashboardService
             "Department" => $"{totalClaims:N0} records across departments.",
             _ => $"{totalClaims:N0} records loaded."
         };
+    }
+
+    private async Task<List<DashboardBreakdownItem>> GetCachedSubmissionsBreakdownAsync(
+        List<string> whereClauses, List<(string Name, object Value)> parameters)
+    {
+        var cacheKey = "dashboard:submissions:breakdown:v1";
+        if (_cache.TryGetValue<List<DashboardBreakdownItem>>(cacheKey, out var cached))
+            return cached;
+
+        var whereSql = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
+        var sql = @"
+            SELECT COALESCE(""EncounterType"", 'Unknown') AS Category, COUNT(*) AS Count
+            FROM ""XmlParsedRecords""
+            " + whereSql + @"
+            GROUP BY COALESCE(""EncounterType"", 'Unknown')
+            ORDER BY Count DESC
+            LIMIT 6";
+
+        var list = new List<DashboardBreakdownItem>();
+        using (var conn = _db.Database.GetDbConnection())
+        {
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.CommandTimeout = 300;
+            foreach (var p in parameters)
+            {
+                var param = cmd.CreateParameter();
+                param.ParameterName = p.Name;
+                param.Value = p.Value;
+                cmd.Parameters.Add(param);
+            }
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                var label = rdr.IsDBNull(0) ? "Unknown" : rdr.GetString(0);
+                var value = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                list.Add(new DashboardBreakdownItem { Label = label, Value = value, Detail = "" });
+            }
+        }
+
+        if (list.Count == 0)
+            list.Add(new DashboardBreakdownItem { Label = "No submission data", Value = 0, Detail = "Upload XML files via Portal Sync" });
+
+        var cacheEntry = _cache.CreateEntry(cacheKey);
+        cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+        cacheEntry.SetValue(list);
+        cacheEntry.Dispose();
+
+        return list;
+    }
+
+    private async Task<List<DashboardBreakdownItem>> GetBreakdownByTabAsync(
+        string activeTab, List<string> whereClauses, List<(string Name, object Value)> parameters)
+    {
+        var cacheKey = $"dashboard:{activeTab.ToLower()}:breakdown:v1";
+        if (_cache.TryGetValue<List<DashboardBreakdownItem>>(cacheKey, out var cached))
+            return cached;
+
+        string fieldSql;
+        string emptyMsg;
+        switch (activeTab)
+        {
+            case "Submissions":
+                fieldSql = "COALESCE(\"EncounterType\", 'Unknown')";
+                emptyMsg = "Upload XML files via Portal Sync";
+                break;
+            case "Resubmissions":
+                fieldSql = "COALESCE(\"ResubmissionType\", 'Unknown')";
+                emptyMsg = "No resubmission data available";
+                break;
+            case "Remittance":
+                fieldSql = "COALESCE(\"PayerName\", \"PayerId\", 'Unknown')";
+                emptyMsg = "No remittance data available";
+                break;
+            case "Denials":
+                fieldSql = "COALESCE(\"ClaimCategory\", 'Unknown')";
+                emptyMsg = "Upload remittance files to see denial categories";
+                break;
+            case "Clinicians":
+                fieldSql = "COALESCE(\"Clinician\", 'Unknown')";
+                emptyMsg = "No clinician data available";
+                break;
+            case "Operations":
+                fieldSql = "COALESCE(\"EncounterType\", 'Unknown')";
+                emptyMsg = "No operational data available";
+                break;
+            case "Insurance":
+                fieldSql = "COALESCE(\"PayerName\", \"PayerId\", 'Unknown')";
+                emptyMsg = "No payer data available";
+                break;
+            case "Department":
+                fieldSql = "COALESCE(\"EncounterType\", 'Unknown')";
+                emptyMsg = "No department data available";
+                break;
+            default:
+                fieldSql = "COALESCE(\"EncounterType\", 'Unknown')";
+                emptyMsg = "Upload XML files via Portal Sync";
+                break;
+        }
+
+        var whereSql = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
+        var sql = @"
+            SELECT " + fieldSql + @" AS Category, COUNT(*) AS Count
+            FROM ""XmlParsedRecords""
+            " + whereSql + @"
+            GROUP BY " + fieldSql + @"
+            ORDER BY Count DESC
+            LIMIT 6";
+
+        var list = new List<DashboardBreakdownItem>();
+        using (var conn = _db.Database.GetDbConnection())
+        {
+            if (conn.State != ConnectionState.Open) await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.CommandTimeout = 300;
+            foreach (var p in parameters)
+            {
+                var param = cmd.CreateParameter();
+                param.ParameterName = p.Name;
+                param.Value = p.Value;
+                cmd.Parameters.Add(param);
+            }
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+            {
+                var label = rdr.IsDBNull(0) ? "Unknown" : rdr.GetString(0);
+                var value = rdr.IsDBNull(1) ? 0 : rdr.GetInt32(1);
+                list.Add(new DashboardBreakdownItem { Label = label, Value = value, Detail = "" });
+            }
+        }
+
+        if (list.Count == 0)
+        {
+            list.Add(new DashboardBreakdownItem { Label = "No data", Value = 0, Detail = emptyMsg });
+        }
+
+        var cacheEntry = _cache.CreateEntry(cacheKey);
+        cacheEntry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
+        cacheEntry.SetValue(list);
+        cacheEntry.Dispose();
+
+        return list;
     }
 }

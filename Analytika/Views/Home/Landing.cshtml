@@ -10,17 +10,385 @@
 <title>Bix — Denied yesterday. Recovered this week.</title>
 <meta name="description" content="Revenue-intelligence platform that finds, names and recovers claim denials across UAE and GCC providers. Built by Ghaf Business Services." />
 <meta name="theme-color" content="#05141A" />
-@* The v4 type stack (Bricolage Grotesque / Instrument Sans / JetBrains Mono) is not in
-   the self-hosted set, so it comes from the CDN as the design specifies. The origin-served
-   sheet is kept alongside it because bix-v4.css falls back to Sora and system-ui, both
-   self-hosted — the page still sets correctly if the CDN is blocked. *@
-<link rel="stylesheet" href="/css/fonts.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@@12..96,700;12..96,800&family=Instrument+Sans:wght@@400;500;600&family=JetBrains+Mono:wght@@400;500&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="~/css/bix-v4.css" asp-append-version="true" />
+<style>
+  /* Enhanced animations & effects */
+  @@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px rgba(47,179,172,0.15); }
+    50% { box-shadow: 0 0 40px rgba(47,179,172,0.35), 0 0 60px rgba(127,227,221,0.2); }
+  }
+  @@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(64px, 64px); }
+  }
+  @@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @@keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-up { animation: fadeUp 0.7s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; opacity: 0; }
+  .animate-fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; }
+  .animate-scale-in { animation: scaleIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; opacity: 0; }
+  .animate-count-up { animation: countUp 0.8s cubic-bezier(0.2, 0.9, 0.3, 1) forwards; opacity: 0; }
+
+  .stagger-1 { animation-delay: 0.05s; }
+  .stagger-2 { animation-delay: 0.1s; }
+  .stagger-3 { animation-delay: 0.15s; }
+  .stagger-4 { animation-delay: 0.2s; }
+  .stagger-5 { animation-delay: 0.25s; }
+  .stagger-6 { animation-delay: 0.3s; }
+  .stagger-7 { animation-delay: 0.35s; }
+  .stagger-8 { animation-delay: 0.4s; }
+
+  /* Particle grid background */
+  .particle-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.4;
+  }
+  .particle-grid::before {
+    content: '';
+    position: absolute;
+    inset: -50%;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(47,179,172,0.08) 1px, transparent 1px),
+      radial-gradient(circle at 80% 80%, rgba(127,227,221,0.06) 1px, transparent 1px),
+      radial-gradient(circle at 40% 60%, rgba(29,136,136,0.05) 1px, transparent 1px);
+    background-size: 120px 120px, 180px 180px, 240px 240px;
+    animation: gridMove 60s linear infinite;
+  }
+
+  /* Floating orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    animation: float 8s ease-in-out infinite;
+  }
+  .orb-1 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(47,179,172,0.15), transparent 70%); top: -100px; right: -100px; animation-delay: 0s; }
+  .orb-2 { width: 300px; height: 300px; background: radial-gradient(circle, rgba(127,227,221,0.1), transparent 70%); bottom: 20%; left: -50px; animation-delay: -2s; }
+  .orb-3 { width: 200px; height: 200px; background: radial-gradient(circle, rgba(58,217,164,0.08), transparent 70%); top: 40%; right: 10%; animation-delay: -4s; }
+
+  /* Shimmer text effect */
+  .shimmer-text {
+    background: linear-gradient(102deg, var(--glow), var(--teal-b) 40%, var(--glow) 60%, var(--teal) 80%, var(--glow));
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  /* Enhanced card hover */
+  .gl:hover {
+    border-color: var(--hair3);
+    box-shadow: var(--sh2), 0 0 0 1px rgba(47,179,172,0.15);
+  }
+  .card:hover { transform: translateY(-4px); transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+  /* Scroll progress indicator */
+  .scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--teal-b), var(--glow));
+    z-index: 1000;
+    transform-origin: left;
+    transform: scaleX(0);
+    pointer-events: none;
+  }
+
+  /* Enhanced button states */
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47,179,172,0.4), var(--shadow, none);
+  }
+  .btn.f:focus-visible { box-shadow: 0 0 0 3px rgba(127,227,221,0.5), 0 1px 0 rgba(255,255,255,.42) inset, 0 10px 26px -8px rgba(47,179,172,.62); }
+  .btn.o:focus-visible { box-shadow: 0 0 0 3px rgba(47,179,172,0.4); }
+
+  /* Form focus enhancements */
+  .cform input:focus,
+  .cform select:focus,
+  .cform textarea:focus {
+    border-color: var(--teal-b);
+    box-shadow: 0 0 0 3px rgba(47,179,172,0.2), 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  /* Table row hover */
+  .ptbl tbody tr:hover td {
+    background: rgba(47,179,172,0.12);
+  }
+
+  /* Step connector line */
+  .flow::before {
+    content: '';
+    position: absolute;
+    top: 38px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--hair2) 20%, var(--hair2) 80%, transparent);
+    z-index: -1;
+  }
+  .flow { position: relative; padding-top: 20px; }
+
+  /* Reduced motion */
+  @@media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-in,
+    .animate-scale-in,
+    .animate-count-up,
+    .orb,
+    .particle-grid::before,
+    .shimmer-text {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .stagger-1, .stagger-2, .stagger-3, .stagger-4, .stagger-5, .stagger-6, .stagger-7, .stagger-8 {
+      animation-delay: 0 !important;
+    }
+  }
+
+  /* Focus visible for keyboard nav */
+  :focus:not(:focus-visible) { outline: none; }
+  :focus-visible {
+    outline: 2px solid var(--teal-b);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Mobile nav toggle */
+  @@media (max-width: 1180px) {
+    .mast .nav-toggle { display: flex; }
+    .mast .nv { 
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: rgba(4,17,22,0.98);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--hair2);
+      flex-direction: column;
+      padding: 20px 36px;
+      gap: 16px;
+      display: none;
+    }
+    .mast .nv.open { display: flex; }
+  }
+  .nav-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    padding: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 80;
+  }
+  .nav-toggle span {
+    width: 24px;
+    height: 2px;
+    background: var(--ink);
+    border-radius: 2px;
+    transition: 0.2s;
+  }
+  .nav-toggle[aria-expanded="true"] span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+  .nav-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .nav-toggle[aria-expanded="true"] span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+
+  /* Live indicator pulse */
+  .live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--ff-m);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--pos);
+  }
+  .live-indicator::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--pos);
+    box-shadow: 0 0 12px var(--pos);
+    animation: bl 2s ease-in-out infinite;
+  }
+
+  /* Enhanced proof stats */
+  .proof .v {
+    transition: transform 0.3s ease;
+  }
+  .proof > div:hover .v {
+    transform: scale(1.05);
+  }
+
+  /* Hero dashboard live pulse */
+  .dash .live::before {
+    animation: bl 1.5s ease-in-out infinite;
+  }
+
+  /* Workspace enhancements */
+  .workspace-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .workspace-tab { padding: 8px 16px; border-radius: var(--r3); font-size: 12px; font-weight: 500; color: var(--faint); background: transparent; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; }
+  .workspace-tab:hover { color: var(--dim); background: rgba(127,227,221,0.05); border-color: var(--hair2); }
+  .workspace-tab.active { color: var(--glow); background: rgba(127,227,221,0.11); border-color: var(--hair3); }
+  .workspace-panel { display: none; }
+  .workspace-panel.active { display: block; animation: fadeIn 0.2s ease-out; }
+
+  /* Live timer */
+  .live-timer { font-family: var(--ff-m); font-size: 11px; color: var(--hot); letter-spacing: 0.05em; }
+  .live-timer.warning { color: var(--warn); }
+  .live-timer.ok { color: var(--pos); }
+
+  /* Activity feed */
+  .activity-feed { max-height: 200px; overflow-y: auto; }
+  .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--hair); font-size: 12px; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .activity-dot.denial { background: var(--hot); box-shadow: 0 0 8px var(--hot); }
+  .activity-dot.recovery { background: var(--pos); box-shadow: 0 0 8px var(--pos); }
+  .activity-dot.sync { background: var(--teal-b); box-shadow: 0 0 8px var(--teal-b); }
+  .activity-dot.recon { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  .activity-content { flex: 1; min-width: 0; }
+  .activity-text { color: var(--dim); line-height: 1.4; }
+  .activity-text strong { color: var(--ink); }
+  .activity-time { font-family: var(--ff-m); font-size: 10px; color: var(--ghost); margin-top: 2px; }
+
+  /* KPI cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi-card { background: rgba(3,12,16,0.6); border: 1px solid var(--hair2); border-radius: var(--r); padding: 16px; transition: all 0.2s; }
+  .kpi-card:hover { border-color: var(--hair3); transform: translateY(-2px); }
+  .kpi-label { font-family: var(--ff-m); font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ghost); margin-bottom: 6px; }
+  .kpi-value { font-family: var(--ff-d); font-size: 28px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; background: linear-gradient(120deg, var(--glow), var(--teal-b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .kpi-trend { font-family: var(--ff-m); font-size: 10px; margin-top: 6px; font-weight: 500; }
+  .kpi-trend.up { color: var(--pos); }
+  .kpi-trend.down { color: var(--hot); }
+
+  /* Chart container */
+  .chart-container { height: 200px; position: relative; }
+  .chart-svg { width: 100%; height: 100%; }
+  .chart-tooltip { position: absolute; background: rgba(3,12,16,0.95); border: 1px solid var(--hair3); border-radius: var(--r3); padding: 8px 12px; font-size: 11px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
+  .chart-tooltip.visible { opacity: 1; }
+
+  /* Status badges */
+  .status-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 100px; font-family: var(--ff-m); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+  .status-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .status-badge.live { background: rgba(58,217,164,0.12); color: var(--pos); border: 1px solid rgba(58,217,164,0.3); }
+  .status-badge.live::before { background: var(--pos); animation: bl 2s ease-in-out infinite; }
+  .status-badge.syncing { background: rgba(47,179,172,0.12); color: var(--teal-b); border: 1px solid rgba(47,179,172,0.3); }
+  .status-badge.syncing::before { background: var(--teal-b); animation: bl 1s ease-in-out infinite; }
+  .status-badge.pending { background: rgba(255,201,107,0.12); color: var(--warn); border: 1px solid rgba(255,201,107,0.3); }
+  .status-badge.error { background: rgba(255,138,76,0.12); color: var(--hot); border: 1px solid rgba(255,138,76,0.3); }
+
+  /* Portal status cards */
+  .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+  .portal-card { background: rgba(3,12,16,0.6); border: 1px solid var(--hair2); border-radius: var(--r); padding: 16px; transition: all 0.2s; }
+  .portal-card:hover { border-color: var(--hair3); }
+  .portal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .portal-name { font-family: var(--ff-d); font-size: 16px; font-weight: 700; letter-spacing: -0.025em; color: var(--ink); }
+  .portal-region { font-family: var(--ff-m); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--teal-b); }
+  .portal-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hair); }
+  .portal-metric { text-align: center; }
+  .portal-metric .val { font-family: var(--ff-d); font-size: 18px; font-weight: 800; color: var(--ink); }
+  .portal-metric .lbl { font-family: var(--ff-m); font-size: 8.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ghost); margin-top: 2px; }
+
+  /* Denial detail drawer */
+  .detail-drawer { position: fixed; right: -480px; top: 0; bottom: 0; width: 480px; background: var(--bg); border-left: 1px solid var(--hair2); z-index: 200; display: flex; flex-direction: column; transition: right 0.3s cubic-bezier(0.2, 0.9, 0.3, 1); box-shadow: -20px 0 60px -10px rgba(0,0,0,0.5); }
+  .detail-drawer.open { right: 0; }
+  .detail-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; opacity: 0; visibility: hidden; transition: all 0.3s; }
+  .detail-drawer-overlay.visible { opacity: 1; visibility: visible; }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--hair); }
+  .drawer-title { font-family: var(--ff-d); font-size: 16px; font-weight: 700; color: var(--ink); }
+  .drawer-close { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hair2); background: rgba(127,227,221,0.05); color: var(--dim); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .drawer-close:hover { border-color: var(--hair3); color: var(--ink); background: rgba(127,227,221,0.1); }
+  .drawer-content { flex: 1; overflow-y: auto; padding: 20px; }
+  .drawer-section { margin-bottom: 24px; }
+  .drawer-section-title { font-family: var(--ff-m); font-size: 9.5px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ghost); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .drawer-section-title::before { content: ''; width: 16px; height: 1px; background: var(--teal-b); }
+  .drawer-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .drawer-field-label { font-family: var(--ff-m); font-size: 9px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint); }
+  .drawer-field-value { font-size: 13px; color: var(--dim); font-weight: 500; }
+  .drawer-actions { display: flex; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--hair); background: rgba(3,12,16,0.5); }
+
+  /* Table enhancements */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 10px 12px; font-family: var(--ff-m); font-size: 8.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ghost); border-bottom: 1px solid var(--hair2); background: rgba(3,12,16,0.4); font-weight: 500; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--hair); color: var(--dim); vertical-align: middle; }
+  .data-table tbody tr { cursor: pointer; transition: background 0.15s; }
+  .data-table tbody tr:hover { background: rgba(127,227,221,0.04); }
+  .data-table tbody tr.selected { background: rgba(47,179,172,0.08); box-shadow: inset 2px 0 0 var(--teal-b); }
+  .data-table .cid { font-family: var(--ff-m); font-size: 11px; color: var(--glow); }
+  .data-table .amount { font-family: var(--ff-m); font-size: 11.5px; text-align: right; color: var(--ink); }
+  .data-table .age { font-family: var(--ff-m); font-size: 10.5px; text-align: right; }
+  .data-table .age.urgent { color: var(--hot); }
+  .data-table .age.warning { color: var(--warn); }
+
+  /* Live counter animation */
+  @@keyframes counterTick {
+    0% { transform: translateY(0); opacity: 1; }
+    50% { transform: translateY(-4px); opacity: 0.5; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+  .counter-animate { animation: counterTick 0.4s ease-out; }
+
+  /* Pulse ring for live items */
+  @@keyframes pulseRing {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  .pulse-ring { position: absolute; width: 12px; height: 12px; border: 2px solid var(--pos); border-radius: 50%; animation: pulseRing 2s ease-out infinite; pointer-events: none; }
+
+  /* Reduced motion for workspace */
+  @@media (prefers-reduced-motion: reduce) {
+    .workspace-panel.active { animation: none; }
+    .counter-animate { animation: none; }
+    .pulse-ring { animation: none; display: none; }
+    .kpi-card:hover { transform: none; }
+    .detail-drawer { transition: none; }
+    .detail-drawer-overlay { transition: none; }
+  }
+</style>
 </head>
 <body>
+  <!-- Background effects -->
+  <div class="particle-grid" aria-hidden="true"></div>
+  <div class="orb orb-1" aria-hidden="true"></div>
+  <div class="orb orb-2" aria-hidden="true"></div>
+  <div class="orb orb-3" aria-hidden="true"></div>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
 <div class="util">
 <div class="in">
@@ -109,65 +477,184 @@
 <div><div class="eyeb">The workspace</div><h2>Where your RCM team actually works.</h2></div>
 <p class="sub">Not a report you export on Thursday. A live queue with owners, reasons and clocks — the same view for coding, billing and finance.</p>
 </div>
-<div class="win gl">
+<div class="win gl" style="min-height: 680px;">
 <div class="chrome">
 <div class="dots" style="display:flex;gap:5px"><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,138,76,.55);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(255,201,107,.5);display:block"></i><i style="width:8px;height:8px;border-radius:50%;background:rgba(58,217,164,.5);display:block"></i></div>
-<div class="tabs"><span class="on">Denial queue</span><span>Reconciliation</span><span>Patterns</span><span>Payers</span></div>
-<div class="who"><i>LA</i>Illustrative workspace</div>
+<div class="tabs workspace-tabs">
+<button class="workspace-tab active" data-tab="queue" aria-selected="true">Denial queue</button>
+<button class="workspace-tab" data-tab="recon" aria-selected="false">Reconciliation</button>
+<button class="workspace-tab" data-tab="patterns" aria-selected="false">Patterns</button>
+<button class="workspace-tab" data-tab="payers" aria-selected="false">Payers</button>
 </div>
-<div class="app">
-<div class="side">
-<div class="grp">Revenue</div>
-<a href="#workspace" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg>Denial queue<b>184</b></a>
-<a href="#workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg>Resubmissions<b>96</b></a>
-<a href="#workspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg>Reconciliation</a>
-<div class="grp">Analysis</div>
-<a href="#platform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a10 10 0 1 0 10 10H12Z"/><path d="M12 2v10h10"/></svg>Denial patterns</a>
-<a href="#platform"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Clinicians</a>
-<a href="#portals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>Payers</a>
-<div class="grp">Sources</div>
-<a href="#portals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>Portal sync</a>
-<a href="#contact"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>Settings</a>
-</div>
-<div class="mid">
-<div class="tool">
-<span class="fchip on">All facilities</span>
-<span class="fchip hot">Denied · 184</span>
-<span class="fchip">SLA &lt; 24h</span>
-<span class="fchip">Daman</span>
-<span class="fchip">CO-50</span>
-<span class="cnt">184 claims · AED 2.41M</span>
-</div>
-<div class="thead"><span>Claim</span><span>Payer</span><span>Denial code</span><span>AED</span><span>Age</span><span>SLA</span></div>
-<div class="trow sel"><span class="cid">CLA-184-22</span><span class="pay">Daman — Thiqa</span><span class="cod dn">CO-50 non-covered</span><span class="amt">4,820</span><span class="age dn">2d 04h</span><span class="stp a"></span></div>
-<div class="trow"><span class="cid">CLA-183-07</span><span class="pay">ADNIC — Enhanced</span><span class="cod" style="color:var(--warn)">CO-97 bundled</span><span class="amt">12,400</span><span class="age">1d 06h</span><span class="stp b"></span></div>
-<div class="trow"><span class="cid">CLA-182-91</span><span class="pay">Oman Insurance</span><span class="cod">CO-16 missing info</span><span class="amt">2,150</span><span class="age">4d 11h</span><span class="stp c"></span></div>
-<div class="trow"><span class="cid">CLA-182-44</span><span class="pay">Daman — Thiqa</span><span class="cod dn">CO-50 non-covered</span><span class="amt">8,960</span><span class="age dn">2d 22h</span><span class="stp a"></span></div>
-<div class="trow"><span class="cid">CLA-181-88</span><span class="pay">AXA — Gulf</span><span class="cod">CO-11 dx mismatch</span><span class="amt">3,275</span><span class="age">6d 02h</span><span class="stp b"></span></div>
-<div class="trow"><span class="cid">CLA-181-30</span><span class="pay">ADNIC — Enhanced</span><span class="cod">CO-197 no pre-auth</span><span class="amt">21,640</span><span class="age">1d 19h</span><span class="stp b"></span></div>
-<div class="trow"><span class="cid">CLA-180-72</span><span class="pay">Daman — Basic</span><span class="cod">CO-29 late filing</span><span class="amt">1,480</span><span class="age">9d 03h</span><span class="stp c"></span></div>
-<div class="trow"><span class="cid">CLA-180-15</span><span class="pay">Oman Insurance</span><span class="cod dn">CO-50 non-covered</span><span class="amt">6,310</span><span class="age dn">3d 08h</span><span class="stp a"></span></div>
-</div>
-<div class="det">
-<div>
-<div class="t">Selected claim</div>
-<div class="cid num">CLA-184-22</div>
-<div class="amt num">AED 4,820</div>
-</div>
-<div class="rsn"><b>CO-50 · NON-COVERED</b>Service not deemed medically necessary by payer. Pre-auth reference present but diagnosis code J06.9 falls outside Thiqa covered list for this facility tier.</div>
-<div class="tl">
-<div class="dn"><i></i><span>Claim submitted to DHPO</span><time>28 Jul</time></div>
-<div class="dn"><i></i><span>Remittance received · denied</span><time>31 Jul</time></div>
-<div class="ac"><i></i><span>Coder review — dx correction</span><time>Now</time></div>
-<div><i></i><span>Resubmit to payer</span><time>Due 2h</time></div>
-</div>
-<div class="act">
-<span class="sla">SLA · 2H 11M REMAINING</span>
-<a class="btn f" href="#contact">Resubmit with correction</a>
-<a class="btn o" href="#contact">Assign to coder</a>
+<div class="who"><i>LA</i>Live workspace demo</div>
+<div style="display:flex;align-items:center;gap:12px;margin-left:auto;">
+<span class="live-indicator" id="liveIndicator">LIVE</span>
+<span class="live-timer" id="liveTimer">00:00:00</span>
 </div>
 </div>
+
+<!-- Denial Queue Panel -->
+<div class="workspace-panel active" id="panel-queue" role="tabpanel" aria-labelledby="tab-queue">
+<div class="kpi-grid" id="queueKpis">
+<div class="kpi-card animate-fade-up stagger-1">
+<div class="kpi-label">Active Denials</div>
+<div class="kpi-value num" data-target="184" id="kpi-denials">0</div>
+<div class="kpi-trend up">+12 vs last week</div>
 </div>
+<div class="kpi-card animate-fade-up stagger-2">
+<div class="kpi-label">In SLA</div>
+<div class="kpi-value num" data-target="142" id="kpi-insla">0</div>
+<div class="kpi-trend up">77.2% compliance</div>
+</div>
+<div class="kpi-card animate-fade-up stagger-3">
+<div class="kpi-label">Breached</div>
+<div class="kpi-value num" data-target="42" id="kpi-breached">0</div>
+<div class="kpi-trend down">22.8% overdue</div>
+</div>
+<div class="kpi-card animate-fade-up stagger-4">
+<div class="kpi-label">Queue Value</div>
+<div class="kpi-value num" data-target="2410000" id="kpi-value">0</div>
+<div class="kpi-trend up">AED 2.41M at risk</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:12px;">
+<div style="min-width:0;">
+<div class="tool" style="margin-bottom:8px;">
+<span class="fchip on" data-filter="all">All facilities</span>
+<span class="fchip" data-filter="denied">Denied · <span id="filterDenied">184</span></span>
+<span class="fchip" data-filter="sla">SLA < 24h · <span id="filterSLA">42</span></span>
+<span class="fchip" data-filter="payer-daman">Daman</span>
+<span class="fchip" data-filter="code-co50">CO-50</span>
+<span class="fchip" data-filter="code-co97">CO-97</span>
+<span class="cnt" id="visibleCount">184 claims · AED 2.41M</span>
+</div>
+<table class="data-table" id="denialTable" role="grid" aria-label="Denial queue">
+<thead>
+<tr>
+<th scope="col">Claim</th>
+<th scope="col">Facility</th>
+<th scope="col">Payer</th>
+<th scope="col">Denial code</th>
+<th scope="col">Amount</th>
+<th scope="col">Age</th>
+<th scope="col">SLA</th>
+<th scope="col">Owner</th>
+<th scope="col">Status</th>
+</tr>
+</thead>
+<tbody id="denialTableBody"></tbody>
+</table>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div class="gl" style="padding:16px;border-radius:var(--r);background:linear-gradient(158deg,var(--gl2),var(--gl));border:1px solid var(--hair2);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:12px;display:flex;align-items:center;gap:8px;">Live Activity<span class="pulse-ring" style="width:6px;height:6px;border-width:1.5px;top:4px;left:4px;"></span></div>
+<div class="activity-feed" id="activityFeed"></div>
+</div>
+<div class="gl" style="padding:16px;border-radius:var(--r);border:1px solid var(--hair2);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:12px;display:flex;align-items:center;gap:8px;">Quick Stats</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div><div class="kpi-label">Avg. Resolution</div><div class="kpi-value num" style="font-size:18px;">1.4d</div></div>
+<div><div class="kpi-label">First-Pass Rate</div><div class="kpi-value num" style="font-size:18px;">68%</div></div>
+<div><div class="kpi-label">Auto-Matched</div><div class="kpi-value num" style="font-size:18px;">91%</div></div>
+<div><div class="kpi-label">Escalated</div><div class="kpi-value num" style="font-size:18px;">12</div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Reconciliation Panel -->
+<div class="workspace-panel" id="panel-recon" role="tabpanel" aria-labelledby="tab-recon" hidden>
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">Pending Match</div><div class="kpi-value num">1,234</div><div class="kpi-trend down">+89 vs yesterday</div></div>
+<div class="kpi-card"><div class="kpi-label">Auto-Matched</div><div class="kpi-value num">12,456</div><div class="kpi-trend up">91.2% rate</div></div>
+<div class="kpi-card"><div class="kpi-label">Manual Review</div><div class="kpi-value num">187</div><div class="kpi-trend down">Requires attention</div></div>
+<div class="kpi-card"><div class="kpi-label">Last Sync</div><div class="kpi-value num" style="font-size:18px;">06:00</div><div class="kpi-trend">GST today</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div class="gl" style="padding:20px;border-radius:var(--r);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:16px;">Reconciliation Pipeline</div>
+<div style="display:flex;flex-direction:column;gap:12px;">
+<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(3,12,16,0.4);border-radius:var(--r3);border:1px solid var(--hair2);">
+<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--teal-b),var(--teal-d));display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#02191C" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M21 3v6h-6"/></svg></div>
+<div style="flex:1;"><div style="font-weight:600;color:var(--ink);">Portal Ingestion</div><div style="font-size:12px;color:var(--dim);">DHA, DHPO, Riayati — 3,241 claims received</div></div>
+<div class="status-badge live">Complete</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(3,12,16,0.4);border-radius:var(--r3);border:1px solid var(--hair2);">
+<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--teal-b),var(--teal-d));display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#02191C" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v16"/></svg></div>
+<div style="flex:1;"><div style="font-weight:600;color:var(--ink);">Claim-Remittance Matching</div><div style="font-size:12px;color:var(--dim);">12,456 paired · 1,234 pending</div></div>
+<div class="status-badge syncing">Running</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(3,12,16,0.4);border-radius:var(--r3);border:1px solid var(--hair2);">
+<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--warn),#b8860b);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#02191C" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12Z"/><path d="M12 2v10h10"/></svg></div>
+<div style="flex:1;"><div style="font-weight:600;color:var(--ink);">Exception Handling</div><div style="font-size:12px;color:var(--dim);">187 unmatched — 42 auto-resolved</div></div>
+<div class="status-badge pending">Review</div>
+</div>
+<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(3,12,16,0.4);border-radius:var(--r3);border:1px solid var(--hair2);">
+<div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--pos),#2db87a);display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#02191C" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+<div style="flex:1;"><div style="font-weight:600;color:var(--ink);">Posting to Ledger</div><div style="font-size:12px;color:var(--dim);">11,892 posted · 564 queued</div></div>
+<div class="status-badge pending">Queued</div>
+</div>
+</div>
+</div>
+<div class="gl" style="padding:20px;border-radius:var(--r);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:16px;">Portal Sync Status</div>
+<div class="portal-grid" id="portalGrid"></div>
+</div>
+</div>
+</div>
+
+<!-- Patterns Panel -->
+<div class="workspace-panel" id="panel-patterns" role="tabpanel" aria-labelledby="tab-patterns" hidden>
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">Top Denial Code</div><div class="kpi-value num" style="font-size:16px;">CO-50</div><div class="kpi-trend down">38.4% of volume</div></div>
+<div class="kpi-card"><div class="kpi-label">Top Payer</div><div class="kpi-value num" style="font-size:16px;">Daman</div><div class="kpi-trend down">38.4% share</div></div>
+<div class="kpi-card"><div class="kpi-label">Top Facility</div><div class="kpi-value num" style="font-size:16px;">Al Noor</div><div class="kpi-trend down">AED 420k at risk</div></div>
+<div class="kpi-card"><div class="kpi-label">Top Clinician</div><div class="kpi-value num" style="font-size:16px;">Dr. Ahmed</div><div class="kpi-trend down">23 denials</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+<div class="gl" style="padding:20px;border-radius:var(--r);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:16px;">Denial Code Distribution</div>
+<div class="chart-container" id="codeChart"></div>
+</div>
+<div class="gl" style="padding:20px;border-radius:var(--r);">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:16px;">Payer Mix</div>
+<div class="chart-container" id="payerChart"></div>
+</div>
+</div>
+<div class="gl" style="padding:20px;border-radius:var(--r);margin-top:12px;">
+<div style="font-family:var(--ff-m);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;color:var(--ghost);margin-bottom:16px;">Trend Analysis · 12 Weeks</div>
+<div class="chart-container" id="trendChart"></div>
+</div>
+</div>
+
+<!-- Payers Panel -->
+<div class="workspace-panel" id="panel-payers" role="tabpanel" aria-labelledby="tab-payers" hidden>
+<div class="kpi-grid">
+<div class="kpi-card"><div class="kpi-label">Active Payers</div><div class="kpi-value num">12</div><div class="kpi-trend">6 integrated</div></div>
+<div class="kpi-card"><div class="kpi-label">Total Claims</div><div class="kpi-value num">14,890</div><div class="kpi-trend up">+1,234 this month</div></div>
+<div class="kpi-card"><div class="kpi-label">Denial Rate</div><div class="kpi-value num">14.2%</div><div class="kpi-trend down">+0.8% MoM</div></div>
+<div class="kpi-card"><div class="kpi-label">Avg. Days to Pay</div><div class="kpi-value num">38</div><div class="kpi-trend down">Target: 30</div></div>
+</div>
+<table class="data-table" id="payerTable">
+<thead>
+<tr>
+<th scope="col">Payer</th>
+<th scope="col">Region</th>
+<th scope="col">Claims</th>
+<th scope="col">Denials</th>
+<th scope="col">Denial %</th>
+<th scope="col">Value at Risk</th>
+<th scope="col">Avg. Days</th>
+<th scope="col">Status</th>
+</tr>
+</thead>
+<tbody id="payerTableBody"></tbody>
+</table>
+</div>
+
 </div>
 </section>
 
@@ -293,6 +780,20 @@
 
 </div>
 </main>
+
+<!-- Detail Drawer -->
+<div class="detail-drawer" id="detailDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
+<div class="drawer-header">
+<h2 class="drawer-title" id="drawerTitle">Claim Details</h2>
+<button class="drawer-close" id="drawerClose" aria-label="Close details"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+</div>
+<div class="drawer-content" id="drawerContent"></div>
+<div class="drawer-actions">
+<button class="btn f" id="drawerActionPrimary">Resubmit with correction</button>
+<button class="btn o" id="drawerActionSecondary">Assign to coder</button>
+</div>
+</div>
+<div class="detail-drawer-overlay" id="drawerOverlay" hidden></div>
 
 <footer class="foot">
 <div class="in">

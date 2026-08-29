@@ -187,7 +187,7 @@ public static class ModuleRegistration
         services.AddScoped<RemittanceParserService>();
         services.AddScoped<XmlParsingService>();
         services.AddScoped<Analytika.Security.FacilityScopeService>();
-        services.AddSingleton<BlobStoreService>();  // XML blob offload (file-based); inert unless BlobStore:Enabled=true
+        
         // Dev console command engine. Registration is unconditional (it has no side
         // effects); reachability is decided by DevCliController, which 404s outside
         // the Development environment.

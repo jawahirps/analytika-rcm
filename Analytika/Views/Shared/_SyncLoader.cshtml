@@ -1,0 +1,190 @@
+@*
+    Sync Loader — vanilla port of the Claude Design "Sync Loader.dc.html".
+    Self-contained (no framework): a looping portal-sync animation cycling
+    Download → Fetch → Match → Save → ✓. Theme follows the app (light = Ledger,
+    dark = Obsidian). Drop in with:  @@await Html.PartialAsync("_SyncLoader")
+    Optional data-loop="false" on .sync-loader to stop after one pass.
+*@
+<div class="sync-loader" role="status" aria-live="polite" aria-label="Syncing">
+  <div class="sl-wrap">
+    <div class="sl-card">
+      <div class="sl-head">
+        <div class="sl-ticker"><span class="sl-blip"></span><span>bix / <b>portal-sync</b> / 06:00 GST</span></div>
+        <span class="sl-illus">Illustrative</span>
+      </div>
+
+      <div class="sl-body">
+        <div class="sl-ringwrap">
+          <span class="sl-halo"></span>
+          <svg class="sl-track" viewBox="0 0 178 178" width="178" height="178"><circle cx="89" cy="89" r="75"></circle></svg>
+          <svg class="sl-spin" viewBox="0 0 178 178" width="178" height="178"><circle class="sl-arc" cx="89" cy="89" r="75"></circle></svg>
+
+          <svg class="sl-ic" data-ic="download" viewBox="0 0 48 48" width="50" height="50"><path class="sl-bounce" d="M24 8v22"></path><path class="sl-bounce" d="M14 21l10 10 10-10"></path><path d="M10 38h28"></path></svg>
+          <svg class="sl-ic" data-ic="fetch" viewBox="0 0 48 48" width="50" height="50"><path d="M11 20a13 13 0 0 1 22.6-8.6L39 17"></path><path d="M39 8v9h-9"></path><path d="M37 28a13 13 0 0 1-22.6 8.6L9 31"></path><path d="M9 40v-9h9"></path></svg>
+          <svg class="sl-ic" data-ic="match" viewBox="0 0 48 48" width="50" height="50"><circle cx="19" cy="24" r="11"></circle><circle cx="31" cy="24" r="11" stroke-dasharray="4 5"></circle></svg>
+          <svg class="sl-ic" data-ic="parse" viewBox="0 0 48 48" width="50" height="50"><path d="M13 7h14l7 7v25a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><path d="M27 7v7h7"></path><path d="M17 24h14M17 30h14M17 18h6"></path></svg>
+          <svg class="sl-ic" data-ic="done" viewBox="0 0 48 48" width="54" height="54" stroke-width="3.4"><path d="M12 25l9 9 16-19"></path></svg>
+        </div>
+
+        <div class="sl-text">
+          <div class="sl-title">Pulling claims</div>
+          <div class="sl-detail">DHA · 0 of 1,840 claims</div>
+        </div>
+
+        <div class="sl-progress">
+          <div class="sl-bar"><span class="sl-fill"></span><span class="sl-sheen"></span></div>
+          <span class="sl-pct">0%</span>
+        </div>
+
+        <div class="sl-steps">
+          <div class="sl-step"><span class="sl-rail"></span><span class="sl-dot"><svg viewBox="0 0 20 20" width="12" height="12"><path d="M5 10.5l3.2 3.2L15 6.5"></path></svg></span><span class="sl-label">Download</span></div>
+          <div class="sl-step"><span class="sl-rail"></span><span class="sl-dot"><svg viewBox="0 0 20 20" width="12" height="12"><path d="M5 10.5l3.2 3.2L15 6.5"></path></svg></span><span class="sl-label">Fetch</span></div>
+          <div class="sl-step"><span class="sl-rail"></span><span class="sl-dot"><svg viewBox="0 0 20 20" width="12" height="12"><path d="M5 10.5l3.2 3.2L15 6.5"></path></svg></span><span class="sl-label">Parse</span></div>
+          <div class="sl-step"><span class="sl-rail"></span><span class="sl-dot"><svg viewBox="0 0 20 20" width="12" height="12"><path d="M5 10.5l3.2 3.2L15 6.5"></path></svg></span><span class="sl-label">Match</span></div>
+        </div>
+      </div>
+
+      <div class="sl-foot"><span>DHA · DHPO/RHA · Riayati</span><span>Matched, not guessed</span></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Obsidian (dark) is the default; Ledger (light) applies on light theme. */
+  .sync-loader{
+    --pageBg:#05141A; --cardBg:linear-gradient(180deg,#0A2029 0%,#071A21 100%); --border:#183740;
+    --track:#14323B; --ink:#F2F7F6; --muted:#7E9AA1; --faint:#3E5A62; --caption:#7E9AA1;
+    --accent:#78C2C2; --onAccent:#05201F; --halo:rgba(120,194,194,.15);
+    display:flex; align-items:center; justify-content:center; padding:52px 24px; min-height:100%;
+    font-family:'Inter',Manrope,'Helvetica Neue',sans-serif; background:var(--pageBg);
+  }
+  html:not([data-theme="dark"]) .sync-loader{
+    --pageBg:#EFEBE1; --cardBg:linear-gradient(180deg,#FFFFFF 0%,#FBF9F4 100%); --border:#E2DACB;
+    --track:#E7E0D2; --ink:#1A2422; --muted:#6C7A78; --faint:#A79E8C; --caption:#7C7462;
+    --accent:#2C7F78; --onAccent:#FFFFFF; --halo:rgba(44,127,120,.15);
+  }
+  @@media (prefers-color-scheme: light){ :root:not([data-theme="dark"]) .sync-loader{
+    --pageBg:#EFEBE1; --cardBg:linear-gradient(180deg,#FFFFFF 0%,#FBF9F4 100%); --border:#E2DACB;
+    --track:#E7E0D2; --ink:#1A2422; --muted:#6C7A78; --faint:#A79E8C; --caption:#7C7462;
+    --accent:#2C7F78; --onAccent:#FFFFFF; --halo:rgba(44,127,120,.15);
+  }}
+
+  .sync-loader .sl-wrap{ width:500px; max-width:100%; }
+  .sync-loader .sl-card{ background:var(--cardBg); border:1px solid var(--border); border-radius:20px; overflow:hidden; box-shadow:0 40px 80px -42px rgba(0,0,0,.7); }
+  .sync-loader .sl-head{ display:flex; align-items:center; justify-content:space-between; padding:14px 22px; border-bottom:1px solid var(--border); }
+  .sync-loader .sl-ticker{ display:flex; align-items:center; gap:9px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:11px; color:var(--muted); }
+  .sync-loader .sl-ticker b{ font-weight:600; color:var(--ink); }
+  .sync-loader .sl-blip{ width:6px; height:6px; border-radius:50%; background:var(--accent); animation:sl-tickerBlink 1.4s ease-in-out infinite; }
+  .sync-loader .sl-illus{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10px; letter-spacing:.16em; text-transform:uppercase; white-space:nowrap; color:var(--caption); }
+
+  .sync-loader .sl-body{ padding:28px 34px 26px; }
+  .sync-loader .sl-ringwrap{ position:relative; width:178px; height:178px; margin:0 auto 22px; display:grid; place-items:center; }
+  .sync-loader .sl-halo{ position:absolute; inset:10px; border-radius:50%; background:var(--halo); animation:sl-haloPulse 2.4s ease-out infinite; }
+  .sync-loader .sl-track,.sync-loader .sl-spin{ position:absolute; inset:0; }
+  .sync-loader .sl-track circle{ fill:none; stroke:var(--track); stroke-width:8; }
+  .sync-loader .sl-spin{ animation:sl-ringSpin 1.9s linear infinite; transform-origin:50% 50%; }
+  .sync-loader .sl-arc{ fill:none; stroke:var(--accent); stroke-width:8; stroke-linecap:round; animation:sl-ringDash 1.7s cubic-bezier(.4,0,.2,1) infinite; transform:rotate(-90deg); transform-origin:50% 50%; }
+  .sync-loader .sl-ic{ position:absolute; fill:none; stroke:var(--accent); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; display:none; }
+  .sync-loader .sl-ic.is-on{ display:block; animation:sl-iconIn .42s cubic-bezier(.2,.8,.3,1) both; }
+  .sync-loader .sl-ic[data-ic="done"].is-on{ animation:sl-checkPop .5s cubic-bezier(.2,.9,.3,1.2) both; }
+  .sync-loader .sl-ic .sl-bounce{ animation:sl-iconPulse 1.6s ease-in-out infinite; }
+
+  .sync-loader .sl-text{ text-align:center; min-height:62px; }
+  .sync-loader .sl-text.is-swap{ animation:sl-textIn .38s cubic-bezier(.2,.8,.3,1) both; }
+  .sync-loader .sl-title{ font-size:23px; font-weight:700; letter-spacing:-.028em; color:var(--ink); margin-bottom:7px; }
+  .sync-loader .sl-detail{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:11.5px; color:var(--muted); }
+
+  .sync-loader .sl-progress{ display:flex; align-items:center; gap:14px; margin:20px 0 24px; }
+  .sync-loader .sl-bar{ position:relative; flex:1; height:5px; border-radius:99px; overflow:hidden; background:var(--track); }
+  .sync-loader .sl-fill{ position:absolute; inset:0 auto 0 0; width:0; border-radius:99px; background:var(--accent); transition:width .18s linear; }
+  .sync-loader .sl-sheen{ position:absolute; top:0; bottom:0; width:34%; background:linear-gradient(90deg,transparent,rgba(255,255,255,.26),transparent); animation:sl-barSheen 1.9s ease-in-out infinite; }
+  .sync-loader .sl-pct{ font-family:'JetBrains Mono',ui-monospace,monospace; font-size:12px; font-weight:600; width:40px; text-align:right; color:var(--ink); }
+
+  .sync-loader .sl-steps{ display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
+  .sync-loader .sl-step{ flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; }
+  .sync-loader .sl-step > span:first-child{ position:relative; width:100%; display:flex; justify-content:center; }
+  .sync-loader .sl-rail{ position:absolute; top:9px; left:0; right:50%; height:2px; background:var(--track); }
+  .sync-loader .sl-step:first-child .sl-rail{ background:transparent; }
+  .sync-loader .sl-dot{ position:relative; width:20px; height:20px; border-radius:50%; display:grid; place-items:center; background:var(--track); transition:background-color .35s ease, box-shadow .35s ease; }
+  .sync-loader .sl-dot svg{ fill:none; stroke:var(--onAccent); stroke-width:2.8; stroke-linecap:round; stroke-linejoin:round; opacity:0; }
+  .sync-loader .sl-label{ font-size:12px; font-weight:500; color:var(--faint); transition:color .35s ease; }
+  .sync-loader .sl-step.is-active .sl-dot{ background:var(--pageBg); box-shadow:0 0 0 3px var(--accent); }
+  .sync-loader .sl-step.is-active .sl-label{ color:var(--ink); font-weight:700; }
+  .sync-loader .sl-step.is-done .sl-dot{ background:var(--accent); }
+  .sync-loader .sl-step.is-done .sl-dot svg{ opacity:1; }
+  .sync-loader .sl-step.is-done .sl-rail{ background:color-mix(in srgb, var(--accent) 40%, transparent); }
+  .sync-loader .sl-step.is-done .sl-label,.sync-loader .sl-step.is-active .sl-label{ color:var(--ink); }
+
+  .sync-loader .sl-foot{ display:flex; align-items:center; justify-content:space-between; padding:13px 22px; border-top:1px solid var(--border); font-family:'JetBrains Mono',ui-monospace,monospace; font-size:10.5px; color:var(--caption); }
+
+  @@keyframes sl-ringSpin{ to{ transform:rotate(360deg); } }
+  @@keyframes sl-ringDash{ 0%{ stroke-dasharray:24 480; stroke-dashoffset:0; } 45%{ stroke-dasharray:300 480; stroke-dashoffset:-60; } 100%{ stroke-dasharray:24 480; stroke-dashoffset:-352; } }
+  @@keyframes sl-iconIn{ from{ opacity:0; transform:translateY(9px) scale(.86); } to{ opacity:1; transform:none; } }
+  @@keyframes sl-iconPulse{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-3px); } }
+  @@keyframes sl-checkPop{ 0%{ transform:scale(.5); opacity:0; } 60%{ transform:scale(1.12); opacity:1; } 100%{ transform:scale(1); opacity:1; } }
+  @@keyframes sl-haloPulse{ 0%{ transform:scale(.84); opacity:.45; } 70%,100%{ transform:scale(1.28); opacity:0; } }
+  @@keyframes sl-textIn{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+  @@keyframes sl-barSheen{ from{ transform:translateX(-130%); } to{ transform:translateX(340%); } }
+  @@keyframes sl-tickerBlink{ 0%,45%{ opacity:1; } 55%,100%{ opacity:.25; } }
+</style>
+
+<script>
+(function(){
+  var root = document.currentScript.previousElementSibling; // the <style>
+  root = root && root.previousElementSibling;               // the .sync-loader
+  while (root && !root.classList.contains('sync-loader')) root = root.previousElementSibling;
+  if (!root || root.dataset.slInit) return; root.dataset.slInit = '1';
+
+  var PHASES = [
+    { key:'download', label:'Download', title:'Downloading files',     ms:2500, detail:function(p){return 'DHA · '+Math.round(p*1840).toLocaleString()+' of 1,840 files';} },
+    { key:'fetch',    label:'Fetch',    title:'Fetching remittances',  ms:2100, detail:function(p){return 'DHPO/RHA · '+Math.round(p*1612).toLocaleString()+' advices retrieved';} },
+    { key:'parse',    label:'Parse',    title:'Parsing records',       ms:2500, detail:function(p){return Math.round(p*3452).toLocaleString()+' of 3,452 records parsed';} },
+    { key:'match',    label:'Match',    title:'Reconciling',           ms:2000, detail:function(p){return Math.round(p*1656).toLocaleString()+' paired · '+Math.round(p*184)+' denials found';} }
+  ];
+  var loop = root.dataset.loop !== 'false';
+  var els = {
+    ics: root.querySelectorAll('.sl-ic'),
+    text: root.querySelector('.sl-text'),
+    title: root.querySelector('.sl-title'),
+    detail: root.querySelector('.sl-detail'),
+    fill: root.querySelector('.sl-fill'),
+    pct: root.querySelector('.sl-pct'),
+    steps: root.querySelectorAll('.sl-step')
+  };
+  function showIcon(k){ els.ics.forEach(function(ic){ ic.classList.toggle('is-on', ic.dataset.ic === k); }); }
+
+  var i = 0, p = 0, done = false, t0 = performance.now(), lastKey = '';
+  function tick(){
+    var cur = PHASES[i];
+    var dur = done ? 1600 : cur.ms;
+    p = Math.min(1, (performance.now() - t0) / dur);
+    if (p >= 1){
+      t0 = performance.now();
+      if (done){ if (!loop){ render(1); return; } i = 0; p = 0; done = false; }
+      else if (i === PHASES.length - 1){ done = true; p = 1; }
+      else { i++; p = 0; }
+    }
+    render(p);
+    requestAnimationFrame(tick);
+  }
+  function render(pp){
+    var cur = PHASES[i];
+    var overall = done ? 1 : (i + pp) / PHASES.length;
+    var key = done ? 'done' : cur.key;
+    if (key !== lastKey){
+      lastKey = key; showIcon(key);
+      els.text.classList.remove('is-swap'); void els.text.offsetWidth; els.text.classList.add('is-swap');
+      els.title.textContent = done ? 'Pipeline complete' : cur.title;
+    }
+    els.detail.textContent = done ? '1,840 files · 3,452 records · 184 denials' : cur.detail(pp);
+    els.fill.style.width = (overall*100).toFixed(1) + '%';
+    els.pct.textContent = Math.round(overall*100) + '%';
+    els.steps.forEach(function(st, k){
+      var complete = done || k < i, active = !done && k === i;
+      st.classList.toggle('is-done', complete);
+      st.classList.toggle('is-active', active);
+    });
+  }
+  showIcon('download'); requestAnimationFrame(tick);
+})();
+</script>

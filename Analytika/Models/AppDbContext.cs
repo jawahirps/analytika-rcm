@@ -107,6 +107,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => new { e.FacilityId, e.RecordKind });
             entity.HasIndex(e => e.ClaimId);
             entity.HasIndex(e => e.ReadyForReport);
+            entity.HasIndex(e => new { e.FacilityId, e.RecordKind, e.TreatmentDate });
+            entity.HasIndex(e => e.EncounterType);
+            entity.HasIndex(e => new { e.ServiceYear, e.ServiceMonth });
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.PortalTransaction).WithMany().HasForeignKey(e => e.PortalTransactionId).OnDelete(DeleteBehavior.Cascade);
         });

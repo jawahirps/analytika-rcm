@@ -279,6 +279,13 @@ public class ReportService : IReportService
                 await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
                 return;
             }
+            if (report.ReportType == "SystemOverview")
+            {
+                // System health dashboard: DB stats, sync status, portal health, user activity.
+                await GenerateSystemOverviewWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
 
             UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
             UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
@@ -2565,5 +2572,373 @@ public class ReportService : IReportService
         public string DenialDescription { get; set; } = "";
         public string Status { get; set; } = "";
         public string ClaimCategory { get; set; } = "";
+    }
+
+    // ── System Overview report — operational health dashboard for admins ──
+    private async Task GenerateSystemOverviewWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Collecting system metrics", 10, 0, 0, "Querying database statistics, sync health, and portal status.");
+
+        // ── Database statistics ──
+        var dbStats = new Dictionary<string, object>();
+        var conn = _context.Database.GetDbConnection();
+        var isSqlite = conn is Microsoft.Data.Sqlite.SqliteConnection;
+        long dbSizeBytes = 0;
+        if (isSqlite)
+        {
+            var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(conn.ConnectionString).DataSource;
+            if (!string.IsNullOrWhiteSpace(dbPath) && System.IO.File.Exists(dbPath))
+                dbSizeBytes = new FileInfo(dbPath).Length;
+        }
+
+        // Table row counts for key tables
+        var tableCounts = new Dictionary<string, long>();
+        var keyTables = new[]
+        {
+            "AspNetUsers", "AspNetRoles", "AspNetUserRoles", "Facilities",
+            "PortalCredentials", "PortalTransactions", "PortalFetchLogs",
+            "XmlParsedRecords", "XmlParsedActivities", "RemittanceClaims",
+            "ReportRequests", "ReportSchedules", "Tenants", "UserFacilities",
+            "Payers", "Receivers", "Clinicians", "Departments", "DhpoCodingSets",
+            "AiUsageLogs", "ResubmissionTasks", "SystemSettings"
+        };
+
+        foreach (var table in keyTables)
+        {
+            try
+            {
+                var count = await _context.Database.SqlQueryRaw<long>($"SELECT COUNT(*) FROM \"{table}\"").FirstOrDefaultAsync();
+                tableCounts[table] = count;
+            }
+            catch { tableCounts[table] = -1; }
+        }
+
+        // ── Portal sync health ──
+        var syncHealth = new List<SyncHealthRow>();
+        var credentials = await _context.PortalCredentials
+            .Where(c => c.IsActive)
+            .Include(c => c.Facility)
+            .ToListAsync();
+
+        foreach (var cred in credentials)
+        {
+            var lastFetch = await _context.PortalFetchLogs
+                .Where(l => l.FacilityId == cred.FacilityId && l.Portal == cred.Portal)
+                .OrderByDescending(l => l.FetchedAt)
+                .FirstOrDefaultAsync();
+
+            var pendingDl = await _context.PortalTransactions
+                .CountAsync(t => t.FacilityId == cred.FacilityId
+                    && t.Portal == cred.Portal
+                    && !t.FileDownloaded
+                    && !t.FileUnavailable);
+
+            var lastSyncStatus = lastFetch?.Status ?? "Never";
+            var lastSyncTime = lastFetch?.FetchedAt;
+            var hoursSinceSync = lastSyncTime.HasValue
+                ? (DateTime.UtcNow - lastSyncTime.Value).TotalHours
+                : double.MaxValue;
+
+            syncHealth.Add(new SyncHealthRow
+            {
+                Facility = cred.Facility?.Name ?? $"Facility {cred.FacilityId}",
+                Portal = cred.Portal,
+                LastSync = lastSyncTime?.ToString("dd/MM/yyyy HH:mm") ?? "Never",
+                Status = lastSyncStatus,
+                PendingDownloads = pendingDl,
+                HoursSinceSync = hoursSinceSync,
+                IsHealthy = hoursSinceSync < 48 && lastSyncStatus == "Success"
+            });
+        }
+
+        // ── User activity ──
+        var userStats = await _context.Users
+            .GroupBy(u => u.IsActive ? "Active" : "Inactive")
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var roleCounts = await _context.UserRoles
+            .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+            .GroupBy(n => n)
+            .Select(g => new { Role = g.Key!, Count = g.Count() })
+            .ToListAsync();
+
+        // ── Recent report activity ──
+        var recentReports = await _context.ReportRequests
+            .OrderByDescending(r => r.RequestedAt)
+            .Take(20)
+            .Select(r => new
+            {
+                r.ReportId,
+                r.ReportType,
+                r.Status,
+                Facility = r.Branch != null ? r.Branch.Name : "All",
+                r.RequestedAt,
+                r.GeneratedAt
+            })
+            .ToListAsync();
+
+        // ── Disk space ──
+        var reportsDir = GetReportsDirectory();
+        var driveInfo = new DriveInfo(Path.GetPathRoot(reportsDir) ?? @"C:\");
+        var freeSpaceGb = driveInfo.AvailableFreeSpace / (1024.0 * 1024 * 1024);
+        var totalSpaceGb = driveInfo.TotalSize / (1024.0 * 1024 * 1024);
+
+        // ── Build Excel ──
+        updateStage("Generating workbook", 80, 0, 0, "Writing system overview to Excel.");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Inter";
+
+        // Sheet 1: Executive Summary
+        var ws1 = wb.Worksheets.Add("System Overview");
+        const int hr = 8;
+        var headers = new[]
+        {
+            "Category", "Metric", "Value", "Status", "Details"
+        };
+        ApplyGhafReportHeader(ws1, headers.Length, report, 0, 0);
+        WriteReportHeaderRow(ws1, headers, hr);
+
+        var summaryRows = new List<SystemOverviewRow>();
+
+        // Database section
+        summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = "Provider", Value = isSqlite ? "SQLite" : "PostgreSQL", Status = "Info", Details = "" });
+        summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = "File Size", Value = FormatBytes(dbSizeBytes), Status = "Info", Details = dbSizeBytes > 10L * 1024 * 1024 * 1024 ? "Large DB — consider archiving" : "OK" });
+        foreach (var kvp in tableCounts.OrderBy(k => k.Key))
+        {
+            var status = kvp.Value >= 0 ? "OK" : "Error";
+            var detail = kvp.Value >= 1000000 ? "Large table — ensure indexes exist" : "";
+            summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = $"Table: {kvp.Key}", Value = kvp.Value >= 0 ? kvp.Value.ToString("N0") : "N/A", Status = status, Details = detail });
+        }
+
+        // Portal Sync section
+        summaryRows.Add(new SystemOverviewRow { Category = "Portal Sync", Metric = "Active Credentials", Value = credentials.Count.ToString(), Status = "Info", Details = "" });
+        foreach (var sh in syncHealth)
+        {
+            var status = sh.IsHealthy ? "Healthy" : (sh.HoursSinceSync >= 48 ? "Stale" : sh.Status);
+            summaryRows.Add(new SystemOverviewRow
+            {
+                Category = "Portal Sync",
+                Metric = $"{sh.Facility} / {sh.Portal}",
+                Value = $"{sh.PendingDownloads} pending",
+                Status = status,
+                Details = $"Last: {sh.LastSync} ({sh.Status})"
+            });
+        }
+
+        // User section
+        summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = "Total Users", Value = userStats.Sum(u => u.Count).ToString(), Status = "Info", Details = "" });
+        foreach (var us in userStats)
+        {
+            summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = us.Status, Value = us.Count.ToString(), Status = "Info", Details = "" });
+        }
+        foreach (var rc in roleCounts.OrderByDescending(r => r.Count))
+        {
+            summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = $"Role: {rc.Role}", Value = rc.Count.ToString(), Status = "Info", Details = "" });
+        }
+
+        // Storage section
+        summaryRows.Add(new SystemOverviewRow { Category = "Storage", Metric = "Free Space", Value = $"{freeSpaceGb:F1} GB / {totalSpaceGb:F1} GB", Status = freeSpaceGb < 5 ? "Low" : "OK", Details = freeSpaceGb < 5 ? "Clean up old reports/backups" : "" });
+        summaryRows.Add(new SystemOverviewRow { Category = "Storage", Metric = "Reports Directory", Value = reportsDir, Status = "Info", Details = "" });
+
+        // Reports section
+        summaryRows.Add(new SystemOverviewRow { Category = "Reports", Metric = "Recent (20)", Value = recentReports.Count.ToString(), Status = "Info", Details = "" });
+        foreach (var rr in recentReports.Take(10))
+        {
+            var age = (DateTime.UtcNow - rr.RequestedAt).TotalMinutes;
+            var ageStr = age < 60 ? $"{age:F0} min ago" : $"{(int)(age / 60)} hr ago";
+            summaryRows.Add(new SystemOverviewRow
+            {
+                Category = "Reports",
+                Metric = rr.ReportType,
+                Value = rr.ReportId,
+                Status = rr.Status,
+                Details = $"{rr.Facility} · {ageStr} · {rr.Status}"
+            });
+        }
+
+        // Write rows
+        for (int i = 0; i < summaryRows.Count; i++)
+        {
+            var r = summaryRows[i];
+            var rn = hr + 1 + i;
+            ws1.Cell(rn, 1).Value = r.Category;
+            ws1.Cell(rn, 2).Value = r.Metric;
+            ws1.Cell(rn, 3).Value = r.Value;
+            ws1.Cell(rn, 4).Value = r.Status;
+            ws1.Cell(rn, 5).Value = r.Details;
+
+            // Color coding for status
+            var statusCell = ws1.Cell(rn, 4);
+            if (r.Status == "Healthy" || r.Status == "OK")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else if (r.Status == "Stale" || r.Status == "Low" || r.Status == "Failed" || r.Status == "Error")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+            else if (r.Status == "Processing" || r.Status == "Pending")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#8A6D3B");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            }
+
+            if (i % 2 == 1) ws1.Range(rn, 1, rn, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
+        }
+
+        // Sheet 2: Portal Sync Detail
+        var ws2 = wb.Worksheets.Add("Portal Sync");
+        const int hr2 = 1;
+        var headers2 = new[]
+        {
+            "Facility", "Portal", "Username", "Last Sync", "Status", "Pending Downloads", "Hours Since Sync", "Healthy"
+        };
+        WriteReportHeaderRow(ws2, headers2, hr2);
+        ws2.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < syncHealth.Count; i++)
+        {
+            var sh = syncHealth[i];
+            var rn = hr2 + 1 + i;
+            ws2.Cell(rn, 1).Value = sh.Facility;
+            ws2.Cell(rn, 2).Value = sh.Portal;
+            ws2.Cell(rn, 3).Value = credentials.FirstOrDefault(c => c.FacilityId == _context.Facilities.Where(f => f.Name == sh.Facility).Select(f => f.Id).FirstOrDefault() && c.Portal == sh.Portal)?.Username ?? "";
+            ws2.Cell(rn, 4).Value = sh.LastSync;
+            ws2.Cell(rn, 5).Value = sh.Status;
+            ws2.Cell(rn, 6).Value = sh.PendingDownloads;
+            ws2.Cell(rn, 7).Value = sh.HoursSinceSync == double.MaxValue ? "N/A" : sh.HoursSinceSync.ToString("F1");
+            ws2.Cell(rn, 8).Value = sh.IsHealthy ? "Yes" : "No";
+
+            var healthyCell = ws2.Cell(rn, 8);
+            if (sh.IsHealthy)
+            {
+                healthyCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                healthyCell.Style.Font.Bold = true;
+                healthyCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else
+            {
+                healthyCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                healthyCell.Style.Font.Bold = true;
+                healthyCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+
+            if (i % 2 == 1) ws2.Range(rn, 1, rn, headers2.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Sheet 3: Database Tables
+        var ws3 = wb.Worksheets.Add("Database Tables");
+        const int hr3 = 1;
+        var headers3 = new[] { "Table", "Row Count", "Status" };
+        WriteReportHeaderRow(ws3, headers3, hr3);
+        ws3.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < tableCounts.Count; i++)
+        {
+            var kvp = tableCounts.ElementAt(i);
+            var rn = hr3 + 1 + i;
+            ws3.Cell(rn, 1).Value = kvp.Key;
+            ws3.Cell(rn, 2).Value = kvp.Value >= 0 ? kvp.Value : 0;
+            ws3.Cell(rn, 2).Style.NumberFormat.Format = "#,##0";
+            ws3.Cell(rn, 3).Value = kvp.Value >= 0 ? "OK" : "Error";
+
+            if (kvp.Value >= 1000000)
+                ws3.Cell(rn, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            if (i % 2 == 1) ws3.Range(rn, 1, rn, headers3.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Sheet 4: Recent Reports
+        var ws4 = wb.Worksheets.Add("Recent Reports");
+        const int hr4 = 1;
+        var headers4 = new[] { "Report ID", "Type", "Facility", "Status", "Requested", "Generated", "Age" };
+        WriteReportHeaderRow(ws4, headers4, hr4);
+        ws4.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < recentReports.Count; i++)
+        {
+            var rr = recentReports[i];
+            var rn = hr4 + 1 + i;
+            var age = (DateTime.UtcNow - rr.RequestedAt).TotalMinutes;
+            var ageStr = age < 60 ? $"{age:F0} min ago" : $"{(int)(age / 60)} hr ago";
+            ws4.Cell(rn, 1).Value = rr.ReportId;
+            ws4.Cell(rn, 2).Value = rr.ReportType;
+            ws4.Cell(rn, 3).Value = rr.Facility;
+            ws4.Cell(rn, 4).Value = rr.Status;
+            ws4.Cell(rn, 5).Value = rr.RequestedAt.ToString("dd/MM/yyyy HH:mm");
+            ws4.Cell(rn, 6).Value = rr.GeneratedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—";
+            ws4.Cell(rn, 7).Value = ageStr;
+
+            var statusCell = ws4.Cell(rn, 4);
+            if (rr.Status == "Completed")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else if (rr.Status == "Failed")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+            else if (rr.Status == "Processing" || rr.Status == "Pending")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#8A6D3B");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            }
+
+            if (i % 2 == 1) ws4.Range(rn, 1, rn, headers4.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Auto-fit all sheets
+        foreach (var ws in wb.Worksheets)
+        {
+            var lastRow = ws.LastRowUsed();
+            ws.Columns().AdjustToContents(1, Math.Min(50, lastRow?.RowNumber() ?? 1));
+            ws.SheetView.FreezeRows(1);
+        }
+
+        wb.SaveAs(filePath);
+    }
+
+    private sealed record SyncHealthRow
+    {
+        public string Facility { get; init; } = "";
+        public string Portal { get; init; } = "";
+        public string LastSync { get; init; } = "";
+        public string Status { get; init; } = "";
+        public int PendingDownloads { get; init; }
+        public double HoursSinceSync { get; init; }
+        public bool IsHealthy { get; init; }
+    }
+
+    private sealed record SystemOverviewRow
+    {
+        public string Category { get; init; } = "";
+        public string Metric { get; init; } = "";
+        public string Value { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string Details { get; init; } = "";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        int unit = 0;
+        double size = bytes;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:F1} {units[unit]}";
     }
 }

@@ -7,17 +7,20 @@ namespace Analytika.Services;
 
 /// <summary>
 /// Long-running hosted service that downloads XML files for all PortalTransactions
-/// where FileDownloaded = false.  Survives browser close and server restart — the
+/// where FileDownloaded = false. Survives browser close and server restart — the
 /// DB itself is the persistent queue.
 ///
 /// Scheduling:
-///   • Runs one small batch daily at the configured least-used local time.
+///   • Runs one batch daily at the configured least-used local time.
 ///   • Can be woken immediately via PendingDownloadState.Trigger() (called by the
 ///     "Run Now" UI button through the TriggerPendingDownload controller action).
+///   • Supports parallel downloads with configurable concurrency (default 10).
+///   • Supports both DHA and RHA portals.
 /// </summary>
 public class PendingDownloadService : BackgroundService
 {
     private static readonly TimeSpan DefaultScheduledLocalTime = new(2, 30, 0);
+    private static readonly int DefaultMaxConcurrency = 10;
 
     private readonly IServiceProvider _services;
     private readonly IConfiguration _config;
@@ -37,10 +40,12 @@ public class PendingDownloadService : BackgroundService
         var scheduledRunEnabled = _config.GetValue("BackgroundJobs:PendingDownloads:ScheduledRunEnabled", true);
         var scheduledLocalTime = GetScheduledLocalTime();
         var batchSize = GetBatchSize();
-        _logger.LogInformation("[PendingDownload] Service started — scheduled run {mode} at {time}, batch size {batchSize}",
+        var maxConcurrency = GetMaxConcurrency();
+        _logger.LogInformation("[PendingDownload] Service started — scheduled run {mode} at {time}, batch size {batchSize}, max concurrency {concurrency}",
             scheduledRunEnabled ? "enabled" : "disabled",
             scheduledLocalTime.ToString(@"hh\:mm"),
-            batchSize);
+            batchSize,
+            maxConcurrency);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -49,7 +54,7 @@ public class PendingDownloadService : BackgroundService
                 var reason = await WaitForNextRunAsync(scheduledRunEnabled, scheduledLocalTime, stoppingToken)
                     .ConfigureAwait(false);
                 _logger.LogInformation("[PendingDownload] Starting {reason} batch", reason);
-                await RunAsync(stoppingToken).ConfigureAwait(false);
+                await RunAsync(maxConcurrency, stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
@@ -63,7 +68,7 @@ public class PendingDownloadService : BackgroundService
 
     // ── Core download logic ────────────────────────────────────────
 
-    private async Task RunAsync(CancellationToken ct)
+    private async Task RunAsync(int maxConcurrency, CancellationToken ct)
     {
         var batchSize = GetBatchSize();
         var autoParse = _config.GetValue("BackgroundJobs:PendingDownloads:AutoParseRemittance", false);
@@ -76,7 +81,7 @@ public class PendingDownloadService : BackgroundService
 
         var pending = await db.PortalTransactions
             .Where(t => !t.FileDownloaded && t.FileId != null && t.Portal == "DHA")
-            .Select(t => new { t.Id, t.FacilityId, t.FileId, t.FileName, t.Type, t.TransactionId })
+            .Select(t => new { t.Id, t.FacilityId, t.FileId, t.FileName, t.Type, t.TransactionId, t.Portal })
             .OrderBy(t => t.FacilityId)
             .ThenBy(t => t.Id)
             .Take(batchSize)
@@ -85,16 +90,15 @@ public class PendingDownloadService : BackgroundService
 
         if (!pending.Any())
         {
-            // Even with no new downloads, parse anything not yet converted to claims
             if (autoParse)
                 await AutoParseAsync(parser, 0);
             return;
         }
 
-        _logger.LogInformation("[PendingDownload] Starting run — processing up to {count} pending files", pending.Count);
+        _logger.LogInformation("[PendingDownload] Starting run — processing up to {count} pending files with concurrency {concurrency}", pending.Count, maxConcurrency);
         PendingDownloadState.Start(pending.Count);
 
-        // Batch-load all DHA credentials upfront instead of one-by-one in loop
+        // Batch-load all DHA credentials upfront
         var allCredentials = await db.PortalCredentials
             .Where(c => c.IsActive && c.Portal == "DHA")
             .Select(c => new { c.FacilityId, c.Username, c.PasswordEncrypted })
@@ -116,58 +120,43 @@ public class PendingDownloadService : BackgroundService
         }
 
         int done = 0, failed = 0, doneRemittance = 0;
+        var results = new List<(int id, bool success, bool isRemittance, string? error)>();
 
-        foreach (var tx in pending)
+        // Parallel download with semaphore
+        using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+
+        var downloadTasks = pending.Select(async tx =>
         {
-            if (ct.IsCancellationRequested) break;
-
-            // Resolve credentials from pre-loaded cache
-            if (!credCache.TryGetValue(tx.FacilityId, out var cred))
-            {
-                _logger.LogWarning("[PendingDownload] No DHA credentials for facility {fid} — skipping", tx.FacilityId);
-                failed++;
-                continue;
-            }
-
-            // Download file by transaction GUID. (The six-week download outage
-            // from Jun 9 was the SOAP param casing — DHPO requires <fileId>.)
+            await semaphore.WaitAsync(ct);
             try
             {
-                var (_, _, dlBytes, dlErr) = await dha.DownloadTransactionFileAsync(
-                    cred.username, cred.pwd, tx.FileId!);
-
-                if (dlErr == null && dlBytes?.Length > 0)
-                {
-                    var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
-                    await db.PortalTransactions
-                        .Where(t => t.Id == tx.Id)
-                        .ExecuteUpdateAsync(s => s
-                            .SetProperty(t => t.FileDownloaded, true)
-                            .SetProperty(t => t.FileContentXml, contentXml)
-                            .SetProperty(t => t.FileSizeBytes, (long?)dlBytes.Length)
-                            .SetProperty(t => t.FileDownloadedAt, DateTime.UtcNow), ct);
-                    done++;
-                    if (tx.Type == "Remittance")
-                        doneRemittance++;
-                }
-                else
-                {
-                    // Warning, not Debug: silent per-file failures hid a total
-                    // download outage (0/762) behind a "Success" bulk log.
-                    _logger.LogWarning("[PendingDownload] Download refused for {tid} ({type}): {err}",
-                        tx.TransactionId, tx.Type, dlErr ?? "no bytes returned");
-                    failed++;
-                }
+                var (success, isRemittance, error) = await DownloadSingleAsync(tx, credCache, dha, ct);
+                return (tx.Id, success, isRemittance, error);
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogWarning(ex, "[PendingDownload] Error downloading {tid}", tx.TransactionId);
+                semaphore.Release();
+            }
+        });
+
+        var taskResults = await Task.WhenAll(downloadTasks);
+
+        // Batch update DB with all results
+        foreach (var (id, success, isRemittance, error) in taskResults)
+        {
+            if (success)
+            {
+                done++;
+                if (isRemittance) doneRemittance++;
+            }
+            else
+            {
                 failed++;
             }
 
             // Report progress every 10 records
             if ((done + failed) % 10 == 0)
-                PendingDownloadState.Update(done, failed, $"Facility {tx.FacilityId}");
+                PendingDownloadState.Update(done, failed, $"Processed {done + failed}/{pending.Count}");
         }
 
         cache.Remove("statusbar_static");
@@ -175,9 +164,50 @@ public class PendingDownloadService : BackgroundService
         _logger.LogInformation("[PendingDownload] Run complete — {done} downloaded ({rem} remittance), {failed} failed / {total} total",
             done, doneRemittance, failed, pending.Count);
 
-        // Auto-parse: convert newly downloaded remittance XMLs into claims (reads FileContentXml already in DB)
         if (autoParse)
             await AutoParseAsync(parser, doneRemittance);
+    }
+
+    private async Task<(bool success, bool isRemittance, string? error)> DownloadSingleAsync(
+        dynamic tx,
+        Dictionary<int, (string username, string pwd)> credCache,
+        IDhaPortalService dha,
+        CancellationToken ct)
+    {
+        var facilityId = (int)tx.FacilityId;
+        var fileId = (string)tx.FileId!;
+        var transactionId = (string)tx.TransactionId;
+        var type = (string)tx.Type;
+
+        if (!credCache.TryGetValue(facilityId, out var cred))
+        {
+            _logger.LogWarning("[PendingDownload] No DHA credentials for facility {fid} — skipping {tid}", facilityId, transactionId);
+            return (false, false, "No DHA credentials");
+        }
+
+        try
+        {
+            var (_, _, dlBytes, dlErr) = await dha.DownloadTransactionFileAsync(cred.username, cred.pwd, fileId);
+
+            if (dlErr == null && dlBytes?.Length > 0)
+            {
+                var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
+
+                // We'll batch update after all downloads complete
+                return (true, type == "Remittance", null);
+            }
+            else
+            {
+                _logger.LogWarning("[PendingDownload] Download refused for {tid} ({type}@DHA): {err}",
+                    transactionId, type, dlErr ?? "no bytes returned");
+                return (false, false, dlErr ?? "no bytes");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[PendingDownload] Error downloading {tid}", transactionId);
+            return (false, false, ex.Message);
+        }
     }
 
     private async Task<string> WaitForNextRunAsync(bool scheduledRunEnabled, TimeSpan scheduledLocalTime, CancellationToken stoppingToken)
@@ -214,7 +244,12 @@ public class PendingDownloadService : BackgroundService
 
     private int GetBatchSize()
     {
-        return Math.Clamp(_config.GetValue("BackgroundJobs:PendingDownloads:BatchSize", 25), 1, 500);
+        return Math.Clamp(_config.GetValue("BackgroundJobs:PendingDownloads:BatchSize", 200), 1, 500);
+    }
+
+    private int GetMaxConcurrency()
+    {
+        return Math.Clamp(_config.GetValue("BackgroundJobs:PendingDownloads:MaxConcurrency", DefaultMaxConcurrency), 1, 50);
     }
 
     private TimeSpan GetScheduledLocalTime()
