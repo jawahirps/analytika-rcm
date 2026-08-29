@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -14,7 +15,7 @@ using ClosedXML.Excel;
 
 namespace Analytika.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = AppRoles.AdminAccess)]
 public class AdminController : Controller
 {
     private readonly AppDbContext _db;
@@ -22,24 +23,173 @@ public class AdminController : Controller
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly IDhaPortalService _dha;
     private readonly IRhaPortalService _rha;
-    private readonly IPowerBIService _powerBi;
     private readonly IEmailService _email;
     private readonly IConfiguration _configuration;
+    private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IReportService _reportService;
+    private readonly IAiSettingsService _aiSettings;
+    private readonly INvidiaAnalystService _aiAnalyst;
+    private readonly Analytika.Security.FacilityScopeService _scope;
+
+    /// <summary>
+    /// Facilities this administrator may act on. Admin used to mean "platform operator",
+    /// so these screens listed every facility and every portal credential in the database.
+    /// Under multi-tenancy a tenant's own administrator must see only their tenant — a
+    /// credential list is the most sensitive screen in the app.
+    /// Returns null for a platform operator, meaning unrestricted.
+    /// </summary>
+    private async Task<List<int>?> ScopedFacilityIdsAsync() => await _scope.GetAllowedFacilityIdsAsync(User);
+
+    /// <summary>Active facilities this administrator may assign, narrowed to their tenant.</summary>
+    private async Task<List<Facility>> ScopedFacilitiesAsync()
+    {
+        var ids = await ScopedFacilityIdsAsync();
+        var q = _db.Facilities.Where(f => f.IsActive);
+        if (ids != null) q = q.Where(f => ids.Contains(f.Id));
+        return await q.OrderBy(f => f.Name).ToListAsync();
+    }
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
+    private static readonly string[] StandardRoles = { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer" };
+    private static readonly string[] ProtectedRoles = { "Admin", "FacilityAdmin" };
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
-        IDhaPortalService dha, IRhaPortalService rha, IPowerBIService powerBi, IEmailService email, IConfiguration configuration)
+        IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
+        Analytika.Security.ICredentialProtector credentials, IReportService reportService,
+        IAiSettingsService aiSettings, INvidiaAnalystService aiAnalyst,
+        Analytika.Security.FacilityScopeService scope)
     {
+        _scope = scope;
         _db = db;
         _userManager = userManager;
         _roleManager = roleManager;
         _dha = dha;
         _rha = rha;
-        _powerBi = powerBi;
         _email = email;
         _configuration = configuration;
+        _credentials = credentials;
+        _reportService = reportService;
+        _aiSettings = aiSettings;
+        _aiAnalyst = aiAnalyst;
+    }
+
+    // ─── Roles ───────────────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Roles()
+    {
+        return View(await BuildRoleListVmAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EnsureStandardRoles()
+    {
+        var created = 0;
+        foreach (var role in StandardRoles)
+        {
+            if (!await _roleManager.RoleExistsAsync(role))
+            {
+                var result = await _roleManager.CreateAsync(new IdentityRole(role));
+                if (result.Succeeded) created++;
+                else TempData["Error"] = string.Join("; ", result.Errors.Select(e => e.Description));
+            }
+        }
+
+        if (TempData["Error"] == null)
+            TempData["Success"] = created == 0 ? "Standard roles already exist." : $"Created {created} standard role(s).";
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateRole(string newRoleName)
+    {
+        var roleName = NormalizeRoleName(newRoleName);
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            TempData["Error"] = "Role name is required.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        if (await _roleManager.RoleExistsAsync(roleName))
+        {
+            TempData["Error"] = $"Role '{roleName}' already exists.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? $"Role '{roleName}' created."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditRole(string id, string roleName)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null) return NotFound();
+
+        if (IsProtectedRole(role.Name))
+        {
+            TempData["Error"] = $"Protected role '{role.Name}' cannot be renamed.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var nextName = NormalizeRoleName(roleName);
+        if (string.IsNullOrWhiteSpace(nextName))
+        {
+            TempData["Error"] = "Role name is required.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var existing = await _roleManager.FindByNameAsync(nextName);
+        if (existing != null && existing.Id != role.Id)
+        {
+            TempData["Error"] = $"Role '{nextName}' already exists.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        role.Name = nextName;
+        var result = await _roleManager.UpdateAsync(role);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? "Role updated."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteRole(string id)
+    {
+        var role = await _roleManager.FindByIdAsync(id);
+        if (role == null) return NotFound();
+
+        if (IsProtectedRole(role.Name))
+        {
+            TempData["Error"] = $"Protected role '{role.Name}' cannot be deleted.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var userCount = await CountUsersInRoleAsync(role.Name ?? string.Empty);
+        if (userCount > 0)
+        {
+            TempData["Error"] = $"Role '{role.Name}' is assigned to {userCount} user(s). Reassign users before deleting it.";
+            return RedirectToAction(nameof(Roles));
+        }
+
+        var result = await _roleManager.DeleteAsync(role);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Succeeded
+            ? $"Role '{role.Name}' deleted."
+            : string.Join("; ", result.Errors.Select(e => e.Description));
+
+        return RedirectToAction(nameof(Roles));
     }
 
     // ─── Users ───────────────────────────────────────────────────────────────
@@ -57,16 +207,24 @@ public class AdminController : Controller
         var users = await query.OrderByDescending(u => u.CreatedAt).ToListAsync();
         var rows = new List<UserRowViewModel>();
 
+        // Batch-load all roles for these users in a single JOIN query (avoids N+1)
+        var userIds = users.Select(u => u.Id).ToList();
+        var roleMap = await _db.UserRoles
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.Name).ToList());
+
         foreach (var u in users)
         {
-            var roles = await _userManager.GetRolesAsync(u);
+            roleMap.TryGetValue(u.Id, out var roles);
             rows.Add(new UserRowViewModel
             {
                 Id = u.Id,
                 FullName = u.FullName ?? u.Email ?? "",
                 Email = u.Email ?? "",
                 UserType = u.UserType,
-                Role = roles.FirstOrDefault() ?? "—",
+                Role = roles?.FirstOrDefault() ?? "—",
                 Facilities = u.UserFacilities.Select(uf => uf.Facility?.Name ?? "").Where(n => !string.IsNullOrEmpty(n)).ToList(),
                 IsActive = u.IsActive,
                 CreatedAt = u.CreatedAt
@@ -82,10 +240,24 @@ public class AdminController : Controller
         return View(await BuildCreateVmAsync());
     }
 
+    /// <summary>
+    /// Identity's AddToRoleAsync throws when the role does not exist. Unguarded, that has
+    /// three separate costs here: a user created and then left with no role, an edited
+    /// user stripped of every role, and a bulk import that aborts halfway. Callers check
+    /// first and report instead of throwing.
+    /// </summary>
+    private async Task<bool> RoleExistsAsync(string? role) =>
+        !string.IsNullOrWhiteSpace(role) && await _roleManager.RoleExistsAsync(role);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateUser(CreateUserViewModel vm)
     {
+        // Checked before the account is created, so a bad role cannot leave an orphan.
+        if (!await RoleExistsAsync(vm.Role))
+            ModelState.AddModelError(nameof(vm.Role),
+                string.IsNullOrWhiteSpace(vm.Role) ? "Select a role." : $"'{vm.Role}' is not a role in this system.");
+
         if (!ModelState.IsValid)
         {
             var fresh = await BuildCreateVmAsync();
@@ -145,7 +317,7 @@ public class AdminController : Controller
         if (user == null) return NotFound();
 
         var roles = await _userManager.GetRolesAsync(user);
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await ScopedFacilitiesAsync();
         var allRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
 
         return View(new EditUserViewModel
@@ -175,6 +347,16 @@ public class AdminController : Controller
             .Include(u => u.ReportAccesses)
             .FirstOrDefaultAsync(u => u.Id == vm.Id);
         if (user == null) return NotFound();
+
+        // Verified before anything is removed below — the old code stripped every role
+        // first, so an unknown value left the account with no role at all.
+        if (!await RoleExistsAsync(vm.Role))
+        {
+            TempData["Error"] = string.IsNullOrWhiteSpace(vm.Role)
+                ? "Select a role."
+                : $"'{vm.Role}' is not a role in this system — nothing was changed.";
+            return RedirectToAction(nameof(EditUser), new { id = vm.Id });
+        }
 
         user.FullName = vm.FullName;
         user.UserType = vm.UserType;
@@ -229,13 +411,150 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Users));
     }
 
+    // ─── Guest user provisioning ─────────────────────────────────────────────
+    // One guest user per active facility: guest@<slug>, password Ghafbix@2026,
+    // Viewer role, restricted to report-view + generate on that facility only.
+    // Result downloaded as Excel.
+
+    private const string GuestRole = "Viewer";
+    private string GuestPassword => _configuration.GetValue("Security:GuestPassword", "Guest@Change1!");
+
+    private static string FacilitySlug(string name)
+    {
+        var sb = new StringBuilder(name.Length);
+        foreach (var ch in name.ToLowerInvariant())
+        {
+            if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            else if (ch == ' ' || ch == '-' || ch == '_') sb.Append('-');
+        }
+        var slug = sb.ToString().Trim('-');
+        while (slug.Contains("--")) slug = slug.Replace("--", "-");
+        return slug;
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ProvisionGuestUsers()
+    {
+        if (!await _roleManager.RoleExistsAsync(GuestRole))
+            await _roleManager.CreateAsync(new IdentityRole(GuestRole));
+
+        var facilities = await ScopedFacilitiesAsync();
+        var report = new List<(string Facility, string Username, string Password, string Status)>();
+
+        foreach (var fac in facilities)
+        {
+            var username = $"guest@{FacilitySlug(fac.Name)}";
+            var existing = await _userManager.FindByNameAsync(username);
+            string status;
+
+            if (existing == null)
+            {
+                var user = new ApplicationUser
+                {
+                    UserName = username,
+                    Email = username,
+                    FullName = $"Guest – {fac.Name}",
+                    UserType = "Facility",
+                    IsActive = true,
+                    EmailConfirmed = true
+                };
+                var create = await _userManager.CreateAsync(user, GuestPassword);
+                if (!create.Succeeded)
+                {
+                    report.Add((fac.Name, username, GuestPassword, "FAILED: " + string.Join("; ", create.Errors.Select(e => e.Description))));
+                    continue;
+                }
+                await _userManager.AddToRoleAsync(user, GuestRole);
+                existing = user;
+                status = "Created";
+            }
+            else
+            {
+                // Reset password to the canonical guest password
+                var token = await _userManager.GeneratePasswordResetTokenAsync(existing);
+                await _userManager.ResetPasswordAsync(existing, token, GuestPassword);
+                existing.IsActive = true;
+                await _userManager.UpdateAsync(existing);
+
+                var currentRoles = await _userManager.GetRolesAsync(existing);
+                if (!currentRoles.Contains(GuestRole))
+                {
+                    await _userManager.RemoveFromRolesAsync(existing, currentRoles);
+                    await _userManager.AddToRoleAsync(existing, GuestRole);
+                }
+                status = "Refreshed";
+            }
+
+            // Wipe & rewrite facility scope (single facility only)
+            var oldFacs = await _db.UserFacilities.Where(uf => uf.UserId == existing.Id).ToListAsync();
+            _db.UserFacilities.RemoveRange(oldFacs);
+            _db.UserFacilities.Add(new UserFacility { UserId = existing.Id, FacilityId = fac.Id });
+
+            // Wipe & rewrite report access — Dashboard tabs + Reports (view+generate only).
+            // No Admin, no Sync, no Credentials — read-only on the report surface.
+            var oldAcc = await _db.UserReportAccesses.Where(a => a.UserId == existing.Id).ToListAsync();
+            _db.UserReportAccesses.RemoveRange(oldAcc);
+            foreach (var tab in DashboardTabs)
+                _db.UserReportAccesses.Add(new UserReportAccess { UserId = existing.Id, ResourceType = "Dashboard", ResourceKey = tab });
+            foreach (var rpt in ReportTypes)
+                _db.UserReportAccesses.Add(new UserReportAccess { UserId = existing.Id, ResourceType = "Report", ResourceKey = rpt });
+
+            report.Add((fac.Name, username, GuestPassword, status));
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Build .xlsx
+        using var wb = new XLWorkbook();
+        var ws = wb.Worksheets.Add("Guest Users");
+        ws.Cell(1, 1).Value = "Facility";
+        ws.Cell(1, 2).Value = "Username";
+        ws.Cell(1, 3).Value = "Password";
+        ws.Cell(1, 4).Value = "Status";
+        ws.Cell(1, 5).Value = "Generated";
+        var header = ws.Range(1, 1, 1, 5);
+        header.Style.Font.Bold = true;
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml("#011C40");
+        header.Style.Font.FontColor = XLColor.White;
+
+        var nowUtc = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm 'UTC'");
+        var row = 2;
+        foreach (var r in report)
+        {
+            ws.Cell(row, 1).Value = r.Facility;
+            ws.Cell(row, 2).Value = r.Username;
+            ws.Cell(row, 3).Value = r.Password;
+            ws.Cell(row, 4).Value = r.Status;
+            ws.Cell(row, 5).Value = nowUtc;
+            row++;
+        }
+        ws.Columns().AdjustToContents();
+
+        using var ms = new MemoryStream();
+        wb.SaveAs(ms);
+        var bytes = ms.ToArray();
+
+        var filename = $"guest-users-{DateTime.UtcNow:yyyyMMdd-HHmm}.xlsx";
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename);
+    }
+
     // ─── Credentials ─────────────────────────────────────────────────────────
 
     [HttpGet]
     public async Task<IActionResult> Credentials()
     {
-        var creds = await _db.PortalCredentials.Include(c => c.Facility).AsNoTracking().OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
-        var facilities = await _db.Facilities.Where(f => f.IsActive).AsNoTracking().ToListAsync();
+        // Scoped: a tenant administrator must not see another tenant's portal credentials.
+        var scopedIds = await ScopedFacilityIdsAsync();
+        var credQuery = _db.PortalCredentials.Include(c => c.Facility).AsNoTracking().AsQueryable();
+        var facQuery = _db.Facilities.Where(f => f.IsActive).AsNoTracking().AsQueryable();
+        if (scopedIds != null)
+        {
+            credQuery = credQuery.Where(c => scopedIds.Contains(c.FacilityId));
+            facQuery = facQuery.Where(f => scopedIds.Contains(f.Id));
+        }
+        var creds = await credQuery.OrderBy(c => c.Portal).ThenBy(c => c.Facility!.Name).ToListAsync();
+        var facilities = await facQuery.ToListAsync();
 
         return View(new CredentialListViewModel
         {
@@ -261,6 +580,31 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveCredential(PortalCredentialViewModel vm)
     {
+        // ── Catch bad Riayati values at SAVE time, not at auth time ──────────────
+        // Both of these cost a full debugging round: a UUID API key pasted one character
+        // short, and an API URL typed with a zero instead of the letter "o". Riayati
+        // answers both with the same generic "Invalid Token or Username or Password",
+        // which points the blame at the credential and hides the real cause.
+        if (string.Equals(vm.Portal, "RHA", StringComparison.OrdinalIgnoreCase))
+        {
+            // Only judge values that are clearly meant to be UUIDs (they carry hyphens).
+            // A future non-UUID key format is left alone rather than blocked.
+            if (!string.IsNullOrEmpty(vm.Password) && vm.Password.Contains('-') && vm.Password.Trim().Length != 36)
+            {
+                TempData["Error"] = $"That Riayati API key is {vm.Password.Trim().Length} characters — the issued keys are exactly 36. "
+                                  + "A character was probably lost while copying; select the whole value and paste again.";
+                return RedirectToAction(nameof(Credentials));
+            }
+
+            if (!string.IsNullOrWhiteSpace(vm.ApiBaseUrl)
+                && !vm.ApiBaseUrl.Contains("tmbapi.riayati.ae", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "That API URL is not a Riayati host. Use https://tmbapi.riayati.ae:8083 (production) "
+                                  + "or https://o-tmbapi.riayati.ae:8083 (onboarding) — note the letter \"o\", not a zero.";
+                return RedirectToAction(nameof(Credentials));
+            }
+        }
+
         // Auto-create facility if user typed a brand-new name
         if (vm.FacilityId == 0 && !string.IsNullOrWhiteSpace(vm.NewFacilityName))
         {
@@ -279,7 +623,7 @@ public class AdminController : Controller
             }
         }
 
-        var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(vm.Password));
+        var enc = _credentials.Protect(vm.Password);
         if (vm.Id == 0)
         {
             _db.PortalCredentials.Add(new PortalCredential
@@ -335,7 +679,7 @@ public class AdminController : Controller
             return Json(new { ok = false, message = "Credential not found.", latencyMs = 0 });
 
         string pwd;
-        try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+        try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
         catch { return Json(new { ok = false, message = "Stored password is corrupted.", latencyMs = 0 }); }
 
         var sw = Stopwatch.StartNew();
@@ -364,7 +708,7 @@ public class AdminController : Controller
             var baseUrl = cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083";
             try
             {
-                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, baseUrl);
+                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, baseUrl, cred.LicenseCode);
                 sw.Stop();
                 if (token != null)
                     return Json(new { ok = true, message = $"RHA authenticated successfully — Bearer token received. ({sw.ElapsedMilliseconds} ms)", latencyMs = sw.ElapsedMilliseconds });
@@ -388,7 +732,7 @@ public class AdminController : Controller
         foreach (var cred in creds)
         {
             string pwd;
-            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(cred.PasswordEncrypted)); }
+            try { pwd = _credentials.Unprotect(cred.PasswordEncrypted); }
             catch { results.Add(new { id = cred.Id, portal = cred.Portal, facility = cred.Facility?.Name, ok = false, message = "Corrupted password", latencyMs = 0 }); continue; }
 
             var sw = Stopwatch.StartNew();
@@ -403,7 +747,7 @@ public class AdminController : Controller
             }
             else
             {
-                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083");
+                var (token, error) = await _rha.AuthenticateAsync(cred.Username, pwd, cred.ApiBaseUrl ?? "https://tmbapi.riayati.ae:8083", cred.LicenseCode);
                 sw.Stop();
                 ok = token != null;
                 msg = ok ? $"Authenticated — token received. ({sw.ElapsedMilliseconds} ms)" : $"Failed — {error} ({sw.ElapsedMilliseconds} ms)";
@@ -426,8 +770,12 @@ public class AdminController : Controller
         foreach (var c in creds)
         {
             string pwd;
-            try { pwd = Encoding.UTF8.GetString(Convert.FromBase64String(c.PasswordEncrypted)); }
-            catch { pwd = ""; }
+            try
+            {
+                var raw = _credentials.Unprotect(c.PasswordEncrypted);
+                pwd = raw.Length > 2 ? raw[0] + new string('*', raw.Length - 2) + raw[^1] : "***";
+            }
+            catch { pwd = "***"; }
             sb.AppendLine($"{Csv(c.Portal)},{Csv(c.Facility?.Name ?? "")},{Csv(c.CredentialName ?? "")},{Csv(c.Username)},{Csv(pwd)},{Csv(c.ApiBaseUrl ?? "")},{Csv(c.LicenseCode ?? "")},{c.IsActive}");
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
@@ -452,13 +800,13 @@ public class AdminController : Controller
             var cols = SplitCsv(line);
             if (cols.Length < 5) { skipped++; continue; }
 
-            var portal   = cols[0].Trim();
-            var facName  = cols[1].Trim();
+            var portal = cols[0].Trim();
+            var facName = cols[1].Trim();
             var credName = cols.Length > 2 ? cols[2].Trim() : "";
             var username = cols.Length > 3 ? cols[3].Trim() : "";
             var password = cols.Length > 4 ? cols[4].Trim() : "";
-            var apiUrl   = cols.Length > 5 ? cols[5].Trim() : "";
-            var license  = cols.Length > 6 ? cols[6].Trim() : "";
+            var apiUrl = cols.Length > 5 ? cols[5].Trim() : "";
+            var license = cols.Length > 6 ? cols[6].Trim() : "";
             bool isActive = cols.Length <= 7 || !cols[7].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
 
             if (string.IsNullOrWhiteSpace(portal) || string.IsNullOrWhiteSpace(username)) { skipped++; continue; }
@@ -475,7 +823,7 @@ public class AdminController : Controller
                 facAdded++;
             }
 
-            var enc = Convert.ToBase64String(Encoding.UTF8.GetBytes(password));
+            var enc = _credentials.Protect(password);
 
             var existing = await _db.PortalCredentials
                 .FirstOrDefaultAsync(c => c.Portal == portal && c.FacilityId == facility.Id && c.Username == username);
@@ -484,9 +832,14 @@ public class AdminController : Controller
             {
                 _db.PortalCredentials.Add(new PortalCredential
                 {
-                    Portal = portal, FacilityId = facility.Id, CredentialName = credName.Length > 0 ? credName : null,
-                    Username = username, PasswordEncrypted = enc, ApiBaseUrl = apiUrl.Length > 0 ? apiUrl : null,
-                    LicenseCode = license.Length > 0 ? license : null, IsActive = isActive
+                    Portal = portal,
+                    FacilityId = facility.Id,
+                    CredentialName = credName.Length > 0 ? credName : null,
+                    Username = username,
+                    PasswordEncrypted = enc,
+                    ApiBaseUrl = apiUrl.Length > 0 ? apiUrl : null,
+                    LicenseCode = license.Length > 0 ? license : null,
+                    IsActive = isActive
                 });
                 added++;
             }
@@ -517,13 +870,21 @@ public class AdminController : Controller
             .Include(u => u.UserFacilities).ThenInclude(uf => uf.Facility)
             .AsNoTracking().OrderBy(u => u.Email).ToListAsync();
 
+        // Batch-load all roles in a single JOIN query (avoids N+1)
+        var exportUserIds = users.Select(u => u.Id).ToList();
+        var exportRoleMap = await _db.UserRoles
+            .Where(ur => exportUserIds.Contains(ur.UserId))
+            .Join(_db.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => new { ur.UserId, r.Name })
+            .GroupBy(x => x.UserId)
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => x.Name).ToList());
+
         var sb = new StringBuilder();
         sb.AppendLine("Email,FullName,Department,UserType,Role,IsActive,Facilities");
         foreach (var u in users)
         {
-            var roles = await _userManager.GetRolesAsync(u);
+            exportRoleMap.TryGetValue(u.Id, out var roles);
             var facNames = u.UserFacilities.Select(uf => uf.Facility?.Name ?? "").Where(n => n.Length > 0);
-            sb.AppendLine($"{Csv(u.Email ?? "")},{Csv(u.FullName ?? "")},{Csv(u.Department ?? "")},{Csv(u.UserType)},{Csv(string.Join("|", roles))},{u.IsActive},{Csv(string.Join("|", facNames))}");
+            sb.AppendLine($"{Csv(u.Email ?? "")},{Csv(u.FullName ?? "")},{Csv(u.Department ?? "")},{Csv(u.UserType)},{Csv(string.Join("|", roles ?? []))},{u.IsActive},{Csv(string.Join("|", facNames))}");
         }
         var bytes = Encoding.UTF8.GetBytes(sb.ToString());
         return File(bytes, "text/csv", $"users_{DateTime.UtcNow:yyyyMMdd}.csv");
@@ -538,6 +899,13 @@ public class AdminController : Controller
         var facilities = await _db.Facilities.ToListAsync();
         int added = 0, updated = 0, skipped = 0;
 
+        // A CSV whose columns are one out of step puts something that is not a role name
+        // in the roles column. That used to throw on the first bad row and abandon the
+        // whole import with users already created; now it is reported per row.
+        var knownRoles = (await _roleManager.Roles.Select(r => r.Name!).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknownRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
         await reader.ReadLineAsync(); // skip header
         while (!reader.EndOfStream)
@@ -547,13 +915,13 @@ public class AdminController : Controller
             var cols = SplitCsv(line);
             if (cols.Length < 4) { skipped++; continue; }
 
-            var email      = cols[0].Trim();
-            var fullName   = cols.Length > 1 ? cols[1].Trim() : "";
-            var dept       = cols.Length > 2 ? cols[2].Trim() : "";
-            var userType   = cols.Length > 3 ? cols[3].Trim() : "Global";
-            var roleStr    = cols.Length > 4 ? cols[4].Trim() : "Viewer";
-            bool isActive  = cols.Length <= 5 || !cols[5].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
-            var facNames   = cols.Length > 6 ? cols[6].Split('|', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
+            var email = cols[0].Trim();
+            var fullName = cols.Length > 1 ? cols[1].Trim() : "";
+            var dept = cols.Length > 2 ? cols[2].Trim() : "";
+            var userType = cols.Length > 3 ? cols[3].Trim() : "Global";
+            var roleStr = cols.Length > 4 ? cols[4].Trim() : "Viewer";
+            bool isActive = cols.Length <= 5 || !cols[5].Trim().Equals("False", StringComparison.OrdinalIgnoreCase);
+            var facNames = cols.Length > 6 ? cols[6].Split('|', StringSplitOptions.RemoveEmptyEntries) : Array.Empty<string>();
 
             if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
 
@@ -562,8 +930,12 @@ public class AdminController : Controller
             {
                 var newUser = new ApplicationUser
                 {
-                    UserName = email, Email = email, FullName = fullName,
-                    Department = dept, UserType = userType, IsActive = isActive,
+                    UserName = email,
+                    Email = email,
+                    FullName = fullName,
+                    Department = dept,
+                    UserType = userType,
+                    IsActive = isActive,
                     EmailConfirmed = true
                 };
                 // Generate a random temporary password to avoid hardcoding a known weak default
@@ -573,7 +945,11 @@ public class AdminController : Controller
 
                 if (!string.IsNullOrWhiteSpace(roleStr))
                     foreach (var r in roleStr.Split('|', StringSplitOptions.RemoveEmptyEntries))
-                        await _userManager.AddToRoleAsync(newUser, r.Trim());
+                    {
+                        var role = r.Trim();
+                        if (knownRoles.Contains(role)) await _userManager.AddToRoleAsync(newUser, role);
+                        else unknownRoles.Add(role);
+                    }
 
                 foreach (var fn in facNames)
                 {
@@ -586,16 +962,21 @@ public class AdminController : Controller
             }
             else
             {
-                existingUser.FullName   = fullName;
+                existingUser.FullName = fullName;
                 existingUser.Department = dept;
-                existingUser.UserType   = userType;
-                existingUser.IsActive   = isActive;
+                existingUser.UserType = userType;
+                existingUser.IsActive = isActive;
                 await _userManager.UpdateAsync(existingUser);
                 updated++;
             }
         }
 
         TempData["Success"] = $"Import complete — {added} added (use Password Reset to set their passwords), {updated} updated, {skipped} skipped.";
+        if (unknownRoles.Count > 0)
+            TempData["Error"] = $"These values in the roles column are not roles and were ignored: "
+                              + $"{string.Join(", ", unknownRoles.Take(5))}"
+                              + (unknownRoles.Count > 5 ? $" (+{unknownRoles.Count - 5} more)" : "")
+                              + ". Expected column order: Email, Full name, Department, User type, Role(s), Active, Facilities.";
         return RedirectToAction(nameof(Users));
     }
 
@@ -631,12 +1012,12 @@ public class AdminController : Controller
             .Select(g => new { Category = g.Key, Count = g.Count(), Latest = g.Max(x => x.ImportedAt) })
             .ToListAsync();
 
-        ViewBag.FacilityCount  = counts.FirstOrDefault(c => c.Category == "Facility")?.Count ?? 0;
+        ViewBag.FacilityCount = counts.FirstOrDefault(c => c.Category == "Facility")?.Count ?? 0;
         ViewBag.ClinicianCount = counts.FirstOrDefault(c => c.Category == "Clinician")?.Count ?? 0;
-        ViewBag.PayerCount     = counts.FirstOrDefault(c => c.Category == "Payer")?.Count ?? 0;
-        ViewBag.FacilityDate   = counts.FirstOrDefault(c => c.Category == "Facility")?.Latest.ToString("dd MMM yyyy HH:mm");
-        ViewBag.ClinicianDate  = counts.FirstOrDefault(c => c.Category == "Clinician")?.Latest.ToString("dd MMM yyyy HH:mm");
-        ViewBag.PayerDate      = counts.FirstOrDefault(c => c.Category == "Payer")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.PayerCount = counts.FirstOrDefault(c => c.Category == "Payer")?.Count ?? 0;
+        ViewBag.FacilityDate = counts.FirstOrDefault(c => c.Category == "Facility")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.ClinicianDate = counts.FirstOrDefault(c => c.Category == "Clinician")?.Latest.ToString("dd MMM yyyy HH:mm");
+        ViewBag.PayerDate = counts.FirstOrDefault(c => c.Category == "Payer")?.Latest.ToString("dd MMM yyyy HH:mm");
         return View();
     }
 
@@ -657,7 +1038,7 @@ public class AdminController : Controller
         try
         {
             using var stream = file.OpenReadStream();
-            using var wb     = new XLWorkbook(stream);
+            using var wb = new XLWorkbook(stream);
             var ws = wb.Worksheet(1);
 
             // Read header row (row 1) — build column index map
@@ -680,10 +1061,10 @@ public class AdminController : Controller
 
             int? codeCol = category switch
             {
-                "Facility"  => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
+                "Facility" => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
                 "Clinician" => Col(headers, "Clinician ID", "ClinicianID", "Provider ID", "ProviderID", "License Number", "Code", "ID"),
-                "Payer"     => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
-                _           => null
+                "Payer" => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
+                _ => null
             };
 
             int? nameCol = Col(headers, "Name", "Full Name", "FullName", "Facility Name", "FacilityName",
@@ -692,9 +1073,9 @@ public class AdminController : Controller
             int? subTypeCol = category switch
             {
                 "Clinician" => Col(headers, "Specialty", "Speciality", "Type", "Category"),
-                "Payer"     => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
-                "Facility"  => Col(headers, "Type", "Facility Type", "License Type"),
-                _           => null
+                "Payer" => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
+                "Facility" => Col(headers, "Type", "Facility Type", "License Type"),
+                _ => null
             };
 
             if (codeCol == null || nameCol == null)
@@ -711,8 +1092,8 @@ public class AdminController : Controller
             await _db.Database.ExecuteSqlAsync(
                 $"DELETE FROM DhpoCodingSets WHERE Category = {category}");
 
-            var now    = DateTime.UtcNow;
-            int added  = 0;
+            var now = DateTime.UtcNow;
+            int added = 0;
             var lastRow = ws.LastRowUsed()?.RowNumber() ?? 1;
 
             for (int r = 2; r <= lastRow; r++)
@@ -737,11 +1118,11 @@ public class AdminController : Controller
 
                 _db.DhpoCodingSets.Add(new DhpoCodingSet
                 {
-                    Category   = category,
-                    Code       = code,
-                    Name       = name,
-                    SubType    = subType,
-                    ExtraJson  = extraJson,
+                    Category = category,
+                    Code = code,
+                    Name = name,
+                    SubType = subType,
+                    ExtraJson = extraJson,
                     ImportedAt = now
                 });
                 added++;
@@ -770,50 +1151,10 @@ public class AdminController : Controller
             query = query.Where(x => x.Code.Contains(q) || x.Name.Contains(q));
 
         var total = await query.CountAsync();
-        var rows  = await query.OrderBy(x => x.Code)
+        var rows = await query.OrderBy(x => x.Code)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
         return Json(new { total, page, rows = rows.Select(r => new { r.Code, r.Name, r.SubType }) });
-    }
-
-    // ─── Power BI Reports ─────────────────────────────────────────────────────
-
-    [HttpGet]
-    public async Task<IActionResult> PowerBIReports()
-    {
-        var embeds = await _db.DashboardEmbeds.AsNoTracking().OrderBy(e => e.Id).ToListAsync();
-        var tenantId     = _configuration["PowerBI:TenantId"] ?? "";
-        var clientId     = _configuration["PowerBI:ClientId"] ?? "";
-        var clientSecret = _configuration["PowerBI:ClientSecret"] ?? "";
-        ViewBag.TenantId     = tenantId.StartsWith("YOUR_") ? "" : tenantId;
-        ViewBag.ClientId     = clientId.StartsWith("YOUR_") ? "" : clientId;
-        ViewBag.ClientSecret = clientSecret.StartsWith("YOUR_") ? "" : clientSecret;
-        return View(embeds);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SavePowerBIEmbed(int id, string groupId, string reportId, bool isActive)
-    {
-        var embed = await _db.DashboardEmbeds.FindAsync(id);
-        if (embed == null) return NotFound();
-        embed.GroupId    = groupId.Trim();
-        embed.ReportId   = reportId.Trim();
-        embed.EmbedToken = "PENDING";  // force refresh on next load
-        embed.TokenExpiry = DateTime.UtcNow;
-        embed.IsActive   = isActive;
-        if (!string.IsNullOrWhiteSpace(embed.GroupId) && !string.IsNullOrWhiteSpace(embed.ReportId))
-            embed.EmbedUrl = $"https://app.powerbi.com/reportEmbed?reportId={embed.ReportId}&groupId={embed.GroupId}";
-        await _db.SaveChangesAsync();
-        return Json(new { ok = true });
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TestPowerBIConnection()
-    {
-        var err = await _powerBi.TestConnectionAsync();
-        return Json(err == null ? new { ok = true, message = "Connected successfully." } : new { ok = false, message = err });
     }
 
     // ─── Email (SMTP) Settings ────────────────────────────────────────────────
@@ -832,13 +1173,13 @@ public class AdminController : Controller
     {
         var keys = new Dictionary<string, string?>
         {
-            ["Host"]        = host,
-            ["Port"]        = port.ToString(),
-            ["EnableSsl"]   = enableSsl.ToString(),
-            ["UserName"]    = userName,
-            ["Password"]    = string.IsNullOrWhiteSpace(password) ? null : password,  // null = keep existing
+            ["Host"] = host,
+            ["Port"] = port.ToString(),
+            ["EnableSsl"] = enableSsl.ToString(),
+            ["UserName"] = userName,
+            ["Password"] = string.IsNullOrWhiteSpace(password) ? null : password,  // null = keep existing
             ["FromAddress"] = fromAddress,
-            ["FromName"]    = fromName
+            ["FromName"] = fromName
         };
 
         foreach (var kv in keys)
@@ -849,11 +1190,11 @@ public class AdminController : Controller
             if (setting == null)
             {
                 _db.SystemSettings.Add(new Models.SystemSetting
-                    { Category = "SMTP", Key = kv.Key, Value = kv.Value });
+                { Category = "SMTP", Key = kv.Key, Value = kv.Value });
             }
             else
             {
-                setting.Value     = kv.Value;
+                setting.Value = kv.Value;
                 setting.UpdatedAt = DateTime.UtcNow;
             }
         }
@@ -872,7 +1213,7 @@ public class AdminController : Controller
         {
             // Create a dummy temp file for the test
             var tmpFile = Path.Combine(Path.GetTempPath(), "test-report.txt");
-            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from GhafBI.");
+            await System.IO.File.WriteAllTextAsync(tmpFile, "This is a test email from Ghaf Business Intelligence.");
             await _email.SendReportAsync(testTo, "TEST-001", "Connection Test", tmpFile);
             System.IO.File.Delete(tmpFile);
             return Json(new { ok = true, message = $"Test email sent to {testTo}." });
@@ -881,6 +1222,73 @@ public class AdminController : Controller
         {
             return Json(new { ok = false, message = ex.Message });
         }
+    }
+
+    // ─── AI Analyst Agent ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Ai()
+    {
+        return View(await BuildAiVmAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAiSettings(
+        bool enabled, string apiBaseUrl, string model, string? apiKey,
+        int maxOutputTokens, double temperature, int rowLimit,
+        int dailyRequestLimit, long monthlyTokenLimit, bool allowFullData, int timeoutSeconds)
+    {
+        var settings = new AiSettings
+        {
+            Enabled = enabled,
+            ApiBaseUrl = string.IsNullOrWhiteSpace(apiBaseUrl) ? "https://integrate.api.nvidia.com/v1" : apiBaseUrl.Trim(),
+            Model = string.IsNullOrWhiteSpace(model) ? "nvidia/nemotron-3-ultra-550b-a55b" : model.Trim(),
+            MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
+            Temperature = Math.Clamp(temperature, 0, 2),
+            RowLimit = Math.Clamp(rowLimit, 1, 5000),
+            DailyRequestLimit = Math.Max(0, dailyRequestLimit),
+            MonthlyTokenLimit = Math.Max(0, monthlyTokenLimit),
+            AllowFullData = allowFullData,
+            TimeoutSeconds = Math.Clamp(timeoutSeconds, 5, 300)
+        };
+        await _aiSettings.SaveAsync(settings, apiKey);
+        TempData["Success"] = "AI agent settings saved.";
+        return RedirectToAction(nameof(Ai));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestAiConnection()
+    {
+        var (ok, message) = await _aiAnalyst.TestConnectionAsync();
+        return Json(new { ok, message });
+    }
+
+
+
+    private async Task<AiAdminViewModel> BuildAiVmAsync()
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        var monthStart = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Local model settings — same category/keys/defaults BixAssistantService and
+        // DenialAnalystService read, so the page shows what actually runs.
+
+        var total = await _db.AiUsageLogs.CountAsync();
+        var succeeded = await _db.AiUsageLogs.CountAsync(l => l.Success);
+
+        return new AiAdminViewModel
+        {
+            Settings = await _aiSettings.GetAsync(),
+            RequestsToday = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= todayUtc),
+            RequestsThisMonth = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= monthStart),
+            TokensThisMonth = await _db.AiUsageLogs.Where(l => l.CreatedAt >= monthStart).SumAsync(l => (long?)l.TotalTokens) ?? 0,
+            TotalRequests = total,
+            SuccessRate = total == 0 ? 0 : Math.Round(succeeded * 100.0 / total, 1),
+            RecentLogs = await _db.AiUsageLogs.AsNoTracking()
+                .OrderByDescending(l => l.CreatedAt).Take(25).ToListAsync()
+        };
     }
 
     // ─── Report Schedules ─────────────────────────────────────────────────────
@@ -893,10 +1301,10 @@ public class AdminController : Controller
 
     private static readonly Dictionary<string, string> CronPresets = new()
     {
-        ["Daily 8am"]          = "0 8 * * *",
-        ["Weekly Mon 8am"]     = "0 8 * * 1",
-        ["Monthly 1st 8am"]    = "0 8 1 * *",
-        ["Monthly 15th 8am"]   = "0 8 15 * *",
+        ["Daily 8am"] = "0 8 * * *",
+        ["Weekly Mon 8am"] = "0 8 * * 1",
+        ["Monthly 1st 8am"] = "0 8 1 * *",
+        ["Monthly 15th 8am"] = "0 8 15 * *",
         ["Quarterly (Jan/Apr/Jul/Oct)"] = "0 8 1 1,4,7,10 *"
     };
 
@@ -906,9 +1314,9 @@ public class AdminController : Controller
         var schedules = await _db.ReportSchedules.AsNoTracking().OrderByDescending(s => s.CreatedAt).ToListAsync();
         var facilities = await _db.Facilities.Where(f => f.IsActive)
             .AsNoTracking().Select(f => new { f.Id, f.Name }).ToListAsync();
-        ViewBag.ReportTypes  = ReportTypeOptions;
-        ViewBag.CronPresets  = CronPresets;
-        ViewBag.Facilities   = facilities;
+        ViewBag.ReportTypes = ReportTypeOptions;
+        ViewBag.CronPresets = CronPresets;
+        ViewBag.Facilities = facilities;
         return View(schedules);
     }
 
@@ -926,9 +1334,13 @@ public class AdminController : Controller
         {
             var s = new Models.ReportSchedule
             {
-                Name = name, ReportType = reportType, CronExpression = cronExpression,
-                Recipients = recipients, FileFormat = fileFormat,
-                IsActive = isActive, FacilityIdsJson = facilityJson
+                Name = name,
+                ReportType = reportType,
+                CronExpression = cronExpression,
+                Recipients = recipients,
+                FileFormat = fileFormat,
+                IsActive = isActive,
+                FacilityIdsJson = facilityJson
             };
             _db.ReportSchedules.Add(s);
             await _db.SaveChangesAsync();
@@ -965,18 +1377,37 @@ public class AdminController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult RunScheduleNow(int id)
+    public async Task<IActionResult> RunScheduleNow(int id)
     {
-        Hangfire.BackgroundJob.Enqueue<PortalSyncService>(svc => svc.RunDailyDhaSyncAsync());
-        return Json(new { ok = true, message = "Schedule enqueued for immediate execution." });
+        var s = await _db.ReportSchedules.FindAsync(id);
+        if (s == null) return NotFound();
+
+        var facilityIds = string.IsNullOrWhiteSpace(s.FacilityIdsJson)
+            ? null
+            : System.Text.Json.JsonSerializer.Deserialize<List<int>>(s.FacilityIdsJson);
+
+        var request = new ReportRequest
+        {
+            ReportType = s.ReportType,
+            BranchId = facilityIds?.FirstOrDefault(),
+            DateFrom = DateTime.UtcNow.AddMonths(-1),
+            DateTo = DateTime.UtcNow,
+            EmailTo = s.Recipients
+        };
+
+        var reportId = await _reportService.QueueReportAsync(request);
+        s.LastRunAt = DateTime.UtcNow;
+        s.LastRunStatus = "OK";
+        await _db.SaveChangesAsync();
+
+        return Json(new { ok = true, message = $"Report {reportId} enqueued for immediate generation." });
     }
 
     private static void RegisterHangfireJob(Models.ReportSchedule s)
     {
-        // Use a no-op placeholder — real report generation wired via PortalSyncService
-        Hangfire.RecurringJob.AddOrUpdate<PortalSyncService>(
+        Hangfire.RecurringJob.AddOrUpdate<IReportService>(
             $"schedule-{s.Id}",
-            svc => svc.RunDailyDhaSyncAsync(),
+            svc => svc.RunScheduledReportAsync(s.Id),
             s.CronExpression);
     }
 
@@ -984,26 +1415,72 @@ public class AdminController : Controller
 
     private string GetDbPath()
     {
-        var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
+        // Data:Dir is set by startup to the directory actually opened; DB_DIR is a
+        // machine-wide fallback that does not necessarily belong to this instance.
+        var dataDir = _configuration["Data:Dir"]
+            ?? Environment.GetEnvironmentVariable("DB_DIR")
             ?? System.IO.Path.Combine(AppContext.BaseDirectory);
         return System.IO.Path.Combine(dataDir, "analytika.db");
     }
 
     [HttpGet]
-    public IActionResult Database()
+    public async Task<IActionResult> Database()
     {
+        // File-based backup/migration only applies to SQLite installs;
+        // Postgres deployments are backed up by the managed database platform.
+        ViewBag.IsSqlite = _db.Database.IsSqlite();
         var dbPath = GetDbPath();
-        var info   = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
-        ViewBag.DbPath  = dbPath;
+        var info = System.IO.File.Exists(dbPath) ? new System.IO.FileInfo(dbPath) : null;
+        ViewBag.DbPath = dbPath;
         ViewBag.DbSizeMb = info != null ? Math.Round(info.Length / 1_048_576.0, 1) : 0;
         ViewBag.DbModified = info?.LastWriteTimeUtc.ToString("dd MMM yyyy HH:mm UTC");
         ViewBag.PendingExists = System.IO.File.Exists(dbPath + ".pending");
+
+        // Storage statistics for capacity planning
+        ViewBag.TxCount = await _db.PortalTransactions.CountAsync();
+        var xmlBytes = await _db.PortalTransactions
+            .Where(t => t.FileContentXml != null)
+            .SumAsync(t => (long?)t.FileContentXml!.Length) ?? 0;
+        ViewBag.XmlCount = await _db.PortalTransactions.CountAsync(t => t.FileContentXml != null);
+        ViewBag.XmlSizeMb = Math.Round(xmlBytes / 1_048_576.0, 1);
+        ViewBag.ParsedCount = await _db.XmlParsedRecords.CountAsync();
+        ViewBag.FetchLogCount = await _db.PortalFetchLogs.CountAsync();
+
+        // Backups folder summary
+        var backupDir = _configuration["Backup:Directory"]
+            ?? System.IO.Path.Combine(System.IO.Path.GetDirectoryName(dbPath)!, "backups");
+        var backups = Directory.Exists(backupDir)
+            ? Directory.GetFiles(backupDir, "analytika_*.db").OrderByDescending(f => f).ToList()
+            : new List<string>();
+        ViewBag.BackupCount = backups.Count;
+        ViewBag.LatestBackup = backups.Count > 0 ? System.IO.Path.GetFileName(backups[0]) : null;
+
+        // portal-downloads disk usage
+        var downloadsDir = System.IO.Path.Combine(AppContext.BaseDirectory, "wwwroot", "portal-downloads");
+        if (!Directory.Exists(downloadsDir))
+            downloadsDir = System.IO.Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "portal-downloads");
+        long downloadBytes = 0;
+        int downloadFiles = 0;
+        if (Directory.Exists(downloadsDir))
+        {
+            foreach (var f in Directory.EnumerateFiles(downloadsDir, "*", SearchOption.AllDirectories))
+            {
+                downloadBytes += new System.IO.FileInfo(f).Length;
+                downloadFiles++;
+            }
+        }
+        ViewBag.DownloadFiles = downloadFiles;
+        ViewBag.DownloadSizeMb = Math.Round(downloadBytes / 1_048_576.0, 1);
+
         return View();
     }
 
     [HttpGet]
     public async Task<IActionResult> ExportDatabase()
     {
+        if (!_db.Database.IsSqlite())
+            return BadRequest("Database export is only available on SQLite installs. Use your platform's Postgres backup (pg_dump) instead.");
+
         // Flush WAL into the main file so the download is self-contained
         await _db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(FULL)");
         var dbPath = GetDbPath();
@@ -1018,6 +1495,9 @@ public class AdminController : Controller
     [Microsoft.AspNetCore.Mvc.RequestFormLimits(MultipartBodyLengthLimit = 3L * 1024 * 1024 * 1024)]
     public async Task<IActionResult> ImportDatabase(IFormFile dbFile)
     {
+        if (!_db.Database.IsSqlite())
+            return Json(new { ok = false, message = "Database import is only available on SQLite installs. Use your platform's Postgres restore (pg_restore) instead." });
+
         if (dbFile == null || dbFile.Length == 0)
             return Json(new { ok = false, message = "No file selected." });
 
@@ -1043,7 +1523,7 @@ public class AdminController : Controller
     private async Task<CreateUserViewModel> BuildCreateVmAsync()
     {
         var roles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        var facilities = await ScopedFacilitiesAsync();
         return new CreateUserViewModel
         {
             AvailableRoles = roles.Select(r => new SelectListItem(r, r)).ToList(),
@@ -1052,4 +1532,43 @@ public class AdminController : Controller
             AllReportTypes = ReportTypes.ToList()
         };
     }
+
+    private async Task<RoleListViewModel> BuildRoleListVmAsync()
+    {
+        var roles = await _roleManager.Roles.AsNoTracking().OrderBy(r => r.Name).ToListAsync();
+        var rows = new List<RoleRowViewModel>();
+
+        foreach (var role in roles)
+        {
+            var name = role.Name ?? string.Empty;
+            rows.Add(new RoleRowViewModel
+            {
+                Id = role.Id,
+                Name = name,
+                UserCount = await CountUsersInRoleAsync(name),
+                IsProtected = IsProtectedRole(name),
+                IsStandard = StandardRoles.Contains(name, StringComparer.OrdinalIgnoreCase)
+            });
+        }
+
+        return new RoleListViewModel
+        {
+            Roles = rows,
+            StandardRoles = StandardRoles.ToList()
+        };
+    }
+
+    private async Task<int> CountUsersInRoleAsync(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName)) return 0;
+        var users = await _userManager.GetUsersInRoleAsync(roleName);
+        return users.Count;
+    }
+
+    private static bool IsProtectedRole(string? roleName) =>
+        !string.IsNullOrWhiteSpace(roleName)
+        && ProtectedRoles.Contains(roleName, StringComparer.OrdinalIgnoreCase);
+
+    private static string NormalizeRoleName(string? roleName) =>
+        string.Join(' ', (roleName ?? string.Empty).Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries));
 }

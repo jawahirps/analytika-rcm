@@ -1,0 +1,899 @@
+openapi: 3.0.3
+info:
+  title: BIX — Ghaf Business Intelligence API
+  version: 1.0.0
+  description: |
+    Complete reverse-engineered API surface of the BIX healthcare revenue-cycle
+    management solution (ASP.NET Core 10 MVC, SQLite, ClosedXML, Hangfire-lite,
+    dual AI providers). Generated from source analysis of all 9 controllers +
+    mapped endpoints.
+
+    ## Conventions
+    - **Routing**: conventional MVC `/{Controller}/{Action}` unless an explicit
+      route is shown. `ReportScheduler` uses attribute routing
+      `[Route("[controller]/[action]")]` (same shape).
+    - **Auth**: ASP.NET Identity cookie session. Unauthenticated requests to
+      protected endpoints return **302 → /login** (not 401).
+    - **CSRF**: every state-changing POST validates an anti-forgery token —
+      include form field `__RequestVerificationToken` (from any rendered page).
+      `Support/Chat` is the JSON-body exception (still cookie-authed).
+    - **HTML endpoints** render Razor views; they're documented tersely with
+      `text/html` responses. JSON/stream/file endpoints are fully typed.
+    - **SSE endpoints** return `text/event-stream` of `data: <json>` frames.
+
+    ## Roles
+    | Policy | Roles |
+    |---|---|
+    | AdminAccess | Admin |
+    | RcmAccess | Admin, FacilityAdmin, Analyst, Billing, Finance, Auditor |
+    | ReportAccess | RcmAccess + Reporter |
+    | ResubmissionAccess | Admin, FacilityAdmin, Analyst |
+servers:
+  - url: https://bix.ghafservices.com
+    description: Production (Cloudflare tunnel → localhost:5000)
+  - url: http://localhost:5000
+    description: Local
+tags:
+  - name: Public
+  - name: Auth
+  - name: Dashboard
+  - name: AI Assistant
+  - name: Portal — Fetch & Sync
+  - name: Portal — XML Parsing
+  - name: Reports
+  - name: Resubmission
+  - name: Admin — Users & Roles
+  - name: Admin — Credentials
+  - name: Admin — Settings & Data
+  - name: Support & Diagnostics
+
+security:
+  - cookieAuth: []
+
+paths:
+  # ───────────────────────────── Public / Auth ─────────────────────────────
+  /:
+    get:
+      tags: [Public]
+      security: []
+      summary: Marketing landing page
+      responses: { "200": { description: HTML landing page } }
+  /healthz:
+    get:
+      tags: [Public]
+      security: []
+      summary: Health check (anonymous)
+      responses:
+        "200": { description: "Healthy", content: { text/plain: { schema: { type: string, example: Healthy } } } }
+        "503": { description: Unhealthy }
+  /login:
+    get:
+      tags: [Auth]
+      security: []
+      summary: Login page (aliases /Home/Index, /Home/Login)
+      responses: { "200": { description: HTML login page } }
+    post:
+      tags: [Auth]
+      security: []
+      summary: Sign in (aliases /Home/Index, /Home/Login)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [Email, Password, __RequestVerificationToken]
+              properties:
+                Email: { type: string, format: email }
+                Password: { type: string, format: password }
+                RememberMe: { type: boolean }
+                __RequestVerificationToken: { type: string }
+      responses:
+        "302": { description: Redirect to dashboard on success; back to login on failure }
+  /Home/LogOut:
+    post:
+      tags: [Auth]
+      summary: Sign out
+      requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }
+      responses: { "302": { description: Redirect to login } }
+  /Home/Error:
+    get:
+      tags: [Public]
+      security: []
+      summary: Error page
+      responses: { "200": { description: HTML error page } }
+
+  # ───────────────────────────── Dashboard ─────────────────────────────
+  /Home/Dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Operations dashboard (facility status, sync health)
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Home/RCMDashboard:
+    get:
+      tags: [Dashboard]
+      summary: RCM/BI dashboard (tabbed KPIs; RcmAccess)
+      parameters:
+        - { name: tab, in: query, schema: { type: string, enum: [Submissions, Resubmissions, Remittance, Denials, Clinicians, Operations, Insurance, Department] } }
+        - { name: facilityId, in: query, schema: { type: integer } }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /api/dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Cached dashboard summary JSON (keepalive/pre-warm target)
+      responses:
+        "200": { description: Summary metrics JSON, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "302": { $ref: "#/components/responses/LoginRedirect" }
+
+  # ───────────────────────────── AI Assistant ─────────────────────────────
+  /Ai:
+    get:
+      tags: [AI Assistant]
+      summary: AI Analyst chat page (RcmAccess)
+      responses: { "200": { description: HTML chat UI }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Ai/Ask:
+    post:
+      tags: [AI Assistant]
+      summary: Ask (non-streaming JSON)
+      requestBody: { $ref: "#/components/requestBodies/Question" }
+      responses:
+        "200": { description: Answer envelope, content: { application/json: { schema: { $ref: "#/components/schemas/AskResult" } } } }
+        "302": { $ref: "#/components/responses/LoginRedirect" }
+  /Ai/AskStream:
+    post:
+      tags: [AI Assistant]
+      summary: Ask (SSE stream — stages, source+rows, tokenized answer)
+      description: |
+        Provider is chosen per request: local Ollama intent-catalogue assistant
+        (12 approved read-only intents; model never writes SQL) when
+        `localhost:11434` is up, else the hosted NVIDIA text-to-SQL analyst.
+        Event grammar: `{stage:understanding}` → `{stage:querying}` →
+        `{stage:answering, sql, columns, rows, rowCount, redacted}` →
+        `{token}`* → `{done, tokens}`; `{error}` is terminal anywhere.
+      requestBody: { $ref: "#/components/requestBodies/Question" }
+      responses:
+        "200": { description: "SSE stream (see AssistantEvent)", content: { text/event-stream: { schema: { type: string } } } }
+        "302": { $ref: "#/components/responses/LoginRedirect" }
+
+  # ─────────────────────── Portal — Fetch & Sync ───────────────────────
+  /Portal/Fetch:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Portal data fetch page (DHA/RHA)
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Execute a portal fetch (SearchTransactions / GetNew*)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/PortalFetchForm" }
+      responses: { "200": { description: HTML with results grid }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/FetchAndSaveStream:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Bulk fetch+download+save across selected facilities (SSE)
+      description: >
+        Streams `{status: searching|found|processing|done|error}` events with
+        cumulative counters (total/found/saved/downloaded/duplicates/pending),
+        current `facility`, `facIndex`/`facCount`, and a terminal `skipped` list
+        for credential-less facilities.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/PortalFetchForm" }
+      responses:
+        "200": { description: SSE progress stream, content: { text/event-stream: { schema: { type: string } } } }
+  /Portal/FetchAndSave:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Fetch & save (non-streaming form post)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/PortalFetchForm" }
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/FetchAndSaveAjax:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Fetch & save (AJAX JSON result)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/PortalFetchForm" }
+      responses:
+        "200": { description: "{found, saved, downloaded, duplicates, error?}", content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /Portal/FetchAjax:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Manual single-facility fetch (AJAX)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                portal: { type: string, enum: [DHA, RHA] }
+                facilityId: { type: integer }
+                operation: { type: string, example: SearchTransactions }
+                dateFrom: { type: string, format: date }
+                dateTo: { type: string, format: date }
+                fileId: { type: string }
+                __RequestVerificationToken: { type: string }
+      responses:
+        "200": { description: "{ok, message, rows?}", content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /Portal/DownloadSelected:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Download selected search rows into the DB
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [portal, facilityId, rowsJson]
+              properties:
+                portal: { type: string }
+                facilityId: { type: integer }
+                rowsJson: { type: string, description: "JSON array of {fileId, fileName, type, status, date, payer, amount}" }
+                __RequestVerificationToken: { type: string }
+      responses:
+        "200": { description: "{saved, duplicates, downloaded} or {error}", content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /Portal/Sync:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Sync portal data page
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Run a full sync for a facility/date range (form post)
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/SyncNew:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Sync only new transactions for a facility
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [facilityId]
+              properties:
+                facilityId: { type: integer }
+                __RequestVerificationToken: { type: string }
+      responses: { "200": { description: HTML/JSON outcome }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/SyncFacilityStream:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Month-by-month facility sync (SSE, resumable)
+      parameters:
+        - { name: facilityId, in: query, required: true, schema: { type: integer } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { name: resumeMonthIdx, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200": { description: SSE progress stream, content: { text/event-stream: { schema: { type: string } } } }
+  /Portal/SyncAllFacilitiesStream:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: All-facility sync (SSE, resumable, filterable tx types)
+      parameters:
+        - { name: facilityIds, in: query, schema: { type: array, items: { type: integer } }, style: form, explode: true }
+        - { name: txTypes, in: query, schema: { type: array, items: { type: integer, enum: [2, 8, 16, 32] } }, style: form, explode: true }
+        - { name: resumeFacilityIdx, in: query, schema: { type: integer, default: 0 } }
+        - { name: resumeMonthIdx, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200": { description: SSE progress stream, content: { text/event-stream: { schema: { type: string } } } }
+  /Portal/SyncedData:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Browse synced transactions (filterable, paged)
+      parameters:
+        - { name: portal, in: query, schema: { type: string, enum: [DHA, RHA] } }
+        - { name: facilityId, in: query, schema: { type: array, items: { type: integer } }, style: form, explode: true }
+        - { name: dateFrom, in: query, schema: { type: string, format: date } }
+        - { name: dateTo, in: query, schema: { type: string, format: date } }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      responses: { "200": { description: HTML grid }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/DataValidation:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Data validation page
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/DownloadFile/{id}:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Download a stored transaction XML by DB id
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses:
+        "200": { description: XML file, content: { application/xml: { schema: { type: string } } } }
+        "404": { description: Not found / no stored content }
+  /Portal/DownloadFacilityXml:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Download a facility's XML files as ZIP
+      parameters:
+        - { name: facilityId, in: query, required: true, schema: { type: integer } }
+        - { name: types, in: query, schema: { type: string, default: "2,8", description: "Comma-separated tx types" } }
+      responses:
+        "200": { description: ZIP archive, content: { application/zip: { schema: { type: string, format: binary } } } }
+  /Portal/TriggerPendingDownload:
+    post:
+      tags: [Portal — Fetch & Sync]
+      summary: Kick the pending-download background job
+      requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }
+      responses: { "200": { description: Accepted/JSON status } }
+  /Portal/PendingDownloadStatusApi:
+    get:
+      tags: [Portal — Fetch & Sync]
+      summary: Pending-download job status (JSON)
+      responses:
+        "200": { description: Status object, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+
+  # ─────────────────────── Portal — XML Parsing ───────────────────────
+  /Portal/XmlParsing:
+    get:
+      tags: [Portal — XML Parsing]
+      summary: XML parsing workbench (claim-level cache)
+      parameters:
+        - { name: facilityId, in: query, schema: { type: array, items: { type: integer } }, style: form, explode: true }
+        - { name: search, in: query, schema: { type: string } }
+        - { name: kind, in: query, schema: { type: string, enum: [Submission, Remittance] } }
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/XmlParsingPrepareStream:
+    get:
+      tags: [Portal — XML Parsing]
+      summary: Parse downloaded XML into the claim cache (SSE progress)
+      parameters:
+        - { name: facilityId, in: query, schema: { type: array, items: { type: integer } }, style: form, explode: true }
+        - { name: rebuild, in: query, schema: { type: boolean, default: false } }
+      responses:
+        "200": { description: SSE progress stream, content: { text/event-stream: { schema: { type: string } } } }
+  /Portal/XmlParsingMatch:
+    post:
+      tags: [Portal — XML Parsing]
+      summary: Match parsed submissions ↔ remittances by ClaimId
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                facilityId: { type: array, items: { type: integer } }
+                __RequestVerificationToken: { type: string }
+      responses: { "200": { description: JSON/HTML outcome } }
+  /Portal/ParseXmlRecord:
+    post:
+      tags: [Portal — XML Parsing]
+      summary: (Re)parse one stored transaction into claim rows
+      requestBody: { $ref: "#/components/requestBodies/IdForm" }
+      responses: { "200": { description: Outcome } }
+  /Portal/AddXmlRecord:
+    post:
+      tags: [Portal — XML Parsing]
+      summary: Manually add a claim-cache row
+      responses: { "200": { description: Outcome }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/EditXmlRecord:
+    post:
+      tags: [Portal — XML Parsing]
+      summary: Edit a claim-cache row
+      responses: { "200": { description: Outcome }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Portal/DeleteXmlRecord:
+    post:
+      tags: [Portal — XML Parsing]
+      summary: Delete a claim-cache row
+      requestBody: { $ref: "#/components/requestBodies/IdForm" }
+      responses: { "200": { description: Outcome } }
+  /Portal/Reconciliation:
+    get:
+      tags: [Portal — XML Parsing]
+      summary: Legacy alias → redirects to XmlParsing
+      responses: { "302": { description: Redirect } }
+
+  # ───────────────────────────── Reports ─────────────────────────────
+  /ReportScheduler/{reportPage}:
+    get:
+      tags: [Reports]
+      summary: Report pages (shared ReportPage view; ReportAccess)
+      description: |
+        `reportPage` ∈ ClaimSummaryReport, ClaimActivityReports,
+        RemittanceActivityReport, ClaimReceiverReport, ClaimClinicianReport,
+        FinanceTATReport, DenialReport, ClaimLifeCycleReport,
+        SubmissionXMLReport. Each renders filters + recent-reports grid.
+        (`/AdvancedReports/SubmissionXMLFileReport` 302-redirects to
+        SubmissionXMLReport.)
+      parameters:
+        - { name: reportPage, in: path, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /ReportScheduler/CreateReport:
+    post:
+      tags: [Reports]
+      summary: Queue a report for background generation (Excel-only)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [ReportType]
+              properties:
+                ReportType: { type: string, enum: [ClaimSummary, ClaimActivity, RemittanceActivity, ClaimReceiver, ClaimClinician, FinanceTAT, DenialReport, ClaimLifeCycle, SubmissionXML] }
+                DateRange: { type: string, example: LastYear, description: Label only; actual window from DateFrom/DateTo }
+                DateFrom: { type: string, format: date }
+                DateTo: { type: string, format: date }
+                SearchCriteria: { type: string, enum: [EncounterStartDate, EncounterEndDate, SubmissionDate] }
+                SelectedFacilities: { type: array, items: { type: integer }, description: Multi-select; persisted as FacilityIdsJson }
+                SelectedPayers: { type: array, items: { type: integer } }
+                SelectedClinicians: { type: array, items: { type: integer } }
+                SelectedEncounterTypes: { type: array, items: { type: string, enum: [Inpatient, Outpatient, Emergency, Dental] } }
+                EmailTo: { type: string, description: Comma-separated recipients (optional) }
+                FileFormat: { type: string, enum: [Excel], description: Excel-only; server forces Excel }
+                __RequestVerificationToken: { type: string }
+      responses: { "302": { description: Redirect to the report page (generation continues in background) } }
+  /ReportScheduler/GetReports:
+    get:
+      tags: [Reports]
+      summary: Recent reports for a type (JSON, paged)
+      parameters:
+        - { name: reportType, in: query, required: true, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, default: 10 } }
+      responses:
+        "200":
+          description: Paged report list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/ReportRow" } }
+                  total: { type: integer }
+                  page: { type: integer }
+                  pageSize: { type: integer }
+                  totalPages: { type: integer }
+  /ReportScheduler/Download:
+    get:
+      tags: [Reports]
+      summary: Download a completed report (.xlsx from persistent storage)
+      parameters: [ { name: id, in: query, required: true, schema: { type: integer } } ]
+      responses:
+        "200": { description: Excel workbook, content: { application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: { schema: { type: string, format: binary } } } }
+        "404": { description: Report/file not found }
+  /ReportScheduler/DeleteReport:
+    post:
+      tags: [Reports]
+      summary: Delete a report request + its file
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [id, reportType]
+              properties:
+                id: { type: integer }
+                reportType: { type: string }
+                __RequestVerificationToken: { type: string }
+      responses: { "302": { description: Redirect to the report page } }
+  /ReportScheduler/ClearReports:
+    post:
+      tags: [Reports]
+      summary: Delete all reports of a type (running one excluded)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [reportType]
+              properties:
+                reportType: { type: string }
+                __RequestVerificationToken: { type: string }
+      responses: { "302": { description: Redirect } }
+
+  # ─────────────────────────── Resubmission ───────────────────────────
+  /Resubmission:
+    get:
+      tags: [Resubmission]
+      summary: Denied-claims worklist (filterable)
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: facilityId, in: query, schema: { type: integer } }
+        - { name: priority, in: query, schema: { type: string } }
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Resubmission/Claim/{id}:
+    get:
+      tags: [Resubmission]
+      summary: Claim detail
+      parameters: [ { name: id, in: path, required: true, schema: { type: integer } } ]
+      responses: { "200": { description: HTML }, "404": { description: Not found } }
+  /Resubmission/Parse:
+    post:
+      tags: [Resubmission]
+      summary: Parse remittances into resubmission tasks (Admin/FacilityAdmin/Analyst)
+      responses: { "302": { description: Redirect } }
+  /Resubmission/Assign:
+    post:
+      tags: [Resubmission]
+      summary: Assign a denied claim to a user
+      responses: { "302": { description: Redirect } }
+  /Resubmission/BulkAssign:
+    post:
+      tags: [Resubmission]
+      summary: Bulk-assign denied claims
+      responses: { "302": { description: Redirect } }
+  /Resubmission/Distribute:
+    post:
+      tags: [Resubmission]
+      summary: Distribute open tasks evenly across users
+      responses: { "302": { description: Redirect } }
+  /Resubmission/UpdateStatus:
+    post:
+      tags: [Resubmission]
+      summary: Update a task's status/action/notes
+      responses: { "200": { description: Outcome }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Resubmission/Stats:
+    get:
+      tags: [Resubmission]
+      summary: Task stats (JSON)
+      responses: { "200": { description: Stats, content: { application/json: { schema: { type: object, additionalProperties: true } } } } }
+  /Resubmission/Workload:
+    get:
+      tags: [Resubmission]
+      summary: Per-user workload board (Admin/FacilityAdmin/Analyst)
+      responses: { "200": { description: HTML } }
+  /Resubmission/DenialDashboard:
+    get:
+      tags: [Resubmission]
+      summary: Denial analytics dashboard
+      responses: { "200": { description: HTML } }
+
+  # ─────────────────────── Admin — Users & Roles ───────────────────────
+  /Admin/Users:
+    get:
+      tags: [Admin — Users & Roles]
+      summary: User management (filter All/Active/Inactive)
+      parameters: [ { name: filter, in: query, schema: { type: string, default: All } } ]
+      responses: { "200": { description: HTML }, "302": { $ref: "#/components/responses/LoginRedirect" } }
+  /Admin/CreateUser:
+    get: { tags: [Admin — Users & Roles], summary: Create-user form, responses: { "200": { description: HTML } } }
+    post: { tags: [Admin — Users & Roles], summary: Create user, responses: { "302": { description: Redirect } } }
+  /Admin/EditUser:
+    get:
+      tags: [Admin — Users & Roles]
+      summary: Edit-user form
+      parameters: [ { name: id, in: query, required: true, schema: { type: string } } ]
+      responses: { "200": { description: HTML } }
+    post: { tags: [Admin — Users & Roles], summary: Save user, responses: { "302": { description: Redirect } } }
+  /Admin/ToggleUser:
+    post: { tags: [Admin — Users & Roles], summary: Activate/deactivate user, requestBody: { $ref: "#/components/requestBodies/StringIdForm" }, responses: { "302": { description: Redirect } } }
+  /Admin/ResetPassword:
+    post:
+      tags: [Admin — Users & Roles]
+      summary: Admin password reset
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [id, newPassword]
+              properties:
+                id: { type: string }
+                newPassword: { type: string, format: password, description: Policy — 8+ chars, upper, lower, digit, special }
+                __RequestVerificationToken: { type: string }
+      responses: { "302": { description: Redirect } }
+  /Admin/ProvisionGuestUsers:
+    post: { tags: [Admin — Users & Roles], summary: Provision guest/reporter accounts, requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }, responses: { "302": { description: Redirect } } }
+  /Admin/Roles:
+    get: { tags: [Admin — Users & Roles], summary: Role management, responses: { "200": { description: HTML } } }
+  /Admin/EnsureStandardRoles:
+    post: { tags: [Admin — Users & Roles], summary: Create any missing standard roles, requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }, responses: { "302": { description: Redirect } } }
+  /Admin/CreateRole:
+    post: { tags: [Admin — Users & Roles], summary: Create role, responses: { "302": { description: Redirect } } }
+  /Admin/EditRole:
+    post: { tags: [Admin — Users & Roles], summary: Rename role, responses: { "302": { description: Redirect } } }
+  /Admin/DeleteRole:
+    post: { tags: [Admin — Users & Roles], summary: Delete role (protected roles blocked), responses: { "302": { description: Redirect } } }
+  /Admin/ExportUsers:
+    get: { tags: [Admin — Users & Roles], summary: Export users (file), responses: { "200": { description: File download } } }
+  /Admin/ImportUsers:
+    post: { tags: [Admin — Users & Roles], summary: Import users (multipart file), requestBody: { $ref: "#/components/requestBodies/FileUpload" }, responses: { "302": { description: Redirect } } }
+  /Account/Profile:
+    get: { tags: [Admin — Users & Roles], summary: Own profile page (any authenticated user), responses: { "200": { description: HTML } } }
+    post: { tags: [Admin — Users & Roles], summary: Update own profile/password, responses: { "302": { description: Redirect } } }
+
+  # ─────────────────────── Admin — Credentials ───────────────────────
+  /Admin/Credentials:
+    get: { tags: [Admin — Credentials], summary: Portal credentials manager (values encrypted at rest), responses: { "200": { description: HTML } } }
+  /Admin/SaveCredential:
+    post: { tags: [Admin — Credentials], summary: Create/update a DHA/RHA credential, responses: { "302": { description: Redirect } } }
+  /Admin/DeleteCredential:
+    post: { tags: [Admin — Credentials], summary: Delete credential, requestBody: { $ref: "#/components/requestBodies/IdForm" }, responses: { "302": { description: Redirect } } }
+  /Admin/TestCredential:
+    get:
+      tags: [Admin — Credentials]
+      summary: Live portal login test for one credential
+      parameters: [ { name: id, in: query, required: true, schema: { type: integer } } ]
+      responses: { "200": { description: "{ok, message}", content: { application/json: { schema: { type: object } } } } }
+  /Admin/TestAllCredentials:
+    get: { tags: [Admin — Credentials], summary: Test every active credential, responses: { "200": { description: Results JSON/HTML } } }
+  /Admin/ExportCredentials:
+    get: { tags: [Admin — Credentials], summary: Export credentials (file), responses: { "200": { description: File download } } }
+  /Admin/ImportCredentials:
+    post: { tags: [Admin — Credentials], summary: Import credentials (multipart file), requestBody: { $ref: "#/components/requestBodies/FileUpload" }, responses: { "302": { description: Redirect } } }
+
+  # ────────────────── Admin — Settings, Data & AI ──────────────────
+  /Admin/EmailSettings:
+    get: { tags: [Admin — Settings & Data], summary: SMTP settings page, responses: { "200": { description: HTML } } }
+  /Admin/SaveEmailSettings:
+    post: { tags: [Admin — Settings & Data], summary: Save SMTP settings (blank password keeps current), responses: { "302": { description: Redirect } } }
+  /Admin/TestEmailSettings:
+    post:
+      tags: [Admin — Settings & Data]
+      summary: Send a test email
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [testTo]
+              properties:
+                testTo: { type: string, format: email }
+                __RequestVerificationToken: { type: string }
+      responses: { "200": { description: "{ok, message}", content: { application/json: { schema: { type: object } } } } }
+  /Admin/Ai:
+    get: { tags: [Admin — Settings & Data], summary: AI agent governance page (model, key, limits, audit), responses: { "200": { description: HTML } } }
+  /Admin/SaveAiSettings:
+    post:
+      tags: [Admin — Settings & Data]
+      summary: Save hosted-AI settings (key encrypted; blank keeps current)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema: { $ref: "#/components/schemas/AiSettingsForm" }
+      responses: { "302": { description: Redirect to /Admin/Ai } }
+  /Admin/TestAiConnection:
+    post:
+      tags: [Admin — Settings & Data]
+      summary: Probe hosted-AI connectivity
+      requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }
+      responses: { "200": { description: "{ok, message}", content: { application/json: { schema: { type: object } } } } }
+  /Admin/CodingSets:
+    get: { tags: [Admin — Settings & Data], summary: DHPO coding sets page, responses: { "200": { description: HTML } } }
+  /Admin/ImportCodingSet:
+    post: { tags: [Admin — Settings & Data], summary: Import a coding-set file for a category, requestBody: { $ref: "#/components/requestBodies/FileUpload" }, responses: { "302": { description: Redirect } } }
+  /Admin/CodingSetSearch:
+    get:
+      tags: [Admin — Settings & Data]
+      summary: Search a coding set (JSON, paged 50)
+      parameters:
+        - { name: category, in: query, required: true, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+      responses:
+        "200":
+          description: Paged codes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  page: { type: integer }
+                  rows: { type: array, items: { type: object, properties: { code: { type: string }, name: { type: string }, subType: { type: string, nullable: true } } } }
+  /Admin/ReportSchedules:
+    get: { tags: [Admin — Settings & Data], summary: Scheduled reports page (cron presets), responses: { "200": { description: HTML } } }
+  /Admin/SaveReportSchedule:
+    post: { tags: [Admin — Settings & Data], summary: Create/update a schedule, responses: { "302": { description: Redirect } } }
+  /Admin/DeleteReportSchedule:
+    post: { tags: [Admin — Settings & Data], summary: Delete a schedule, requestBody: { $ref: "#/components/requestBodies/IdForm" }, responses: { "302": { description: Redirect } } }
+  /Admin/RunScheduleNow:
+    post: { tags: [Admin — Settings & Data], summary: Run a schedule immediately, requestBody: { $ref: "#/components/requestBodies/IdForm" }, responses: { "302": { description: Redirect } } }
+  /Admin/Database:
+    get: { tags: [Admin — Settings & Data], summary: Database tools page, responses: { "200": { description: HTML } } }
+  /Admin/ExportDatabase:
+    get: { tags: [Admin — Settings & Data], summary: Export the SQLite database (large file), responses: { "200": { description: Binary download, content: { application/octet-stream: { schema: { type: string, format: binary } } } } } }
+  /Admin/ImportDatabase:
+    post: { tags: [Admin — Settings & Data], summary: Import/replace database (multipart; staged as pending swap on restart), requestBody: { $ref: "#/components/requestBodies/FileUpload" }, responses: { "302": { description: Redirect } } }
+
+  # ─────────────────── Support & Diagnostics ───────────────────
+  /Support/SelfTest:
+    get: { tags: [Support & Diagnostics], summary: Self-diagnostics page (RcmAccess), responses: { "200": { description: HTML } } }
+  /Support/RunDiagnostics:
+    post:
+      tags: [Support & Diagnostics]
+      summary: Health + 24-month per-facility data coverage (JSON)
+      requestBody: { $ref: "#/components/requestBodies/AntiForgeryOnly" }
+      responses:
+        "200": { description: Diagnostics payload, content: { application/json: { schema: { $ref: "#/components/schemas/DiagnosticsResult" } } } }
+  /Support/Chat:
+    post:
+      tags: [Support & Diagnostics]
+      summary: In-app support chatbot (JSON body; app-scope-limited assistant)
+      description: >
+        Hard limits — 1500 chars/message, 8 turn pairs kept, prompt-injection
+        patterns rejected, off-topic refused. 503 when the support model key is
+        unconfigured.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string, enum: [user, assistant] }
+                      content: { type: string, maxLength: 1500 }
+      responses:
+        "200": { description: "{reply}", content: { application/json: { schema: { type: object, properties: { reply: { type: string } } } } } }
+        "400": { description: No valid messages }
+        "502": { description: Upstream model unreachable }
+        "503": { description: Support chat not configured }
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: .AspNetCore.Identity.Application
+      description: ASP.NET Identity session cookie (8h sliding). Login via POST /login.
+
+  responses:
+    LoginRedirect:
+      description: Not authenticated / insufficient role — 302 redirect to /login
+
+  requestBodies:
+    AntiForgeryOnly:
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required: [__RequestVerificationToken]
+            properties:
+              __RequestVerificationToken: { type: string }
+    Question:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required: [question, __RequestVerificationToken]
+            properties:
+              question: { type: string, example: "Which payer had the highest rejection rate last month?" }
+              __RequestVerificationToken: { type: string }
+    IdForm:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required: [id]
+            properties:
+              id: { type: integer }
+              __RequestVerificationToken: { type: string }
+    StringIdForm:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required: [id]
+            properties:
+              id: { type: string }
+              __RequestVerificationToken: { type: string }
+    FileUpload:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              file: { type: string, format: binary }
+              __RequestVerificationToken: { type: string }
+
+  schemas:
+    AskResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        answer: { type: string, nullable: true }
+        sql: { type: string, nullable: true, description: Executed SQL (NVIDIA) or source label (Ollama assistant) }
+        columns: { type: array, items: { type: string } }
+        rows: { type: array, items: { type: array, items: { type: string, nullable: true } } }
+        rowCount: { type: integer }
+        redacted: { type: boolean }
+        tokens: { type: integer }
+        error: { type: string, nullable: true }
+
+    AssistantEvent:
+      description: One SSE frame from /Ai/AskStream (exactly one variant applies)
+      oneOf:
+        - { type: object, properties: { stage: { type: string, enum: [understanding, querying] } }, required: [stage] }
+        - { type: object, properties: { stage: { type: string, enum: [answering] }, sql: { type: string }, columns: { type: array, items: { type: string } }, rows: { type: array, items: { type: array, items: { type: string, nullable: true } } }, rowCount: { type: integer }, redacted: { type: boolean } }, required: [stage, columns, rows] }
+        - { type: object, properties: { token: { type: string } }, required: [token] }
+        - { type: object, properties: { done: { type: boolean }, tokens: { type: integer } }, required: [done] }
+        - { type: object, properties: { error: { type: string } }, required: [error] }
+
+    PortalFetchForm:
+      type: object
+      properties:
+        Portal: { type: string, enum: [DHA, RHA] }
+        FacilityIds: { type: array, items: { type: integer }, description: Multi-select branches }
+        Operation: { type: string, enum: [SearchTransactions, GetNewTransactions, GetNewPriorAuthorizations, DownloadTransactionFile, GetClaims, GetRemittances, GetPriorAuthorizations] }
+        DateFrom: { type: string, format: date }
+        DateTo: { type: string, format: date }
+        Directions: { type: array, items: { type: integer, enum: [1, 2] }, description: 1=Sent 2=Received }
+        TransactionStatuses: { type: array, items: { type: integer, enum: [1, 2] }, description: 1=New 2=Downloaded }
+        TransactionIds: { type: array, items: { type: integer, enum: [2, 8, 16, 32] }, description: Tx types }
+        FileId: { type: string, description: For DownloadTransactionFile }
+        MinRecord: { type: integer, default: -1 }
+        MaxRecord: { type: integer, default: -1 }
+        __RequestVerificationToken: { type: string }
+
+    ReportRow:
+      type: object
+      properties:
+        id: { type: integer }
+        reportId: { type: string, example: ANA-0000042 }
+        branch: { type: string }
+        receiver: { type: string }
+        payer: { type: string }
+        clinician: { type: string }
+        status: { type: string, enum: [Pending, Processing, Completed, Failed] }
+        dateFrom: { type: string }
+        dateTo: { type: string }
+        requestedDate: { type: string }
+        generatedOn: { type: string }
+        filePath: { type: string, nullable: true }
+
+    AiSettingsForm:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        apiBaseUrl: { type: string }
+        model: { type: string }
+        apiKey: { type: string, description: Blank keeps stored key }
+        maxOutputTokens: { type: integer }
+        temperature: { type: number }
+        rowLimit: { type: integer }
+        dailyRequestLimit: { type: integer }
+        monthlyTokenLimit: { type: integer }
+        allowFullData: { type: boolean }
+        timeoutSeconds: { type: integer }
+        __RequestVerificationToken: { type: string }
+
+    DiagnosticsResult:
+      type: object
+      properties:
+        ok: { type: boolean }
+        generatedAtUtc: { type: string, format: date-time }
+        health:
+          type: object
+          properties:
+            dbOk: { type: boolean }
+            dbError: { type: string, nullable: true }
+            totalRecords: { type: integer }
+            totalRemittances: { type: integer }
+            connectedFacilities: { type: integer }
+            lastSyncUtc: { type: string, format: date-time, nullable: true }
+            windowFrom: { type: string }
+            windowTo: { type: string }
+        facilities:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              isActive: { type: boolean }
+              portals: { type: array, items: { type: string } }
+              recordsInWindow: { type: integer }
+              coveredMonths: { type: integer }
+              totalMonths: { type: integer }
+              gapMonths: { type: array, items: { type: string } }
+              lastFetchUtc: { type: string, format: date-time, nullable: true }
+              monthly: { type: array, items: { type: object, properties: { ym: { type: string }, count: { type: integer } } } }

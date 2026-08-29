@@ -1,11 +1,83 @@
+# Secrets — never commit
+.env
+*.env.local
+
 Analytika/bin/
 Analytika/obj/
+Analytika.Tests/bin/
+Analytika.Tests/obj/
+analytika.db
+analytika.db.gz
+analytika.db-shm
+analytika.db-wal
 Analytika/analytika.db
 Analytika/publish/
 Analytika/wwwroot/portal-downloads/
 Analytika/wwwroot/reports/
 .DS_Store
 *.user
+*.swp
+*.swo
+*.swn
+
+# Codex runtime cruft
+.codex-spreadsheets/node_modules
 Analytika/analytika.db.gz
 Analytika/analytika.db-shm
 Analytika/analytika.db-wal
+
+# Python prototype artifacts
+car-poster-proto/.env
+car-poster-proto/google_creds.json
+car-poster-proto/venv/
+car-poster-proto/.venv/
+car-poster-proto/__pycache__/
+car-poster-proto/.streamlit/secrets.toml
+mobile/node_modules/
+
+# Linux deploy runtime
+deploy/linux/.env
+deploy/linux/data/
+deploy/linux/portal-downloads/
+deploy/linux/reports/
+
+# Data Protection keys (never commit)
+dp-keys/
+Analytika/dataprotection-keys/
+dataprotection-keys/
+
+# Logs
+logs/
+
+# Server controller runtime (PIDs, logs, mode file)
+.run/
+
+# Node (Playwright test tooling)
+node_modules/
+package.json
+package-lock.json
+
+.fake
+# Portal debugging session cookies — never commit
+cookies.txt
+
+# Remote agent runtime: shared access token and logs
+tools/bix-agent/agent-token.txt
+tools/bix-agent/*.log
+
+# Ad-hoc runtime logs written at the repo root
+.cf-*.log
+.claude-run.log
+.codex-*.log
+
+# Tool build output
+tools/*/bin/
+tools/*/obj/
+deploy/output/
+mobile/.expo/
+.idea/
+
+# The blanket package.json / package-lock.json rules above come from the mobile
+# prototype. The remote agent's manifest must be tracked or the tool cannot be rebuilt.
+!tools/bix-agent/package.json
+!tools/bix-agent/package-lock.json

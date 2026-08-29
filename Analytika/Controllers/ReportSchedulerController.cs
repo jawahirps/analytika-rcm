@@ -1,36 +1,85 @@
-using Analytika.Models;
+﻿using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 namespace Analytika.Controllers;
 
-[Authorize]
+[Authorize(Roles = AppRoles.ReportAccess)]
+[Route("[controller]/[action]")]
 public class ReportSchedulerController : Controller
 {
     private readonly AppDbContext _context;
     private readonly IReportService _reportService;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IWebHostEnvironment _env;
 
-    public ReportSchedulerController(AppDbContext context, IReportService reportService)
+    public ReportSchedulerController(AppDbContext context, IReportService reportService, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
     {
         _context = context;
         _reportService = reportService;
+        _userManager = userManager;
+        _env = env;
+    }
+
+    // Returns all facility IDs for Facility-type users, null for global users.
+    // Returns an empty list (not null) when a Facility user has no assignments — callers must treat this as "no access".
+    private async Task<List<int>?> GetUserFacilityIdsAsync()
+    {
+        var appUser = await _userManager.GetUserAsync(User);
+        if (appUser?.UserType != "Facility") return null;
+        return await _context.Set<UserFacility>()
+            .Where(x => x.UserId == appUser.Id)
+            .Select(x => x.FacilityId)
+            .ToListAsync();
     }
 
     private async Task<ReportSchedulerViewModel> BuildViewModelAsync(string reportType, string reportTitle, int page = 1)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10);
+        var facilityIds = await GetUserFacilityIdsAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, 10, facilityIds);
+
+        var facilitiesQuery = _context.Facilities.Where(f => f.IsActive);
+        if (facilityIds != null)
+            facilitiesQuery = facilityIds.Count > 0
+                ? facilitiesQuery.Where(f => facilityIds.Contains(f.Id))
+                : facilitiesQuery.Where(_ => false);
+
+        // Scope filter dropdowns to codes that actually appear in this facility's parsed data
+        var parsedScope = _context.XmlParsedRecords.AsNoTracking();
+        if (facilityIds != null && facilityIds.Count > 0)
+            parsedScope = parsedScope.Where(r => facilityIds.Contains(r.FacilityId));
+
+        var payerCodes = await parsedScope
+            .Where(r => r.PayerId != null && r.PayerId != "")
+            .Select(r => r.PayerId!).Distinct().ToListAsync();
+        var receiverCodes = await parsedScope
+            .Where(r => r.ReceiverId != null && r.ReceiverId != "")
+            .Select(r => r.ReceiverId!).Distinct().ToListAsync();
+        var clinicianCodes = await parsedScope
+            .Where(r => r.Clinician != null && r.Clinician != "")
+            .Select(r => r.Clinician!).Distinct().ToListAsync();
+
         return new ReportSchedulerViewModel
         {
             ReportType = reportType,
             ReportTitle = reportTitle,
-            Facilities = new SelectList(await _context.Facilities.Where(f => f.IsActive).ToListAsync(), "Id", "Name"),
-            Receivers = new SelectList(await _context.Receivers.Where(r => r.IsActive).ToListAsync(), "Id", "Name"),
-            Payers = new SelectList(await _context.Payers.Where(p => p.IsActive).ToListAsync(), "Id", "Name"),
-            Clinicians = new SelectList(await _context.Clinicians.Where(c => c.IsActive).ToListAsync(), "Id", "Name"),
+            SearchCriteria = "EncounterStartDate",
+            Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
+            Payers    = new SelectList(await _context.Payers
+                .Where(p => p.IsActive && payerCodes.Contains(p.Name))
+                .OrderBy(p => p.Name).ToListAsync(), "Id", "Name"),
+            Receivers = new SelectList(await _context.Receivers
+                .Where(r => r.IsActive && receiverCodes.Contains(r.Name))
+                .OrderBy(r => r.Name).ToListAsync(), "Id", "Name"),
+            Clinicians = new SelectList(await _context.Clinicians
+                .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
+                .OrderBy(c => c.Name).ToListAsync(), "Id", "Name"),
             Departments = new SelectList(await _context.Departments.Where(d => d.IsActive).ToListAsync(), "Id", "Name"),
             RecentReports = reports,
             TotalReports = total,
@@ -62,9 +111,16 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> ClaimLifeCycleReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("ClaimLifeCycle", "Claim Life Cycle Report", page));
 
-    [HttpPost]
+    public async Task<IActionResult> SystemOverviewReport(int page = 1)
+        => View("ReportPage", await BuildViewModelAsync("SystemOverview", "System Overview Report", page));
+
+    [HttpGet("/ReportScheduler/SubmitReport")]
+    public IActionResult SubmitReport()
+        => RedirectToAction(nameof(ClaimSummaryReport));
+
+    [HttpPost("/ReportScheduler/CreateReport")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> SubmitReport(ReportSchedulerViewModel model)
+    public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
         var user = User.Identity?.Name ?? "system";
         var request = new ReportRequest
@@ -85,8 +141,8 @@ public class ReportSchedulerController : Controller
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
 
-        var reportId = await _reportService.QueueReportAsync(request);
-        TempData["Success"] = $"Report {reportId} has been queued successfully.";
+        var reportId = await _reportService.QueueReportAsync(request, model.DateRange);
+        TempData["Success"] = $"Report {reportId} is now generating in the background.";
 
         return RedirectToAction(GetActionName(model.ReportType));
     }
@@ -94,7 +150,8 @@ public class ReportSchedulerController : Controller
     [HttpGet]
     public async Task<IActionResult> GetReports(string reportType, int page = 1, int pageSize = 10)
     {
-        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize);
+        var facilityIds = await GetUserFacilityIdsAsync();
+        var (reports, total) = await _reportService.GetReportsAsync(reportType, page, pageSize, facilityIds);
         return Json(new
         {
             data = reports.Select(r => new
@@ -120,13 +177,14 @@ public class ReportSchedulerController : Controller
     }
 
     [HttpGet]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     public async Task<IActionResult> Download(int id)
     {
         var report = await _reportService.GetReportByIdAsync(id);
         if (report == null || string.IsNullOrEmpty(report.FilePath))
             return NotFound();
 
-        var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", report.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+        var filePath = ResolveReportFilePath(report.FilePath);
         if (!System.IO.File.Exists(filePath))
             return NotFound("File not found on server.");
 
@@ -141,6 +199,100 @@ public class ReportSchedulerController : Controller
         return PhysicalFile(filePath, contentType, fileName);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.RcmAccess)]
+    public async Task<IActionResult> DeleteReport(int id, string reportType)
+    {
+        var report = await _context.ReportRequests.FirstOrDefaultAsync(r => r.Id == id);
+        if (report == null)
+        {
+            TempData["Error"] = "Report request was not found.";
+            return RedirectToAction(GetActionName(reportType));
+        }
+
+        var activeReport = ReportGenerationState.Get();
+        if (activeReport.IsRunning && activeReport.ReportRequestId == report.Id)
+        {
+            TempData["Error"] = $"Report {report.ReportId} is still running and cannot be deleted yet.";
+            return RedirectToAction(GetActionName(report.ReportType));
+        }
+
+        var filePath = ResolveReportFilePath(report.FilePath);
+        var reportId = report.ReportId;
+        var resolvedReportType = report.ReportType;
+
+        _context.ReportRequests.Remove(report);
+        await _context.SaveChangesAsync();
+        DeleteReportFile(filePath);
+
+        TempData["Success"] = $"Report {reportId} was deleted.";
+        return RedirectToAction(GetActionName(resolvedReportType));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = AppRoles.RcmAccess)]
+    public async Task<IActionResult> ClearReports(string reportType)
+    {
+        if (string.IsNullOrWhiteSpace(reportType))
+            reportType = "ClaimSummary";
+
+        var activeReport = ReportGenerationState.Get();
+        var query = _context.ReportRequests.Where(r => r.ReportType == reportType);
+
+        if (activeReport.IsRunning)
+            query = query.Where(r => r.Id != activeReport.ReportRequestId);
+
+        var reports = await query.ToListAsync();
+        var filePaths = reports
+            .Select(r => ResolveReportFilePath(r.FilePath))
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .ToList();
+
+        _context.ReportRequests.RemoveRange(reports);
+        await _context.SaveChangesAsync();
+
+        foreach (var filePath in filePaths)
+            DeleteReportFile(filePath);
+
+        TempData["Success"] = reports.Count == 0
+            ? "No completed report requests were available to clear."
+            : $"Cleared {reports.Count} report request(s).";
+
+        return RedirectToAction(GetActionName(reportType));
+    }
+
+    private static string? ResolveReportFilePath(string? reportFilePath)
+    {
+        if (string.IsNullOrWhiteSpace(reportFilePath))
+            return null;
+
+        var webRoot = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"));
+        var filePath = Path.GetFullPath(Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "wwwroot",
+            reportFilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar)));
+
+        return filePath.StartsWith(webRoot, StringComparison.OrdinalIgnoreCase) ? filePath : null;
+    }
+
+    private static void DeleteReportFile(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            return;
+
+        try
+        {
+            if (System.IO.File.Exists(filePath))
+                System.IO.File.Delete(filePath);
+        }
+        catch
+        {
+            // The history row is the source of truth; stale files can be cleaned up later.
+        }
+    }
+
     private static string GetActionName(string reportType) => reportType switch
     {
         "ClaimSummary" => "ClaimSummaryReport",
@@ -151,6 +303,7 @@ public class ReportSchedulerController : Controller
         "FinanceTAT" => "FinanceTATReport",
         "DenialReport" => "DenialReport",
         "ClaimLifeCycle" => "ClaimLifeCycleReport",
+        "SystemOverview" => "SystemOverviewReport",
         _ => "ClaimSummaryReport"
     };
 }

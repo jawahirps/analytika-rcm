@@ -4,9 +4,10 @@ namespace Analytika.Services;
 
 public interface IReportService
 {
-    Task<string> QueueReportAsync(ReportRequest request);
-    Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize);
+    Task<string> QueueReportAsync(ReportRequest request, string? selectedDateRange = null);
+    Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, List<int>? facilityIds = null);
     Task<ReportRequest?> GetReportByIdAsync(int id);
     Task GenerateReportAsync(int reportRequestId);
-    string GetNextReportId();
+    Task RunScheduledReportAsync(int scheduleId);
+    string GetNextReportId(ReportRequest request, string? selectedDateRange = null);
 }

@@ -1,0 +1,4 @@
+ingress:
+  - hostname: bix.ghafservices.com
+    service: http://localhost:5000
+  - service: http_status:404

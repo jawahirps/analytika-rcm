@@ -1,0 +1,18 @@
+@*
+    Canonical empty state. Usage:
+    @await Html.PartialAsync("_EmptyState", new { Icon="fa-cloud-download-alt", Title="Nothing yet", Detail="Run a fetch to see data here." })
+*@
+@model dynamic
+@{
+    string icon   = (Model?.Icon as string) ?? "fa-inbox";
+    string title  = (Model?.Title as string) ?? "Nothing here yet";
+    string detail = (Model?.Detail as string) ?? "";
+}
+<div class="app-empty">
+    <i class="fas @icon"></i>
+    <div class="fw-semibold" style="color:var(--text);">@title</div>
+    @if (!string.IsNullOrEmpty(detail))
+    {
+        <div style="font-size:var(--fs-sm);">@detail</div>
+    }
+</div>

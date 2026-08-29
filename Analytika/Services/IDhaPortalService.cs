@@ -18,7 +18,16 @@ public interface IDhaPortalService
 
     // SearchTransactions on archive endpoint (for data >24 months old)
     Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsArchiveAsync(
-        string login, string pwd, int direction, string? fromDate, string? toDate, int transactionStatus);
+        string login, string pwd, int direction, string? fromDate, string? toDate,
+        int transactionStatus, int transactionId = 2, int minRecord = -1, int maxRecord = -1);
+
+    // SearchTransactions with automatic date-range splitting. DHA's SearchTransactions
+    // caps at 500 files per call — if a chunk saturates, this helper subdivides the
+    // date range until every sub-range returns < 500 rows, then combines results.
+    // Input dates must be in the DHA "dd/MM/yyyy HH:mm:ss" format.
+    Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsWithSplittingAsync(
+        string login, string pwd, int direction, string? fromDate, string? toDate,
+        int transactionStatus, int transactionId = 2, int maxRecord = 500);
 
     // DownloadTransactionFile — fileId is the FileID attribute from <File> element
     Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileAsync(string login, string pwd, string fileId);

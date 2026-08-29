@@ -6,34 +6,221 @@
 
 @section Styles {
 <style>
-    .page-wrapper { padding: 20px 24px; background: #f5f6fa; min-height: calc(100vh - 120px); }
+    .page-wrapper {
+        padding: 22px 24px 70px;
+        background: #09090b;
+        min-height: calc(100vh - 120px);
+        overflow: hidden;
+    }
+    /* Shader canvas sits at z-index:0; cards at z-index:1 */
+    .page-wrapper > *:not(canvas) { position: relative; z-index: 1; }
     .breadcrumb-bar { margin-bottom: 16px; }
-    .breadcrumb-item a { color: #0D7272; text-decoration: none; }
-    .filter-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
-    .filter-card .card-header { background: linear-gradient(135deg, #0A1828, #164055); color: white; border-radius: 12px 12px 0 0; padding: 12px 20px; font-weight: 600; }
-    .date-range-btn { border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; margin-right: 6px; border: 1px solid #dee2e6; background: white; cursor: pointer; transition: all 0.2s; }
-    .date-range-btn.active { background: #0D7272; color: white; border-color: #0D7272; }
-    .table-card { border: none; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .table-card .card-header { background: white; border-radius: 12px 12px 0 0; padding: 14px 20px; border-bottom: 1px solid #e0e0e0; font-weight: 600; color: #0A1828; }
-    .table thead th { background: #f8f9fa; font-weight: 600; font-size: 0.82rem; color: #495057; border-bottom: 2px solid #dee2e6; white-space: nowrap; }
-    .table tbody td { font-size: 0.83rem; vertical-align: middle; }
-    .report-id-link { color: #28a745; font-weight: 600; text-decoration: none; }
-    .report-id-link:hover { text-decoration: underline; }
-    .status-completed { color: #28a745; font-weight: 600; }
-    .status-pending { color: #ffc107; font-weight: 600; }
-    .status-processing { color: #17a2b8; font-weight: 600; }
-    .status-failed { color: #dc3545; font-weight: 600; }
-    .btn-download { background: #0D7272; color: white; border: none; border-radius: 6px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
-    .btn-download:hover { background: #0B5C5C; }
-    .pagination-info { font-size: 0.82rem; color: #6c757d; }
+    .breadcrumb-item a { color: #818cf8; text-decoration: none; font-weight: 600; }
+    .breadcrumb-item.active { color: #a1a1aa; }
+    .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
+    .filter-card,
+    .table-card {
+        border: 1px solid rgba(255,255,255,.09);
+        border-radius: 22px;
+        box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+        background: rgba(9,9,11,.72);
+        backdrop-filter: blur(28px) saturate(140%);
+        -webkit-backdrop-filter: blur(28px) saturate(140%);
+        margin-bottom: 20px;
+        overflow: hidden;
+    }
+    .filter-card .card-header {
+        background: linear-gradient(135deg, rgba(8,20,35,.96), rgba(0,102,102,.9));
+        color: white;
+        border-radius: 22px 22px 0 0;
+        padding: 14px 20px;
+        font-weight: 600;
+        border-bottom: 1px solid rgba(255,255,255,.28);
+    }
+    /* Report Type / Search Criteria plain selects — force readable contrast on
+       the (light-rendered) filter card so the selected value + options show. */
+    .filter-card .form-select,
+    .filter-card select.form-select {
+        color: #0f172a !important;
+        background-color: #ffffff !important;
+        border: 1px solid rgba(8,20,35,.16) !important;
+    }
+    .filter-card .form-select option { color: #0f172a; background-color: #ffffff; }
+    html[data-theme="dark"] .filter-card .form-select,
+    html[data-theme="dark"] .filter-card select.form-select {
+        color: #e5edf5 !important;
+        background-color: rgba(1,28,64,0.82) !important;
+    }
+    html[data-theme="dark"] .filter-card .form-select option { color: #0f172a; }
+    .sel-tools { font-size: .72rem; font-weight: 500; white-space: nowrap; }
+    .sel-tools a { color: var(--classic-teal, #54ACBF); text-decoration: none; }
+    .sel-tools a:hover { text-decoration: underline; }
+    .date-range-btn {
+        border-radius: 999px;
+        padding: 6px 15px;
+        font-size: 0.82rem;
+        margin-right: 6px;
+        border: 1px solid rgba(255,255,255,.10);
+        background: rgba(255,255,255,.06);
+        color: #d4d4d8;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .date-range-btn:hover { background: rgba(255,255,255,.10); color: #fafafa; }
+    .date-range-btn.active {
+        background: rgba(99,102,241,.22);
+        color: #a5b4fc;
+        border-color: rgba(99,102,241,.40);
+        box-shadow: 0 0 0 1px rgba(99,102,241,.25);
+    }
+    .table-card .card-header {
+        background: rgba(255,255,255,.04);
+        border-radius: 22px 22px 0 0;
+        padding: 14px 20px;
+        border-bottom: 1px solid rgba(255,255,255,.07);
+        font-weight: 600;
+        color: #fafafa;
+    }
+    .table thead th { background: rgba(255,255,255,.05); font-weight: 700; font-size: 0.82rem; color: #a1a1aa; border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap; }
+    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: #d4d4d8; }
+    .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); }
+    .report-id-link { color: #818cf8; font-weight: 700; text-decoration: none; }
+    .report-id-link:hover { text-decoration: underline; color: #a5b4fc; }
+    .status-completed { color: #34d399; font-weight: 700; }
+    .status-pending { color: #fbbf24; font-weight: 700; }
+    .status-processing { color: #818cf8; font-weight: 700; }
+    .status-failed { color: #f87171; font-weight: 700; }
+    .btn-download { background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.30); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
+    .btn-download:hover { background: rgba(99,102,241,.30); color: #c7d2fe; }
+    .btn-delete-report { background: rgba(248,113,113,.10); color: #fca5a5; border: 1px solid rgba(248,113,113,.25); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
+    .btn-delete-report:hover { background: rgba(248,113,113,.20); color: #fecaca; }
+    .btn-clear-reports { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
+    .btn-clear-reports:hover { background: rgba(248,113,113,.16); color: #fecaca; }
+    .pagination-info { font-size: 0.82rem; color: #71717a; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
-    .btn-submit-report { background: linear-gradient(135deg, #0D7272, #164055); color: white; border: none; padding: 8px 24px; border-radius: 8px; font-weight: 600; }
-    .btn-reset-report { background: #6c757d; color: white; border: none; padding: 8px 20px; border-radius: 8px; }
+    .btn-submit-report { background: #6366f1; color: white; border: 1px solid rgba(99,102,241,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(99,102,241,.35); }
+    .btn-submit-report:hover { background: #4f46e5; }
+    .btn-reset-report { background: rgba(255,255,255,.06); color: #d4d4d8; border: 1px solid rgba(255,255,255,.10); padding: 8px 20px; border-radius: 999px; font-weight: 600; }
+    .btn-reset-report:hover { background: rgba(255,255,255,.10); color: #fafafa; }
+    /* form controls inside the page-wrapper */
+    .page-wrapper .form-control,
+    .page-wrapper .form-select,
+    .page-wrapper .input-group-text { background: rgba(255,255,255,.06); color: #fafafa; border-color: rgba(255,255,255,.10); }
+    .page-wrapper .form-control:focus,
+    .page-wrapper .form-select:focus { background: rgba(255,255,255,.09); border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.18); color: #fafafa; }
+    .page-wrapper .form-label,
+    .page-wrapper label { color: #a1a1aa; }
+    .page-wrapper .text-muted { color: #71717a !important; }
+
+    /* ── Light-mode legibility fix ───────────────────────────────────────
+       This page was authored dark, but the global glass pass forces its
+       wrapper + cards LIGHT in light mode — stranding the light-gray text.
+       In light mode, make the surface explicitly light and the text dark.
+       Dark mode keeps the original (correct) light-on-dark styling above. */
+    html:not([data-theme="dark"]) .page-wrapper { background: var(--bg, #eef3f9); }
+    html:not([data-theme="dark"]) .page-wrapper .form-control,
+    html:not([data-theme="dark"]) .page-wrapper .form-select,
+    html:not([data-theme="dark"]) .page-wrapper .input-group-text {
+        color: #0f172a; background: #ffffff; border-color: rgba(8,20,35,.16);
+    }
+    html:not([data-theme="dark"]) .page-wrapper .form-control:focus,
+    html:not([data-theme="dark"]) .page-wrapper .form-select:focus { color: #0f172a; }
+    html:not([data-theme="dark"]) .page-wrapper .form-label,
+    html:not([data-theme="dark"]) .page-wrapper label { color: #334e68; }
+    html:not([data-theme="dark"]) .date-range-btn { color: #334e68; border-color: rgba(8,20,35,.14); background: rgba(8,20,35,.04); }
+    html:not([data-theme="dark"]) .date-range-btn:hover { color: #0f172a; background: rgba(8,20,35,.08); }
+    html:not([data-theme="dark"]) .date-range-btn.active { color: #3730a3; background: rgba(99,102,241,.14); border-color: rgba(99,102,241,.40); }
+    html:not([data-theme="dark"]) .table-card .card-header { color: #0f172a; }
+    html:not([data-theme="dark"]) .table thead th { color: #334e68; }
+    html:not([data-theme="dark"]) .table tbody td { color: #1f2937; }
+    html:not([data-theme="dark"]) .breadcrumb-item a { color: #005f70; }
+    html:not([data-theme="dark"]) .breadcrumb-item.active { color: #64748b; }
+    html:not([data-theme="dark"]) .breadcrumb { --bs-breadcrumb-divider-color: rgba(8,20,35,.35); }
+    html:not([data-theme="dark"]) .pagination-info,
+    html:not([data-theme="dark"]) .page-wrapper .text-muted { color: #64748b !important; }
+    html:not([data-theme="dark"]) .report-id-link { color: #4338ca; }
+
+    @@media (max-width: 768px) {
+        .page-wrapper {
+            padding: 14px 12px 90px;
+        }
+        .breadcrumb-bar {
+            margin-bottom: 12px;
+        }
+        .filter-card,
+        .table-card {
+            border-radius: 18px;
+            margin-bottom: 16px;
+        }
+        .filter-card .card-header,
+        .table-card .card-header {
+            padding: 12px 14px;
+            font-size: .9rem;
+        }
+        .card-body.p-4 {
+            padding: 14px !important;
+        }
+        .date-range-btn {
+            margin-right: 0;
+            padding: 7px 12px;
+            font-size: 0.78rem;
+        }
+        .custom-date-section.row {
+            gap: 12px;
+        }
+        .custom-date-section .col-md-3,
+        .row.mb-3 > .col-md-3,
+        .row.mb-3 > .col-md-9 {
+            width: 100%;
+            max-width: 100%;
+        }
+        .d-flex.gap-2 {
+            flex-wrap: wrap;
+        }
+        .d-flex.gap-2 > .btn,
+        .d-flex.gap-2 > form {
+            width: 100%;
+        }
+        .btn-submit-report,
+        .btn-reset-report,
+        .btn-download,
+        .btn-delete-report,
+        .btn-clear-reports {
+            width: 100%;
+            justify-content: center;
+        }
+        .btn-submit-report,
+        .btn-reset-report {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .table-card .card-header {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 10px;
+        }
+        .table-card .card-header > div {
+            width: 100%;
+            justify-content: space-between;
+        }
+        .table-responsive {
+            overflow-x: auto;
+        }
+        .table {
+            min-width: 980px;
+        }
+        .pagination {
+            flex-wrap: wrap;
+        }
+        .pagination-info {
+            margin-bottom: 8px;
+        }
+    }
 </style>
 }
 
-<div class="page-wrapper">
+<div class="page-wrapper" data-shader-bg>
     <!-- Breadcrumb -->
     <nav class="breadcrumb-bar" aria-label="breadcrumb">
         <ol class="breadcrumb">
@@ -49,9 +236,47 @@
             <i class="fas fa-filter me-2"></i>@Model.ReportTitle - Filters
         </div>
         <div class="card-body p-4">
-            <form asp-controller="ReportScheduler" asp-action="SubmitReport" method="post" id="reportForm">
+            <form asp-controller="ReportScheduler" asp-action="CreateReport" method="post" id="reportForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="ReportType" value="@Model.ReportType" />
+
+                <!-- Report Type — choose the report here, like any other filter -->
+                @{
+                    var reportTypes = new (string Action, string Label)[]
+                    {
+                        ("ClaimSummaryReport", "Claim Summary"),
+                        ("ClaimActivityReports", "Claim Activity"),
+                        ("RemittanceActivityReport", "Remittance Activity"),
+                        ("RemittanceClaimReport", "Remittance Claim"),
+                        ("ClaimReceiverReport", "Claim Receiver"),
+                        ("ClaimClinicianReport", "Claim Clinician"),
+                        ("FinanceTATReport", "Finance TAT"),
+                        ("DenialReport", "Denial Query"),
+                        ("ClaimLifeCycleReport", "Claim Life Cycle"),
+                        ("SubmissionXMLReport", "Submission XML File"),
+                        ("LiveSubmissionReport", "Live Submission"),
+                    };
+                    var currentAction = (string?)ViewContext.RouteData.Values["action"] ?? "ClaimSummaryReport";
+                }
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Report Type</label>
+                        <select class="form-select" id="reportTypeSelect"
+                                onchange="window.location.href='/ReportScheduler/' + this.value">
+                            @foreach (var (action, label) in reportTypes)
+                            {
+                                if (action == currentAction)
+                                {
+                                    <option value="@action" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@action">@label</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
 
                 <!-- Date Range -->
                 <div class="mb-3">
@@ -60,6 +285,8 @@
                         <button type="button" class="date-range-btn active" data-range="Today" onclick="setDateRange(this, 'Today')">Today</button>
                         <button type="button" class="date-range-btn" data-range="ThisMonth" onclick="setDateRange(this, 'ThisMonth')">This Month</button>
                         <button type="button" class="date-range-btn" data-range="LastMonth" onclick="setDateRange(this, 'LastMonth')">Last Month</button>
+                        <button type="button" class="date-range-btn" data-range="ThisYear" onclick="setDateRange(this, 'ThisYear')">This Year</button>
+                        <button type="button" class="date-range-btn" data-range="LastYear" onclick="setDateRange(this, 'LastYear')">Last Year</button>
                         <button type="button" class="date-range-btn" data-range="Custom" onclick="setDateRange(this, 'Custom')">Custom Date</button>
                         <input type="hidden" name="DateRange" id="dateRangeInput" value="Today" />
                     </div>
@@ -79,16 +306,46 @@
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Search Criteria</label>
+                        @{
+                            var isRa = Model.ReportType is "RemittanceActivity" or "RemittanceClaim" or "DenialReport";
+                            // RA-related reports default to RA Date but stay open for
+                            // selection; other reports offer the claim date headers.
+                            var criteriaOptions = isRa
+                                ? new[]
+                                  {
+                                      ("RemittanceDate", "RA Date"),
+                                      ("EncounterStartDate", "Encounter Start Date"),
+                                      ("EncounterEndDate", "Encounter End Date"),
+                                      ("SubmissionDate", "Submission Date"),
+                                      ("SettlementDate", "Settlement Date"),
+                                  }
+                                : new[]
+                                  {
+                                      ("EncounterStartDate", "Encounter Start Date"),
+                                      ("EncounterEndDate", "Encounter End Date"),
+                                      ("SubmissionDate", "Submission Date"),
+                                  };
+                            var selectedCriteria = string.IsNullOrEmpty(Model.SearchCriteria)
+                                ? criteriaOptions[0].Item1 : Model.SearchCriteria;
+                        }
                         <select name="SearchCriteria" class="form-select">
-                            <option value="">-- All --</option>
-                            <option value="EncounterEndDate">Encounter End Date</option>
-                            <option value="EncounterStartDate">Encounter Start Date</option>
-                            <option value="SubmissionDate">Submission Date</option>
-                            <option value="PaymentDate">Payment Date</option>
+                            @foreach (var (val, label) in criteriaOptions)
+                            {
+                                if (val == selectedCriteria)
+                                {
+                                    <option value="@val" selected>@label</option>
+                                }
+                                else
+                                {
+                                    <option value="@val">@label</option>
+                                }
+                            }
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Facility</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Facility
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedFacilities">Select all</a> · <a href="#" class="sel-none" data-target="SelectedFacilities">Clear</a></span>
+                        </label>
                         <select name="SelectedFacilities" class="form-select select2-multi" multiple>
                             @if (Model.Facilities != null)
                             {
@@ -99,20 +356,11 @@
                             }
                         </select>
                     </div>
+                    @* Receiver filter hidden — no reliable receiver mapping for report generation yet. *@
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Receiver</label>
-                        <select name="SelectedReceivers" class="form-select select2-multi" multiple>
-                            @if (Model.Receivers != null)
-                            {
-                                @foreach (SelectListItem item in Model.Receivers)
-                                {
-                                    <option value="@item.Value">@item.Text</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Payer</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Payer
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedPayers">Select all</a> · <a href="#" class="sel-none" data-target="SelectedPayers">Clear</a></span>
+                        </label>
                         <select name="SelectedPayers" class="form-select select2-multi" multiple>
                             @if (Model.Payers != null)
                             {
@@ -127,7 +375,9 @@
 
                 <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Clinician</label>
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Clinician
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedClinicians">Select all</a> · <a href="#" class="sel-none" data-target="SelectedClinicians">Clear</a></span>
+                        </label>
                         <select name="SelectedClinicians" class="form-select select2-multi" multiple>
                             @if (Model.Clinicians != null)
                             {
@@ -138,49 +388,36 @@
                             }
                         </select>
                     </div>
+                    @* Department filter hidden — clinical department mapping not yet available. *@
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold">Department</label>
-                        <select name="SelectedDepartments" class="form-select select2-multi" multiple>
-                            @if (Model.Departments != null)
+                        <label class="form-label fw-semibold d-flex justify-content-between align-items-baseline">Encounter Type
+                            <span class="sel-tools"><a href="#" class="sel-all" data-target="SelectedEncounterTypes">Select all</a> · <a href="#" class="sel-none" data-target="SelectedEncounterTypes">Clear</a></span>
+                        </label>
+                        @* Driven by what is actually in the data. The previous hard-coded
+                           four did not match the records: three matched nothing, and the
+                           raw codes present in the data could not be selected at all. *@
+                        <select name="SelectedEncounterTypes" class="form-select select2-multi" multiple>
+                            @if (Model.EncounterTypes != null && Model.EncounterTypes.Any())
                             {
-                                @foreach (SelectListItem item in Model.Departments)
+                                foreach (var e in Model.EncounterTypes)
                                 {
-                                    <option value="@item.Value">@item.Text</option>
+                                    <option value="@e.Value">@e.Text</option>
                                 }
                             }
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Encounter Type</label>
-                        <select name="EncounterType" class="form-select select2-multi" multiple>
-                            <option value="Inpatient">Inpatient</option>
-                            <option value="Outpatient">Outpatient</option>
-                            <option value="Emergency">Emergency</option>
-                            <option value="Dental">Dental</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label fw-semibold">Report Template</label>
-                        <select name="Template" class="form-select">
-                            <option value="Template1">Template 1</option>
-                            <option value="Template2">Template 2</option>
-                            <option value="Template3">Template 3</option>
-                        </select>
-                    </div>
+                    @* Report Template hidden — no template layouts implemented for this pass. *@
                 </div>
 
                 <div class="row mb-3">
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">File Format</label>
-                        <select name="FileFormat" class="form-select">
-                            <option value="Excel">Excel (.xlsx)</option>
-                            <option value="CSV">CSV (.csv)</option>
-                            <option value="PDF">PDF (.pdf)</option>
-                        </select>
+                        <input type="hidden" name="FileFormat" value="Excel" />
+                        <input type="text" class="form-select" value="Excel (.xlsx)" readonly disabled />
                     </div>
                     <div class="col-md-9">
                         <label class="form-label fw-semibold">
-                            <i class="fas fa-envelope me-1" style="color:#0D7272;"></i>Email Report To
+                            <i class="fas fa-envelope me-1" style="color:#A7EBF2;"></i>Email Report To
                             <small class="text-muted fw-normal ms-1">(optional — separate multiple addresses with commas)</small>
                         </label>
                         <input type="text" name="EmailTo" class="form-control"
@@ -203,9 +440,29 @@
 
     <!-- Reports Table -->
     <div class="card table-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
             <span><i class="fas fa-table me-2 text-primary"></i>Scheduled Reports</span>
-            <span class="badge bg-primary">@Model.TotalReports items</span>
+            <div class="d-flex align-items-center gap-2">
+                <div class="position-relative">
+                    <i class="fas fa-search position-absolute" style="left:10px;top:50%;transform:translateY(-50%);font-size:.72rem;opacity:.5;"></i>
+                    <input type="text" id="reportListFilter" class="form-control form-control-sm"
+                           style="width:230px;padding-left:28px;"
+                           placeholder="Filter reports… (id, branch, status)"
+                           oninput="filterReportRows(this.value)" />
+                </div>
+                <span class="badge bg-primary" id="reportCountBadge">@Model.TotalReports items</span>
+                @if (Model.TotalReports > 0)
+                {
+                    <form asp-controller="ReportScheduler" asp-action="ClearReports" method="post" class="m-0"
+                          onsubmit="return confirm('Clear all report requests for this report type? Completed files will also be removed.');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reportType" value="@Model.ReportType" />
+                        <button type="submit" class="btn-clear-reports" title="Clear all scheduled report rows">
+                            <i class="fas fa-trash-alt me-1"></i>Clear
+                        </button>
+                    </form>
+                }
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -240,19 +497,30 @@
                                     <td>@report.DateFrom.ToString("dd/MM/yyyy") - @report.DateTo.ToString("dd/MM/yyyy")</td>
                                     <td>@(report.GeneratedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-")</td>
                                     <td>
-                                        @if (report.Status == "Completed" && !string.IsNullOrEmpty(report.FilePath))
-                                        {
-                                            <a asp-controller="ReportScheduler" asp-action="Download" asp-route-id="@report.Id"
-                                               class="btn btn-download" title="Download">
-                                                <i class="fas fa-arrow-down"></i>
-                                            </a>
-                                        }
-                                        else
-                                        {
-                                            <button class="btn btn-download" disabled title="Not available">
-                                                <i class="fas fa-arrow-down"></i>
-                                            </button>
-                                        }
+                                        <div class="d-flex align-items-center gap-1">
+                                            @if (report.Status == "Completed" && !string.IsNullOrEmpty(report.FilePath))
+                                            {
+                                                <a asp-controller="ReportScheduler" asp-action="Download" asp-route-id="@report.Id"
+                                                   class="btn btn-download" title="Download">
+                                                    <i class="fas fa-arrow-down"></i>
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <button class="btn btn-download" disabled title="Not available">
+                                                    <i class="fas fa-arrow-down"></i>
+                                                </button>
+                                            }
+                                            <form asp-controller="ReportScheduler" asp-action="DeleteReport" method="post" class="m-0"
+                                                  onsubmit="return confirm('Delete report request @report.ReportId?');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@report.Id" />
+                                                <input type="hidden" name="reportType" value="@Model.ReportType" />
+                                                <button type="submit" class="btn-delete-report" title="Delete report row">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -324,6 +592,12 @@
             } else if (range === 'LastMonth') {
                 firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                 lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+            } else if (range === 'ThisYear') {
+                firstDay = new Date(today.getFullYear(), 0, 1);
+                lastDay = new Date(today.getFullYear(), 11, 31);
+            } else if (range === 'LastYear') {
+                firstDay = new Date(today.getFullYear() - 1, 0, 1);
+                lastDay = new Date(today.getFullYear() - 1, 11, 31);
             }
 
             document.getElementById('dateFrom').value = formatDate(firstDay);
@@ -343,5 +617,137 @@
         document.getElementById('dateRangeInput').value = 'Today';
         document.getElementById('customDateSection').style.display = 'none';
     }
+
+    // ── Select all / Clear on every multi-select filter ───────────────────
+    document.addEventListener('click', function (e) {
+        const a = e.target.closest('.sel-all, .sel-none');
+        if (!a) return;
+        e.preventDefault();
+        const sel = document.querySelector('select[name="' + a.dataset.target + '"]');
+        if (!sel) return;
+        const on = a.classList.contains('sel-all');
+        Array.from(sel.options).forEach(o => o.selected = on);
+        if (sel.classList.contains('select2-hidden-accessible')) $(sel).trigger('change');
+    });
+
+    // ── Live filter for the scheduled-reports (download) table ────────────
+    function filterReportRows(q) {
+        q = (q || '').trim().toLowerCase();
+        const rows = document.querySelectorAll('.table-card tbody tr');
+        let visible = 0;
+        rows.forEach(tr => {
+            const hit = !q || tr.innerText.toLowerCase().includes(q);
+            tr.style.display = hit ? '' : 'none';
+            if (hit) visible++;
+        });
+        const badge = document.getElementById('reportCountBadge');
+        if (badge) badge.textContent = q ? (visible + ' shown') : (rows.length + ' items');
+    }
+
+    // ── Report-completion notification ────────────────────────────────────
+    // Polls report statuses while any report of this type is Pending/Processing;
+    // on transition to Completed (or Failed) plays a chime (Web Audio — no
+    // assets, CSP-safe), shows a toast, and refreshes the list.
+    (function () {
+        const reportType = '@Model.ReportType';
+        const known = {};              // id -> last status
+        let timer = null, polls = 0;
+
+        function chime(ok) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = ok ? [[880, 0], [1174.66, 0.14], [1567.98, 0.28]] : [[440, 0], [330, 0.18]];
+                notes.forEach(([freq, at]) => {
+                    const o = ctx.createOscillator(), g = ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = freq;
+                    o.connect(g); g.connect(ctx.destination);
+                    const t = ctx.currentTime + at;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+                    o.start(t); o.stop(t + 0.6);
+                });
+                setTimeout(() => ctx.close(), 1500);
+            } catch (_) { /* audio unavailable — toast still shows */ }
+        }
+
+        function toast(msg, ok) {
+            const el = document.createElement('div');
+            el.textContent = msg;
+            el.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2000;padding:12px 18px;' +
+                'border-radius:10px;font-weight:600;font-size:.9rem;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25);' +
+                'background:' + (ok ? '#006884' : '#B94A3F') + ';cursor:pointer;';
+            el.onclick = () => location.reload();
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 12000);
+            return el;
+        }
+
+        // True while the user has something in progress that a reload would destroy:
+        // a focused field, or any form on the page carrying entered values. The refresh
+        // is meant to save a click, not to wipe a half-filled report request.
+        function userIsBusy() {
+            const a = document.activeElement;
+            if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'submit') return true;
+            return [...document.querySelectorAll('form input, form textarea')].some(f =>
+                !/^(hidden|submit|button)$/.test(f.type) && f.value && f.value !== f.defaultValue);
+        }
+
+        // Reload once the report list changes, rather than waiting for a click. Deferred
+        // while the tab is hidden so a background tab does not reload behind the user and
+        // lose their scroll position on return.
+        let reloadQueued = false;
+        function autoRefresh(el) {
+            if (reloadQueued) return;
+            if (userIsBusy()) {
+                if (el) el.textContent += ' (click to refresh)';
+                return;
+            }
+            reloadQueued = true;
+            const go = () => location.reload();
+            if (document.visibilityState === 'hidden') {
+                document.addEventListener('visibilitychange', function once() {
+                    if (document.visibilityState === 'visible') {
+                        document.removeEventListener('visibilitychange', once);
+                        go();
+                    }
+                });
+            } else {
+                setTimeout(go, 1600);   // long enough for the toast to be read
+            }
+        }
+
+        async function poll() {
+            if (++polls > 360) { clearInterval(timer); return; }   // ~30 min cap
+            try {
+                const r = await fetch('/ReportScheduler/GetReports?reportType=' + encodeURIComponent(reportType) + '&page=1&pageSize=10');
+                if (!r.ok) return;
+                const d = await r.json();
+                let anyRunning = false;
+                (d.data || []).forEach(row => {
+                    const prev = known[row.id];
+                    if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Completed') {
+                        chime(true);
+                        autoRefresh(toast('Report ' + row.reportId + ' is ready — refreshing…', true));
+                    } else if ((prev === 'Processing' || prev === 'Pending') && row.status === 'Failed') {
+                        chime(false);
+                        autoRefresh(toast('Report ' + row.reportId + ' failed — refreshing…', false));
+                    }
+                    known[row.id] = row.status;
+                    if (row.status === 'Processing' || row.status === 'Pending') anyRunning = true;
+                });
+                // Idle fast when nothing is generating; keep watching lightly so a
+                // submit from another tab still notifies here.
+                if (!anyRunning && polls > 3) polls = Math.max(polls, 300);
+            } catch (_) { }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            poll();
+            timer = setInterval(poll, 5000);
+        });
+    })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
+<script src="~/js/shader-bg.js" asp-append-version="true"></script>
 }

@@ -1,0 +1,25 @@
+Facility,Total Transactions,Downloaded Files,Pending Files,Remittance Files,Submission Files,Downloaded Size (bytes),Downloaded Size (GB),Parsed Remittance Claims
+"Alnoor Deira",30949,15636,15313,2579,0,4548347388624,4.24,2392
+"New Lotus MC",9562,5511,4051,1194,0,254956257399,0.24,1077
+"Alnoor Qusais",6216,6012,204,848,0,1369855718873,1.28,799
+"Alnoor Rashidiya",2023,1023,1000,74,0,31783099496,0.03,68
+Apollo,1664,1664,0,685,0,17424990660,0.02,642
+"Sabah Alnoor MC",691,691,0,240,0,88408019,0.00,0
+"Axon -Rashidiya",567,567,0,328,0,1898953419,0.00,327
+wecare,565,565,0,166,0,400216704,0.00,166
+"San Lucas MC",420,406,14,11,0,372355797,0.00,11
+"Marinca MC",243,243,0,17,0,10513990,0.00,17
+"Nafeesa MC",57,57,0,40,0,10880520,0.00,40
+"Sabah Alnoor Al Taif",0,0,0,0,0,0,0.00,0
+"Alnoor Muhaisnah",0,0,0,0,0,0,0.00,0
+
+SUMMARY STATISTICS
+Metric,Value
+Total Downloaded Files,32375
+Total Pending Files,20582
+Total Downloaded Size (bytes),6290873391858
+Total Downloaded Size (GB),5.87
+Total Parsed Claims,5539
+Facilities with Complete Data,11
+Facilities Pending Data,2
+Average File Size per Facility (GB),0.53

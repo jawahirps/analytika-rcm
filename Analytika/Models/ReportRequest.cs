@@ -23,6 +23,16 @@ public class ReportRequest
     public string? RequestedBy { get; set; }
     public string? EmailTo { get; set; }   // comma-separated recipient addresses
 
+    // Multi-select filter selections (JSON int/string arrays). Source of truth for
+    // report generation. The single *Id / EncounterType fields above stay populated
+    // with the first selected value for backward-compatible list display.
+    public string? FacilityIdsJson { get; set; }
+    public string? ReceiverIdsJson { get; set; }
+    public string? PayerIdsJson { get; set; }
+    public string? ClinicianIdsJson { get; set; }
+    public string? DepartmentIdsJson { get; set; }
+    public string? EncounterTypesJson { get; set; }
+
     public Facility? Branch { get; set; }
     public Receiver? Receiver { get; set; }
     public Payer? Payer { get; set; }

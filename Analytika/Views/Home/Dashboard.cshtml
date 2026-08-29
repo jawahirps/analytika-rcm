@@ -6,7 +6,96 @@
 
 @section Styles {
 <style>
-    .dash-section { max-width: 1400px; margin: 0 auto; padding: 28px 24px 80px; }
+    .dash-section { max-width: 1500px; margin: 0 auto; padding: 28px 24px 80px; }
+
+    .dashboard-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 20px;
+        margin-bottom: 24px;
+        padding: 22px 24px;
+        border-radius: 16px;
+        border: 1px solid rgba(1,28,64,.10);
+        background: linear-gradient(135deg, #ffffff 0%, #F4FAFC 100%);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+    .dashboard-hero::after {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 260px; height: 260px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(84,172,191,.16), transparent 70%);
+        pointer-events: none;
+    }
+    .dashboard-hero-copy {
+        display: grid;
+        gap: 8px;
+        max-width: 760px;
+    }
+    .dashboard-kicker {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 10px;
+        border-radius: 4px;
+        background: rgba(1,28,64,.06);
+        color: #023859;
+        font-size: .7rem;
+        font-weight: 700;
+        letter-spacing: .10em;
+        text-transform: uppercase;
+    }
+    .dashboard-hero h4 {
+        margin: 0;
+        color: #011C40;
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -.04em;
+        line-height: 1.15;
+    }
+    .dashboard-hero p {
+        margin: 0;
+        color: #4B6B73;
+        max-width: 66ch;
+        font-size: .92rem;
+        line-height: 1.7;
+    }
+    .dashboard-hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+    }
+    .dashboard-hero .btn {
+        border-radius: 999px;
+    }
+    .dashboard-hero .btn-outline-secondary {
+        background: rgba(255,255,255,.78) !important;
+    }
+    .dashboard-hero-stats {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 2px;
+    }
+    .dashboard-stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        background: rgba(255,255,255,.72);
+        border: 1px solid rgba(8,20,35,.10);
+        color: #011C40;
+        font-size: .72rem;
+        font-weight: 700;
+    }
+    .dashboard-stat-pill i { color: #54ACBF; }
 
     /* Summary chips */
     .status-summary {
@@ -16,24 +105,30 @@
         margin-bottom: 28px;
     }
     .ss-card {
-        background: #fff;
-        border-radius: 16px;
-        padding: 20px 18px 16px;
-        box-shadow: 0 1px 5px rgba(0,0,0,.06);
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 18px 16px 14px;
+        box-shadow: var(--shadow-sm);
         display: flex; align-items: center; gap: 14px;
+        border: 1px solid rgba(1,28,64,.10);
+        transition: box-shadow var(--transition), transform var(--transition);
+    }
+    .ss-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
     }
     .ss-icon {
         width: 46px; height: 46px; border-radius: 12px;
         display: flex; align-items: center; justify-content: center;
         font-size: 1.1rem; flex-shrink: 0;
     }
-    .ss-icon.green  { background: #d1fae5; color: #059669; }
-    .ss-icon.amber  { background: #fef3c7; color: #d97706; }
-    .ss-icon.red    { background: #fee2e2; color: #dc2626; }
-    .ss-icon.blue   { background: #dbeafe; color: #2563eb; }
-    .ss-icon.purple { background: #ede9fe; color: #7c3aed; }
-    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #0A1828; line-height: 1; }
-    .ss-lbl  { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: #94a3b8; margin-top: 2px; }
+    .ss-icon.green  { background: #EAF4FB; color: #54ACBF; }
+    .ss-icon.amber  { background: rgba(216,232,243,.9); color: #011C40; }
+    .ss-icon.red    { background: #fee2e2; color: #b91c1c; }
+    .ss-icon.blue   { background: rgba(216,232,243,.92); color: #26658C; }
+    .ss-icon.purple { background: rgba(216,232,243,.84); color: #011C40; }
+    .ss-num  { font-size: 1.8rem; font-weight: 700; color: #011C40; line-height: 1; }
+    .ss-lbl  { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #4B6B73; margin-top: 2px; }
 
     /* Facility grid */
     .facility-grid {
@@ -42,77 +137,268 @@
         gap: 16px;
     }
     .fac-status-card {
-        background: #fff;
+        background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
         border-radius: 16px;
         padding: 20px;
-        box-shadow: 0 1px 5px rgba(0,0,0,.06);
-        border-left: 4px solid #e2e8f0;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(1,28,64,.08);
+        border-left: 3px solid rgba(1,28,64,.12);
         position: relative;
-        transition: box-shadow .15s, transform .15s;
+        transition: box-shadow var(--transition), transform var(--transition), border-color var(--transition);
+        cursor: pointer;
     }
     .fac-status-card:hover {
-        box-shadow: 0 4px 16px rgba(0,0,0,.1);
-        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-3px);
+        border-color: rgba(84,172,191,.45);
     }
-    .fac-status-card.connected    { border-left-color: #10b981; }
+    .fac-status-card a { text-decoration: none; color: inherit; display: block; }
+    .fac-status-card a:hover { text-decoration: none; }
+    .fac-status-card.connected    { border-left-color: #54ACBF; }
     .fac-status-card.degraded     { border-left-color: #f59e0b; }
     .fac-status-card.disconnected { border-left-color: #ef4444; }
 
-    .fac-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
-    .fac-name   { font-size: .92rem; font-weight: 700; color: #0A1828; line-height: 1.3; max-width: 190px; }
-    .fac-portal { font-size: .68rem; font-weight: 600; letter-spacing: .4px; color: #7c3aed; background: #ede9fe; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+    .fac-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .fac-title-wrap { min-width: 0; }
+    .fac-name   { font-size: .92rem; font-weight: 700; color: #011C40; line-height: 1.3; max-width: 190px; }
+    .fac-fullname { font-size: .66rem; font-weight: 500; color: #64748B; line-height: 1.25; margin-top: 2px; max-width: 220px; }
+    .fac-portal { font-size: .68rem; font-weight: 700; letter-spacing: .4px; color: #011C40; background: rgba(216,232,243,.92); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+    .fac-status-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4px;
+        min-width: 84px;
+        text-align: right;
+    }
 
     .status-dot {
         width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
     }
-    .status-dot.connected    { background: #10b981; box-shadow: 0 0 0 3px #d1fae5; }
-    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #fef3c7; }
+    .status-dot.connected    { background: #54ACBF; box-shadow: 0 0 0 3px #EAF4FB; }
+    .status-dot.degraded     { background: #f59e0b; box-shadow: 0 0 0 3px #EAF4FB; }
     .status-dot.disconnected { background: #ef4444; box-shadow: 0 0 0 3px #fee2e2; }
 
     .fac-meta { display: flex; flex-direction: column; gap: 6px; }
-    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #64748b; }
-    .fac-meta-row i { width: 14px; text-align: center; color: #94a3b8; font-size: .7rem; }
-    .fac-meta-row .val { color: #334155; font-weight: 500; }
+    .fac-meta-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: #4B6B73; }
+    .fac-meta-row i { width: 14px; text-align: center; color: #54ACBF; font-size: .7rem; }
+    .fac-meta-row .val { color: #011C40; font-weight: 600; }
 
-    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+    .fac-status-bar { margin-top: 12px; margin-bottom: 12px; }
+    .fac-status-label { font-size: .68rem; color: #4B6B73; font-weight: 700; margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .fac-progress-container {
+        width: 100%; height: 8px; background: rgba(216,232,243,.92); border-radius: 4px; overflow: hidden;
+    }
+    .fac-progress-bar {
+        height: 100%; background: linear-gradient(90deg, #54ACBF 0%, #26658C 100%); border-radius: 4px;
+        transition: width .3s ease;
+    }
+    .fac-status-counts { font-size: .65rem; color: #4B6B73; font-weight: 600; }
+    .fac-status-counts .downloaded { color: #059669; font-weight: 600; }
+    .fac-status-counts .pending { color: #ca8a04; font-weight: 600; }
+    .fac-status-counts .parsed { color: #059669; font-weight: 700; }
+
+    /* Download / Parse pipeline status — 3-segment stacked bar per facility */
+    .fac-pipe-bar { display: flex; width: 100%; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(216,232,243,.92); }
+    .fac-pipe-bar .seg { height: 100%; transition: width .3s ease; }
+    .fac-pipe-bar .seg.parsed  { background: linear-gradient(90deg,#10b981,#059669); }
+    .fac-pipe-bar .seg.toparse { background: #f59e0b; }
+    .fac-pipe-bar .seg.pending { background: #cbd5e1; }
+    .fac-pipe-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 7px; font-size: .62rem; color: #4B6B73; font-weight: 600; }
+    .fac-pipe-legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .fac-pipe-legend .pdot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+    .fac-pipe-legend .pdot.parsed  { background: #059669; }
+    .fac-pipe-legend .pdot.toparse { background: #f59e0b; }
+    .fac-pipe-legend .pdot.pending { background: #cbd5e1; }
+
+    .fac-stats { display: flex; gap: 16px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(8,20,35,.10); }
     .fac-stat  { text-align: center; flex: 1; }
-    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #0A1828; }
-    .fac-stat .l  { font-size: .65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+    .fac-stat .n  { font-size: 1.1rem; font-weight: 700; color: #011C40; }
+    .fac-stat .l  { font-size: .65rem; color: #4B6B73; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+    .fac-stat .meta-inline { font-size: .72rem; color: #4B6B73; font-weight: 600; margin-top: 2px; line-height: 1.2; }
 
     .status-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-    .status-label.connected    { color: #059669; }
-    .status-label.degraded     { color: #d97706; }
-    .status-label.disconnected { color: #dc2626; }
+    .status-label.connected    { color: #047857; }
+    .status-label.degraded     { color: #54ACBF; }
+    .status-label.disconnected { color: #b91c1c; }
 
     @@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
     .dot-pulse { animation: pulse 2s infinite; }
 
-    @@media (max-width: 900px) { .status-summary { grid-template-columns: repeat(3,1fr); } }
-    @@media (max-width: 600px) { .status-summary { grid-template-columns: repeat(2,1fr); } }
+    @@media (max-width: 1100px) {
+        .dashboard-hero {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+        .dashboard-hero-actions {
+            justify-content: flex-start;
+            width: 100%;
+        }
+        .status-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @@media (max-width: 720px) {
+        .status-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .dashboard-hero-actions .btn { flex: 1 1 180px; justify-content: center; }
+        .dashboard-stat-pill { flex: 1 1 150px; justify-content: center; }
+    }
+    @@media (max-width: 480px) {
+        .dash-section { padding: 14px 10px 72px; }
+        .dashboard-hero { padding: 16px 14px; border-radius: 12px; gap: 14px; }
+        .dashboard-kicker { font-size: .62rem; letter-spacing: .08em; max-width: 100%; white-space: normal; }
+        .dashboard-hero h4 { font-size: 1.18rem; line-height: 1.22; letter-spacing: -0.025em; }
+        .dashboard-hero p { font-size: .82rem; line-height: 1.55; }
+        .dashboard-hero-actions { justify-content: flex-start; }
+        .dashboard-hero-actions .btn { flex-basis: 100%; }
+        .status-summary { grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px; }
+        .ss-card { padding: 14px 13px; border-radius: 12px; }
+        .ss-icon { width: 40px; height: 40px; border-radius: 8px; }
+        .ss-num { font-size: 1.45rem; }
+        .facility-grid { grid-template-columns: 1fr; gap: 12px; }
+        .fac-status-card { padding: 14px; border-radius: 12px; }
+        .fac-name { max-width: 100%; font-size: .88rem; }
+        .fac-header { gap: 10px; flex-wrap: wrap; }
+        .fac-title-wrap { flex: 1 1 100%; }
+        .fac-status-wrap {
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 0;
+            width: 100%;
+            text-align: left;
+            order: 3;
+        }
+        .fac-portal { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+        .fac-stats { gap: 10px; }
+        .fac-stat { min-width: 0; }
+        .fac-stat .n { font-size: 1rem; }
+        .d-flex.align-items-center.justify-content-between.mb-4 {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 12px;
+        }
+        .d-flex.gap-2 {
+            width: 100%;
+        }
+        .d-flex.gap-2 > a.btn {
+            flex: 1 1 0;
+            justify-content: center;
+        }
+    }
+
+    /* ── Dark mode ─────────────────────────────────────────── */
+    html[data-theme="dark"] .dashboard-hero {
+        background: linear-gradient(135deg, #111520 0%, #0f1923 100%) !important;
+        border-color: rgba(0,255,133,.10);
+    }
+    html[data-theme="dark"] .dashboard-hero::after {
+        background: radial-gradient(circle, rgba(0,255,133,.08), transparent 70%);
+    }
+    html[data-theme="dark"] .dashboard-hero h4 { color: #EAF4FB; }
+    html[data-theme="dark"] .dashboard-hero p { color: rgba(234,244,251,.55); }
+    html[data-theme="dark"] .dashboard-kicker {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .dashboard-stat-pill {
+        background: rgba(255,255,255,.06);
+        border-color: rgba(255,255,255,.08);
+        color: #EAF4FB;
+    }
+    html[data-theme="dark"] .dashboard-hero .btn-outline-secondary {
+        background: rgba(255,255,255,.06) !important;
+        border-color: rgba(255,255,255,.12) !important;
+        color: #EAF4FB !important;
+    }
+
+    html[data-theme="dark"] .ss-card {
+        background: #111520 !important;
+        border-color: rgba(0,255,133,.10);
+    }
+    html[data-theme="dark"] .ss-num { color: #EAF4FB; }
+    html[data-theme="dark"] .ss-lbl { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .ss-icon.green  { background: rgba(0,255,133,.10); color: #00FF85; }
+    html[data-theme="dark"] .ss-icon.amber  { background: rgba(245,158,11,.12); color: #f59e0b; }
+    html[data-theme="dark"] .ss-icon.red    { background: rgba(239,68,68,.12); color: #ef4444; }
+    html[data-theme="dark"] .ss-icon.blue   { background: rgba(84,172,191,.12); color: #54ACBF; }
+    html[data-theme="dark"] .ss-icon.purple { background: rgba(139,92,246,.12); color: #a78bfa; }
+
+    html[data-theme="dark"] .dash-chart-card {
+        background: #111520 !important;
+        border-color: rgba(0,255,133,.08) !important;
+    }
+    html[data-theme="dark"] .dash-chart-title { color: #EAF4FB; }
+    html[data-theme="dark"] .dash-chart-sub { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .dash-kpi-badge {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
+
+    html[data-theme="dark"] .fac-status-card {
+        background: linear-gradient(180deg, #111520 0%, #0d1219 100%) !important;
+        border-color: rgba(255,255,255,.06);
+    }
+    html[data-theme="dark"] .fac-status-card:hover {
+        border-color: rgba(0,255,133,.25);
+    }
+    html[data-theme="dark"] .fac-name { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-fullname { color: #9fb3c6; }
+    html[data-theme="dark"] .fac-portal {
+        background: rgba(0,255,133,.10);
+        color: #00FF85;
+    }
+    html[data-theme="dark"] .fac-meta-row { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .fac-meta-row .val { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-status-label { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .fac-status-counts { color: rgba(234,244,251,.50); }
+    html[data-theme="dark"] .fac-progress-container { background: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-pipe-bar { background: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-pipe-legend { color: rgba(234,244,251,.55); }
+    html[data-theme="dark"] .fac-pipe-bar .seg.pending,
+    html[data-theme="dark"] .fac-pipe-legend .pdot.pending { background: #475569; }
+    html[data-theme="dark"] .fac-stats { border-top-color: rgba(255,255,255,.06); }
+    html[data-theme="dark"] .fac-stat .n { color: #EAF4FB; }
+    html[data-theme="dark"] .fac-stat .l { color: rgba(234,244,251,.45); }
+    html[data-theme="dark"] .fac-stat .meta-inline { color: rgba(234,244,251,.40); }
+
+    html[data-theme="dark"] .status-dot.connected    { box-shadow: 0 0 0 3px rgba(0,255,133,.15); }
+    html[data-theme="dark"] .status-dot.degraded     { box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+    html[data-theme="dark"] .status-dot.disconnected { box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+    html[data-theme="dark"] .status-label.connected  { color: #00FF85; }
+    html[data-theme="dark"] .status-label.degraded   { color: #f59e0b; }
+    html[data-theme="dark"] .status-label.disconnected { color: #ef4444; }
 </style>
 }
 
 <div class="dash-section">
-
-    <!-- Page header -->
-    <div class="d-flex align-items-center justify-content-between mb-4">
-        <div>
-            <h4 class="mb-0 fw-bold" style="color:#0A1828;">
-                <i class="fas fa-signal me-2 text-success"></i>Facility Status
-            </h4>
-            <p class="text-muted small mb-0">Live connectivity &amp; sync status across all registered facilities.</p>
+    <!-- Page hero -->
+    <div class="dashboard-hero">
+        <div class="dashboard-hero-copy">
+            <div class="dashboard-kicker">Operations overview</div>
+            <h4>Facility Status</h4>
+            <p>Live connectivity and sync health across registered facilities, with quick access into portal sync and credential management.</p>
+            <div class="dashboard-hero-stats">
+                <span class="dashboard-stat-pill"><i class="fas fa-check-circle"></i>@Model.ConnectedCount connected</span>
+                <span class="dashboard-stat-pill"><i class="fas fa-exclamation-circle"></i>@Model.DegradedCount degraded</span>
+                <span class="dashboard-stat-pill"><i class="fas fa-times-circle"></i>@Model.DisconnectedCount disconnected</span>
+            </div>
         </div>
-        <div class="d-flex gap-2">
+        <div class="dashboard-hero-actions">
             <a href="/Portal/Sync" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-sync-alt me-1"></i>Sync Portal
+                <i class="fas fa-sync-alt me-1"></i> Sync Portal
             </a>
             <a href="/Admin/Credentials" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-key me-1"></i>Credentials
+                <i class="fas fa-key me-1"></i> Credentials
             </a>
         </div>
     </div>
 
     <!-- Summary row -->
+    @{
+        var totalDownloaded = Model.Facilities.Sum(f => f.DownloadedFilesCount);
+        var totalParsed     = Model.Facilities.Sum(f => Math.Min(f.ParsedFilesCount, f.DownloadedFilesCount));
+        var totalPending    = Model.Facilities.Sum(f => f.PendingFilesCount);
+    }
     <div class="status-summary">
         <div class="ss-card">
             <div class="ss-icon green"><i class="fas fa-check-circle"></i></div>
@@ -139,15 +425,41 @@
             <div class="ss-icon blue"><i class="fas fa-file-alt"></i></div>
             <div>
                 <div class="ss-num">@Model.TotalRecords.ToString("N0")</div>
-                <div class="ss-lbl">Total Records</div>
+                <div class="ss-lbl">Records Found</div>
+                <div class="text-muted small mt-1">Claims @Model.TotalClaimCount.ToString("N0")</div>
             </div>
         </div>
         <div class="ss-card">
             <div class="ss-icon purple"><i class="fas fa-download"></i></div>
             <div>
-                <div class="ss-num">@Model.TotalFiles.ToString("N0")</div>
+                <div class="ss-num">@totalDownloaded.ToString("N0")</div>
                 <div class="ss-lbl">Files Downloaded</div>
+                <div class="text-muted small mt-1">Parsed @totalParsed.ToString("N0") · Pending @totalPending.ToString("N0")</div>
             </div>
+        </div>
+    </div>
+
+    <!-- Analytics charts -->
+    <div class="dash-charts-row">
+        <div class="dash-chart-card">
+            <div class="dash-chart-header">
+                <div>
+                    <div class="dash-chart-title">Transaction Volume</div>
+                    <div class="dash-chart-sub">Last 30 days</div>
+                </div>
+                <div class="dash-kpi-badge" id="kpiBadge">—</div>
+            </div>
+            <div id="chartVolume" style="min-height:160px;"></div>
+        </div>
+        <div class="dash-chart-card">
+            <div class="dash-chart-header">
+                <div>
+                    <div class="dash-chart-title">Transaction Types</div>
+                    <div class="dash-chart-sub">Last 30 days breakdown</div>
+                </div>
+                <div class="dash-kpi-text" id="kpiTotal">—</div>
+            </div>
+            <div id="chartTypes" style="min-height:160px;"></div>
         </div>
     </div>
 
@@ -163,18 +475,22 @@
             var statusLabel = f.Status switch {
                 Analytika.Models.ViewModels.FacilityConnectionStatus.Connected    => "Connected",
                 Analytika.Models.ViewModels.FacilityConnectionStatus.Degraded     => "Degraded",
-                _                                                                  => "No Credential"
+                _                                                                  => f.HasCredential ? "Not Synced" : "No Credential"
             };
-            <div class="fac-status-card @statusClass">
+            <a href="/Portal/SyncedData?facilityId=@f.FacilityId@(f.Portal != null ? $"&portal={f.Portal}" : "")" class="fac-status-card @statusClass">
                 <div class="fac-header">
-                    <div>
+                    <div class="fac-title-wrap">
                         <div class="fac-name">@f.FacilityName</div>
+                        @if (!string.IsNullOrWhiteSpace(f.FullName))
+                        {
+                            <div class="fac-fullname" title="@(f.LicenseCode ?? "")">@f.FullName@(string.IsNullOrWhiteSpace(f.LicenseCode) ? "" : $" · {f.LicenseCode}")</div>
+                        }
                         @if (f.Portal != null)
                         {
                             <span class="fac-portal mt-1 d-inline-block">@f.Portal</span>
                         }
                     </div>
-                    <div class="d-flex flex-column align-items-end gap-1"
+                    <div class="fac-status-wrap"
                          title="@f.StatusReason" data-bs-toggle="tooltip" data-bs-placement="left">
                         <div class="status-dot @statusClass @(statusClass == "connected" ? "dot-pulse" : "")"></div>
                         <span class="status-label @statusClass">@statusLabel</span>
@@ -202,25 +518,176 @@
                     }
                 </div>
 
+                @if (f.TotalFilesWithStatus > 0)
+                {
+                    var pipeTotal  = f.DownloadedFilesCount + f.PendingFilesCount;
+                    var parsedCnt  = Math.Min(f.ParsedFilesCount, f.DownloadedFilesCount);
+                    var toParseCnt = f.DownloadedFilesCount - parsedCnt;
+                    var pendingCnt = f.PendingFilesCount;
+                    Func<int, string> W = n => pipeTotal > 0
+                        ? (Math.Round((double)n / pipeTotal * 1000) / 10).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        : "0";
+                    <div class="fac-status-bar">
+                        <div class="fac-status-label">
+                            <span>Download / Parse Status</span>
+                            <span class="fac-status-counts">
+                                <span class="parsed">@parsedCnt.ToString("N0")</span>
+                                <span>/</span>
+                                <span>@pipeTotal.ToString("N0")</span>
+                            </span>
+                        </div>
+                        <div class="fac-pipe-bar" title="Sync pipeline — Parsed @parsedCnt · Downloaded, not yet parsed @toParseCnt · Not yet downloaded @pendingCnt">
+                            <div class="seg parsed"  style="width:@W(parsedCnt)%"></div>
+                            <div class="seg toparse" style="width:@W(toParseCnt)%"></div>
+                            <div class="seg pending" style="width:@W(pendingCnt)%"></div>
+                        </div>
+                        <div class="fac-pipe-legend">
+                            <span><i class="pdot parsed"></i>Parsed @parsedCnt.ToString("N0")</span>
+                            <span><i class="pdot toparse"></i>Downloaded @toParseCnt.ToString("N0")</span>
+                            <span><i class="pdot pending"></i>Not downloaded @pendingCnt.ToString("N0")</span>
+                        </div>
+                    </div>
+                }
+
                 <div class="fac-stats">
                     <div class="fac-stat">
                         <div class="n">@f.RecordCount.ToString("N0")</div>
                         <div class="l">Records</div>
+                        <div class="meta-inline">Claims @f.ClaimCount.ToString("N0")</div>
                     </div>
                     <div class="fac-stat">
                         <div class="n">@f.FileCount.ToString("N0")</div>
                         <div class="l">Files</div>
                     </div>
                 </div>
-            </div>
+            </a>
         }
     </div>
 
-    @if (!Model.Facilities.Any())
+    @if (!Model.Facilities.Any() && Model.IsBuilding)
+    {
+        @* Still aggregating (cold cache after a restart). Say so, and refresh when it is
+           ready — the previous copy claimed there were no facilities, which was false. *@
+        <div class="text-center text-muted py-5" role="status" aria-live="polite">
+            <div class="skeleton-rows mb-3" aria-hidden="true">
+                <span></span><span></span><span></span>
+            </div>
+            <p class="mb-1 fw-semibold" style="color:var(--text);">Loading facility status…</p>
+            <p class="mb-0 fs-85">Building this view for the first time since restart. It refreshes automatically.</p>
+        </div>
+        <script>
+            // Poll until the aggregation lands, then show it. Backs off so a slow build
+            // does not hammer the server.
+            (function () {
+                var tries = 0;
+                (function check() {
+                    if (++tries > 40) return;                 // ~10 min ceiling
+                    setTimeout(function () {
+                        fetch(window.location.pathname, { headers: { 'X-Requested-With': 'poll' } })
+                            .then(function (r) { return r.text(); })
+                            .then(function (html) {
+                                if (html.indexOf('facility-status-ready') !== -1) window.location.reload();
+                                else check();
+                            })
+                            .catch(check);
+                    }, Math.min(3000 + tries * 500, 15000));
+                })();
+            })();
+        </script>
+    }
+    else if (!Model.Facilities.Any())
     {
         <div class="text-center text-muted py-5">
             <i class="fas fa-hospital fa-3x d-block mb-3 opacity-25"></i>
-            <p class="mb-0">No active facilities found. <a href="/Admin/Credentials">Add credentials</a> to get started.</p>
+            <p class="mb-1 fw-semibold" style="color:var(--text);">No facilities configured yet</p>
+            <p class="mb-0">Add portal credentials to start syncing. <a href="/Admin/Credentials">Add credentials</a></p>
         </div>
     }
+    else
+    {
+        <span class="d-none">facility-status-ready</span>
+    }
 </div>
+
+@section Scripts {
+<style>
+.dash-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+@@media (max-width: 900px) { .dash-charts-row { grid-template-columns: 1fr; } }
+.dash-chart-card {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-sm);
+    padding: 18px 20px;
+    backdrop-filter: var(--blur);
+}
+.dash-chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.dash-chart-title { font-weight: 700; font-size: var(--fs-sm); color: var(--text); }
+.dash-chart-sub   { font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px; }
+.dash-kpi-badge {
+    font-size: var(--fs-xs); font-weight: 700; padding: 3px 10px;
+    border-radius: 999px; background: var(--emerald-light); color: var(--classic-teal);
+}
+.dash-kpi-text { font-size: 1.4rem; font-weight: 800; color: var(--deep-navy); }
+html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
+</style>
+<script>
+(function() {
+    var isDark = document.documentElement.dataset.theme === 'dark';
+    var textColor  = isDark ? '#EAF4FB' : '#011C40';
+    var mutedColor = isDark ? 'rgba(234,244,251,0.4)' : '#334E68';
+    var gridColor  = isDark ? 'rgba(84,172,191,0.10)' : 'rgba(1,28,64,0.07)';
+
+    fetch('/api/dashboard/summary')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            // KPI badge
+            var kpi = data.kpi;
+            var badge = document.getElementById('kpiBadge');
+            if (badge && kpi) {
+                var sign = kpi.trend >= 0 ? '+' : '';
+                badge.textContent = sign + kpi.trend + '% vs prev 30d';
+                badge.style.background = kpi.trend >= 0 ? 'rgba(47,143,114,0.15)' : 'rgba(185,74,63,0.15)';
+                badge.style.color      = kpi.trend >= 0 ? '#2F8F72' : '#B94A3F';
+            }
+            var totalEl = document.getElementById('kpiTotal');
+            if (totalEl && kpi) totalEl.textContent = (kpi.currentCount || 0).toLocaleString();
+
+            // Volume bar chart
+            var volEl = document.getElementById('chartVolume');
+            if (volEl && data.daily && data.daily.length > 0) {
+                var volChart = new ApexCharts(volEl, {
+                    series: [{ name: 'Transactions', data: data.daily.map(function(d) { return d.count; }) }],
+                    chart: { type: 'bar', height: 160, toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
+                    plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
+                    colors: ['#54ACBF'],
+                    xaxis: { categories: data.daily.map(function(d) { return d.date; }), labels: { style: { colors: mutedColor, fontSize: '10px' }, rotate: -30 }, axisBorder: { show: false }, axisTicks: { show: false } },
+                    yaxis: { labels: { style: { colors: mutedColor, fontSize: '10px' } } },
+                    grid: { borderColor: gridColor, strokeDashArray: 3 },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                volChart.render();
+            }
+
+            // Type donut chart
+            var typeEl = document.getElementById('chartTypes');
+            if (typeEl && data.byType && data.byType.length > 0) {
+                var typeChart = new ApexCharts(typeEl, {
+                    series: data.byType.map(function(x) { return x.count; }),
+                    labels: data.byType.map(function(x) { return x.type || 'Unknown'; }),
+                    chart: { type: 'donut', height: 160, background: 'transparent', toolbar: { show: false } },
+                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#2F8F72'],
+                    plotOptions: { pie: { donut: { size: '65%' } } },
+                    legend: { position: 'right', fontSize: '11px', labels: { colors: textColor } },
+                    dataLabels: { enabled: false },
+                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                });
+                typeChart.render();
+            }
+        })
+        .catch(function() { /* no data — charts simply don't render */ });
+})();
+</script>
+}
+

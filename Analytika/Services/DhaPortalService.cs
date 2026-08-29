@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Xml.Linq;
 using Analytika.Models.ViewModels;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Analytika.Services;
 
@@ -20,39 +21,55 @@ namespace Analytika.Services;
 ///  - SearchTransactions minRecordCount/maxRecordCount: -1=no filter; filters by # of claims INSIDE the file
 ///  - SearchTransactions max 500 files returned; date range must not exceed 100 days
 ///  - GetNewTransactions output field: xmlTransactions (NOT xmlTransaction)
-///  - SetTransactionDownloaded WSDL element name: fieldId (per WSDL schema)
 ///  - DownloadTransactionFile: fileID parameter = FileID attribute from <File> element
 ///  - Return codes: 0=OK, 1=warnings, -1=login failed, -3=invalid param, -5=date range >100 days, -6=file not found, -10=no criteria
 /// </summary>
 public class DhaPortalService : IDhaPortalService
 {
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMemoryCache _cache;
+    private readonly ILogger<DhaPortalService> _logger;
 
     // Primary (active) endpoint
-    private const string PrimaryUrl  = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
+    private const string PrimaryUrl = "https://dhpo.eclaimlink.ae/ValidateTransactions.asmx";
     // Archive endpoint — for claims >24 months old, auth/PA >6 months old
-    private const string ArchiveUrl  = "https://dhpo.eclaimlink.ae/ClaimsAndAuthorizationsArchive.asmx";
-    private const string SoapNs      = "http://www.eClaimLink.ae/";
+    private const string ArchiveUrl = "https://dhpo.eclaimlink.ae/ClaimsAndAuthorizationsArchive.asmx";
+    private const string SoapNs = "http://www.eClaimLink.ae/";
 
     // SearchTransactions direction values (per spec)
-    public const int DirectionSent     = 1;
+    public const int DirectionSent = 1;
     public const int DirectionReceived = 2;
 
     // SearchTransactions transactionStatus values (per spec)
-    public const int StatusNew        = 1;
+    public const int StatusNew = 1;
     public const int StatusDownloaded = 2;
 
     // SearchTransactions transactionID values (per spec)
-    public const int TxTypeAll              = -1;
-    public const int TxTypeClaim            =  2;
-    public const int TxTypePersonRegister   =  4;
-    public const int TxTypeRemittance       =  8;
-    public const int TxTypePriorRequest     = 16;
-    public const int TxTypePriorAuth        = 32;
+    public const int TxTypeAll = -1;
+    public const int TxTypeClaim = 2;
+    public const int TxTypePersonRegister = 4;
+    public const int TxTypeRemittance = 8;
+    public const int TxTypePriorRequest = 16;
+    public const int TxTypePriorAuth = 32;
 
-    public DhaPortalService(IHttpClientFactory httpClientFactory)
+    // Standard set used for bulk sync: Claims, Remittances, PA Requests, PA Authorizations
+    public static readonly int[] DefaultTxTypes = [TxTypeClaim, TxTypeRemittance, TxTypePriorRequest, TxTypePriorAuth];
+
+    /// <summary>Canonical record type from the DHPO transaction-type code (authoritative — the search was scoped to this type).</summary>
+    public static string TxTypeName(int txType) => txType switch
+    {
+        TxTypeClaim        => "Claim",
+        TxTypeRemittance   => "Remittance",
+        TxTypePriorRequest => "Prior Request",
+        TxTypePriorAuth    => "Prior Authorization",
+        _                  => "Other"
+    };
+
+    public DhaPortalService(IHttpClientFactory httpClientFactory, IMemoryCache cache, ILogger<DhaPortalService> logger)
     {
         _httpClientFactory = httpClientFactory;
+        _cache = cache;
+        _logger = logger;
     }
 
     // ── SOAP plumbing ──────────────────────────────────────────────
@@ -79,8 +96,41 @@ public class DhaPortalService : IDhaPortalService
             var body = await resp.Content.ReadAsStringAsync();
             return XDocument.Parse(body);
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            // Reached only after the resilience pipeline exhausted its retries
+            _logger.LogWarning(ex, "DHPO SOAP call {Action} to {Url} failed", action, url);
+            return null;
+        }
     }
+
+    private static string CooldownKey(string login) => $"dha-auth-cooldown:{login.Trim().ToLowerInvariant()}";
+
+    private bool TryGetCooldownError(string login, out string? error)
+    {
+        if (_cache.TryGetValue(CooldownKey(login), out DateTimeOffset retryAfter))
+        {
+            var remaining = retryAfter - DateTimeOffset.UtcNow;
+            if (remaining > TimeSpan.Zero)
+            {
+                var minutes = Math.Ceiling(remaining.TotalSeconds / 60.0);
+                error = $"DHPO authentication is rate-limited for this account. Please wait about {minutes:N0} minute(s) before retrying.";
+                return true;
+            }
+        }
+
+        error = null;
+        return false;
+    }
+
+    private void StartCooldown(string login, TimeSpan? duration = null)
+    {
+        var retryAfter = DateTimeOffset.UtcNow.Add(duration ?? TimeSpan.FromMinutes(1));
+        _cache.Set(CooldownKey(login), retryAfter, retryAfter);
+    }
+
+    private static bool IsAuthThrottle(int code, string? error)
+        => code == -999 || (error?.Contains("too many authentication attempts", StringComparison.OrdinalIgnoreCase) ?? false);
 
     // ── GetNewTransactions ─────────────────────────────────────────
     // Returns files NOT yet flagged as downloaded from the DHPO queue.
@@ -90,18 +140,26 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int count, List<PortalFetchResultRow> rows, string? error)> GetNewTransactionsAsync(
         string login, string pwd)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd>";
         var doc = await CallSoapAsync("GetNewTransactions", body);
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "GetNewTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "GetNewTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
         // SPEC: output element is "xmlTransactions" (plural)
-        var xml       = doc.Descendants(ns + "xmlTransactions").FirstOrDefault()?.Value;
+        var xml = FirstDescendantValue(doc, ns, "xmlTransactions");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var count);
+        if (IsAuthThrottle(count, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"GetNewTransactions error code {count}: {error}");
+        }
         if (count < 0)
             return (0, rows, $"GetNewTransactions error code {count}: {error}");
         if (count == 0) count = rows.Count;
@@ -114,17 +172,25 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int count, List<PortalFetchResultRow> rows, string? error)> GetNewPriorAuthorizationsAsync(
         string login, string pwd)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd>";
         var doc = await CallSoapAsync("GetNewPriorAuthorizationTransactions", body);
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "GetNewPriorAuthorizationTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml       = doc.Descendants(ns + "xmlTransaction").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "GetNewPriorAuthorizationTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
+        var xml = FirstDescendantValue(doc, ns, "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var count);
+        if (IsAuthThrottle(count, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"GetNewPriorAuthorizationTransactions error code {count}: {error}");
+        }
         return (count == 0 ? rows.Count : count, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -149,6 +215,9 @@ public class DhaPortalService : IDhaPortalService
         int minRecord = -1,       // -1 → uses 1 (portal rejects -1)
         int maxRecord = -1)       // -1 → uses 500 (portal rejects -1)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
         // NOTE: The DHA portal rejects minRecordCount/maxRecordCount = -1 despite the spec saying
         //       -1 means "no filter". Use 1/500 as safe stand-ins.
         var minRec = minRecord > 0 ? minRecord : 1;
@@ -171,13 +240,18 @@ public class DhaPortalService : IDhaPortalService
         if (doc == null) return (0, new(), "Connection failed");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "SearchTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
         // SPEC: output element is "foundTransactions"
-        var xml       = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"SearchTransactions error code {result}: {error}");
+        }
         return (result, rows, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -190,32 +264,122 @@ public class DhaPortalService : IDhaPortalService
         int direction,
         string? fromDate,
         string? toDate,
-        int transactionStatus)
+        int transactionStatus,
+        int transactionId = TxTypeClaim,
+        int minRecord = -1,
+        int maxRecord = -1)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, new(), cooldownError);
+
+        var minRec = minRecord > 0 ? minRecord : 1;
+        var maxRec = maxRecord > 0 ? maxRecord : 500;
+
         var body = $@"<tns:login>{login}</tns:login>
 <tns:pwd>{pwd}</tns:pwd>
 <tns:direction>{direction}</tns:direction>
 <tns:callerLicense></tns:callerLicense>
 <tns:ePartner></tns:ePartner>
-<tns:transactionID>58</tns:transactionID>
+<tns:transactionID>{transactionId}</tns:transactionID>
 <tns:TransactionStatus>{transactionStatus}</tns:TransactionStatus>
 <tns:transactionFileName></tns:transactionFileName>
 <tns:transactionFromDate>{fromDate ?? ""}</tns:transactionFromDate>
 <tns:transactionToDate>{toDate ?? ""}</tns:transactionToDate>
-<tns:minRecordCount>1</tns:minRecordCount>
-<tns:maxRecordCount>500</tns:maxRecordCount>";
+<tns:minRecordCount>{minRec}</tns:minRecordCount>
+<tns:maxRecordCount>{maxRec}</tns:maxRecordCount>";
 
         var doc = await CallSoapAsync("SearchTransactions", body, useArchive: true);
         if (doc == null) return (0, new(), "Connection failed (Archive)");
 
         XNamespace ns = SoapNs;
-        var resultStr = doc.Descendants(ns + "SearchTransactionsResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
-        var xml       = doc.Descendants(ns + "foundTransactions").FirstOrDefault()?.Value;
+        var resultStr = FirstDescendantValue(doc, ns, "SearchTransactionsResult");
+        var error = FirstDescendantValue(doc, ns, "errorMessage");
+        var xml = FirstDescendantValue(doc, ns, "foundTransactions", "xmlTransactions", "xmlTransaction");
 
-        var rows = ParseFilesXml(xml);
+        var rows = ParseFilesXml(xml, _logger);
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, rows, $"SearchTransactions error code {result}: {error}");
+        }
         return (result, rows, string.IsNullOrEmpty(error) ? null : error);
+    }
+
+    // ── SearchTransactions with auto date-range splitting ──────────
+    // DHA caps SearchTransactions at 500 files per call. When a date range
+    // legitimately holds >500 files the excess is silently dropped. This helper
+    // subdivides the [fromDate, toDate] range whenever a call saturates,
+    // recursing until either every sub-range is under-cap or the range is a
+    // single second (adaptive bisection). The returned `result` count is
+    // aggregated across all sub-calls. Errors from any sub-call short-circuit.
+
+    public async Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsWithSplittingAsync(
+        string login, string pwd, int direction, string? fromDate, string? toDate,
+        int transactionStatus, int transactionId = 2, int maxRecord = 500)
+    {
+        // Parse the DHA date format ("dd/MM/yyyy HH:mm:ss")
+        static bool TryParseDha(string? s, out DateTime dt)
+        {
+            dt = default;
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            return DateTime.TryParseExact(s, "dd/MM/yyyy HH:mm:ss",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out dt);
+        }
+
+        if (!TryParseDha(fromDate, out var from) || !TryParseDha(toDate, out var to))
+        {
+            // If either bound is missing / malformed, fall back to a single call —
+            // splitting requires a parseable range.
+            return await SearchTransactionsAsync(login, pwd, direction, fromDate, toDate,
+                transactionStatus, transactionId, -1, maxRecord);
+        }
+
+        var allRows = new List<PortalFetchResultRow>();
+        int totalCount = 0;
+        string? firstError = null;
+
+        // Recursive helper — depth guard keeps runaway splits bounded
+        async Task WalkAsync(DateTime a, DateTime b, int depth)
+        {
+            if (firstError != null || a > b) return;
+
+            var aStr = a.ToString("dd/MM/yyyy HH:mm:ss");
+            var bStr = b.ToString("dd/MM/yyyy HH:mm:ss");
+            var (result, rows, error) = await SearchTransactionsAsync(login, pwd, direction,
+                aStr, bStr, transactionStatus, transactionId, -1, maxRecord);
+
+            if (!string.IsNullOrEmpty(error))
+            {
+                // Transient / cooldown errors bubble up immediately.
+                firstError = error;
+                return;
+            }
+
+            // Saturation guard: portal returned exactly maxRecord — there is
+            // very likely more data in this window. Split unless we've bottomed
+            // out (single-second range or 20 levels deep, which permits ~1M rows).
+            if (rows.Count >= maxRecord && a < b && depth < 20)
+            {
+                var midTicks = a.Ticks + (b.Ticks - a.Ticks) / 2;
+                var mid = new DateTime(midTicks, a.Kind);
+                var midPlusOne = mid.AddSeconds(1);
+                if (midPlusOne > b) midPlusOne = b; // Safety: never advance past b
+                _logger.LogInformation(
+                    "[SearchTransactions] Saturation at depth {Depth} ({From} → {To}): {Count} rows, splitting",
+                    depth, aStr, bStr, rows.Count);
+                await WalkAsync(a, mid, depth + 1);
+                await WalkAsync(midPlusOne, b, depth + 1);
+                return;
+            }
+
+            allRows.AddRange(rows);
+            totalCount += result > 0 ? result : rows.Count;
+        }
+
+        await WalkAsync(from, to, 0);
+        return (totalCount, allRows, firstError);
     }
 
     // ── DownloadTransactionFile ────────────────────────────────────
@@ -225,24 +389,32 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileAsync(
         string login, string pwd, string fileId)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, null, null, cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body);
         if (doc == null) return (0, null, null, "Connection failed");
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "DownloadTransactionFileResult").FirstOrDefault()?.Value;
-        var fileName  = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
-        var fileB64   = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var fileName = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
+        var fileB64 = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
 
         byte[]? fileBytes = null;
         if (!string.IsNullOrWhiteSpace(fileB64))
         {
             try { fileBytes = Convert.FromBase64String(fileB64.Trim()); }
-            catch { /* malformed base64 */ }
+            catch (FormatException ex) { _logger.LogWarning(ex, "Malformed base64 file payload in DownloadTransactionFile response for fileId {FileId}", fileId); }
         }
 
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, fileName, fileBytes, $"DownloadTransactionFile error code {result}: {error}");
+        }
         return (result, fileName, fileBytes, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -251,43 +423,58 @@ public class DhaPortalService : IDhaPortalService
     public async Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileArchiveAsync(
         string login, string pwd, string fileId)
     {
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, null, null, cooldownError);
+
         var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("DownloadTransactionFile", body, useArchive: true);
         if (doc == null) return (0, null, null, "Connection failed (Archive)");
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "DownloadTransactionFileResult").FirstOrDefault()?.Value;
-        var fileName  = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
-        var fileB64   = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var fileName = doc.Descendants(ns + "fileName").FirstOrDefault()?.Value;
+        var fileB64 = doc.Descendants(ns + "file").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
 
         byte[]? fileBytes = null;
         if (!string.IsNullOrWhiteSpace(fileB64))
         {
             try { fileBytes = Convert.FromBase64String(fileB64.Trim()); }
-            catch { }
+            catch (FormatException ex) { _logger.LogWarning(ex, "Malformed base64 file payload in archive DownloadTransactionFile response for fileId {FileId}", fileId); }
         }
 
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, fileName, fileBytes, $"DownloadTransactionFile error code {result}: {error}");
+        }
         return (result, fileName, fileBytes, string.IsNullOrEmpty(error) ? null : error);
     }
 
     // ── SetTransactionDownloaded ───────────────────────────────────
     // Mark a file as downloaded so GetNewTransactions won't return it again.
-    // WSDL element name: "fieldId" (lowercase d) — per WSDL schema
+    // WSDL element name: fileID — per DHPO specification
 
     public async Task<(int result, string? error)> SetTransactionDownloadedAsync(
         string login, string pwd, string fileId)
     {
-        // WSDL schema uses "fieldId" (not "fileId" or "fileID") as the element name
-        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fieldId>{fileId}</tns:fieldId>";
+        if (TryGetCooldownError(login, out var cooldownError))
+            return (0, cooldownError);
+
+        var body = $"<tns:login>{login}</tns:login><tns:pwd>{pwd}</tns:pwd><tns:fileId>{fileId}</tns:fileId>";
         var doc = await CallSoapAsync("SetTransactionDownloaded", body);
         if (doc == null) return (0, "Connection failed");
 
         XNamespace ns = SoapNs;
         var resultStr = doc.Descendants(ns + "SetTransactionDownloadedResult").FirstOrDefault()?.Value;
-        var error     = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
+        var error = doc.Descendants(ns + "errorMessage").FirstOrDefault()?.Value;
         int.TryParse(resultStr, out var result);
+        if (IsAuthThrottle(result, error))
+        {
+            StartCooldown(login);
+            return (0, $"SetTransactionDownloaded error code {result}: {error}");
+        }
         return (result, string.IsNullOrEmpty(error) ? null : error);
     }
 
@@ -297,7 +484,7 @@ public class DhaPortalService : IDhaPortalService
     // format returned by both GetNewTransactions and SearchTransactions.
     // ALL data is in XML ATTRIBUTES (not child elements).
 
-    public static List<PortalFetchResultRow> ParseFilesXml(string? xmlStr)
+    public static List<PortalFetchResultRow> ParseFilesXml(string? xmlStr, ILogger? logger = null)
     {
         var rows = new List<PortalFetchResultRow>();
         if (string.IsNullOrWhiteSpace(xmlStr)) return rows;
@@ -306,38 +493,58 @@ public class DhaPortalService : IDhaPortalService
         {
             var doc = XDocument.Parse(xmlStr);
 
-            foreach (var file in doc.Descendants("File"))
+            foreach (var file in doc.Descendants().Where(e => e.Name.LocalName == "File"))
             {
                 string? Attr(params string[] names)
                 {
                     foreach (var n in names)
                     {
-                        var v = file.Attribute(n)?.Value;
+                        var v = file.Attributes().FirstOrDefault(a => a.Name.LocalName == n)?.Value;
                         if (!string.IsNullOrWhiteSpace(v)) return v;
                     }
                     return null;
                 }
 
                 // FileID is the key — used as parameter for DownloadTransactionFile
-                var fileId   = Attr("FileID");
+                var fileId = Attr("FileID");
                 var fileName = Attr("FileName");
 
                 rows.Add(new PortalFetchResultRow
                 {
-                    FileId   = fileId ?? fileName ?? "-",
+                    FileId = fileId ?? fileName ?? "-",
                     FileName = fileName,
-                    Type          = DetermineType(fileName),
-                    Status        = Attr("IsDownloaded") == "True" ? "Downloaded" : "New",
-                    Payer         = Attr("ReceiverID"),       // ReceiverID = payer/receiver side
-                    Date          = Attr("TransactionDate"),
-                    Amount        = Attr("RecordCount"),       // RecordCount = # claims in file
-                    RawXml        = file.ToString()
+                    Type = DetermineType(fileName),
+                    Status = Attr("IsDownloaded") == "True" ? "Downloaded" : "New",
+                    Payer = Attr("ReceiverID"),       // ReceiverID = payer/receiver side
+                    Date = Attr("TransactionDate"),
+                    Amount = Attr("RecordCount"),       // RecordCount = # claims in file
+                    RawXml = file.ToString()
                 });
             }
         }
-        catch { /* return whatever was parsed */ }
+        catch (Exception ex)
+        {
+            // Return whatever was parsed so far
+            logger?.LogWarning(ex, "Failed to fully parse DHPO <Files> XML; returning {Count} partial row(s)", rows.Count);
+        }
 
         return rows;
+    }
+
+    private static string? FirstDescendantValue(XDocument doc, XNamespace ns, params string[] localNames)
+    {
+        foreach (var localName in localNames)
+        {
+            var value = doc.Descendants(ns + localName).FirstOrDefault()?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+
+            value = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == localName)?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+
+        return null;
     }
 
     // Infer transaction type from the file name
@@ -347,10 +554,10 @@ public class DhaPortalService : IDhaPortalService
         var fn = fileName.ToLowerInvariant();
         if (fn.Contains("remit") || fn.StartsWith("ra_") || fn.StartsWith("rem"))
             return "Remittance";
-        if (fn.Contains("claim"))      return "Claim";
+        if (fn.Contains("claim")) return "Claim";
         if (fn.Contains("prior") || fn.Contains("auth")) return "Prior Auth";
-        if (fn.Contains("person"))     return "Person Register";
-        if (fn.Contains("prescrip"))   return "Prescription";
+        if (fn.Contains("person")) return "Person Register";
+        if (fn.Contains("prescrip")) return "Prescription";
         return "Claim"; // Default
     }
 
@@ -359,7 +566,7 @@ public class DhaPortalService : IDhaPortalService
     // The file is the original XML submitted to DHPO (e-claim format).
 
     public static (string contentXml, List<PortalFetchResultRow> innerRows) ParseDownloadedFile(
-        byte[] fileBytes, string? originalFileName = null)
+        byte[] fileBytes, string? originalFileName = null, ILogger? logger = null)
     {
         string contentXml;
         var innerRows = new List<PortalFetchResultRow>();
@@ -382,12 +589,14 @@ public class DhaPortalService : IDhaPortalService
             var root = doc.Root;
             if (root == null) return (contentXml, innerRows);
 
-            // DHA e-claim XML typically has <Claim> or <Transaction> child elements
+            // DHA e-claim XML typically has <Claim> or <Transaction> child elements.
+            // No Take() cap — a single remittance file can bundle 5k+ claims and
+            // any hard cap silently drops rows. The whole XML is already in memory
+            // as `contentXml`, so materializing every descendant is cheap.
             var claimElements = root
                 .Descendants()
                 .Where(e => e.Name.LocalName is "Claim" or "Transaction" or "PriorRequest"
                                               or "PriorAuthorization" or "Remittance" or "Encounter")
-                .Take(1000)
                 .ToList();
 
             foreach (var el in claimElements)
@@ -407,17 +616,21 @@ public class DhaPortalService : IDhaPortalService
                 innerRows.Add(new PortalFetchResultRow
                 {
                     FileId = Get("ID", "ClaimID", "TransactionID", "id") ?? el.Attribute("ID")?.Value ?? "-",
-                    Type          = el.Name.LocalName,
-                    Status        = Get("Status", "ClaimStatus") ?? "-",
-                    FileName      = originalFileName,
-                    Date          = Get("Date", "ServiceDate", "SubmissionDate", "TransactionDate"),
-                    Payer         = Get("PayerID", "Payer", "ReceiverID", "InsuranceCompanyID"),
-                    Amount        = Get("GrossAmount", "NetAmount", "Amount", "TotalAmount"),
-                    RawXml        = el.ToString()
+                    Type = el.Name.LocalName,
+                    Status = Get("Status", "ClaimStatus") ?? "-",
+                    FileName = originalFileName,
+                    Date = Get("Date", "ServiceDate", "SubmissionDate", "TransactionDate"),
+                    Payer = Get("PayerID", "Payer", "ReceiverID", "InsuranceCompanyID"),
+                    Amount = Get("GrossAmount", "NetAmount", "Amount", "TotalAmount"),
+                    RawXml = el.ToString()
                 });
             }
         }
-        catch { /* keep contentXml, return empty innerRows */ }
+        catch (Exception ex)
+        {
+            // Keep contentXml, return empty innerRows
+            logger?.LogWarning(ex, "Failed to parse downloaded file {FileName} as e-claim XML", originalFileName);
+        }
 
         return (contentXml, innerRows);
     }
@@ -443,10 +656,10 @@ public class DhaPortalService : IDhaPortalService
 
     public static string DescribeResult(int code) => code switch
     {
-        3  => "No approved trade drugs (prescription not returned)",
-        2  => "No new prior auth transactions available",
-        1  => "Success with warnings",
-        0  => "Success",
+        3 => "No approved trade drugs (prescription not returned)",
+        2 => "No new prior auth transactions available",
+        1 => "Success with warnings",
+        0 => "Success",
         -1 => "Login failed",
         -2 => "Validation failed with errors",
         -3 => "Invalid or missing parameter",
@@ -455,6 +668,6 @@ public class DhaPortalService : IDhaPortalService
         -6 => "File not found",
         -7 => "Transaction type not supported",
         -10 => "No search criteria provided",
-        _  => $"Unknown result code: {code}"
+        _ => $"Unknown result code: {code}"
     };
 }

@@ -1,0 +1,66 @@
+name: .NET Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 06:00 UTC
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        configuration: [Debug, Release]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore
+      run: dotnet restore Analytika.sln
+
+    - name: Build
+      run: dotnet build Analytika.sln --no-restore -c ${{ matrix.configuration }}
+
+    - name: Test
+      if: matrix.configuration == 'Release'
+      run: dotnet test Analytika.sln --no-build -c Release --logger "trx;LogFileName=test-results.trx"
+
+    - name: Upload test results
+      if: matrix.configuration == 'Release' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: Analytika.Tests/TestResults/*.trx
+
+    - name: Vulnerability scan
+      if: matrix.configuration == 'Release'
+      run: dotnet list Analytika.sln package --vulnerable --include-transitive
+
+  # Run vulnerability scan on schedule (daily) to catch new advisories
+  scheduled-vuln-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore
+      run: dotnet restore Analytika.sln
+
+    - name: Vulnerability scan
+      run: dotnet list Analytika.sln package --vulnerable --include-transitive

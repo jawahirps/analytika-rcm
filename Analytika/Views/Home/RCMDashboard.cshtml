@@ -1,297 +1,488 @@
 @model Analytika.Models.ViewModels.RCMDashboardViewModel
+@using System.Text.Json
 @{
     ViewData["Title"] = "BI Reports";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    var tabMeta = new Dictionary<string, (string Icon, string Desc)>
+    // ── Per-tab identity: icon + a distinct vibrant accent ──────────────
+    var tabMeta = new Dictionary<string, (string Icon, string Accent, string Accent2, string Desc)>
     {
-        ["Submissions"]   = ("fa-paper-plane",    "Claim submission volumes, acceptance rates & timelines"),
-        ["Resubmissions"] = ("fa-redo-alt",        "Resubmitted claims tracking & resolution outcomes"),
-        ["Remittance"]    = ("fa-money-bill-wave", "Remittance advice reconciliation & payment analysis"),
-        ["Denials"]       = ("fa-ban",             "Denial patterns, root causes & denial rate trends"),
-        ["Clinicians"]    = ("fa-user-md",         "Clinician-level productivity & claim performance"),
-        ["Operations"]    = ("fa-cogs",            "Operational KPIs, TAT metrics & SLA compliance"),
-        ["Insurance"]     = ("fa-shield-alt",      "Payer-wise analysis, approval rates & payment terms"),
-        ["Department"]    = ("fa-building",        "Department & facility breakdown with benchmarks"),
+        ["Submissions"]   = ("fa-paper-plane",    "#14B8A6", "#0EA5A0", "Claim submission volumes, acceptance rates, and timelines"),
+        ["Resubmissions"] = ("fa-rotate",         "#8B5CF6", "#7C3AED", "Resubmitted claims tracking and resolution outcomes"),
+        ["Remittance"]    = ("fa-money-bill-wave", "#10B981", "#059669", "Payment reconciliation and remittance analysis"),
+        ["Denials"]       = ("fa-ban",             "#F43F5E", "#E11D48", "Denial patterns, root causes, and trends"),
+        ["Clinicians"]    = ("fa-user-doctor",     "#6366F1", "#4F46E5", "Clinician productivity and claim performance"),
+        ["Operations"]    = ("fa-gears",           "#F59E0B", "#D97706", "Operational KPIs, TAT metrics, and SLA compliance"),
+        ["Insurance"]     = ("fa-shield-halved",   "#06B6D4", "#0891B2", "Payer-wise approval, rejection, and payment behavior"),
+        ["Department"]    = ("fa-building",        "#D946EF", "#C026D3", "Department and facility performance breakdown"),
+    };
+    (string Icon, string Accent, string Accent2, string Desc) ActiveMeta =
+        tabMeta.TryGetValue(Model.ActiveTab, out var m) ? m : tabMeta["Submissions"];
+
+    // KPI tone → color
+    string ToneColor(string t) => t switch
+    {
+        "teal"  => "#14B8A6",
+        "gold"  => "#F59E0B",
+        "green" => "#22C55E",
+        "blue"  => "#3B82F6",
+        _       => ActiveMeta.Accent
     };
 
-    bool isConfigured = !string.IsNullOrEmpty(Model.EmbedToken)
-                     && Model.EmbedToken != "PENDING"
-                     && !Model.EmbedToken!.StartsWith("DEMO_TOKEN");
+    // Insight status → color
+    (string Bg, string Fg, string Icon) StatusStyle(string s) => s switch
+    {
+        "Action" => ("rgba(244,63,94,.12)",  "#E11D48", "fa-circle-exclamation"),
+        "Good"   => ("rgba(16,185,129,.12)", "#059669", "fa-circle-check"),
+        "Watch"  => ("rgba(245,158,11,.14)", "#D97706", "fa-triangle-exclamation"),
+        _        => ("rgba(99,102,241,.12)", "#4F46E5", "fa-circle-info"),
+    };
+
+    // Rotating palette for breakdown bars
+    var palette = new[] { "#14B8A6", "#8B5CF6", "#F59E0B", "#F43F5E", "#06B6D4", "#6366F1", "#22C55E", "#D946EF" };
+
+    var maxBreakdown = Math.Max(1, Model.Breakdown.Count == 0 ? 1 : Model.Breakdown.Max(x => x.Value));
+    var reportDateFrom = Model.Filters.DateFrom ?? new DateOnly(2023, 1, 1);
+    var reportDateTo = Model.Filters.DateTo ?? DateOnly.FromDateTime(DateTime.Today);
+    var reportDateFromText = reportDateFrom.ToString("dd MMM yyyy");
+    var reportDateToText = reportDateTo.ToString("dd MMM yyyy");
+
+    var trendJson = JsonSerializer.Serialize(Model.Trend.Select(t => new { x = t.Label, y = t.Value }));
 }
 
 @section Styles {
 <style>
-:root { --navy:#0A1828; --gold:#C87A10; --gold-lt:#FDF3E0; --border:#e5e7eb; }
+    .rcm {
+        --accent: @ActiveMeta.Accent;
+        --accent2: @ActiveMeta.Accent2;
+        --ink: #0F2742;
+        --ink-soft: #5B7088;
+        --card: #ffffff;
+        --bd: rgba(15,39,66,.08);
+        --shadow: 0 12px 34px rgba(15,39,66,.08);
+        min-height: calc(100vh - 56px);
+        padding: 1.25rem 1.25rem 2.5rem;
+        background:
+            radial-gradient(1100px 360px at 8% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+            radial-gradient(900px 320px at 105% 0%, rgba(139,92,246,.10), transparent 55%),
+            linear-gradient(180deg, #F6F9FC 0%, #FBFDFE 100%);
+        font-feature-settings: "tnum" 1;
+    }
 
-/* ── Full-height shell ─────────────────────────────────────────── */
-.bi-shell {
-    display:flex; flex-direction:column;
-    height:calc(100vh - 56px);   /* subtract navbar */
-    background:#f8f9fb;
-}
+    /* ── Hero ───────────────────────────────────────────────── */
+    .rcm-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1.6rem 1.75rem;
+        margin-bottom: 1.1rem;
+        color: #fff;
+        background: linear-gradient(120deg, var(--accent2) 0%, var(--accent) 70%);
+        box-shadow: 0 18px 44px color-mix(in srgb, var(--accent) 34%, transparent);
+    }
+    .rcm-hero::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(420px 220px at 88% -30%, rgba(255,255,255,.30), transparent 60%),
+            radial-gradient(300px 200px at 100% 130%, rgba(0,0,0,.18), transparent 60%);
+        pointer-events: none;
+    }
+    .rcm-hero-row { position: relative; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; }
+    .rcm-kicker {
+        display: inline-flex; align-items: center; gap: .5rem;
+        padding: .3rem .7rem; border-radius: 999px;
+        background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.28);
+        font-size: .68rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    }
+    .rcm-hero h1 { margin: .6rem 0 .35rem; font-size: clamp(1.6rem, 2.6vw, 2.4rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; }
+    .rcm-hero p { margin: 0; max-width: 46rem; color: rgba(255,255,255,.86); font-size: .92rem; line-height: 1.6; }
 
-/* ── Tab bar ───────────────────────────────────────────────────── */
-.bi-tabs {
-    display:flex; align-items:stretch; gap:0;
-    background:#fff; border-bottom:2px solid var(--border);
-    padding:0 1rem; overflow-x:auto; flex-shrink:0;
-    scrollbar-width:none;
-}
-.bi-tabs::-webkit-scrollbar { display:none; }
+    .rcm-daterange {
+        display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+        background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.26);
+        padding: .45rem .6rem; border-radius: 14px;
+    }
+    .rcm-daterange input[type=date] {
+        border: none; background: rgba(255,255,255,.92); color: var(--ink);
+        border-radius: 9px; padding: .35rem .5rem; font-size: .8rem; font-weight: 600;
+    }
+    .rcm-daterange .rcm-dr-sep { color: rgba(255,255,255,.8); font-size: .8rem; }
+    .rcm-icon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 34px; height: 34px; border-radius: 10px; border: none;
+        background: rgba(255,255,255,.92); color: var(--accent2); cursor: pointer;
+        text-decoration: none; transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .rcm-icon-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.18); color: var(--accent2); }
 
-.bi-tab {
-    display:flex; align-items:center; gap:.45rem;
-    padding:.7rem 1.1rem; cursor:pointer; white-space:nowrap;
-    font-size:.8rem; font-weight:500; color:#6b7280;
-    border-bottom:2.5px solid transparent; margin-bottom:-2px;
-    transition:color .15s, border-color .15s; background:none; border-top:none; border-left:none; border-right:none;
-    position:relative;
-}
-.bi-tab i { font-size:.78rem; }
-.bi-tab:hover { color:var(--navy); }
-.bi-tab.active { color:var(--navy); border-bottom-color:var(--gold); font-weight:600; }
-.bi-tab.active i { color:var(--gold); }
+    /* ── Layout grid ────────────────────────────────────────── */
+    .rcm-grid { display: grid; grid-template-columns: 244px minmax(0,1fr); gap: 1.1rem; max-width: 1520px; margin: 0 auto; }
+    @@media (max-width: 1050px) { .rcm-grid { grid-template-columns: 1fr; } }
 
-/* ── Report header strip ───────────────────────────────────────── */
-.bi-header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:.6rem 1.2rem; background:#fff;
-    border-bottom:1px solid var(--border); flex-shrink:0;
-}
-.bi-report-title { font-size:.85rem; font-weight:700; color:var(--navy); }
-.bi-report-desc  { font-size:.72rem; color:#6b7280; margin-top:.1rem; }
-.bi-actions { display:flex; gap:.5rem; align-items:center; }
-.bi-btn {
-    display:inline-flex; align-items:center; gap:.35rem;
-    font-size:.75rem; padding:.3rem .75rem; border-radius:5px; cursor:pointer;
-    border:1px solid var(--border); background:#fff; color:#374151;
-    transition:background .15s, border-color .15s;
-}
-.bi-btn:hover { background:#f9fafb; border-color:#d1d5db; }
-.bi-btn.primary { background:var(--navy); color:#fff; border-color:var(--navy); }
-.bi-btn.primary:hover { background:#142030; }
+    /* ── Tab rail ───────────────────────────────────────────── */
+    .rcm-aside { display: flex; flex-direction: column; gap: 1.1rem; position: sticky; top: 70px; align-self: start; }
+    @@media (max-width: 1050px) { .rcm-aside { position: static; } }
+    .rcm-tabs { display: flex; flex-direction: column; gap: .4rem; background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: .7rem; box-shadow: var(--shadow); }
+    @@media (max-width: 1050px) { .rcm-tabs { flex-direction: row; flex-wrap: wrap; } }
+    .rcm-tab {
+        display: flex; align-items: center; gap: .7rem; text-decoration: none;
+        padding: .6rem .7rem; border-radius: 12px; color: var(--ink-soft);
+        font-weight: 700; font-size: .86rem; transition: background .16s, color .16s, transform .16s;
+        border: 1px solid transparent;
+    }
+    .rcm-tab .rcm-tab-ico {
+        width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px;
+        display: inline-flex; align-items: center; justify-content: center; font-size: .82rem;
+        background: color-mix(in srgb, var(--t) 14%, transparent); color: var(--t);
+        transition: background .16s, color .16s;
+    }
+    .rcm-tab:hover { background: color-mix(in srgb, var(--t) 8%, transparent); color: var(--ink); transform: translateX(2px); }
+    .rcm-tab.active { color: #fff; background: linear-gradient(120deg, var(--t2), var(--t)); box-shadow: 0 10px 22px color-mix(in srgb, var(--t) 36%, transparent); }
+    .rcm-tab.active .rcm-tab-ico { background: rgba(255,255,255,.22); color: #fff; }
 
-/* ── Embed area ────────────────────────────────────────────────── */
-.bi-embed-wrap { flex:1; position:relative; overflow:hidden; }
-#biFrame { width:100%; height:100%; border:none; display:none; }
+    /* ── Filters ────────────────────────────────────────────── */
+    .rcm-filters { background: var(--card); border: 1px solid var(--bd); border-radius: 18px; padding: 1rem; box-shadow: var(--shadow); }
+    .rcm-filters h3 { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 800; margin: 0 0 .8rem; display: flex; align-items: center; gap: .45rem; }
+    .rcm-filters h3 i { color: var(--accent); }
+    .rcm-field { margin-bottom: .7rem; }
+    .rcm-field label { display: block; font-size: .7rem; font-weight: 700; color: var(--ink-soft); margin-bottom: .25rem; }
+    .rcm-field select {
+        width: 100%; border: 1.5px solid var(--bd); border-radius: 10px; padding: .5rem .6rem;
+        font-size: .82rem; color: var(--ink); background: #fff; transition: border-color .15s, box-shadow .15s;
+    }
+    .rcm-field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+    .rcm-filter-actions { display: flex; gap: .5rem; margin-top: .9rem; }
+    .rcm-btn {
+        flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+        border: none; border-radius: 11px; padding: .6rem .8rem; font-weight: 700; font-size: .82rem; cursor: pointer;
+        background: linear-gradient(120deg, var(--accent2), var(--accent)); color: #fff;
+        box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 30%, transparent); transition: transform .15s, filter .15s;
+        text-decoration: none;
+    }
+    .rcm-btn:hover { transform: translateY(-1px); filter: brightness(1.05); color: #fff; }
+    .rcm-btn.ghost { flex: 0 0 auto; background: transparent; color: var(--ink-soft); border: 1.5px solid var(--bd); box-shadow: none; }
+    .rcm-btn.ghost:hover { color: var(--accent); border-color: var(--accent); }
+    .rcm-active-pill { display: inline-flex; align-items: center; gap: .35rem; margin-top: .75rem; font-size: .72rem; font-weight: 700; color: var(--accent2); }
 
-/* ── Preloader ─────────────────────────────────────────────────── */
-#biLoader {
-    position:absolute; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; background:#f8f9fb; z-index:10;
-}
-.bi-spinner {
-    width:48px; height:48px; border-radius:50%;
-    border:4px solid #e5e7eb; border-top-color:var(--gold);
-    animation:spin .9s linear infinite;
-}
-@@keyframes spin { to { transform:rotate(360deg); } }
+    /* ── Content ────────────────────────────────────────────── */
+    .rcm-main { display: flex; flex-direction: column; gap: 1.1rem; min-width: 0; }
 
-/* ── Empty state ───────────────────────────────────────────────── */
-#biEmpty {
-    position:absolute; inset:0; display:none;
-    flex-direction:column; align-items:center; justify-content:center;
-    background:#f8f9fb; text-align:center; padding:2rem;
-}
-.bi-empty-icon {
-    width:72px; height:72px; border-radius:50%;
-    background:var(--gold-lt); display:flex; align-items:center; justify-content:center;
-    margin:0 auto 1.25rem;
-}
-.bi-empty-icon i { font-size:1.75rem; color:var(--gold); }
+    .rcm-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: .9rem; }
+    @@media (max-width: 880px) { .rcm-kpis { grid-template-columns: repeat(2, 1fr); } }
+    @@media (max-width: 460px) { .rcm-kpis { grid-template-columns: 1fr; } }
+    .rcm-kpi {
+        position: relative; overflow: hidden; background: var(--card); border: 1px solid var(--bd);
+        border-radius: 16px; padding: 1.05rem 1.1rem; box-shadow: var(--shadow);
+    }
+    .rcm-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+    .rcm-kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: .55rem; }
+    .rcm-kpi-ico { width: 38px; height: 38px; border-radius: 11px; display: inline-flex; align-items: center; justify-content: center; font-size: .95rem; background: color-mix(in srgb, var(--c) 14%, transparent); color: var(--c); }
+    .rcm-kpi-delta { font-size: .72rem; font-weight: 800; padding: .2rem .45rem; border-radius: 999px; }
+    .rcm-kpi-delta.up { color: #059669; background: rgba(16,185,129,.12); }
+    .rcm-kpi-delta.down { color: #E11D48; background: rgba(244,63,94,.12); }
+    .rcm-kpi-val { font-size: 1.7rem; font-weight: 800; color: var(--ink); letter-spacing: -.03em; line-height: 1.05; }
+    .rcm-kpi-label { font-size: .78rem; font-weight: 600; color: var(--ink-soft); margin-top: .15rem; }
+
+    .rcm-charts { display: grid; grid-template-columns: 1.5fr 1fr; gap: .9rem; }
+    @@media (max-width: 920px) { .rcm-charts { grid-template-columns: 1fr; } }
+    .rcm-panel { background: var(--card); border: 1px solid var(--bd); border-radius: 16px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+    .rcm-panel-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: .4rem; }
+    .rcm-panel-head h3 { margin: 0; font-size: 1rem; font-weight: 800; color: var(--ink); }
+    .rcm-panel-head p { margin: .15rem 0 0; font-size: .78rem; color: var(--ink-soft); }
+    .rcm-chip { font-size: .68rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--accent2); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: .25rem .55rem; border-radius: 999px; }
+
+    .rcm-bars { display: flex; flex-direction: column; gap: .85rem; margin-top: .9rem; }
+    .rcm-bar-row { }
+    .rcm-bar-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .3rem; }
+    .rcm-bar-label { font-size: .84rem; font-weight: 700; color: var(--ink); }
+    .rcm-bar-detail { font-size: .7rem; color: var(--ink-soft); margin-left: .4rem; font-weight: 500; }
+    .rcm-bar-val { font-size: .82rem; font-weight: 800; color: var(--bc); }
+    .rcm-bar-track { height: 10px; border-radius: 999px; background: rgba(15,39,66,.06); overflow: hidden; }
+    .rcm-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, color-mix(in srgb, var(--bc) 70%, #fff), var(--bc)); width: 0; transition: width .9s cubic-bezier(.22,1,.36,1); }
+
+    .rcm-insights { display: grid; grid-template-columns: repeat(3, 1fr); gap: .9rem; }
+    @@media (max-width: 880px) { .rcm-insights { grid-template-columns: 1fr; } }
+    .rcm-insight { background: var(--card); border: 1px solid var(--bd); border-radius: 16px; padding: 1rem 1.1rem; box-shadow: var(--shadow); border-left: 4px solid var(--ic); }
+    .rcm-insight-head { display: flex; align-items: center; gap: .55rem; margin-bottom: .45rem; }
+    .rcm-insight-ico { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--ibg); color: var(--ic); font-size: .82rem; }
+    .rcm-insight-head h4 { margin: 0; font-size: .9rem; font-weight: 800; color: var(--ink); }
+    .rcm-insight-head .rcm-status { margin-left: auto; font-size: .64rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ic); background: var(--ibg); padding: .18rem .45rem; border-radius: 999px; }
+    .rcm-insight p { margin: 0; font-size: .82rem; color: var(--ink-soft); line-height: 1.55; }
+
+    .rcm-footnote { display: flex; align-items: center; gap: .5rem; justify-content: center; margin-top: .4rem; font-size: .74rem; color: var(--ink-soft); }
+    .rcm-footnote i { color: var(--accent); }
+
+    /* ── Dark mode ──────────────────────────────────────────── */
+    html[data-theme="dark"] .rcm {
+        --ink: #E6EEF6; --ink-soft: #93A7BC; --card: #0E1B2D; --bd: rgba(120,160,200,.14);
+        --shadow: 0 14px 34px rgba(0,0,0,.45);
+        background:
+            radial-gradient(1100px 360px at 8% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+            linear-gradient(180deg, #0A1422 0%, #0B1626 100%);
+    }
+    html[data-theme="dark"] .rcm-field select { background: #0B1626; color: var(--ink); }
+    html[data-theme="dark"] .rcm-bar-track { background: rgba(255,255,255,.08); }
+    html[data-theme="dark"] .rcm-daterange input[type=date] { background: rgba(255,255,255,.92); }
 </style>
 }
 
-<div class="bi-shell">
-
-    <!-- ── Tab bar ────────────────────────────────────────────────────── -->
-    <nav class="bi-tabs" role="tablist">
-        @foreach (var tab in Model.Tabs)
-        {
-            var meta = tabMeta.GetValueOrDefault(tab, ("fa-chart-bar", ""));
-            <button class="bi-tab @(tab == Model.ActiveTab ? "active" : "")"
-                    data-tab="@tab" onclick="switchTab('@tab')" role="tab"
-                    aria-selected="@(tab == Model.ActiveTab ? "true" : "false")">
-                <i class="fas @meta.Item1"></i>@tab
-            </button>
-        }
-    </nav>
-
-    <!-- ── Report header ──────────────────────────────────────────────── -->
-    <div class="bi-header">
-        <div>
-            <div class="bi-report-title" id="biReportTitle">@Model.ActiveTab</div>
-            <div class="bi-report-desc"  id="biReportDesc">
-                @tabMeta.GetValueOrDefault(Model.ActiveTab, ("", "Report data loading...")).Item2
+<div class="rcm">
+    <!-- ── Hero ─────────────────────────────────────────────── -->
+    <header class="rcm-hero">
+        <div class="rcm-hero-row">
+            <div>
+                <span class="rcm-kicker"><i class="fas @ActiveMeta.Icon"></i> Finance Intelligence</span>
+                <h1>@Model.ActiveTab Dashboard</h1>
+                <p>@Model.Summary</p>
             </div>
+            <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="rcm-daterange">
+                <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                <input type="hidden" name="facilityId" value="@Model.Filters.FacilityId" />
+                <input type="hidden" name="receiver" value="@Model.Filters.Receiver" />
+                <input type="hidden" name="payer" value="@Model.Filters.Payer" />
+                <input type="hidden" name="encounterType" value="@Model.Filters.EncounterType" />
+                <i class="fas fa-calendar-day" style="color:rgba(255,255,255,.9)"></i>
+                <input type="date" name="dateFrom" value="@reportDateFrom.ToString("yyyy-MM-dd")" aria-label="From date" />
+                <span class="rcm-dr-sep">→</span>
+                <input type="date" name="dateTo" value="@reportDateTo.ToString("yyyy-MM-dd")" aria-label="To date" />
+                <button type="submit" class="rcm-icon-btn" title="Apply date range" aria-label="Apply date range"><i class="fas fa-check"></i></button>
+                <a class="rcm-icon-btn" asp-controller="Home" asp-action="Dashboard" title="Back to facility dashboard" aria-label="Back"><i class="fas fa-arrow-left"></i></a>
+            </form>
         </div>
-        <div class="bi-actions">
-            <button class="bi-btn" onclick="refreshReport()" id="btnRefresh">
-                <i class="fas fa-sync-alt"></i>Refresh
-            </button>
-            <button class="bi-btn" onclick="toggleFullscreen()">
-                <i class="fas fa-expand-alt" id="fsIcon"></i>Fullscreen
-            </button>
-            @if (User.IsInRole("Admin") || User.IsInRole("FacilityAdmin"))
-            {
-                <a href="/Admin/PowerBIReports" class="bi-btn primary">
-                    <i class="fas fa-cog"></i>Configure
-                </a>
-            }
+        <div style="position:relative;margin-top:.8rem;font-size:.78rem;color:rgba(255,255,255,.82);font-weight:600;">
+            <i class="fas fa-clock-rotate-left"></i> Reports @reportDateFromText – @reportDateToText
+            <span style="opacity:.6">·</span> Anchored to <strong>@Model.StableFieldTitle</strong>
         </div>
-    </div>
+    </header>
 
-    <!-- ── Embed area ─────────────────────────────────────────────────── -->
-    <div class="bi-embed-wrap" id="biWrap">
+    <div class="rcm-grid">
+        <!-- ── Aside: tabs + filters ─────────────────────────── -->
+        <aside class="rcm-aside">
+            <nav class="rcm-tabs" aria-label="Report categories">
+                @foreach (var tab in Model.Tabs)
+                {
+                    var meta = tabMeta.TryGetValue(tab, out var tm) ? tm : tabMeta["Submissions"];
+                    var isActive = tab.Equals(Model.ActiveTab, StringComparison.OrdinalIgnoreCase);
+                    <a class="rcm-tab @(isActive ? "active" : "")"
+                       style="--t:@meta.Accent;--t2:@meta.Accent2"
+                       asp-controller="Home" asp-action="RCMDashboard"
+                       asp-route-tab="@tab"
+                       asp-route-facilityId="@Model.Filters.FacilityId"
+                       asp-route-receiver="@Model.Filters.Receiver"
+                       asp-route-payer="@Model.Filters.Payer"
+                       asp-route-encounterType="@Model.Filters.EncounterType"
+                       asp-route-dateFrom="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")"
+                       asp-route-dateTo="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")">
+                        <span class="rcm-tab-ico"><i class="fas @meta.Icon"></i></span>
+                        <span>@tab</span>
+                    </a>
+                }
+            </nav>
 
-        <!-- Loader -->
-        <div id="biLoader">
-            <div class="bi-spinner"></div>
-            <p class="mt-3" style="font-size:.82rem; color:#6b7280;">Loading @Model.ActiveTab report…</p>
-        </div>
+            <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="rcm-filters">
+                <h3><i class="fas fa-sliders"></i> Filters</h3>
+                <input type="hidden" name="tab" value="@Model.ActiveTab" />
+                <input type="hidden" name="dateFrom" value="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="dateTo" value="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")" />
 
-        <!-- Empty / not configured -->
-        <div id="biEmpty">
-            <div class="bi-empty-icon"><i class="fas fa-chart-pie"></i></div>
-            <h6 style="color:var(--navy); font-weight:700;" id="biEmptyTitle">Report Not Configured</h6>
-            <p style="font-size:.82rem; color:#6b7280; max-width:320px;" id="biEmptyMsg">
-                No Power BI report has been linked to this tab yet.
-            </p>
-            @if (User.IsInRole("Admin") || User.IsInRole("FacilityAdmin"))
-            {
-                <a href="/Admin/PowerBIReports" class="bi-btn primary mt-2" style="text-decoration:none; display:inline-flex;">
-                    <i class="fas fa-cog me-1"></i>Go to Power BI Settings
-                </a>
-            }
-        </div>
+                <div class="rcm-field">
+                    <label for="facilityId">Facility</label>
+                    <select id="facilityId" name="facilityId">
+                        <option value="">All facilities</option>
+                        @foreach (var opt in Model.FacilityOptions)
+                        {
+                            var isSel = Model.Filters.FacilityId?.ToString() == opt.Value;
+                            <option value="@opt.Value" selected="@(isSel ? "selected" : null)">@opt.Label</option>
+                        }
+                    </select>
+                </div>
 
-        <!-- iframe -->
-        <iframe id="biFrame" frameborder="0" allowfullscreen
-                title="@Model.ActiveTab Power BI Report"></iframe>
+                <div class="rcm-field">
+                    <label for="receiver">Receiver</label>
+                    <select id="receiver" name="receiver">
+                        <option value="">All receivers</option>
+                        @if (!string.IsNullOrWhiteSpace(Model.Filters.Receiver) && !Model.ReceiverOptions.Any(o => o.Value == Model.Filters.Receiver))
+                        {
+                            <option value="@Model.Filters.Receiver" selected>@Model.Filters.Receiver</option>
+                        }
+                        @foreach (var opt in Model.ReceiverOptions)
+                        {
+                            var isSelR = Model.Filters.Receiver == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelR ? "selected" : null)">@opt.Label</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="rcm-field">
+                    <label for="payer">Payer</label>
+                    <select id="payer" name="payer">
+                        <option value="">All payers</option>
+                        @if (!string.IsNullOrWhiteSpace(Model.Filters.Payer) && !Model.PayerOptions.Any(o => o.Value == Model.Filters.Payer))
+                        {
+                            <option value="@Model.Filters.Payer" selected>@Model.Filters.Payer</option>
+                        }
+                        @foreach (var opt in Model.PayerOptions)
+                        {
+                            var isSelP = Model.Filters.Payer == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelP ? "selected" : null)">@opt.Label</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="rcm-field">
+                    <label for="encounterType">Encounter Type</label>
+                    <select id="encounterType" name="encounterType">
+                        <option value="">All encounter types</option>
+                        @if (!string.IsNullOrWhiteSpace(Model.Filters.EncounterType) && !Model.EncounterTypeOptions.Any(o => o.Value == Model.Filters.EncounterType))
+                        {
+                            <option value="@Model.Filters.EncounterType" selected>@Model.Filters.EncounterType</option>
+                        }
+                        @foreach (var opt in Model.EncounterTypeOptions)
+                        {
+                            var isSelE = Model.Filters.EncounterType == opt.Value;
+                            <option value="@opt.Value" selected="@(isSelE ? "selected" : null)">@opt.Label</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="rcm-filter-actions">
+                    <button type="submit" class="rcm-btn"><i class="fas fa-filter"></i> Apply</button>
+                    <a class="rcm-btn ghost" title="Reset filters" asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@Model.ActiveTab"><i class="fas fa-rotate-left"></i></a>
+                </div>
+                @if (Model.HasActiveFilters)
+                {
+                    <span class="rcm-active-pill"><i class="fas fa-circle-dot"></i> Filters active</span>
+                }
+            </form>
+        </aside>
+
+        <!-- ── Main content ──────────────────────────────────── -->
+        <main class="rcm-main">
+            <!-- KPI cards -->
+            <section class="rcm-kpis">
+                @foreach (var k in Model.Metrics)
+                {
+                    var c = ToneColor(k.Tone);
+                    var isDown = k.Delta.StartsWith("-");
+                    <div class="rcm-kpi" style="--c:@c">
+                        <div class="rcm-kpi-top">
+                            <span class="rcm-kpi-ico"><i class="fas @k.Icon"></i></span>
+                            @if (!string.IsNullOrWhiteSpace(k.Delta))
+                            {
+                                <span class="rcm-kpi-delta @(isDown ? "down" : "up")">@k.Delta</span>
+                            }
+                        </div>
+                        <div class="rcm-kpi-val">@k.Value</div>
+                        <div class="rcm-kpi-label">@k.Label</div>
+                    </div>
+                }
+            </section>
+
+            <!-- Charts: trend + breakdown -->
+            <section class="rcm-charts">
+                <div class="rcm-panel">
+                    <div class="rcm-panel-head">
+                        <div>
+                            <h3>Performance Trend</h3>
+                            <p>@Model.StableFieldDetail</p>
+                        </div>
+                        <span class="rcm-chip">6-month</span>
+                    </div>
+                    <div id="rcmTrendChart" style="min-height:260px"></div>
+                </div>
+
+                <div class="rcm-panel">
+                    <div class="rcm-panel-head">
+                        <div>
+                            <h3>Breakdown</h3>
+                            <p>By department / category</p>
+                        </div>
+                    </div>
+                    <div class="rcm-bars">
+                        @{ var pi = 0; }
+                        @foreach (var b in Model.Breakdown)
+                        {
+                            var bc = palette[pi % palette.Length]; pi++;
+                            var pct = (int)Math.Round(b.Value / (double)maxBreakdown * 100);
+                            <div class="rcm-bar-row" style="--bc:@bc">
+                                <div class="rcm-bar-top">
+                                    <div><span class="rcm-bar-label">@b.Label</span><span class="rcm-bar-detail">@b.Detail</span></div>
+                                    <span class="rcm-bar-val">@b.Value%</span>
+                                </div>
+                                <div class="rcm-bar-track"><div class="rcm-bar-fill" data-w="@pct"></div></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <!-- Insights -->
+            <section class="rcm-insights">
+                @foreach (var ins in Model.Insights)
+                {
+                    var st = StatusStyle(ins.Status);
+                    <div class="rcm-insight" style="--ic:@st.Fg;--ibg:@st.Bg">
+                        <div class="rcm-insight-head">
+                            <span class="rcm-insight-ico"><i class="fas @st.Icon"></i></span>
+                            <h4>@ins.Title</h4>
+                            <span class="rcm-status">@ins.Status</span>
+                        </div>
+                        <p>@ins.Detail</p>
+                    </div>
+                }
+            </section>
+
+            <div class="rcm-footnote">
+                <i class="fas fa-shield-halved"></i> Refreshed @Model.RefreshedAt.ToString("dd MMM yyyy · HH:mm")
+            </div>
+        </main>
     </div>
 </div>
 
 @section Scripts {
-<script src="https://cdn.jsdelivr.net/npm/powerbi-client@2.23.1/dist/powerbi.min.js"></script>
 <script>
-const tabMeta = {
-    @foreach (var tab in Model.Tabs)
-    {
-        var meta = tabMeta.GetValueOrDefault(tab, ("", ""));
-        <text>'@tab': { desc: '@Html.Raw(meta.Item2.Replace("'","\\\'"))' },</text>
-    }
-};
+    (function () {
+        var el = document.getElementById('rcmTrendChart');
+        if (!el || typeof ApexCharts === 'undefined') return;
 
-let currentReport = null;
+        var accent = '@ActiveMeta.Accent';
+        var accent2 = '@ActiveMeta.Accent2';
+        var data = @Html.Raw(trendJson);
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-// ── Embed on initial load ──────────────────────────────────────────────────
-(function () {
-    const token    = '@Html.Raw(Model.EmbedToken ?? "")';
-    const embedUrl = '@Html.Raw(Model.EmbedUrl ?? "")';
-    const reportId = '@Html.Raw(Model.ReportId ?? "")';
-    embedReport(token, embedUrl, reportId);
-})();
+        var options = {
+            chart: { type: 'area', height: 280, fontFamily: 'inherit', toolbar: { show: false }, animations: { easing: 'easeinout', speed: 700 } },
+            series: [{ name: 'Volume', data: data.map(function (d) { return d.y; }) }],
+            xaxis: {
+                categories: data.map(function (d) { return d.x; }),
+                labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088', fontWeight: 600 } },
+                axisBorder: { show: false }, axisTicks: { show: false }
+            },
+            yaxis: { labels: { style: { colors: isDark ? '#93A7BC' : '#5B7088' } } },
+            colors: [accent],
+            stroke: { curve: 'smooth', width: 3 },
+            fill: {
+                type: 'gradient',
+                gradient: { shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 90, 100], colorStops: [
+                    { offset: 0, color: accent, opacity: 0.45 },
+                    { offset: 100, color: accent2, opacity: 0.05 }
+                ] }
+            },
+            dataLabels: { enabled: false },
+            grid: { borderColor: isDark ? 'rgba(255,255,255,.08)' : 'rgba(15,39,66,.06)', strokeDashArray: 4 },
+            markers: { size: 4, colors: ['#fff'], strokeColors: accent, strokeWidth: 2, hover: { size: 6 } },
+            tooltip: { theme: isDark ? 'dark' : 'light' }
+        };
+        new ApexCharts(el, options).render();
 
-// ── Switch tab ────────────────────────────────────────────────────────────
-function switchTab(tab) {
-    document.querySelectorAll('.bi-tab').forEach(t => {
-        t.classList.toggle('active', t.dataset.tab === tab);
-        t.setAttribute('aria-selected', t.dataset.tab === tab ? 'true' : 'false');
-    });
-    document.getElementById('biReportTitle').textContent = tab;
-    document.getElementById('biReportDesc').textContent = tabMeta[tab]?.desc ?? '';
-    document.getElementById('btnRefresh').setAttribute('data-tab', tab);
-
-    showLoader(tab);
-
-    fetch('/Home/GetEmbedToken?tab=' + encodeURIComponent(tab))
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-            if (data) embedReport(data.accessToken, data.embedUrl, data.reportId);
-            else       showEmpty('Report Not Configured', 'No Power BI report has been linked to this tab yet.');
-        })
-        .catch(() => showEmpty('Failed to Load', 'Could not fetch the report configuration. Please try again.'));
-}
-
-// ── Embed report ──────────────────────────────────────────────────────────
-function embedReport(token, embedUrl, reportId) {
-    if (!token || token === 'PENDING' || token.startsWith('DEMO_TOKEN')) {
-        showEmpty('Report Not Configured', 'No Power BI report has been linked to this tab yet.');
-        return;
-    }
-
-    const frame = document.getElementById('biFrame');
-    if (currentReport) {
-        try { powerbi.reset(frame); } catch {}
-        currentReport = null;
-    }
-
-    const models = window['powerbi-client'].models;
-    const config = {
-        type: 'report',
-        tokenType: models.TokenType.Embed,
-        accessToken: token,
-        embedUrl: embedUrl,
-        id: reportId,
-        permissions: models.Permissions.All,
-        settings: {
-            filterPaneEnabled: false,
-            navContentPaneEnabled: false,
-            background: models.BackgroundType.Transparent,
-        }
-    };
-
-    frame.style.display = 'block';
-    currentReport = powerbi.embed(frame, config);
-
-    currentReport.on('loaded', () => {
-        document.getElementById('biLoader').style.display = 'none';
-        document.getElementById('biEmpty').style.display = 'none';
-    });
-    currentReport.on('error', () => {
-        showEmpty('Report Error', 'The Power BI report failed to load. Check your embed configuration.');
-    });
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-function showLoader(tab) {
-    const loader = document.getElementById('biLoader');
-    loader.style.display = 'flex';
-    loader.querySelector('p').textContent = `Loading ${tab} report\u2026`;
-    document.getElementById('biEmpty').style.display = 'none';
-    document.getElementById('biFrame').style.display = 'none';
-}
-
-function showEmpty(title, msg) {
-    document.getElementById('biLoader').style.display = 'none';
-    document.getElementById('biFrame').style.display = 'none';
-    const empty = document.getElementById('biEmpty');
-    empty.style.display = 'flex';
-    document.getElementById('biEmptyTitle').textContent = title;
-    document.getElementById('biEmptyMsg').textContent   = msg;
-}
-
-function refreshReport() {
-    const active = document.querySelector('.bi-tab.active')?.dataset.tab;
-    if (active) switchTab(active);
-}
-
-function toggleFullscreen() {
-    const wrap = document.getElementById('biWrap');
-    const icon = document.getElementById('fsIcon');
-    if (!document.fullscreenElement) {
-        wrap.requestFullscreen?.();
-        icon.className = 'fas fa-compress-alt';
-    } else {
-        document.exitFullscreen?.();
-        icon.className = 'fas fa-expand-alt';
-    }
-}
-
-document.addEventListener('fullscreenchange', () => {
-    if (!document.fullscreenElement)
-        document.getElementById('fsIcon').className = 'fas fa-expand-alt';
-});
+        // Animate breakdown bars
+        requestAnimationFrame(function () {
+            document.querySelectorAll('.rcm-bar-fill').forEach(function (b) {
+                b.style.width = (b.getAttribute('data-w') || 0) + '%';
+            });
+        });
+    })();
 </script>
 }

@@ -1,0 +1,25 @@
+@*
+    Canonical KPI tile. Usage:
+    @await Html.PartialAsync("_KpiCard", new { Label="Total Claims", Value="10,664", Icon="fa-file-invoice", Tone="navy" })
+    Tone: info (default) | navy | success | warning | danger
+*@
+@model dynamic
+@{
+    string label = (Model?.Label as string) ?? "";
+    string value = (Model?.Value as string) ?? "";
+    string icon  = (Model?.Icon as string) ?? "fa-chart-simple";
+    string tone  = (Model?.Tone as string) ?? "info";
+    string toneClass = tone switch
+    {
+        "navy"    => "is-navy",
+        "success" => "is-success",
+        "warning" => "is-warning",
+        "danger"  => "is-danger",
+        _          => ""
+    };
+}
+<div class="kpi-card text-center">
+    <div class="kpi-ico @toneClass mx-auto mb-2"><i class="fas @icon"></i></div>
+    <div class="kpi-val">@value</div>
+    <div class="kpi-label">@label</div>
+</div>

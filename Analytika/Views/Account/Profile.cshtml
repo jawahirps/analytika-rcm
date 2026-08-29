@@ -1,0 +1,157 @@
+@model Analytika.Models.ViewModels.UserProfileViewModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold text-navy">My Profile</h4>
+            <small class="text-muted">Personal details and assigned access for your account</small>
+        </div>
+        <a asp-controller="Home" asp-action="Dashboard" class="btn btn-sm btn-outline-secondary rounded-md">
+            <i class="fas fa-arrow-left me-1"></i>Back
+        </a>
+    </div>
+
+    @if (TempData["Success"] is string success)
+    {
+        <div class="alert alert-success border-0 shadow-sm rounded-md">
+            <i class="fas fa-check-circle me-1"></i>@success
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-5">
+            <form asp-action="Profile" method="post" class="card border-0 shadow-sm">
+                @Html.AntiForgeryToken()
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center gap-3 mb-4">
+                        <div class="bg-navy" style="width:56px;height:56px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:800;font-size:1.25rem;">
+                            @(Model.FullName.Length > 0 ? Model.FullName[0].ToString().ToUpper() : "U")
+                        </div>
+                        <div>
+                            <div class="fw-bold text-navy">@(!string.IsNullOrWhiteSpace(Model.FullName) ? Model.FullName : Model.Email)</div>
+                            <div class="text-muted fs-80">@Model.Email</div>
+                        </div>
+                    </div>
+
+                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="form-label small fw-semibold">Full Name</label>
+                        <input asp-for="FullName" class="form-control" autocomplete="name" />
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label small fw-semibold">Username</label>
+                        <input asp-for="Email" class="form-control" readonly />
+                        <div class="form-text">Username and sign-in identity are managed by an administrator.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Department" class="form-label small fw-semibold">Department</label>
+                        <input asp-for="Department" class="form-control" autocomplete="organization-title" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="PhoneNumber" class="form-label small fw-semibold">Phone Number</label>
+                        <input asp-for="PhoneNumber" class="form-control" autocomplete="tel" />
+                    </div>
+
+                    <button type="submit" class="btn px-4 btn-navy">
+                        <i class="fas fa-save me-1"></i>Save Profile
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3 text-navy">Account Isolation</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
+                                <div class="text-muted small">Status</div>
+                                <div class="fw-bold @(Model.IsActive ? "text-success" : "text-danger")">@(Model.IsActive ? "Active" : "Inactive")</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
+                                <div class="text-muted small">User Type</div>
+                                <div class="fw-bold text-navy">@Model.UserType</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded bg-sky-wash" style="border:1px solid #EAF4FB;">
+                                <div class="text-muted small">Roles</div>
+                                <div class="fw-bold text-navy">@(Model.Roles.Any() ? string.Join(", ", Model.Roles) : "None")</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted small mb-0 mt-3">
+                        Your profile page never accepts another user's ID. Facility, role, and report permissions are read-only here and can only be changed by an administrator.
+                    </p>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3 text-navy">Facilities</h6>
+                            @if (Model.Facilities.Any())
+                            {
+                                foreach (var facility in Model.Facilities)
+                                {
+                                    <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+                                        <i class="fas fa-hospital text-muted"></i>
+                                        <span>@facility</span>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-muted small">No facility isolation assigned.</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body p-4">
+                            <h6 class="fw-bold mb-3 text-navy">Report Access</h6>
+                            @if (Model.ReportAccess.Any())
+                            {
+                                foreach (var report in Model.ReportAccess)
+                                {
+                                    <span class="badge me-1 mb-2 bg-sky-wash text-slate-700">@report</span>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-muted small">No specific report access assigned.</div>
+                            }
+
+                            @if (Model.DashboardAccess.Any())
+                            {
+                                <h6 class="fw-bold mt-4 mb-2 text-navy fs-82">Dashboards</h6>
+                                foreach (var dashboard in Model.DashboardAccess)
+                                {
+                                    <span class="badge me-1 mb-2 text-cyan-light" style="background:rgba(0,139,139,.1);">@dashboard</span>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

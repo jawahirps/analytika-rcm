@@ -1,10 +1,13 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
+using Analytika.Security;
 using Analytika.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Analytika.Controllers;
 
@@ -12,40 +15,97 @@ public class HomeController : Controller
 {
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IPowerBIService _powerBIService;
+    private readonly IDashboardService _dashboard;
     private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<HomeController> _logger;
+    private readonly FacilityScopeService _scope;
 
     public HomeController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
-        IPowerBIService powerBIService,
+        IDashboardService dashboard,
         AppDbContext db,
-        ILogger<HomeController> logger)
+        IMemoryCache cache,
+        ILogger<HomeController> logger,
+        FacilityScopeService scope)
     {
         _signInManager = signInManager;
         _userManager = userManager;
-        _powerBIService = powerBIService;
+        _dashboard = dashboard;
         _db = db;
+        _cache = cache;
         _logger = logger;
+        _scope = scope;
     }
 
-    [HttpGet]
-    public IActionResult Index()
+    // Public marketing landing page. Authenticated users skip straight to the dashboard.
+    [HttpGet("/")]
+    public async Task<IActionResult> Index()
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Dashboard");
-        return View(new LoginViewModel());
+
+        // Real figures for the claims this page makes. Deliberately limited to the small
+        // lookup tables: Facilities and PortalCredentials answer in ~0ms, whereas counts
+        // over PortalTransactions / XmlParsedRecords take minutes on the production file
+        // and would hang a public page. Anything not sourceable from here is not asserted
+        // in the markup rather than being filled with a plausible number.
+        var stats = await _cache.GetOrCreateAsync("landing:stats:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12);
+            try
+            {
+                return new
+                {
+                    Facilities = await _db.Facilities.CountAsync(f => f.IsActive),
+                    Portals = await _db.PortalCredentials.Where(c => c.IsActive)
+                                       .Select(c => c.Portal).Distinct().CountAsync()
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Landing stats unavailable; the page will omit them.");
+                return new { Facilities = 0, Portals = 0 };
+            }
+        });
+
+        ViewBag.LiveFacilities = stats!.Facilities;
+        ViewBag.LivePortals = stats.Portals;
+        return View("Landing");
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Index(LoginViewModel model)
+    // Login form. Lives at /login now that / is the marketing landing.
+    // /Home/Index and /Home/Login are kept for back-compat (old bookmarks,
+    // Program.cs inactive-user redirect, LogOut redirect).
+    [HttpGet("/login")]
+    [HttpGet("/Home/Index")]
+    [HttpGet("/Home/Login")]
+    public IActionResult Login()
     {
-        if (!ModelState.IsValid) return View(model);
+        if (User.Identity?.IsAuthenticated == true)
+            return RedirectToAction("Dashboard");
+        return View("Index", new LoginViewModel());
+    }
+
+    [HttpPost("/login")]
+    [HttpPost("/Home/Index")]
+    [HttpPost("/Home/Login")]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> Login(LoginViewModel model)
+    {
+        if (!ModelState.IsValid) return View("Index", model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user != null && !user.IsActive)
+        {
+            ModelState.AddModelError(string.Empty, "This account is inactive. Please contact an administrator.");
+            return View("Index", model);
+        }
 
         var result = await _signInManager.PasswordSignInAsync(
-            model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+            model.Email, model.Password, isPersistent: true, lockoutOnFailure: true);
 
         if (result.Succeeded)
         {
@@ -53,8 +113,14 @@ public class HomeController : Controller
             return RedirectToAction("Dashboard");
         }
 
+        if (result.IsLockedOut)
+        {
+            ModelState.AddModelError(string.Empty, "Account locked due to multiple failed attempts. Try again in 15 minutes.");
+            return View("Index", model);
+        }
+
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
-        return View(model);
+        return View("Index", model);
     }
 
     // ── Facility Status Dashboard ─────────────────────────────────
@@ -63,134 +129,304 @@ public class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> Dashboard()
     {
-        var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        if (User.IsInRole(AppRoles.Reporter))
+            return RedirectToAction("ClaimSummaryReport", "ReportScheduler");
 
-        // Active credentials per facility
-        var credsByFacility = await _db.PortalCredentials
-            .Where(c => c.IsActive)
-            .GroupBy(c => c.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Portals = g.Select(c => c.Portal).ToList() })
-            .ToListAsync();
+        var vm = await _dashboard.BuildFacilityStatusAsync();
 
-        // Latest MEANINGFUL sync log per facility
-        // Exclude individual "SearchTransactions" calls — transient failures from those
-        // should not drag the facility status to Degraded.
-        // Priority: CronSync / MonthWiseSync / BulkSave / SyncAll2Y ops.
-        // Fall back to any log if no meaningful one exists.
-        var meaningfulOps = new[] { "CronSync", "MonthWiseSync", "BulkSave", "SyncAll2Y" };
-
-        // Project only needed columns — avoid loading ResponseSummary/FetchedBy blobs
-        var logProjection = await _db.PortalFetchLogs
-            .Select(l => new { l.FacilityId, l.Status, l.Operation, l.FetchedAt })
-            .ToListAsync();
-
-        var latestMeaningful = logProjection
-            .Where(l => meaningfulOps.Contains(l.Operation))
-            .GroupBy(l => l.FacilityId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
-
-        var latestAny = logProjection
-            .GroupBy(l => l.FacilityId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(l => l.FetchedAt).First());
-
-        var cutoff = DateTime.UtcNow.AddHours(-48);
-        var recentSuccess = logProjection
-            .Where(l => l.Status == "Success" && l.FetchedAt >= cutoff)
-            .Select(l => l.FacilityId)
-            .ToHashSet();
-
-        // Record & file counts per facility
-        var txStats = await _db.PortalTransactions
-            .GroupBy(t => t.FacilityId)
-            .Select(g => new
-            {
-                FacilityId  = g.Key,
-                Records     = g.Count(),
-                Files       = g.Count(t => t.FileDownloaded)
-            })
-            .ToListAsync();
-
-        var credMap = credsByFacility.ToDictionary(x => x.FacilityId);
-        var txMap   = txStats.ToDictionary(x => x.FacilityId);
-
-        var rows = facilities.Select(f =>
+        // Facility isolation: everyone except Admin sees ONLY their assigned facilities.
+        // The underlying aggregate is cached globally, so narrow the view per user here
+        // and recompute the roll-ups from the visible rows.
+        var allowed = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowed is not null)
         {
-            credMap.TryGetValue(f.Id, out var cred);
-            txMap  .TryGetValue(f.Id, out var tx);
-
-            // Use meaningful log for status; fall back to any log for display time
-            latestMeaningful.TryGetValue(f.Id, out var mLog);
-            latestAny       .TryGetValue(f.Id, out var anyLog);
-            var displayLog = mLog ?? anyLog;
-
-            // Status: if there's a recent success anywhere, treat as Connected
-            var effectiveStatus = recentSuccess.Contains(f.Id) ? "Success"
-                                : mLog?.Status ?? anyLog?.Status;
-
-            return new FacilityStatusRow
-            {
-                FacilityId      = f.Id,
-                FacilityName    = f.Name,
-                HasCredential   = cred != null,
-                Portal          = cred != null ? string.Join(" · ", cred.Portals.Distinct()) : null,
-                LastSyncTime    = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
-                LastSyncStatus  = effectiveStatus,
-                RecordCount     = tx?.Records ?? 0,
-                FileCount       = tx?.Files ?? 0,
-            };
-        })
-        .OrderBy(r => r.Status)
-        .ThenBy(r => r.FacilityName)
-        .ToList();
-
-        var vm = new FacilityStatusViewModel
-        {
-            Facilities   = rows,
-            TotalRecords = txStats.Sum(x => x.Records),
-            TotalFiles   = txStats.Sum(x => x.Files),
-            LastSyncTime = logProjection.Count > 0
-                ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
-                : null
-        };
+            vm.Facilities = vm.Facilities.Where(f => allowed.Contains(f.FacilityId)).ToList();
+            vm.TotalRecords = vm.Facilities.Sum(f => f.RecordCount);
+            vm.TotalClaimCount = vm.Facilities.Sum(f => f.ClaimCount);
+            vm.TotalFiles = vm.Facilities.Sum(f => f.DownloadedFilesCount);
+        }
         return View(vm);
     }
 
-    [Authorize]
+    [Authorize(Roles = AppRoles.RcmAccess)]
     [HttpGet]
-    public async Task<IActionResult> RCMDashboard(string tab = "Submissions")
+    public async Task<IActionResult> RCMDashboard(
+        string tab = "Submissions",
+        int? facilityId = null,
+        string? receiver = null,
+        string? payer = null,
+        string? encounterType = null,
+        DateOnly? dateFrom = null,
+        DateOnly? dateTo = null)
     {
-        var embed = await _powerBIService.GetEmbedConfigAsync(tab);
-        var vm = new RCMDashboardViewModel
+        // Facility isolation: the facilityId arrives from the query string, so it must be
+        // validated — a scoped user must not be able to view another facility by editing
+        // the URL. Non-admins are forced onto one of their own facilities.
+        var allowed = await _scope.GetAllowedFacilityIdsAsync(User);
+        if (allowed is not null)
         {
-            ActiveTab = tab,
-            EmbedToken = embed?.AccessToken,
-            EmbedUrl = embed?.EmbedUrl,
-            ReportId = embed?.ReportId
+            if (allowed.Count == 0)
+                return View("NoFacilityAccess");
+            if (facilityId is null || !allowed.Contains(facilityId.Value))
+                facilityId = allowed[0];
+        }
+
+        var filters = new RcmDashboardFilters
+        {
+            FacilityId = facilityId,
+            Receiver = receiver,
+            Payer = payer,
+            EncounterType = encounterType,
+            DateFrom = dateFrom,
+            DateTo = dateTo
         };
-        return View(vm);
+
+        return View(await _dashboard.BuildRcmDashboardAsync(tab, filters));
     }
 
+    // ── Dashboard summary API (charts) ────────────────────────────
+
     [Authorize]
-    [HttpGet]
-    public async Task<IActionResult> GetEmbedToken(string tab)
+    [HttpGet("/api/dashboard/summary")]
+    public async Task<IActionResult> DashboardSummary()
     {
-        var config = await _powerBIService.GetEmbedConfigAsync(tab);
-        if (config == null) return NotFound();
-        return Json(new
+        // 5-minute cache — the 5 aggregations on a 45GB SQLite DB cost ~1s on cold path.
+        // Invalidate on portal sync via _cache.Remove("dashboard:summary:v1") if real-time freshness needed.
+        var payload = await _cache.GetOrCreateAsync("dashboard:summary:v1", async entry =>
         {
-            accessToken = config.AccessToken,
-            embedUrl = config.EmbedUrl,
-            reportId = config.ReportId
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            return await ComputeDashboardSummaryAsync();
         });
+
+        return Json(payload);
+    }
+
+    private async Task<object> ComputeDashboardSummaryAsync()
+    {
+        var now = DateTime.UtcNow;
+        var d30 = now.AddDays(-30);
+        var d60 = now.AddDays(-60);
+
+        var daily = await _db.PortalTransactions
+            .Where(t => t.SyncedAt >= d30)
+            .GroupBy(t => t.SyncedAt.Date)
+            .Select(g => new { Date = g.Key, Count = g.Count() })
+            .OrderBy(x => x.Date)
+            .ToListAsync();
+
+        var byType = await _db.PortalTransactions
+            .Where(t => t.SyncedAt >= d30)
+            .GroupBy(t => t.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToListAsync();
+
+        var currentCount  = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30);
+        var previousCount = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d60 && t.SyncedAt < d30);
+        var downloaded    = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30 && t.FileDownloaded);
+
+        double trend = previousCount > 0
+            ? Math.Round((currentCount - previousCount) / (double)previousCount * 100.0, 1)
+            : 0;
+
+        return new
+        {
+            daily  = daily.Select(x => new { date = x.Date.ToString("MM/dd"), count = x.Count }).ToList(),
+            byType = byType.Select(x => new { type = x.Type, count = x.Count }).ToList(),
+            kpi    = new { currentCount, previousCount, trend, downloaded }
+        };
     }
 
     [HttpPost]
     [Authorize]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> LogOut()
     {
         await _signInManager.SignOutAsync();
-        return RedirectToAction("Index");
+        return RedirectToAction("Login");
     }
+
+    // ─── Self-service password reset ──────────────────────────────────────────
+    // Previously only an administrator could reset a password, so every forgotten
+    // password became a support request. Identity already issues single-use,
+    // time-limited reset tokens; this exposes that properly.
+
+    /// <summary>
+    /// Enquiry form on the public landing page. The design ships this as a mock — its
+    /// script hides the fields and shows a thank-you without sending anything — so it is
+    /// wired to a real delivery path here rather than silently discarding enquiries.
+    ///
+    /// Each submission is appended to landing-enquiries.jsonl in the data directory, and
+    /// the reply reports success only if that write succeeded. Email is a best-effort
+    /// notification on top: IEmailService swallows its own failures and no-ops without
+    /// SMTP, so it cannot be the thing that decides whether the visitor is told "received".
+    /// </summary>
+    [HttpPost("/Home/LandingContact")]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> LandingContact(
+        [FromForm] string? name, [FromForm] string? email, [FromForm] string? facility,
+        [FromForm] string? claims, [FromForm] string? pain,
+        [FromServices] IEmailService mailer, [FromServices] IConfiguration config)
+    {
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(facility))
+            return Json(new { ok = false, error = "Name, work email and facility are all required." });
+        if (!email.Contains('@') || email.Length > 200)
+            return Json(new { ok = false, error = "That email address does not look right." });
+
+        var portals = Request.Form["portal"].ToString();
+
+        // Persist FIRST, and base the reply on that. IEmailService.SendEmailAsync catches
+        // every failure internally and returns normally — it also no-ops when SMTP is
+        // unconfigured — so a try/catch around it proves nothing. Reporting success on
+        // the mail call would tell the visitor their enquiry was received when it may
+        // have evaporated. The file write is what makes "queued" true.
+        var record = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            at = DateTime.UtcNow.ToString("u"),
+            name, email, facility, claims,
+            portals = portals.Length > 0 ? portals : null,
+            pain,
+            ip = HttpContext.Connection.RemoteIpAddress?.ToString()
+        });
+
+        var dir = config["Data:Dir"] ?? AppContext.BaseDirectory;
+        var path = System.IO.Path.Combine(dir, "landing-enquiries.jsonl");
+        try
+        {
+            await System.IO.File.AppendAllTextAsync(path, record + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            // Nothing durable happened, so do not claim it did.
+            _logger.LogError(ex, "Landing enquiry could not be persisted to {Path}", path);
+            return Json(new { ok = false, error = "We could not record your request just now." });
+        }
+
+        _logger.LogInformation("Landing enquiry recorded - facility={Facility} email={Email} portals={Portals}",
+            facility, email, portals.Length > 0 ? portals : "(none)");
+
+        // Best-effort notification on top of the durable record.
+        var to = config["Alerting:AdminEmails"];
+        if (string.IsNullOrWhiteSpace(to)) to = config["Smtp:FromAddress"];
+        if (!string.IsNullOrWhiteSpace(to))
+        {
+            var portalsLine = portals.Length > 0 ? portals : "(none selected)";
+            var body = $"""
+                New Bix enquiry from the landing page.
+
+                Name:          {name}
+                Email:         {email}
+                Facility:      {facility}
+                Claim types:   {claims}
+                Portals today: {portalsLine}
+
+                Biggest denial category:
+                {pain}
+                """;
+            await mailer.SendEmailAsync(to!, $"Bix enquiry - {facility}", body);
+        }
+        else
+        {
+            _logger.LogWarning("Landing enquiry recorded but no notification recipient is configured (Alerting:AdminEmails).");
+        }
+
+        return Json(new { ok = true });
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model, [FromServices] IEmailService email)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        // Always render the same confirmation, whether or not the account exists.
+        // Diverging here would turn this form into an account-enumeration oracle.
+        var user = await _userManager.FindByEmailAsync(model.Email)
+                   ?? await _userManager.FindByNameAsync(model.Email);
+
+        if (user != null && user.IsActive)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var link = Url.Action(nameof(ResetPassword), "Home",
+                new { email = user.Email ?? user.UserName, token }, Request.Scheme);
+
+            var body = $@"
+                <p>Hello{(string.IsNullOrWhiteSpace(user.FullName) ? "" : " " + user.FullName)},</p>
+                <p>Use the link below to choose a new Bix password. It works once and expires shortly.</p>
+                <p><a href=""{link}"">Choose a new password</a></p>
+                <p>If you did not request this, no action is needed — your current password still works.</p>";
+
+            try { await email.SendEmailAsync(user.Email ?? user.UserName!, "Reset your Bix password", body); }
+            catch (Exception ex)
+            {
+                // Never surface mail-transport detail to an anonymous caller.
+                _logger.LogError(ex, "Password reset email failed for {User}", user.Id);
+            }
+        }
+        else
+        {
+            _logger.LogInformation("Password reset requested for unknown or inactive address");
+        }
+
+        return RedirectToAction(nameof(ForgotPasswordSent));
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ForgotPasswordSent() => View();
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ResetPassword(string? email, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+            return View("ResetPasswordInvalid");
+        return View(new ResetPasswordViewModel { Email = email, Token = token });
+    }
+
+    [HttpPost]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    [EnableRateLimiting("auth")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email)
+                   ?? await _userManager.FindByNameAsync(model.Email);
+        if (user == null)
+            return RedirectToAction(nameof(ResetPasswordDone));   // same outcome, no enumeration
+
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.Password);
+        if (result.Succeeded)
+        {
+            _logger.LogInformation("Password reset completed for {User}", user.Id);
+            return RedirectToAction(nameof(ResetPasswordDone));
+        }
+
+        foreach (var e in result.Errors)
+        {
+            // Identity returns "InvalidToken" for both expired and already-used links;
+            // say that in words a person can act on.
+            ModelState.AddModelError(string.Empty,
+                e.Code == "InvalidToken"
+                    ? "This link has expired or was already used. Request a new one."
+                    : e.Description);
+        }
+        return View(model);
+    }
+
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult ResetPasswordDone() => View();
 
     [HttpGet]
     public IActionResult Error()

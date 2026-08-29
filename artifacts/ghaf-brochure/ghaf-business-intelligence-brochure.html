@@ -1,0 +1,278 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ghaf Business Intelligence Brochure</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  :root {
+    --navy:#003B4D;
+    --teal:#006884;
+    --teal2:#008B8B;
+    --ice:#C6E2E9;
+    --soft:#F7F9F9;
+    --sage:#66B2B2;
+    --text:#16313c;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; font-family: Inter, Arial, sans-serif; color:var(--text); background: linear-gradient(140deg, #f7f9f9 0%, #eaf6f8 50%, #f7f9f9 100%); }
+  .page { width:297mm; min-height:210mm; padding:12mm; position:relative; page-break-after:always; overflow:hidden; }
+  .headerline { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .logo {
+    width:46px; height:46px; border-radius:14px;
+    background: linear-gradient(135deg, rgba(0,59,77,.95), rgba(0,104,132,.95));
+    border:1px solid rgba(255,255,255,.22);
+    color:#fff; display:flex; align-items:center; justify-content:center;
+    font-weight:800; letter-spacing:.08em;
+    box-shadow: 0 10px 20px rgba(0,59,77,.16);
+  }
+  .brand small { display:block; color:var(--teal2); font-weight:700; letter-spacing:.22em; text-transform:uppercase; margin-top:2px; }
+  .brand h1 { margin:0; font-size:20px; color:var(--navy); line-height:1.05; }
+  .muted { color:#3d5e6c; }
+
+  .hero {
+    display:grid; grid-template-columns: 1.05fr .95fr; gap:14px;
+    background: linear-gradient(135deg, rgba(0,59,77,.95), rgba(0,104,132,.92));
+    color:#fff; border-radius:24px; padding:18mm 14mm; box-shadow: 0 18px 40px rgba(0,59,77,.16);
+    position:relative; overflow:hidden;
+  }
+  .hero:after { content:''; position:absolute; width:220px; height:220px; border-radius:50%; border:1px solid rgba(198,226,233,.16); right:-70px; top:-60px; }
+  .hero h2 { margin:0; font-size:30px; line-height:1.08; letter-spacing:-.02em; }
+  .hero p { margin:12px 0 0; font-size:12.5px; line-height:1.7; color:rgba(255,255,255,.92); max-width:82%; }
+  .pills { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .pill { display:inline-flex; align-items:center; border-radius:999px; padding:7px 11px; font-size:11px; font-weight:700; background: rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.14); }
+  .hero-right {
+    background: rgba(255,255,255,.74); color:var(--navy); border-radius:22px; padding:14px; box-shadow: 0 12px 28px rgba(0,59,77,.08); backdrop-filter: blur(18px) saturate(170%);
+  }
+  .hero-right img { width:100%; display:block; border-radius:14px; border:1px solid rgba(0,59,77,.08); }
+  .caption { margin-top:8px; font-size:10.5px; color:#2f4854; display:flex; justify-content:space-between; }
+  .kpi { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:14px; }
+  .kpi > div { background: rgba(255,255,255,.74); border:1px solid rgba(198,226,233,.85); border-radius:16px; padding:12px; }
+  .kpi .n { font-size:21px; font-weight:800; color:var(--teal); }
+  .kpi .l { margin-top:4px; font-size:10px; color:#3d5e6c; text-transform:uppercase; letter-spacing:.08em; }
+
+  .section-title { font-size:21px; font-weight:800; color:var(--navy); margin:0 0 6px; }
+  .section-sub { margin:0 0 12px; color:#3d5e6c; font-size:11.5px; line-height:1.6; max-width:84%; }
+  .card {
+    background: rgba(255,255,255,.76); border:1px solid rgba(198,226,233,.8); border-radius:18px;
+    box-shadow: 0 10px 24px rgba(0,59,77,.08); backdrop-filter: blur(18px) saturate(170%);
+  }
+  .screen {
+    padding:12px;
+    margin-top:10px;
+  }
+  .screen-head {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:10px;
+  }
+  .screen-head h3 { margin:0; font-size:14px; color:var(--navy); }
+  .screen-head .tag { font-size:10px; font-weight:800; letter-spacing:.08em; color:var(--navy); text-transform:uppercase; }
+  .navmock { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .navmock span {
+    display:inline-flex; align-items:center; gap:6px; padding:6px 10px;
+    border-radius:999px; background:#fff; border:1px solid rgba(198,226,233,.9);
+    font-size:10px; font-weight:700; color:#173843;
+  }
+  .stats { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin-bottom:10px; }
+  .stats .box { background:#fff; border:1px solid rgba(198,226,233,.9); border-radius:14px; padding:10px; min-height:72px; }
+  .stats .box .num { font-size:24px; line-height:1; font-weight:800; color:var(--navy); }
+  .stats .box .lbl { margin-top:4px; font-size:10px; color:#3d5e6c; text-transform:uppercase; letter-spacing:.07em; }
+
+  .grid4 { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+  .facility {
+    background:#fff; border:1px solid rgba(198,226,233,.9); border-radius:16px; padding:12px; min-height:170px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  .facility .name { font-size:12px; font-weight:800; color:var(--navy); margin-bottom:4px; }
+  .facility .pill { background: rgba(198,226,233,.72); color:var(--teal); border-color: rgba(0,139,139,.14); padding:3px 8px; font-size:9px; }
+  .facility .meta { font-size:10px; color:#3d5e6c; margin-top:6px; line-height:1.45; }
+  .bar { height:6px; border-radius:999px; background:#cfe9ee; overflow:hidden; margin:8px 0; }
+  .bar > span { display:block; height:100%; border-radius:999px; background: linear-gradient(90deg, var(--teal2), #78C2C2); }
+  .facility .counts { display:flex; justify-content:space-between; gap:8px; margin-top:10px; }
+  .facility .counts div { flex:1; text-align:center; background:#f8fcfd; border:1px solid rgba(198,226,233,.8); border-radius:12px; padding:8px 6px; }
+  .facility .counts .n { font-weight:800; font-size:14px; color:var(--navy); }
+  .facility .counts .l { font-size:9px; color:#3d5e6c; text-transform:uppercase; letter-spacing:.08em; }
+
+  .tablemock { margin-top:10px; background:#fff; border:1px solid rgba(198,226,233,.9); border-radius:16px; overflow:hidden; }
+  .tablemock .thead, .tablemock .row { display:grid; grid-template-columns: 1.7fr .7fr 1fr .9fr .85fr .8fr .6fr .95fr .9fr; gap:0; }
+  .tablemock .thead { background: rgba(198,226,233,.7); color:var(--teal); font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+  .tablemock .thead div, .tablemock .row div { padding:8px 10px; border-right:1px solid rgba(198,226,233,.7); }
+  .tablemock .row { border-top:1px solid rgba(241,245,249,.9); font-size:9.6px; color:#173843; }
+  .tablemock .row:nth-child(odd) { background:#fbfefe; }
+  .badge { display:inline-flex; align-items:center; justify-content:center; padding:2px 8px; border-radius:999px; background: rgba(198,226,233,.85); color:var(--teal); font-weight:800; font-size:9px; }
+  .footer { position:absolute; left:15mm; right:15mm; bottom:12mm; display:flex; justify-content:space-between; color:#6b8790; font-size:10px; }
+  .note { margin-top:10px; padding:10px 12px; border-radius:14px; background: rgba(0,139,139,.08); border:1px solid rgba(0,139,139,.16); color:var(--navy); font-size:11px; line-height:1.5; }
+  .split { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  .mini-list { display:grid; gap:8px; }
+  .mini-list div { background:#fff; border:1px solid rgba(198,226,233,.85); border-radius:14px; padding:10px 12px; font-size:11px; color:#415a66; }
+  .mini-list strong { color:var(--navy); }
+</style>
+</head>
+<body>
+  <section class="page">
+    <div class="hero">
+      <div>
+        <div class="headerline" style="margin-bottom:14px;">
+          <div class="logo">GBI</div>
+          <div class="brand">
+            <h1>Ghaf Business Intelligence</h1>
+            <small>Business Intelligence for claims operations</small>
+          </div>
+        </div>
+        <h2>Claims, reports, and XML workflow intelligence in one glassy workspace.</h2>
+        <p>Ghaf Business Intelligence centralizes portal syncs, claim summary reporting, XML parsing, remittance matching, and admin oversight for healthcare revenue-cycle teams.</p>
+        <div class="pills">
+          <span class="pill">Deep Navy / Teal UI</span>
+          <span class="pill">Facility-scoped dashboards</span>
+          <span class="pill">Live sync & progress updates</span>
+          <span class="pill">Mobile-ready controls</span>
+        </div>
+        <div class="kpi">
+          <div><div class="n">1</div><div class="l">Unified platform</div></div>
+          <div><div class="n">24/7</div><div class="l">Background sync flow</div></div>
+          <div><div class="n">Live</div><div class="l">Status and progress updates</div></div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <img src="file:///Users/jawaa/Analytika/artifacts/ghaf-brochure/login.png" alt="Login screenshot" />
+        <div class="caption"><span><strong>Login screen</strong> and brand entry point</span><span>Live capture</span></div>
+      </div>
+    </div>
+    <div class="footer"><span>Ghaf Business Intelligence brochure</span><span>Page 1 of 4</span></div>
+  </section>
+
+  <section class="page">
+    <div class="headerline">
+      <div class="logo">GBI</div>
+      <div class="brand"><h1>Facility Dashboard</h1><small>Live connectivity &amp; sync status</small></div>
+    </div>
+    <h3 class="section-title">The operational view your team opens first.</h3>
+    <p class="section-sub">The dashboard gives admins a fast read on facility health, downloaded files, record volumes, and the latest sync timestamps. This is the control surface for the app’s daily work.</p>
+    <div class="screen card">
+      <div class="screen-head">
+        <h3>Facility status</h3>
+        <div class="tag">current app layout</div>
+      </div>
+      <div class="stats">
+        <div class="box"><div class="num">13</div><div class="lbl">Connected</div></div>
+        <div class="box"><div class="num">0</div><div class="lbl">Degraded</div></div>
+        <div class="box"><div class="num">0</div><div class="lbl">Disconnected</div></div>
+        <div class="box"><div class="num">67,523</div><div class="lbl">Total records</div></div>
+        <div class="box"><div class="num">47,159</div><div class="lbl">Files downloaded</div></div>
+      </div>
+      <div class="grid4">
+        <div class="facility">
+          <div class="name">Alnoor Deira</div><span class="badge">Connected</span>
+          <div class="meta">Last sync: 29 Apr 2026 02:03<br/>Records: 30,949<br/>Claims: 75,286</div>
+          <div class="bar"><span style="width:52%"></span></div>
+          <div class="counts"><div><div class="n">15,636</div><div class="l">Files</div></div><div><div class="n">15,313</div><div class="l">Pending</div></div></div>
+        </div>
+        <div class="facility">
+          <div class="name">Alnoor Qusais</div><span class="badge">Connected</span>
+          <div class="meta">Last sync: 29 Apr 2026 02:03<br/>Records: 6,216<br/>Claims: 33,456</div>
+          <div class="bar"><span style="width:96%"></span></div>
+          <div class="counts"><div><div class="n">6,216</div><div class="l">Files</div></div><div><div class="n">0</div><div class="l">Pending</div></div></div>
+        </div>
+        <div class="facility">
+          <div class="name">Apollo</div><span class="badge">Connected</span>
+          <div class="meta">Last sync: 29 Apr 2026 02:03<br/>Records: 15,843<br/>Claims: 12,027</div>
+          <div class="bar"><span style="width:86%"></span></div>
+          <div class="counts"><div><div class="n">15,843</div><div class="l">Files</div></div><div><div class="n">0</div><div class="l">Pending</div></div></div>
+        </div>
+        <div class="facility">
+          <div class="name">San Lucas MC</div><span class="badge">Connected</span>
+          <div class="meta">Last sync: 13 May 2026 09:45<br/>Records: 807<br/>Claims: 660</div>
+          <div class="bar"><span style="width:98%"></span></div>
+          <div class="counts"><div><div class="n">807</div><div class="l">Files</div></div><div><div class="n">0</div><div class="l">Pending</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="note">This dashboard is optimized for quick scanning: one glance tells you which facilities are healthy, how many records are moving, and where follow-up is needed.</div>
+    <div class="footer"><span>Ghaf Business Intelligence brochure</span><span>Page 2 of 4</span></div>
+  </section>
+
+  <section class="page">
+    <div class="headerline">
+      <div class="logo">GBI</div>
+      <div class="brand"><h1>Synced Transactions</h1><small>Download, resume, and filter workflow</small></div>
+    </div>
+    <h3 class="section-title">The portal workbench for downloaded records.</h3>
+    <p class="section-sub">This view shows pending downloads, interrupted syncs, background download service state, and a searchable transaction grid. It is the operational hub for portal data triage.</p>
+    <div class="screen card">
+      <div class="screen-head">
+        <h3>Synced transactions</h3>
+        <div class="navmock">
+          <span>67,523 total</span>
+          <span>47,159 downloaded</span>
+          <span>20,364 pending</span>
+        </div>
+      </div>
+      <div class="split">
+        <div class="mini-list">
+          <div><strong>Download interrupted</strong><br/>Disconnected - 248 failed · last record #12226 · at 9:59:49 AM</div>
+          <div><strong>Background Download Service</strong><br/>Idle - not yet run this session</div>
+          <div><strong>Quick actions</strong><br/>Download pending files, run sync, resume, discard</div>
+        </div>
+        <div class="mini-list">
+          <div><strong>Filters</strong><br/>Portal, Facility, Date range, Search, 1M/3M/6M/1Y/2Y shortcuts</div>
+          <div><strong>Column set</strong><br/>Transaction ID, Portal, Facility, Type, Status, Payer, Amount, TX Date, File, Synced</div>
+          <div><strong>Sample row</strong><br/>DHA · San Lucas MC · Remittance · Downloaded · DHA-F-8769091 · 13 May 09:45</div>
+        </div>
+      </div>
+      <div class="tablemock" style="margin-top:12px;">
+        <div class="thead">
+          <div>Transaction ID</div><div>Portal</div><div>Facility</div><div>Type</div><div>Status</div><div>Payer</div><div>Amount</div><div>TX Date</div><div>Synced</div>
+        </div>
+        <div class="row"><div>fc122baf-512e-4212-92e4-a7b6a3a149be</div><div>DHA</div><div>San Lucas MC</div><div>Claim</div><div>Downloaded</div><div>TPA004</div><div>1</div><div>12/05/2026 12:27</div><div>13 May 09:45</div></div>
+        <div class="row"><div>0c65b234-fb6e-4a8f-9402-4a7559541555</div><div>DHA</div><div>San Lucas MC</div><div>Remittance</div><div>Downloaded</div><div>DHA-F-8769091</div><div>1</div><div>12/05/2026 20:08</div><div>13 May 09:45</div></div>
+        <div class="row"><div>e687aba3-6175-46c9-a935-fbded86d365c</div><div>DHA</div><div>San Lucas MC</div><div>Claim</div><div>Downloaded</div><div>DHA-F-8769091</div><div>15</div><div>13/05/2026 10:36</div><div>13 May 09:45</div></div>
+      </div>
+    </div>
+    <div class="note">This is where the team verifies file download completeness and filters records before downstream matching and report generation.</div>
+    <div class="footer"><span>Ghaf Business Intelligence brochure</span><span>Page 3 of 4</span></div>
+  </section>
+
+  <section class="page">
+    <div class="headerline">
+      <div class="logo">GBI</div>
+      <div class="brand"><h1>Reports &amp; XML Parsing</h1><small>Claim summaries and record matching</small></div>
+    </div>
+    <h3 class="section-title">The workflow layer that turns raw files into usable claims insight.</h3>
+    <p class="section-sub">Report scheduling and XML parsing work together so the team can choose a date range, generate a report, then validate the inbound and outbound records that feed it.</p>
+    <div class="split">
+      <div class="card screen">
+        <div class="screen-head"><h3>Claim summary report</h3><div class="tag">scheduler preview</div></div>
+        <div class="mini-list">
+          <div><strong>Date ranges</strong><br/>Today, This Month, Last Month, This Year, Last Year, Custom</div>
+          <div><strong>Search criteria</strong><br/>Encounter start date default, facility, receiver, payer, clinician, department</div>
+          <div><strong>Actions</strong><br/>Submit, Reset, Clear, Download, Delete</div>
+        </div>
+      </div>
+      <div class="card screen">
+        <div class="screen-head"><h3>XML parsing workbench</h3><div class="tag">match &amp; progress</div></div>
+        <div class="mini-list">
+          <div><strong>Totals</strong><br/>Sub files, RA files, RA rows, matched refs, open sub refs, unmatched RA refs</div>
+          <div><strong>Operations</strong><br/>Prepare, Rebuild, Match, Add, Edit, Delete, Save</div>
+          <div><strong>Output</strong><br/>Ready records for faster report generation and cleaner reconciliation</div>
+        </div>
+      </div>
+    </div>
+    <div class="screen card" style="margin-top:12px;">
+      <div class="screen-head"><h3>What the brochure captures</h3><div class="tag">brand + workflow</div></div>
+      <div class="split">
+        <div class="mini-list">
+          <div><strong>Visual system</strong><br/>Glassy cards, deep navy / teal palette, rounded controls, and soft gradients.</div>
+          <div><strong>Operational focus</strong><br/>Claims, remittance, background sync, and report scheduling in one place.</div>
+        </div>
+        <div class="mini-list">
+          <div><strong>Mobile support</strong><br/>Responsive nav, stacked cards, and scroll-safe tables for smaller screens.</div>
+          <div><strong>Audience</strong><br/>Admins, analysts, finance teams, and facility operators.</div>
+        </div>
+      </div>
+    </div>
+    <div class="note">If you want the next iteration, I can turn this into a branded one-pager or a sharper multi-page PDF with actual capture exports once the browser screenshot pipeline is stable again.</div>
+    <div class="footer"><span>Ghaf Business Intelligence brochure</span><span>Page 4 of 4</span></div>
+  </section>
+</body>
+</html>

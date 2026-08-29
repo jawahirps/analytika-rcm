@@ -1,0 +1,659 @@
+/* ================================================================
+   Analytika Skins — selectable visual themes
+   Implements "Bix Redesign Directions" (bi handoff bundle):
+     A · Obsidian Glass  — refined dark glassmorphism  (data-skin="obsidian")
+     B · Ledger          — bold typographic editorial  (data-skin="ledger")
+     C · Aurora Bento    — layered aurora glass        (data-skin="aurora")
+   Plus the Fable-designed enhanced skin:
+     F · Fable Velvet    — warm plum + champagne gold  (data-skin="fable")
+
+   Each skin works with BOTH modes of the existing light/dark toggle:
+     html[data-skin="X"]                     → light-mode tokens
+     html[data-skin="X"][data-theme="dark"]  → dark-mode --dt-* tokens
+   The default look (no data-skin attribute) is untouched Classic Teal.
+   Must load AFTER site.css.
+   ================================================================ */
+
+/* ── Shared skin plumbing ───────────────────────────────────────── */
+
+/* Display font hook — each skin sets --font-display / --font-body */
+html[data-skin] body {
+  font-family: var(--font-body, 'Inter', 'Segoe UI', system-ui, sans-serif);
+}
+html[data-skin] h1, html[data-skin] h2, html[data-skin] h3,
+html[data-skin] h4, html[data-skin] h5, html[data-skin] h6,
+html[data-skin] .page-title,
+html[data-skin] .metric-value,
+html[data-skin] .panel-title,
+html[data-skin] .bi-title,
+html[data-skin] .brand-name-wrap .brand-text {
+  font-family: var(--font-display, inherit);
+}
+
+/* Let each skin's body background show through page wrappers (dark
+   mode sets them to solid --dt-bg in site.css). */
+html[data-theme="dark"][data-skin] main,
+html[data-theme="dark"][data-skin] .bi-shell,
+html[data-theme="dark"][data-skin] .dashboard-wrapper,
+html[data-theme="dark"][data-skin] .container-fluid.py-3,
+html[data-theme="dark"][data-skin] .container-fluid.py-4,
+html[data-theme="dark"][data-skin] .page-wrapper {
+  background: transparent !important;
+}
+
+/* RCM dashboard shell follows the skin surface tokens */
+html[data-skin] .rcm-shell {
+  background: transparent;
+}
+html[data-theme="dark"][data-skin] .rcm-shell {
+  --card: var(--dt-surface-2);
+  --bd: var(--dt-border);
+  background: transparent;
+}
+
+/* Skin picker UI (navbar) */
+.skin-toggle-btn { white-space: nowrap; }
+.skin-menu { min-width: 220px; padding: 6px; }
+.skin-option {
+  display: flex; align-items: center; gap: 10px;
+  border-radius: 8px; padding: 8px 10px; cursor: pointer;
+  font-size: 0.82rem; font-weight: 600;
+}
+.skin-option .skin-check { margin-left: auto; opacity: 0; font-size: 0.72rem; }
+.skin-option.active .skin-check { opacity: 1; }
+.skin-dot {
+  width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(127,127,127,0.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.skin-dot.classic  { background: linear-gradient(135deg, #003B4D 40%, #66B2B2); }
+.skin-dot.obsidian { background: linear-gradient(135deg, #04101F 40%, #54ACBF); }
+.skin-dot.ledger   { background: linear-gradient(135deg, #050B14 40%, #A7EBF2); }
+.skin-dot.aurora   { background: linear-gradient(135deg, #7C8DF0, #54ACBF); }
+.skin-dot.fable    { background: linear-gradient(135deg, #241A36 40%, #E8B24A); }
+.skin-dot.harbor   { background: linear-gradient(135deg, #011C40 40%, #54ACBF); }
+
+/* ================================================================
+   A · OBSIDIAN GLASS — deep marine glass, teal glow accents
+   ================================================================ */
+
+html[data-skin="obsidian"] {
+  --deep-navy:     #0B2233;
+  --classic-teal:  #006884;
+  --forest-teal:   #0A87A6;
+  --seafoam-blue:  #00546B;
+  --sage-teal:     #54ACBF;
+  --ice-blue:      #072433;
+  --soft-white:    #EAF4FB;
+
+  --emerald-light: rgba(0,104,132,0.12);
+  --emerald-pale:  rgba(0,104,132,0.07);
+  --amber-light:   rgba(84,172,191,0.15);
+
+  --bg:            #F4F8FB;
+  --surface:       rgba(255,255,255,0.74);
+  --surface-strong:rgba(255,255,255,0.92);
+  --surface-alt:   rgba(0,104,132,0.06);
+  --glass:         rgba(255,255,255,0.66);
+  --glass-strong:  rgba(255,255,255,0.92);
+  --glass-dark:    rgba(4,16,31,0.86);
+  --glass-border:  rgba(0,104,132,0.16);
+  --border:        rgba(0,104,132,0.14);
+  --border-light:  rgba(0,104,132,0.09);
+
+  --text:          #0B2233;
+  --text-secondary:#33566B;
+  --text-muted:    #40586B;
+
+  --radius-sm:     8px;
+  --radius:        12px;
+  --radius-lg:     16px;
+  --radius-xl:     20px;
+  --blur:          blur(18px) saturate(160%);
+
+  --font-display:  'Sora', 'Inter', sans-serif;
+  --font-body:     'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  --c-navy:        #0B2233;
+  --c-sky-wash:    #E3EEF6;
+  --c-slate:       #40586B;
+  --c-teal-mid:    #2E93AC;
+  --c-cyan-light:  #0A87A6;
+  --c-blue-mid:    #00546B;
+}
+
+html[data-skin="obsidian"] body {
+  background:
+    radial-gradient(1100px 600px at 78% -8%, rgba(84,172,191,0.20), transparent 65%),
+    radial-gradient(900px 700px at -10% 40%, rgba(0,104,132,0.10), transparent 60%),
+    linear-gradient(180deg, #F4F8FB 0%, #EAF1F7 55%, #F4F8FB 100%);
+  background-attachment: fixed;
+}
+
+html[data-skin="obsidian"] .analytika-navbar {
+  background: rgba(244,248,251,0.80);
+  border-bottom-color: rgba(0,104,132,0.12);
+}
+
+html[data-skin="obsidian"] .btn-primary {
+  background: linear-gradient(135deg, #0A87A6 0%, #006884 100%);
+  box-shadow: 0 10px 28px rgba(0,104,132,0.28), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+html[data-skin="obsidian"] .btn-primary:hover {
+  background: linear-gradient(135deg, #0B98BB 0%, #00546B 100%);
+}
+
+/* Obsidian · dark — direction A dark palette */
+html[data-skin="obsidian"][data-theme="dark"] {
+  --dt-bg:           #04101F;
+  --dt-surface:      #081A2C;
+  --dt-surface-2:    #0C2238;
+  --dt-surface-3:    #123049;
+
+  --dt-border:       rgba(122,190,210,0.14);
+  --dt-border-mid:   rgba(122,190,210,0.24);
+
+  --dt-accent-rgb:   84,172,191;
+  --dt-accent:       #54ACBF;
+  --dt-accent-strong:#6FC4D6;
+
+  --dt-text:         #EAF4FB;
+  --dt-text-2:       rgba(234,244,251,0.76);
+  --dt-text-3:       rgba(234,244,251,0.54);
+
+  --dt-success:      #5EE0A0;
+  --dt-success-bg:   rgba(94,224,160,0.10);
+  --dt-warning:      #E0A93C;
+  --dt-warning-bg:   rgba(224,169,60,0.10);
+  --dt-danger:       #E2625A;
+  --dt-danger-bg:    rgba(226,98,90,0.10);
+  --dt-info:         #A7EBF2;
+  --dt-info-bg:      rgba(167,235,242,0.10);
+}
+
+html[data-theme="dark"][data-skin="obsidian"] body {
+  background:
+    radial-gradient(1100px 600px at 78% -8%, rgba(0,104,132,0.35), transparent 65%),
+    radial-gradient(900px 700px at -10% 40%, rgba(84,172,191,0.14), transparent 60%),
+    linear-gradient(180deg, #04101F 0%, #061829 55%, #04101F 100%) !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme="dark"][data-skin="obsidian"] .analytika-navbar {
+  background: rgba(8,26,44,0.82) !important;
+  border-bottom-color: rgba(122,190,210,0.14) !important;
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+}
+
+/* ================================================================
+   H · HARBOR — classic Bix navy + cyan, SOLID (non-glass) surfaces.
+   Reproduces the design that ran on port 5200 (the old GhafBI build).
+   ================================================================ */
+html[data-skin="harbor"] {
+  --deep-navy:     #011C40;
+  --classic-teal:  #54ACBF;
+  --forest-teal:   #26658C;
+  --seafoam-blue:  #285F84;
+  --sage-teal:     #35577D;
+  --ice-blue:      #023859;
+  --soft-white:    #EAF4FB;
+
+  --emerald-light: rgba(84,172,191,0.12);
+  --emerald-pale:  rgba(84,172,191,0.07);
+  --amber-light:   rgba(53,87,125,0.15);
+
+  --bg:            #F7F8FA;
+  --surface:       #ffffff;
+  --surface-strong:#ffffff;
+  --surface-alt:   rgba(1,28,64,0.04);
+  --glass:         #ffffff;
+  --glass-strong:  #ffffff;
+  --glass-dark:    rgba(1,28,64,0.90);
+  --glass-border:  rgba(1,28,64,0.10);
+  --border:        rgba(1,28,64,0.10);
+  --border-light:  rgba(1,28,64,0.06);
+
+  --text:          #011C40;
+  --text-secondary:#334E68;
+  --text-muted:    #334E68;
+
+  --radius-sm:     8px;
+  --radius:        12px;
+  --radius-lg:     16px;
+  --radius-xl:     20px;
+  --blur:          blur(10px) saturate(130%);
+
+  --c-navy:        #011C40;
+  --c-sky-wash:    #EAF4FB;
+  --c-slate:       #334E68;
+  --c-teal-mid:    #26658C;
+  --c-cyan-light:  #54ACBF;
+  --c-blue-mid:    #285F84;
+}
+
+html[data-skin="harbor"] body {
+  background: linear-gradient(180deg, #F7F8FA 0%, #EFF3F7 60%, #F7F8FA 100%);
+  background-attachment: fixed;
+}
+
+html[data-skin="harbor"] .analytika-navbar {
+  background: #ffffff;
+  border-bottom-color: rgba(1,28,64,0.10);
+}
+
+html[data-skin="harbor"] .btn-primary {
+  background: linear-gradient(135deg, #54ACBF 0%, #011C40 100%);
+  box-shadow: 0 8px 22px rgba(1,28,64,0.22), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+html[data-skin="harbor"] .btn-primary:hover {
+  background: linear-gradient(135deg, #6dbdcf 0%, #023859 100%);
+}
+
+/* Harbor · dark — deep navy ground, cyan accent */
+html[data-skin="harbor"][data-theme="dark"] {
+  --dt-bg:           #04101F;
+  --dt-surface:      #072240;
+  --dt-surface-2:    #0A2C4E;
+  --dt-surface-3:    #103A63;
+
+  --dt-border:       rgba(84,172,191,0.14);
+  --dt-border-mid:   rgba(84,172,191,0.24);
+
+  --dt-accent-rgb:   84,172,191;
+  --dt-accent:       #54ACBF;
+  --dt-accent-strong:#7CC7D8;
+
+  --dt-text:         #EAF4FB;
+  --dt-text-2:       rgba(234,244,251,0.76);
+  --dt-text-3:       rgba(234,244,251,0.54);
+
+  --dt-success:      #5EE0A0;  --dt-success-bg: rgba(94,224,160,0.10);
+  --dt-warning:      #E0A93C;  --dt-warning-bg: rgba(224,169,60,0.10);
+  --dt-danger:       #E2625A;  --dt-danger-bg:  rgba(226,98,90,0.10);
+  --dt-info:         #A7EBF2;  --dt-info-bg:    rgba(167,235,242,0.10);
+}
+
+html[data-theme="dark"][data-skin="harbor"] body {
+  background: linear-gradient(180deg, #04101F 0%, #061A2E 55%, #04101F 100%) !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme="dark"][data-skin="harbor"] .analytika-navbar {
+  background: rgba(7,34,64,0.88) !important;
+  border-bottom-color: rgba(84,172,191,0.14) !important;
+}
+
+/* ================================================================
+   B · LEDGER — flat editorial grid, sharp corners, big type
+   ================================================================ */
+
+html[data-skin="ledger"] {
+  --deep-navy:     #0A1B28;
+  --classic-teal:  #006884;
+  --forest-teal:   #0A87A6;
+  --seafoam-blue:  #005468;
+  --sage-teal:     #46617A;
+  --ice-blue:      #071320;
+  --soft-white:    #EEF4F8;
+
+  --emerald-light: rgba(0,104,132,0.10);
+  --emerald-pale:  rgba(0,104,132,0.05);
+  --amber-light:   rgba(10,135,166,0.12);
+
+  --bg:            #F7FAFC;
+  --surface:       rgba(255,255,255,0.97);
+  --surface-strong:#FFFFFF;
+  --surface-alt:   rgba(0,104,132,0.035);
+  --glass:         rgba(255,255,255,0.97);
+  --glass-strong:  #FFFFFF;
+  --glass-dark:    rgba(5,11,20,0.92);
+  --glass-border:  rgba(10,27,40,0.15);
+  --border:        rgba(10,27,40,0.13);
+  --border-light:  rgba(10,27,40,0.08);
+
+  --text:          #0A1B28;
+  --text-secondary:#3A5468;
+  --text-muted:    #46617A;
+
+  --radius-sm:     4px;
+  --radius:        6px;
+  --radius-lg:     8px;
+  --radius-xl:     10px;
+  --shadow-xs:     0 1px 2px rgba(10,27,40,0.05);
+  --shadow-sm:     0 2px 6px rgba(10,27,40,0.06);
+  --shadow-md:     0 4px 14px rgba(10,27,40,0.08);
+  --shadow-lg:     0 10px 30px rgba(10,27,40,0.10);
+  --blur:          blur(2px);
+
+  --font-display:  'Space Grotesk', 'Inter', sans-serif;
+  --font-body:     'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+
+  --c-navy:        #0A1B28;
+  --c-sky-wash:    #EAF1F6;
+  --c-slate:       #46617A;
+  --c-teal-mid:    #0A87A6;
+  --c-cyan-light:  #0A87A6;
+  --c-blue-mid:    #006884;
+}
+
+html[data-skin="ledger"] body {
+  background: #F7FAFC;
+  background-attachment: fixed;
+}
+
+html[data-skin="ledger"] .analytika-navbar {
+  background: rgba(247,250,252,0.96);
+  border-bottom: 1px solid rgba(10,27,40,0.13);
+  box-shadow: none;
+}
+
+html[data-skin="ledger"] .card,
+html[data-skin="ledger"] .panel,
+html[data-skin="ledger"] .metric-card {
+  box-shadow: none;
+}
+
+html[data-skin="ledger"] .btn-primary {
+  background: #006884;
+  box-shadow: 0 12px 32px rgba(0,104,132,0.24);
+  letter-spacing: 0.03em;
+}
+html[data-skin="ledger"] .btn-primary:hover {
+  background: #00546B;
+}
+
+/* Ledger · dark — direction B dark palette (ice glow on near-black) */
+html[data-skin="ledger"][data-theme="dark"] {
+  --dt-bg:           #050B14;
+  --dt-surface:      #091220;
+  --dt-surface-2:    #0C1726;
+  --dt-surface-3:    #101E30;
+
+  --dt-border:       rgba(140,163,181,0.18);
+  --dt-border-mid:   rgba(140,163,181,0.28);
+
+  --dt-accent-rgb:   167,235,242;
+  --dt-accent:       #A7EBF2;
+  --dt-accent-strong:#C3F2F7;
+
+  --dt-text:         #F2F7FA;
+  --dt-text-2:       rgba(242,247,250,0.74);
+  --dt-text-3:       rgba(242,247,250,0.52);
+
+  --dt-success:      #5EE0A0;
+  --dt-success-bg:   rgba(94,224,160,0.10);
+  --dt-warning:      #FFB800;
+  --dt-warning-bg:   rgba(255,184,0,0.10);
+  --dt-danger:       #FF6B61;
+  --dt-danger-bg:    rgba(255,107,97,0.10);
+  --dt-info:         #54ACBF;
+  --dt-info-bg:      rgba(84,172,191,0.10);
+}
+
+html[data-theme="dark"][data-skin="ledger"] body {
+  background: #050B14 !important;
+}
+
+html[data-theme="dark"][data-skin="ledger"] .analytika-navbar {
+  background: rgba(5,11,20,0.94) !important;
+  border-bottom: 1px solid rgba(140,163,181,0.18) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"][data-skin="ledger"] .card,
+html[data-theme="dark"][data-skin="ledger"] .panel,
+html[data-theme="dark"][data-skin="ledger"] .metric-card {
+  box-shadow: none !important;
+}
+
+/* ================================================================
+   C · AURORA BENTO — layered aurora gradients, soft pills
+   ================================================================ */
+
+html[data-skin="aurora"] {
+  --deep-navy:     #131C33;
+  --classic-teal:  #0A87A6;
+  --forest-teal:   #5B6BD6;
+  --seafoam-blue:  #2E93AC;
+  --sage-teal:     #54ACBF;
+  --ice-blue:      #10182E;
+  --soft-white:    #EDF3FF;
+
+  --emerald-light: rgba(10,135,166,0.12);
+  --emerald-pale:  rgba(10,135,166,0.07);
+  --amber-light:   rgba(91,107,214,0.14);
+
+  --bg:            #F3F6FD;
+  --surface:       rgba(255,255,255,0.85);
+  --surface-strong:rgba(255,255,255,0.96);
+  --surface-alt:   rgba(19,28,51,0.05);
+  --glass:         rgba(255,255,255,0.72);
+  --glass-strong:  rgba(255,255,255,0.94);
+  --glass-dark:    rgba(7,16,35,0.86);
+  --glass-border:  rgba(19,28,51,0.12);
+  --border:        rgba(19,28,51,0.10);
+  --border-light:  rgba(19,28,51,0.07);
+
+  --text:          #131C33;
+  --text-secondary:#3D4E70;
+  --text-muted:    #48587A;
+
+  --radius-sm:     10px;
+  --radius:        14px;
+  --radius-lg:     18px;
+  --radius-xl:     24px;
+  --blur:          blur(22px) saturate(170%);
+
+  --font-display:  'Sora', 'Inter', sans-serif;
+  --font-body:     'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  --c-navy:        #131C33;
+  --c-sky-wash:    #EDF1FC;
+  --c-slate:       #48587A;
+  --c-teal-mid:    #0A87A6;
+  --c-cyan-light:  #5B6BD6;
+  --c-blue-mid:    #2E93AC;
+}
+
+html[data-skin="aurora"] body {
+  background:
+    radial-gradient(900px 500px at 15% 0%, rgba(124,141,240,0.16), transparent 60%),
+    radial-gradient(1000px 600px at 90% 12%, rgba(84,172,191,0.18), transparent 60%),
+    radial-gradient(800px 700px at 50% 90%, rgba(46,147,172,0.08), transparent 60%),
+    #F3F6FD;
+  background-attachment: fixed;
+}
+
+html[data-skin="aurora"] .analytika-navbar {
+  background: rgba(243,246,253,0.78);
+  border-bottom-color: rgba(19,28,51,0.10);
+}
+
+html[data-skin="aurora"] .btn-primary,
+html[data-skin="aurora"] .btn-emerald,
+html[data-skin="aurora"] .btn-teal {
+  background: linear-gradient(120deg, #5B6BD6, #0A87A6);
+  border-radius: 100px;
+  box-shadow: 0 8px 24px rgba(91,107,214,0.32);
+}
+html[data-skin="aurora"] .btn-primary:hover,
+html[data-skin="aurora"] .btn-emerald:hover,
+html[data-skin="aurora"] .btn-teal:hover {
+  background: linear-gradient(120deg, #4B5AC2, #087A96);
+}
+html[data-skin="aurora"] .btn-outline-emerald,
+html[data-skin="aurora"] .btn-ghost,
+html[data-skin="aurora"] .btn-navy {
+  border-radius: 100px;
+}
+
+/* Aurora · dark — direction C dark palette */
+html[data-skin="aurora"][data-theme="dark"] {
+  --dt-bg:           #071023;
+  --dt-surface:      #0C1530;
+  --dt-surface-2:    #101B3C;
+  --dt-surface-3:    #152348;
+
+  --dt-border:       rgba(163,180,208,0.14);
+  --dt-border-mid:   rgba(163,180,208,0.24);
+
+  --dt-accent-rgb:   124,141,240;
+  --dt-accent:       #7C8DF0;
+  --dt-accent-strong:#98A6FF;
+
+  --dt-text:         #EDF3FF;
+  --dt-text-2:       rgba(237,243,255,0.76);
+  --dt-text-3:       rgba(237,243,255,0.54);
+
+  --dt-success:      #5EE0A0;
+  --dt-success-bg:   rgba(94,224,160,0.10);
+  --dt-warning:      #E8B24A;
+  --dt-warning-bg:   rgba(232,178,74,0.10);
+  --dt-danger:       #FF6B8A;
+  --dt-danger-bg:    rgba(255,107,138,0.10);
+  --dt-info:         #A7EBF2;
+  --dt-info-bg:      rgba(167,235,242,0.10);
+}
+
+html[data-theme="dark"][data-skin="aurora"] body {
+  background:
+    radial-gradient(900px 500px at 15% 0%, rgba(124,141,240,0.20), transparent 60%),
+    radial-gradient(1000px 600px at 90% 12%, rgba(84,172,191,0.22), transparent 60%),
+    radial-gradient(800px 700px at 50% 90%, rgba(167,235,242,0.10), transparent 60%),
+    #071023 !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme="dark"][data-skin="aurora"] .analytika-navbar {
+  background: rgba(12,21,48,0.80) !important;
+  border-bottom-color: rgba(163,180,208,0.14) !important;
+  backdrop-filter: blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+}
+
+html[data-theme="dark"][data-skin="aurora"] .btn-primary,
+html[data-theme="dark"][data-skin="aurora"] .btn-emerald,
+html[data-theme="dark"][data-skin="aurora"] .btn-teal {
+  background: linear-gradient(120deg, #7C8DF0, #54ACBF) !important;
+  color: #071023 !important;
+}
+
+/* ================================================================
+   F · FABLE VELVET — deep plum, champagne gold, editorial serif
+   Designed by Fable as the enhanced signature skin.
+   ================================================================ */
+
+html[data-skin="fable"] {
+  --deep-navy:     #2A2036;
+  --classic-teal:  #A87A1F;
+  --forest-teal:   #8A6418;
+  --seafoam-blue:  #7A5A10;
+  --sage-teal:     #6C55C8;
+  --ice-blue:      #241B31;
+  --soft-white:    #F6EFE4;
+  --gold:          #B88924;
+
+  --emerald-light: rgba(168,122,31,0.14);
+  --emerald-pale:  rgba(168,122,31,0.08);
+  --amber-light:   rgba(108,85,200,0.13);
+
+  --bg:            #FBF7F0;
+  --surface:       rgba(255,255,255,0.84);
+  --surface-strong:rgba(255,255,255,0.95);
+  --surface-alt:   rgba(42,32,54,0.05);
+  --glass:         rgba(255,255,255,0.72);
+  --glass-strong:  rgba(255,255,255,0.94);
+  --glass-dark:    rgba(23,16,33,0.88);
+  --glass-border:  rgba(42,32,54,0.14);
+  --border:        rgba(42,32,54,0.13);
+  --border-light:  rgba(42,32,54,0.08);
+
+  --text:          #2A2036;
+  --text-secondary:#55446B;
+  --text-muted:    #6B5C80;
+
+  --radius-sm:     10px;
+  --radius:        14px;
+  --radius-lg:     18px;
+  --radius-xl:     22px;
+  --blur:          blur(20px) saturate(150%);
+
+  --font-display:  'Fraunces', 'Sora', serif;
+  --font-body:     'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  --c-navy:        #2A2036;
+  --c-sky-wash:    #F3EDE2;
+  --c-slate:       #5A4C6E;
+  --c-teal-mid:    #A87A1F;
+  --c-cyan-light:  #6C55C8;
+  --c-blue-mid:    #7A6C8E;
+}
+
+html[data-skin="fable"] body {
+  background:
+    radial-gradient(1000px 520px at 82% -6%, rgba(184,137,36,0.12), transparent 62%),
+    radial-gradient(880px 640px at -8% 34%, rgba(108,85,200,0.09), transparent 60%),
+    linear-gradient(180deg, #FBF7F0 0%, #F6F0E6 55%, #FBF7F0 100%);
+  background-attachment: fixed;
+}
+
+html[data-skin="fable"] .analytika-navbar {
+  background: rgba(251,247,240,0.82);
+  border-bottom-color: rgba(42,32,54,0.11);
+}
+
+html[data-skin="fable"] .btn-primary {
+  background: linear-gradient(135deg, #2A2036 0%, #A87A1F 100%);
+  box-shadow: 0 10px 26px rgba(168,122,31,0.30), inset 0 1px 0 rgba(255,255,255,0.24);
+}
+html[data-skin="fable"] .btn-primary:hover {
+  background: linear-gradient(135deg, #352947 0%, #8A6418 100%);
+}
+html[data-skin="fable"] .page-title,
+html[data-skin="fable"] .bi-title {
+  letter-spacing: 0;
+}
+
+/* Fable · dark — velvet night: plum-black, gold ember glow */
+html[data-skin="fable"][data-theme="dark"] {
+  --dt-bg:           #100A18;
+  --dt-surface:      #171022;
+  --dt-surface-2:    #1C142A;
+  --dt-surface-3:    #241A36;
+
+  --dt-border:       rgba(232,178,74,0.10);
+  --dt-border-mid:   rgba(232,178,74,0.20);
+
+  --dt-accent-rgb:   232,178,74;
+  --dt-accent:       #E8B24A;
+  --dt-accent-strong:#FFCB6B;
+
+  --dt-text:         #F6EFE4;
+  --dt-text-2:       rgba(246,239,228,0.76);
+  --dt-text-3:       rgba(246,239,228,0.54);
+
+  --dt-success:      #6FDFA8;
+  --dt-success-bg:   rgba(111,223,168,0.10);
+  --dt-warning:      #FFC862;
+  --dt-warning-bg:   rgba(255,200,98,0.10);
+  --dt-danger:       #FF7A6B;
+  --dt-danger-bg:    rgba(255,122,107,0.10);
+  --dt-info:         #9A7BFF;
+  --dt-info-bg:      rgba(154,123,255,0.10);
+}
+
+html[data-theme="dark"][data-skin="fable"] body {
+  background:
+    radial-gradient(1000px 520px at 82% -6%, rgba(232,178,74,0.10), transparent 62%),
+    radial-gradient(880px 640px at -8% 34%, rgba(154,123,255,0.12), transparent 60%),
+    linear-gradient(180deg, #100A18 0%, #140D1F 55%, #100A18 100%) !important;
+  background-attachment: fixed !important;
+}
+
+html[data-theme="dark"][data-skin="fable"] .analytika-navbar {
+  background: rgba(23,16,34,0.84) !important;
+  border-bottom-color: rgba(232,178,74,0.12) !important;
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}

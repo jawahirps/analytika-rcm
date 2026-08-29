@@ -32,22 +32,22 @@ public class ResubmissionTask
 
 public static class ResubmissionStatus
 {
-    public const string Unassigned  = "Unassigned";
-    public const string Assigned    = "Assigned";
-    public const string InReview    = "InReview";
+    public const string Unassigned = "Unassigned";
+    public const string Assigned = "Assigned";
+    public const string InReview = "InReview";
     public const string Resubmitted = "Resubmitted";
-    public const string Appealed    = "Appealed";
-    public const string Closed      = "Closed";
-    public const string Rejected    = "Rejected";
+    public const string Appealed = "Appealed";
+    public const string Closed = "Closed";
+    public const string Rejected = "Rejected";
 
     public static readonly string[] All = [Unassigned, Assigned, InReview, Resubmitted, Appealed, Closed, Rejected];
 }
 
 public static class ResubmissionPriority
 {
-    public const string Low    = "Low";
+    public const string Low = "Low";
     public const string Normal = "Normal";
-    public const string High   = "High";
+    public const string High = "High";
     public const string Urgent = "Urgent";
 
     public static readonly string[] All = [Urgent, High, Normal, Low];

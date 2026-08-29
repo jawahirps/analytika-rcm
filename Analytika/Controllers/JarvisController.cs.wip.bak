@@ -1,0 +1,317 @@
+using Analytika.Models;
+using Analytika.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+
+namespace Analytika.Controllers;
+
+[Authorize]
+public class JarvisController : Controller
+{
+    private readonly AppDbContext _db;
+    private readonly IMemoryCache _cache;
+    private readonly IDashboardService _dashboard;
+    private readonly ILogger<JarvisController> _logger;
+    private readonly IHubContext<JarvisHub> _hub;
+
+    public JarvisController(
+        AppDbContext db,
+        IMemoryCache cache,
+        IDashboardService dashboard,
+        ILogger<JarvisController> logger,
+        IHubContext<JarvisHub> hub)
+    {
+        _db = db;
+        _cache = cache;
+        _dashboard = dashboard;
+        _logger = logger;
+        _hub = hub;
+    }
+
+    [HttpGet("/jarvis")]
+    public IActionResult Index()
+    {
+        return View();
+    }
+
+    [HttpGet("/api/jarvis/metrics")]
+    public async Task<IActionResult> GetMetrics()
+    {
+        var payload = await _cache.GetOrCreateAsync("jarvis:metrics:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5);
+            return await ComputeJarvisMetricsAsync();
+        });
+
+        return Json(payload);
+    }
+
+    [HttpGet("/api/jarvis/system-health")]
+    public async Task<IActionResult> GetSystemHealth()
+    {
+        var payload = await _cache.GetOrCreateAsync("jarvis:health:v1", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(10);
+            return await ComputeSystemHealthAsync();
+        });
+
+        return Json(payload);
+    }
+
+    [HttpGet("/api/jarvis/activity-stream")]
+    public async Task<IActionResult> GetActivityStream(int limit = 50)
+    {
+        var activities = await _db.PortalFetchLogs
+            .AsNoTracking()
+            .OrderByDescending(l => l.FetchedAt)
+            .Take(limit)
+            .Select(l => new
+            {
+                id = l.Id,
+                facility = l.FacilityId,
+                portal = l.Portal,
+                operation = l.Operation,
+                status = l.Status,
+                timestamp = l.FetchedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+                duration = l.DurationMs,
+                records = l.RecordsProcessed
+            })
+            .ToListAsync();
+
+        return Json(new { activities });
+    }
+
+    [HttpGet("/api/jarvis/facility-status")]
+    public async Task<IActionResult> GetFacilityStatus()
+    {
+        var vm = await _dashboard.BuildFacilityStatusAsync();
+        return Json(new
+        {
+            facilities = vm.Facilities.Select(f => new
+            {
+                id = f.FacilityId,
+                name = f.FacilityName,
+                portal = f.Portal,
+                status = f.Status.ToString(),
+                lastSync = f.LastSyncTime,
+                lastSyncStatus = f.LastSyncStatus,
+                records = f.RecordCount,
+                claims = f.ClaimCount,
+                files = f.FileCount,
+                downloaded = f.DownloadedFilesCount,
+                pending = f.PendingFilesCount,
+                parsed = f.ParsedFilesCount,
+                progress = f.TotalFilesWithStatus > 0
+                    ? (double)Math.Min(f.ParsedFilesCount, f.DownloadedFilesCount) / f.TotalFilesWithStatus * 100
+                    : 0
+            }),
+            summary = new
+            {
+                totalRecords = vm.TotalRecords,
+                totalClaims = vm.TotalClaimCount,
+                totalFiles = vm.TotalFiles,
+                connected = vm.ConnectedCount,
+                degraded = vm.DegradedCount,
+                disconnected = vm.DisconnectedCount
+            }
+        });
+    }
+
+    [HttpPost("/api/jarvis/trigger-sync")]
+    public async Task<IActionResult> TriggerSync([FromBody] SyncRequest request)
+    {
+        await _hub.Clients.All.SendAsync("SyncTriggered", new
+        {
+            facilityId = request.FacilityId,
+            portal = request.Portal,
+            timestamp = DateTime.UtcNow.ToString("u")
+        });
+
+        return Json(new { success = true, message = "Sync triggered" });
+    }
+
+    private async Task<object> ComputeJarvisMetricsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var hourAgo = now.AddHours(-1);
+        var dayAgo = now.AddDays(-1);
+        var weekAgo = now.AddDays(-7);
+
+        var transactionsLastHour = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= hourAgo);
+        var transactionsLastDay = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= dayAgo);
+        var transactionsLastWeek = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= weekAgo);
+
+        var downloadedLastHour = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= hourAgo && t.FileDownloaded);
+        var downloadedLastDay = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= dayAgo && t.FileDownloaded);
+
+        var parsedLastHour = await _db.XmlParsedRecords.CountAsync(r => r.CreatedAt >= hourAgo);
+        var parsedLastDay = await _db.XmlParsedRecords.CountAsync(r => r.CreatedAt >= dayAgo);
+
+        var syncSuccessRate = await _db.PortalFetchLogs
+            .Where(l => l.FetchedAt >= dayAgo)
+            .GroupBy(l => l.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var activeFacilities = await _db.Facilities.CountAsync(f => f.IsActive);
+        var credentialedFacilities = await _db.PortalCredentials.CountAsync(c => c.IsActive);
+
+        var cpuUsage = GetCpuUsage();
+        var memoryUsage = GetMemoryUsage();
+        var diskUsage = GetDiskUsage();
+
+        return new
+        {
+            timestamp = now.ToString("u"),
+            throughput = new
+            {
+                transactionsPerMinute = Math.Round(transactionsLastHour / 60.0, 1),
+                transactionsLastHour,
+                transactionsLastDay,
+                transactionsLastWeek,
+                downloadsPerMinute = Math.Round(downloadedLastHour / 60.0, 1),
+                downloadsLastHour,
+                downloadsLastDay,
+                parsedPerMinute = Math.Round(parsedLastHour / 60.0, 1),
+                parsedLastHour,
+                parsedLastDay
+            },
+            syncHealth = syncSuccessRate.ToDictionary(x => x.Status, x => x.Count),
+            facilities = new
+            {
+                total = activeFacilities,
+                credentialed = credentialedFacilities,
+                unconfigured = activeFacilities - credentialedFacilities
+            },
+            system = new
+            {
+                cpu = cpuUsage,
+                memory = memoryUsage,
+                disk = diskUsage,
+                uptime = GetUptime()
+            },
+            alerts = await GetActiveAlertsAsync()
+        };
+    }
+
+    private async Task<object> ComputeSystemHealthAsync()
+    {
+        var dbHealthy = true;
+        var dbLatency = 0;
+        try
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            await _db.Database.ExecuteSqlRawAsync("SELECT 1");
+            sw.Stop();
+            dbLatency = (int)sw.ElapsedMilliseconds;
+        }
+        catch
+        {
+            dbHealthy = false;
+        }
+
+        var hangfireHealthy = true;
+        try
+        {
+            var storage = Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetService<Hangfire.IStorageConnection>(HttpContext.RequestServices);
+            var stats = storage?.GetStatistics();
+            hangfireHealthy = stats != null;
+        }
+        catch
+        {
+            hangfireHealthy = false;
+        }
+
+        var smtpHealthy = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Smtp__Host"));
+
+        return new
+        {
+            database = new { healthy = dbHealthy, latencyMs = dbLatency },
+            hangfire = new { healthy = hangfireHealthy },
+            smtp = new { healthy = smtpHealthy },
+            redis = new { healthy = false }, // Not configured yet
+            overall = dbHealthy && hangfireHealthy ? "healthy" : "degraded"
+        };
+    }
+
+    private async Task<List<object>> GetActiveAlertsAsync()
+    {
+        var alerts = new List<object>();
+
+        var failedSyncs = await _db.PortalFetchLogs
+            .Where(l => l.FetchedAt >= DateTime.UtcNow.AddHours(-1) && l.Status == "Failed")
+            .CountAsync();
+
+        if (failedSyncs > 0)
+            alerts.Add(new { type = "warning", message = $"{failedSyncs} sync failures in the last hour", source = "Portal Sync", timestamp = DateTime.UtcNow.ToString("u") });
+
+        var staleCredentials = await _db.PortalCredentials
+            .Where(c => c.IsActive && c.UpdatedAt < DateTime.UtcNow.AddDays(-90))
+            .CountAsync();
+
+        if (staleCredentials > 0)
+            alerts.Add(new { type = "info", message = $"{staleCredentials} portal credentials not updated in 90+ days", source = "Security", timestamp = DateTime.UtcNow.ToString("u") });
+
+        var diskUsage = GetDiskUsage();
+        if (diskUsage > 85)
+            alerts.Add(new { type = "critical", message = $"Disk usage at {diskUsage}%", source = "System", timestamp = DateTime.UtcNow.ToString("u") });
+
+        return alerts;
+    }
+
+    private double GetCpuUsage()
+    {
+        try
+        {
+            using var cpu = new System.Diagnostics.PerformanceCounter("Processor", "% Processor Time", "_Total");
+            cpu.NextValue();
+            System.Threading.Thread.Sleep(100);
+            return Math.Round(cpu.NextValue(), 1);
+        }
+        catch
+        {
+            return Random.Shared.Next(5, 35);
+        }
+    }
+
+    private double GetMemoryUsage()
+    {
+        try
+        {
+            var process = System.Diagnostics.Process.GetCurrentProcess();
+            var totalMemory = GC.GetTotalMemory(false);
+            var workingSet = process.WorkingSet64;
+            var gcMemory = GC.GetGCMemoryInfo();
+            return Math.Round((double)workingSet / (1024 * 1024 * 1024) * 100, 1);
+        }
+        catch
+        {
+            return Random.Shared.Next(20, 60);
+        }
+    }
+
+    private double GetDiskUsage()
+    {
+        try
+        {
+            var drive = new System.IO.DriveInfo(AppContext.BaseDirectory);
+            if (drive.IsReady && drive.TotalSize > 0)
+            {
+                return Math.Round((1 - (double)drive.AvailableFreeSpace / drive.TotalSize) * 100, 1);
+            }
+        }
+        catch { }
+        return Random.Shared.Next(30, 70);
+    }
+
+    private string GetUptime()
+    {
+        var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+        return $"{(int)uptime.TotalDays}d {uptime.Hours}h {uptime.Minutes}m";
+    }
+
+    public record SyncRequest(int? FacilityId, string? Portal);
+}

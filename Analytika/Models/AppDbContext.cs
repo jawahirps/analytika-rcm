@@ -8,12 +8,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<ReportRequest> ReportRequests { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
     public DbSet<Facility> Facilities { get; set; }
     public DbSet<Receiver> Receivers { get; set; }
     public DbSet<Payer> Payers { get; set; }
     public DbSet<Clinician> Clinicians { get; set; }
     public DbSet<Department> Departments { get; set; }
-    public DbSet<DashboardEmbed> DashboardEmbeds { get; set; }
     public DbSet<UserFacility> UserFacilities { get; set; }
     public DbSet<PortalCredential> PortalCredentials { get; set; }
     public DbSet<UserReportAccess> UserReportAccesses { get; set; }
@@ -23,7 +23,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<ReportSchedule> ReportSchedules { get; set; }
     public DbSet<RemittanceClaim> RemittanceClaims { get; set; }
+    public DbSet<XmlParsedRecord> XmlParsedRecords { get; set; }
+    public DbSet<XmlParsedActivity> XmlParsedActivities { get; set; }
     public DbSet<ResubmissionTask> ResubmissionTasks { get; set; }
+    public DbSet<AiUsageLog> AiUsageLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,13 +39,6 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.ReportType).HasMaxLength(100);
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.FileFormat).HasMaxLength(20);
-        });
-
-        builder.Entity<DashboardEmbed>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.TabName).HasMaxLength(50);
-            entity.HasIndex(e => e.TabName);  // looked up by tab name in PowerBIService
         });
 
         builder.Entity<UserFacility>(entity =>
@@ -76,6 +72,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.Portal, e.FacilityId, e.TransactionId }).IsUnique();
             entity.HasIndex(e => new { e.FacilityId, e.FileDownloaded });  // PendingDownloadService WHERE FileDownloaded = false
+            entity.HasIndex(e => new { e.FacilityId, e.FileId });         // Fetch page DB cross-reference by (FacilityId, FileId)
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -95,12 +92,33 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.ClaimId);
             entity.HasIndex(e => e.FacilityId);
-            entity.HasIndex(e => e.RemittanceTransactionId).IsUnique(); // one parse per remittance TX
+            entity.HasIndex(e => e.RemittanceTransactionId);
             entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.RemittanceTransaction).WithMany().HasForeignKey(e => e.RemittanceTransactionId).OnDelete(DeleteBehavior.Cascade);
             entity.Ignore(e => e.DeniedAmount);
             entity.Ignore(e => e.IsFullyDenied);
             entity.Ignore(e => e.IsPartiallyPaid);
+        });
+
+        builder.Entity<XmlParsedRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.PortalTransactionId);
+            entity.HasIndex(e => new { e.FacilityId, e.RecordKind });
+            entity.HasIndex(e => e.ClaimId);
+            entity.HasIndex(e => e.ReadyForReport);
+            entity.HasIndex(e => new { e.FacilityId, e.RecordKind, e.TreatmentDate });
+            entity.HasIndex(e => e.EncounterType);
+            entity.HasIndex(e => new { e.ServiceYear, e.ServiceMonth });
+            entity.HasOne(e => e.Facility).WithMany().HasForeignKey(e => e.FacilityId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.PortalTransaction).WithMany().HasForeignKey(e => e.PortalTransactionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<XmlParsedActivity>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.XmlParsedRecordId);
+            entity.HasOne(e => e.XmlParsedRecord).WithMany(r => r.Activities).HasForeignKey(e => e.XmlParsedRecordId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ResubmissionTask>(entity =>
@@ -111,6 +129,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.RemittanceClaim).WithOne(c => c.Task).HasForeignKey<ResubmissionTask>(e => e.RemittanceClaimId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.AssignedTo).WithMany().HasForeignKey(e => e.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.AssignedBy).WithMany().HasForeignKey(e => e.AssignedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<AiUsageLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.CreatedAt);        // usage panel orders/filters by date
+            entity.HasIndex(e => e.UserId);
         });
     }
 }

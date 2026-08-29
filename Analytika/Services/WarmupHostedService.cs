@@ -1,0 +1,89 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Analytika.Services;
+
+/// <summary>
+/// Keeps the heavy dashboard aggregation cache — and the SQLite hot-page cache it reads
+/// — permanently warm, so the app stays fast even after long idle periods (not only while
+/// someone is actively clicking around on localhost).
+///
+/// Why this exists: <see cref="BixKeepaliveService"/> pings <c>/healthz</c>, which keeps
+/// Kestrel and the Cloudflare tunnel alive but does ZERO database work. During idle the
+/// facility-status cache (10-min TTL) expires and Windows evicts the parsed tables' pages
+/// from RAM, so the first real request pays a full cold rebuild — the "slow unless the app
+/// is being used" symptom. This service re-runs the aggregation on a steady interval
+/// (comfortably under the cache TTL), which both refreshes the cache and touches the hot
+/// tables so their pages stay resident. Cost is one aggregation every few minutes.
+///
+/// Disable with Warmup:Enabled=false; tune with Warmup:IntervalSeconds.
+/// </summary>
+public class WarmupHostedService : BackgroundService
+{
+    private readonly IServiceScopeFactory _scopes;
+    private readonly IConfiguration _config;
+    private readonly ILogger<WarmupHostedService> _logger;
+
+    public WarmupHostedService(IServiceScopeFactory scopes, IConfiguration config, ILogger<WarmupHostedService> logger)
+    {
+        _scopes = scopes;
+        _config = config;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        // Default 240s: over the 2-min soft-TTL (so each cycle actually rebuilds) and well
+        // under the 10-min hard TTL (so the cache never fully expires and goes cold).
+        var interval = TimeSpan.FromSeconds(Math.Max(60, _config.GetValue("Warmup:IntervalSeconds", 240)));
+        _logger.LogInformation("[Warmup] Dashboard cache warm-up started — every {sec}s.", interval.TotalSeconds);
+
+        // Small initial delay so startup's own WarmAsync and pre-warm finish first.
+        try { await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken); } catch (OperationCanceledException) { return; }
+
+        var lastCheckpointDay = DateTime.MinValue.Date;
+        var checkpointHour = Math.Clamp(_config.GetValue("Warmup:CheckpointHour", 3), 0, 23);
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                var dashboard = scope.ServiceProvider.GetRequiredService<IDashboardService>();
+                await dashboard.WarmAsync(stoppingToken);   // rebuilds facility-status cache + touches the hot parsed/portal tables
+
+                // Nightly WAL checkpoint (default 03:00 local, Warmup:CheckpointHour to
+                // change). Long readers/writers starve SQLite's automatic checkpointing,
+                // so the WAL grew to 4GB+ during heavy days — and a huge WAL slows EVERY
+                // query (each read must merge it). TRUNCATE resets it to zero in the
+                // quietest hour; PASSIVE semantics inside mean it simply does less if
+                // something is active, and we retry the next night.
+                var nowLocal = DateTime.Now;
+                if (nowLocal.Hour == checkpointHour && lastCheckpointDay != nowLocal.Date)
+                {
+                    lastCheckpointDay = nowLocal.Date;
+                    var db = scope.ServiceProvider.GetRequiredService<Analytika.Models.AppDbContext>();
+                    if (db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        // PASSIVE, not TRUNCATE: TRUNCATE takes an exclusive lock and blocks
+                        // every writer until it finishes. On this database that killed a
+                        // long-running parse mid-batch with "database is locked". PASSIVE
+                        // checkpoints as much as it can without blocking anyone; the WAL is
+                        // reclaimed on a quiet cycle instead of at the cost of a running job.
+                        var sw = System.Diagnostics.Stopwatch.StartNew();
+                        await db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(PASSIVE);", stoppingToken);
+                        _logger.LogInformation("[Warmup] nightly WAL checkpoint(PASSIVE) done in {Ms} ms.", sw.ElapsedMilliseconds);
+                    }
+                }
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Warmup] cycle failed — existing cache left in place.");
+            }
+
+            try { await Task.Delay(interval, stoppingToken); }
+            catch (OperationCanceledException) { break; }
+        }
+    }
+}

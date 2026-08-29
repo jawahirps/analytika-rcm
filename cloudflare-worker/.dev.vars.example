@@ -1,0 +1,2 @@
+# Copy to .dev.vars for local `wrangler dev`
+ANALYTIKA_TUNNEL_ORIGIN=https://replace-with-your-tunnel-hostname

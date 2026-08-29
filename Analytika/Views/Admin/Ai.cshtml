@@ -1,0 +1,245 @@
+@model Analytika.Models.ViewModels.AiAdminViewModel
+@{
+    ViewData["Title"] = "AI Agent";
+    var s = Model.Settings;
+}
+
+<div class="container-fluid py-4 px-4">
+    <div class="page-header mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold text-navy">AI Data-Analyst Agent</h4>
+            <small class="text-muted">NVIDIA Nemotron — API credentials, model, usage limits &amp; governance</small>
+        </div>
+        <span class="badge @(s.Enabled ? "bg-success" : "bg-secondary")">
+            @(s.Enabled ? "Enabled" : "Disabled")
+        </span>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3 text-navy">
+                        <i class="fas fa-robot me-2 text-cyan-light"></i>Model &amp; Credentials
+                    </h6>
+                    <form asp-action="SaveAiSettings" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enabled"
+                                           value="true" id="enabledSwitch" @(s.Enabled ? "checked" : "") />
+                                    <label class="form-check-label fw-semibold" for="enabledSwitch">
+                                        Enable the AI analyst for Analyst-role users
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Model ID</label>
+                                <input name="model" class="form-control" value="@s.Model"
+                                       placeholder="nvidia/nemotron-3-ultra-550b-a55b" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Request timeout (s)</label>
+                                <input name="timeoutSeconds" type="number" class="form-control" value="@s.TimeoutSeconds" min="5" max="300" />
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label">API base URL</label>
+                                <input name="apiBaseUrl" class="form-control" value="@s.ApiBaseUrl"
+                                       placeholder="https://integrate.api.nvidia.com/v1" />
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label">
+                                    API key
+                                    <small class="text-muted fw-normal">(@(s.HasApiKey ? "stored — blank keeps it" : "not set"))</small>
+                                </label>
+                                <input name="apiKey" type="password" class="form-control"
+                                       placeholder="@(s.HasApiKey ? "••••••••••••" : "nvapi-…")" autocomplete="new-password" />
+                            </div>
+
+                            <div class="col-12"><hr class="my-1" /></div>
+                            <div class="col-md-4">
+                                <label class="form-label">Max output tokens</label>
+                                <input name="maxOutputTokens" type="number" class="form-control" value="@s.MaxOutputTokens" min="64" max="8192" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Temperature</label>
+                                <input name="temperature" type="number" step="0.05" class="form-control" value="@s.Temperature" min="0" max="2" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Max rows per query</label>
+                                <input name="rowLimit" type="number" class="form-control" value="@s.RowLimit" min="1" max="5000" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Daily request limit <small class="text-muted fw-normal">(0 = unlimited)</small></label>
+                                <input name="dailyRequestLimit" type="number" class="form-control" value="@s.DailyRequestLimit" min="0" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Monthly token budget <small class="text-muted fw-normal">(0 = unlimited)</small></label>
+                                <input name="monthlyTokenLimit" type="number" class="form-control" value="@s.MonthlyTokenLimit" min="0" />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="allowFullData"
+                                           value="true" id="fullDataCheck" @(s.AllowFullData ? "checked" : "") />
+                                    <label class="form-check-label" for="fullDataCheck">
+                                        Allow row-level patient data (PHI) to reach the model
+                                    </label>
+                                    <div class="fs-80 @(s.AllowFullData ? "text-danger" : "text-muted") mt-1">
+                                        @if (s.AllowFullData)
+                                        {
+                                            <i class="fas fa-triangle-exclamation me-1"></i><span>ON — patient identifiers can be sent to NVIDIA. Ensure your data agreement permits this.</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-shield-halved me-1"></i><span>OFF (recommended) — aggregate only; patient identifiers are blocked &amp; masked before anything leaves.</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 d-flex gap-2 pt-1">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-save me-1"></i> Save Settings
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="testAi(this)">
+                                    <i class="fas fa-plug me-1"></i> Test Connection
+                                </button>
+                                <span id="testResult" class="fs-80 align-self-center ms-1"></span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-3 text-navy">
+                        <i class="fas fa-gauge-high me-2" style="color:var(--amber);"></i>Usage
+                    </h6>
+                    <div class="row text-center g-3">
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-navy">@Model.RequestsToday</div>
+                            <div class="fs-80 text-muted">Requests today@(s.DailyRequestLimit > 0 ? $" / {s.DailyRequestLimit}" : "")</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-navy">@Model.TokensThisMonth.ToString("N0")</div>
+                            <div class="fs-80 text-muted">Tokens this month@(s.MonthlyTokenLimit > 0 ? $" / {s.MonthlyTokenLimit:N0}" : "")</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-navy">@Model.RequestsThisMonth</div>
+                            <div class="fs-80 text-muted">Requests this month</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="fw-bold fs-4 text-navy">@Model.SuccessRate%</div>
+                            <div class="fs-80 text-muted">Success rate (@Model.TotalRequests total)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-2 text-navy">
+                        <i class="fas fa-shield-halved me-2 text-cyan-light"></i>Safety
+                    </h6>
+                    <ul class="fs-80 text-muted mb-0 ps-3">
+                        <li>Read-only: the agent only runs a single validated <code>SELECT</code>.</li>
+                        <li>Identity, credential &amp; settings tables are never queryable.</li>
+                        <li>Row output is capped at the limit above.</li>
+                        <li>Every request is logged below for audit.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body p-4">
+            <h6 class="fw-bold mb-3 text-navy">
+                <i class="fas fa-clock-rotate-left me-2 text-cyan-light"></i>Recent requests
+            </h6>
+            @if (Model.RecentLogs.Count == 0)
+            {
+                <p class="text-muted fs-82 mb-0">No requests yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle fs-80 mb-0">
+                        <thead>
+                            <tr>
+                                <th>When (UTC)</th><th>User</th><th>Question</th>
+                                <th class="text-end">Rows</th><th class="text-end">Tokens</th>
+                                <th class="text-end">ms</th><th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in Model.RecentLogs)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@l.CreatedAt.ToString("MM-dd HH:mm")</td>
+                                    <td class="text-nowrap">@(l.UserName ?? "—")</td>
+                                    <td class="text-truncate" style="max-width:340px;" title="@l.Question">@l.Question</td>
+                                    <td class="text-end">@l.RowsReturned</td>
+                                    <td class="text-end">@l.TotalTokens</td>
+                                    <td class="text-end">@l.LatencyMs</td>
+                                    <td>
+                                        @if (l.Success)
+                                        {
+                                            <span class="badge bg-success-subtle text-success">OK</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger-subtle text-danger" title="@l.ErrorMessage">Failed</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function getToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+}
+async function testAi(btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing…';
+    btn.disabled = true;
+    const el = document.getElementById('testResult');
+    el.className = 'fs-80 align-self-center ms-1 text-muted';
+    el.textContent = '';
+    const form = new FormData();
+    form.append('__RequestVerificationToken', getToken());
+    try {
+        const r = await fetch('/Admin/TestAiConnection', { method: 'POST', body: form });
+        const d = await r.json();
+        el.className = 'fs-80 align-self-center ms-1 ' + (d.ok ? 'text-success' : 'text-danger');
+        el.innerHTML = `<i class="fas fa-${d.ok ? 'check' : 'times'}-circle me-1"></i>${d.message}`;
+    } catch {
+        el.className = 'fs-80 align-self-center ms-1 text-danger';
+        el.textContent = 'Request failed';
+    }
+    btn.innerHTML = orig; btn.disabled = false;
+}
+
+</script>
+}

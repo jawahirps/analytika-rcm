@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
+using System.ComponentModel.DataAnnotations;
 
 namespace Analytika.Models.ViewModels;
 
@@ -53,6 +54,39 @@ public class EditUserViewModel
     public List<string> AllReportTypes { get; set; } = new();
     public List<string> SelectedDashboards { get; set; } = new();
     public List<string> SelectedReports { get; set; } = new();
+}
+
+public class UserProfileViewModel
+{
+    [Required, MaxLength(120)]
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    [MaxLength(120)]
+    public string? Department { get; set; }
+    [Phone, MaxLength(32)]
+    public string? PhoneNumber { get; set; }
+    public string UserType { get; set; } = "Global";
+    public bool IsActive { get; set; }
+    public List<string> Roles { get; set; } = new();
+    public List<string> Facilities { get; set; } = new();
+    public List<string> DashboardAccess { get; set; } = new();
+    public List<string> ReportAccess { get; set; } = new();
+}
+
+public class RoleListViewModel
+{
+    public List<RoleRowViewModel> Roles { get; set; } = new();
+    public string NewRoleName { get; set; } = string.Empty;
+    public List<string> StandardRoles { get; set; } = new();
+}
+
+public class RoleRowViewModel
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int UserCount { get; set; }
+    public bool IsProtected { get; set; }
+    public bool IsStandard { get; set; }
 }
 
 public class CredentialListViewModel

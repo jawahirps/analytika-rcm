@@ -13,8 +13,8 @@ public class EmailService : IEmailService
 
     public EmailService(IConfiguration config, ILogger<EmailService> logger, IServiceProvider services)
     {
-        _config   = config;
-        _logger   = logger;
+        _config = config;
+        _logger = logger;
         _services = services;
     }
 
@@ -35,9 +35,9 @@ public class EmailService : IEmailService
         {
             using var message = new MailMessage
             {
-                From       = new MailAddress(smtp.FromAddress, smtp.FromName),
-                Subject    = $"[GhafBI] Report {reportId} — {reportType}",
-                Body       = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached.\n\nThis is an automated message from GhafBI. Please do not reply.\n\nRegards,\nGhafBI Reports",
+                From = new MailAddress(smtp.FromAddress, smtp.FromName),
+                Subject = $"[Ghaf Business Intelligence] Report {reportId} — {reportType}",
+                Body = $"Hello,\n\nYour {reportType} report ({reportId}) has been generated and is attached.\n\nThis is an automated message from Ghaf Business Intelligence. Please do not reply.\n\nRegards,\nGhaf Business Intelligence Reports",
                 IsBodyHtml = false
             };
 
@@ -49,10 +49,10 @@ public class EmailService : IEmailService
 
             using var client = new SmtpClient(smtp.Host, smtp.Port)
             {
-                EnableSsl             = smtp.EnableSsl,
-                DeliveryMethod        = SmtpDeliveryMethod.Network,
+                EnableSsl = smtp.EnableSsl,
+                DeliveryMethod = SmtpDeliveryMethod.Network,
                 UseDefaultCredentials = false,
-                Credentials           = new NetworkCredential(smtp.UserName, smtp.Password)
+                Credentials = new NetworkCredential(smtp.UserName, smtp.Password)
             };
 
             await client.SendMailAsync(message);
@@ -61,6 +61,49 @@ public class EmailService : IEmailService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send report {ReportId} to {To}.", reportId, to);
+        }
+    }
+
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        var smtp = await GetSmtpSettingsAsync();
+
+        if (string.IsNullOrWhiteSpace(smtp.Host))
+        {
+            _logger.LogWarning("SMTP host is not configured — skipping email '{Subject}'.", subject);
+            return;
+        }
+
+        var recipients = to.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (recipients.Length == 0) return;
+
+        try
+        {
+            using var message = new MailMessage
+            {
+                From = new MailAddress(smtp.FromAddress, smtp.FromName),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = false
+            };
+
+            foreach (var recipient in recipients)
+                message.To.Add(new MailAddress(recipient));
+
+            using var client = new SmtpClient(smtp.Host, smtp.Port)
+            {
+                EnableSsl = smtp.EnableSsl,
+                DeliveryMethod = SmtpDeliveryMethod.Network,
+                UseDefaultCredentials = false,
+                Credentials = new NetworkCredential(smtp.UserName, smtp.Password)
+            };
+
+            await client.SendMailAsync(message);
+            _logger.LogInformation("Email '{Subject}' sent to {Recipients}.", subject, string.Join(", ", recipients));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email '{Subject}' to {To}.", subject, to);
         }
     }
 
@@ -87,24 +130,24 @@ public class EmailService : IEmailService
 
         return new SmtpSettings
         {
-            Host        = Cfg("Host",        string.Empty),
-            Port        = int.TryParse(Cfg("Port",  "587"), out var p) ? p : 587,
-            EnableSsl   = bool.TryParse(Cfg("EnableSsl", "true"), out var ssl) && ssl,
-            UserName    = Cfg("UserName",    string.Empty),
-            Password    = Cfg("Password",    string.Empty),
+            Host = Cfg("Host", string.Empty),
+            Port = int.TryParse(Cfg("Port", "587"), out var p) ? p : 587,
+            EnableSsl = bool.TryParse(Cfg("EnableSsl", "true"), out var ssl) && ssl,
+            UserName = Cfg("UserName", string.Empty),
+            Password = Cfg("Password", string.Empty),
             FromAddress = Cfg("FromAddress", string.Empty),
-            FromName    = Cfg("FromName",    "GhafBI Reports")
+            FromName = Cfg("FromName", "Ghaf Business Intelligence Reports")
         };
     }
 }
 
 public record SmtpSettings
 {
-    public string Host        { get; init; } = string.Empty;
-    public int    Port        { get; init; } = 587;
-    public bool   EnableSsl   { get; init; } = true;
-    public string UserName    { get; init; } = string.Empty;
-    public string Password    { get; init; } = string.Empty;
+    public string Host { get; init; } = string.Empty;
+    public int Port { get; init; } = 587;
+    public bool EnableSsl { get; init; } = true;
+    public string UserName { get; init; } = string.Empty;
+    public string Password { get; init; } = string.Empty;
     public string FromAddress { get; init; } = string.Empty;
-    public string FromName    { get; init; } = "GhafBI Reports";
+    public string FromName { get; init; } = "Ghaf Business Intelligence Reports";
 }

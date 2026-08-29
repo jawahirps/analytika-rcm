@@ -3,8 +3,8 @@
 }
 
 <div class="container-fluid py-4" style="max-width:860px;">
-    <h4 class="fw-bold mb-1"><i class="fas fa-database me-2" style="color:#C87A10;"></i>Database Backup &amp; Migration</h4>
-    <p class="text-muted mb-4" style="font-size:.85rem;">Download the local database and upload it to the cloud instance after deployment.</p>
+    <h4 class="fw-bold mb-1"><i class="fas fa-database me-2 text-slate"></i>Database Backup &amp; Migration</h4>
+    <p class="text-muted mb-4 fs-85">Download the local database and upload it to the cloud instance after deployment.</p>
 
     @if (ViewBag.PendingExists == true)
     {
@@ -14,20 +14,57 @@
         </div>
     }
 
+    <!-- ── Storage statistics ───────────────────────────────────────────── -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h6 class="fw-semibold mb-3"><i class="fas fa-chart-pie me-2 text-slate"></i>Storage Statistics</h6>
+            <div class="row g-3 fs-85">
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Transactions</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.TxCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Stored XML</div>
+                    <div class="fw-semibold">@ViewBag.XmlSizeMb MB <span class="text-muted fw-normal fs-75">(@(((int?)ViewBag.XmlCount)?.ToString("N0")) files)</span></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Parsed Records</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.ParsedCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Fetch Logs</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.FetchLogCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Disk Downloads</div>
+                    <div class="fw-semibold">@ViewBag.DownloadSizeMb MB <span class="text-muted fw-normal fs-75">(@(((int?)ViewBag.DownloadFiles)?.ToString("N0")) files)</span></div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted fs-75">Backups</div>
+                    <div class="fw-semibold">@(((int?)ViewBag.BackupCount)?.ToString("N0"))</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="text-muted fs-75">Latest Backup</div>
+                    <div class="fw-semibold">@(ViewBag.LatestBackup ?? "none yet")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Step 1: Download ──────────────────────────────────────────────── -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h6 class="fw-semibold mb-3">
-                <span class="badge rounded-pill me-2" style="background:#0A1828;">1</span>
+                <span class="badge rounded-pill me-2 bg-navy">1</span>
                 Download from this machine
             </h6>
             <div class="d-flex align-items-center gap-3 flex-wrap">
                 <div>
-                    <div class="text-muted" style="font-size:.78rem;">Current database</div>
-                    <div class="fw-semibold">@ViewBag.DbSizeMb MB &nbsp;<span class="text-muted fw-normal" style="font-size:.8rem;">last modified @ViewBag.DbModified</span></div>
-                    <div class="text-muted" style="font-size:.72rem; word-break:break-all;">@ViewBag.DbPath</div>
+                    <div class="text-muted fs-78">Current database</div>
+                    <div class="fw-semibold">@ViewBag.DbSizeMb MB &nbsp;<span class="text-muted fw-normal fs-80">last modified @ViewBag.DbModified</span></div>
+                    <div class="text-muted fs-72 break-all">@ViewBag.DbPath</div>
                 </div>
-                <a href="/Admin/ExportDatabase" class="btn btn-sm btn-primary ms-auto" style="background:#0A1828;border-color:#0A1828;">
+                <a href="/Admin/ExportDatabase" class="btn btn-sm btn-primary ms-auto bg-navy" style="border-color:#011C40;">
                     <i class="fas fa-download me-1"></i> Download .db file
                 </a>
             </div>
@@ -38,10 +75,10 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h6 class="fw-semibold mb-2">
-                <span class="badge rounded-pill me-2" style="background:#0A1828;">2</span>
+                <span class="badge rounded-pill me-2 bg-navy">2</span>
                 Deploy on Render
             </h6>
-            <ol class="mb-0" style="font-size:.85rem; padding-left:1.2rem;">
+            <ol class="mb-0 fs-85" style="padding-left:1.2rem;">
                 <li class="mb-1">Go to <strong>render.com</strong> → <em>New → Web Service</em></li>
                 <li class="mb-1">Connect <code>jawahirps/analytika-rcm</code> — Render will read <code>render.yaml</code> automatically</li>
                 <li class="mb-1">Wait for the first deploy to finish (app starts with a fresh seed database)</li>
@@ -55,35 +92,35 @@
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <h6 class="fw-semibold mb-3">
-                <span class="badge rounded-pill me-2" style="background:#0A1828;">3</span>
+                <span class="badge rounded-pill me-2 bg-navy">3</span>
                 Upload to this instance
             </h6>
-            <p class="text-muted mb-3" style="font-size:.83rem;">
+            <p class="text-muted mb-3 fs-83">
                 Do this step from the cloud instance after deployment. The uploaded file is staged as
                 <code>analytika.db.pending</code> and replaces the live database on the next restart.
             </p>
 
-            <div class="border rounded p-3" style="background:#f8f9fa;">
+            <div class="border rounded p-3 bg-sky-wash">
                 <div class="mb-3">
-                    <label class="form-label fw-semibold" style="font-size:.85rem;">Select <code>.db</code> file</label>
-                    <input type="file" id="dbFileInput" accept=".db" class="form-control" style="font-size:.85rem;" />
+                    <label class="form-label fw-semibold fs-85">Select <code>.db</code> file</label>
+                    <input type="file" id="dbFileInput" accept=".db" class="form-control fs-85" />
                 </div>
-                <div id="uploadProgress" class="mb-3" style="display:none;">
-                    <div class="d-flex justify-content-between mb-1" style="font-size:.78rem;">
+                <div id="uploadProgress" class="mb-3 d-none">
+                    <div class="d-flex justify-content-between mb-1 fs-78">
                         <span id="uploadLabel">Uploading…</span>
                         <span id="uploadPct">0%</span>
                     </div>
                     <div class="progress" style="height:6px;">
-                        <div id="uploadBar" class="progress-bar" style="width:0%;background:#C87A10;"></div>
+                        <div id="uploadBar" class="progress-bar" style="width:0%;background:#35577D;"></div>
                     </div>
                 </div>
-                <div id="uploadResult" class="mb-3" style="display:none;font-size:.83rem;"></div>
-                <button id="uploadBtn" class="btn btn-sm btn-warning" style="font-size:.83rem;" onclick="startUpload()">
+                <div id="uploadResult" class="mb-3 d-none fs-83"></div>
+                <button id="uploadBtn" class="btn btn-sm btn-warning fs-83" onclick="startUpload()">
                     <i class="fas fa-upload me-1"></i> Upload &amp; Stage
                 </button>
             </div>
 
-            <div class="alert alert-info mt-3 mb-0" style="font-size:.8rem;">
+            <div class="alert alert-info mt-3 mb-0 fs-80">
                 <i class="fas fa-info-circle me-1"></i>
                 After a successful upload, go to the Render dashboard → your service → <strong>Manual Deploy → Restart</strong>.
                 The staged database will be applied automatically on startup.
@@ -153,5 +190,5 @@ function startUpload() {
 }
 </script>
 <!-- Anti-forgery token for XHR upload -->
-<form style="display:none;">@Html.AntiForgeryToken()</form>
+<form class="d-none">@Html.AntiForgeryToken()</form>
 }

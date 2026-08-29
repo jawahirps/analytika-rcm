@@ -1,6 +1,7 @@
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using System.Xml.Linq;
 
 namespace Analytika.Services;
@@ -17,117 +18,316 @@ public class ReconciliationService
 
     // ── XML Parsing Stats Dashboard ───────────────────────────────
 
-    public async Task<XmlParsingViewModel> GetXmlParsingStatsAsync(List<int>? facilityIds)
+    public async Task<XmlParsingViewModel> GetXmlParsingStatsAsync(List<int>? facilityIds, string? search = null, string? kind = null)
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
+        kind = string.IsNullOrWhiteSpace(kind) ? "All" : kind;
 
-        // Fast per-facility counts using DB-side LIKE (EF Core + SQLite translates Contains → LIKE)
-        var baseQuery = _db.PortalTransactions
-            .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
+        var txBase = _db.PortalTransactions
+            .AsNoTracking()
+            .Where(t => t.Portal == "DHA");
 
         if (facilityIds?.Count > 0)
-            baseQuery = baseQuery.Where(t => facilityIds.Contains(t.FacilityId));
+            txBase = txBase.Where(t => facilityIds.Contains(t.FacilityId));
 
-        // Submission counts per facility (anything NOT containing <Remittance.Advice)
-        var subCounts = await baseQuery
-            .Where(t => !t.FileContentXml!.Contains("<Remittance.Advice"))
+        // Exact Type match only. The old LIKE-heuristics (Type.Contains + FileName
+        // StartsWith/Contains patterns) forced an unindexable scan across the whole
+        // blob-bearing table; Type is reliably populated ('Claim' is also the sync-time
+        // default for unrecognized filenames, which is what the heuristics approximated).
+        var txCounts = await txBase
             .GroupBy(t => t.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(t => t.FileDownloaded) })
-            .ToListAsync();
-
-        // Remittance counts per facility
-        var remCounts = await baseQuery
-            .Where(t => t.FileContentXml!.Contains("<Remittance.Advice"))
-            .GroupBy(t => t.FacilityId)
-            .Select(g => new { FacilityId = g.Key, Total = g.Count(), Downloaded = g.Count(t => t.FileDownloaded) })
-            .ToListAsync();
-
-        // Compute matched count per facility using ClaimID intersection
-        // Load claim IDs from submission and remittance files per facility
-        var subIds = await baseQuery
-            .Where(t => !t.FileContentXml!.Contains("<Remittance.Advice"))
-            .Select(t => new { t.FacilityId, t.FileContentXml })
-            .ToListAsync();
-
-        var remIds = await baseQuery
-            .Where(t => t.FileContentXml!.Contains("<Remittance.Advice"))
-            .Select(t => new { t.FacilityId, t.FileContentXml })
-            .ToListAsync();
-
-        // Parse claim IDs per facility
-        static HashSet<string> ExtractClaimIds(IEnumerable<string?> xmlList)
-        {
-            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var xml in xmlList)
+            .Select(g => new
             {
-                if (string.IsNullOrEmpty(xml)) continue;
-                try
-                {
-                    var doc = XDocument.Parse(xml);
-                    foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
-                    {
-                        var id = el.Element("ID")?.Value ?? el.Attribute("ID")?.Value;
-                        if (!string.IsNullOrWhiteSpace(id)) ids.Add(id);
-                    }
-                }
-                catch { }
-            }
-            return ids;
-        }
+                FacilityId = g.Key,
+                SubmissionTotal = g.Count(t => t.Type == "Claim"),
+                SubmissionDownloaded = g.Count(t => t.Type == "Claim" && t.FileDownloaded),
+                RemittanceTotal = g.Count(t => t.Type == "Remittance"),
+                RemittanceDownloaded = g.Count(t => t.Type == "Remittance" && t.FileDownloaded)
+            })
+            .ToListAsync();
 
-        var subByFacility = subIds.GroupBy(x => x.FacilityId)
-            .ToDictionary(g => g.Key, g => ExtractClaimIds(g.Select(x => x.FileContentXml)));
-        var remByFacility = remIds.GroupBy(x => x.FacilityId)
-            .ToDictionary(g => g.Key, g => ExtractClaimIds(g.Select(x => x.FileContentXml)));
+        var parsedBase = _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.ReadyForReport);
+        if (facilityIds?.Count > 0)
+            parsedBase = parsedBase.Where(r => facilityIds.Contains(r.FacilityId));
 
-        // Count <Claim occurrences per facility — fast string scan, no full parse needed
-        var claimCountByFacility = subIds.GroupBy(x => x.FacilityId)
-            .ToDictionary(g => g.Key, g => g.Sum(x =>
+        // All aggregation server-side. The previous code materialized EVERY parsed row
+        // (1.3M+ × 5 columns) into memory on EVERY page view and built per-facility
+        // HashSets — the reason this page died with a 5-minute timeout under load.
+        // Matched counts come from the persisted IsMatched flag (maintained by
+        // MatchParsedRecordsAsync) instead of recomputing set intersections per view.
+        var parsedByFacility = (await parsedBase
+            .GroupBy(r => r.FacilityId)
+            .Select(g => new
             {
-                if (string.IsNullOrEmpty(x.FileContentXml)) return 0;
-                int n = 0, i = 0;
-                while ((i = x.FileContentXml.IndexOf("<Claim", i, StringComparison.Ordinal)) >= 0) { n++; i++; }
-                return n;
-            }));
+                FacilityId = g.Key,
+                SubmissionFileCount = g.Where(r => r.RecordKind == "Submission")
+                    .Select(r => r.PortalTransactionId).Distinct().Count(),
+                RemittanceFileCount = g.Where(r => r.RecordKind == "Remittance")
+                    .Select(r => r.PortalTransactionId).Distinct().Count(),
+                SubmissionRecordCount = g.Count(r => r.RecordKind == "Submission"),
+                ClaimCount = g.Where(r => r.RecordKind == "Submission")
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                RemittanceRecordCount = g.Count(r => r.RecordKind == "Remittance"),
+                RemittanceClaimRefCount = g.Where(r => r.RecordKind == "Remittance")
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                Matched = g.Where(r => r.RecordKind == "Submission" && r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                UnmatchedSubmissions = g.Where(r => r.RecordKind == "Submission" && !r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count(),
+                UnmatchedRemittances = g.Where(r => r.RecordKind == "Remittance" && !r.IsMatched)
+                    .Select(r => r.ClaimId.ToUpper()).Distinct().Count()
+            })
+            .ToListAsync())
+            .ToDictionary(x => x.FacilityId, x => x);
 
         var facilityMap = facilities.ToDictionary(f => f.Id, f => f.Name);
-        var allFacilityIds = subCounts.Select(x => x.FacilityId)
-            .Union(remCounts.Select(x => x.FacilityId)).Distinct().ToList();
+        var allFacilityIds = txCounts.Select(x => x.FacilityId)
+            .Union(parsedByFacility.Keys)
+            .Distinct()
+            .ToList();
 
         var rows = allFacilityIds.Select(fid =>
         {
-            var sub = subCounts.FirstOrDefault(x => x.FacilityId == fid);
-            var rem = remCounts.FirstOrDefault(x => x.FacilityId == fid);
-            subByFacility.TryGetValue(fid, out var subClaimIds);
-            remByFacility.TryGetValue(fid, out var remClaimIds);
-            subClaimIds ??= new();
-            remClaimIds ??= new();
-
-            var matched = subClaimIds.Count(id => remClaimIds.Contains(id));
+            var tx = txCounts.FirstOrDefault(x => x.FacilityId == fid);
+            parsedByFacility.TryGetValue(fid, out var parsed);
+            var parsedSubmissionFiles = parsed?.SubmissionFileCount ?? 0;
+            var parsedRemittanceFiles = parsed?.RemittanceFileCount ?? 0;
 
             return new XmlParsingFacilityRow
             {
-                FacilityId          = fid,
-                FacilityName        = facilityMap.GetValueOrDefault(fid, $"Facility {fid}"),
-                SubmissionTotal     = sub?.Total ?? 0,
-                SubmissionDownloaded= sub?.Downloaded ?? 0,
-                RemittanceTotal     = rem?.Total ?? 0,
-                RemittanceDownloaded= rem?.Downloaded ?? 0,
-                Matched             = matched,
-                UnmatchedSubmissions= subClaimIds.Count - matched,
-                UnmatchedRemittances= remClaimIds.Count(id => !subClaimIds.Contains(id)),
-                ClaimCount          = claimCountByFacility.GetValueOrDefault(fid, 0),
+                FacilityId = fid,
+                FacilityName = facilityMap.GetValueOrDefault(fid, $"Facility {fid}"),
+                SubmissionTotal = parsedSubmissionFiles > 0 ? parsedSubmissionFiles : tx?.SubmissionTotal ?? 0,
+                SubmissionDownloaded = parsedSubmissionFiles > 0 ? parsedSubmissionFiles : tx?.SubmissionDownloaded ?? 0,
+                RemittanceTotal = parsedRemittanceFiles > 0 ? parsedRemittanceFiles : tx?.RemittanceTotal ?? 0,
+                RemittanceDownloaded = parsedRemittanceFiles > 0 ? parsedRemittanceFiles : tx?.RemittanceDownloaded ?? 0,
+                RemittanceRecordCount = parsed?.RemittanceRecordCount ?? 0,
+                RemittanceClaimRefCount = parsed?.RemittanceClaimRefCount ?? 0,
+                SubmissionRecordCount = parsed?.SubmissionRecordCount ?? 0,
+                Matched = parsed?.Matched ?? 0,
+                UnmatchedSubmissions = parsed?.UnmatchedSubmissions ?? 0,
+                UnmatchedRemittances = parsed?.UnmatchedRemittances ?? 0,
+                ClaimCount = parsed?.ClaimCount ?? 0,
             };
         })
         .OrderBy(r => r.FacilityName)
         .ToList();
 
+        // Pre-load HashSets of parsed transaction IDs by kind to avoid correlated subqueries
+        HashSet<int>? submissionTxIds = null;
+        HashSet<int>? remittanceTxIds = null;
+        if (string.Equals(kind, "Submission", StringComparison.OrdinalIgnoreCase))
+        {
+            var submissionBase = _db.XmlParsedRecords.AsNoTracking().Where(r => r.RecordKind == "Submission");
+            if (facilityIds?.Count > 0) submissionBase = submissionBase.Where(r => facilityIds.Contains(r.FacilityId));
+            submissionTxIds = (await submissionBase.Select(r => r.PortalTransactionId).Distinct().ToListAsync()).ToHashSet();
+        }
+        else if (string.Equals(kind, "Remittance", StringComparison.OrdinalIgnoreCase))
+        {
+            var remittanceBase = _db.XmlParsedRecords.AsNoTracking().Where(r => r.RecordKind == "Remittance");
+            if (facilityIds?.Count > 0) remittanceBase = remittanceBase.Where(r => facilityIds.Contains(r.FacilityId));
+            remittanceTxIds = (await remittanceBase.Select(r => r.PortalTransactionId).Distinct().ToListAsync()).ToHashSet();
+        }
+
+        var recordQuery = _db.PortalTransactions
+            .Include(t => t.Facility)
+            .AsNoTracking()
+            .Where(t => t.Portal == "DHA");
+
+        if (facilityIds?.Count > 0)
+            recordQuery = recordQuery.Where(t => facilityIds.Contains(t.FacilityId));
+        if (!string.IsNullOrWhiteSpace(search))
+            recordQuery = recordQuery.Where(t =>
+                t.TransactionId.Contains(search)
+                || (t.FileId != null && t.FileId.Contains(search))
+                || (t.FileName != null && t.FileName.Contains(search))
+                || (t.Payer != null && t.Payer.Contains(search))
+                || t.Status.Contains(search));
+        if (submissionTxIds != null)
+            recordQuery = recordQuery.Where(t =>
+                submissionTxIds.Contains(t.Id)
+                || (t.Type.Contains("Claim")
+                    || (t.FileName != null && (t.FileName.StartsWith("CLM") || t.FileName.Contains("Claim")))));
+        else if (remittanceTxIds != null)
+            recordQuery = recordQuery.Where(t =>
+                remittanceTxIds.Contains(t.Id)
+                || t.Type.Contains("Remittance")
+                || (t.FileName != null && (t.FileName.StartsWith("RA_") || t.FileName.Contains("Remittance"))));
+
+        var recordItems = await recordQuery
+            .OrderByDescending(t => t.SyncedAt)
+            .Select(t => new
+            {
+                t.Id,
+                t.FacilityId,
+                FacilityName = t.Facility.Name,
+                t.TransactionId,
+                t.Type,
+                t.Direction,
+                t.Status,
+                t.FileId,
+                t.FileName,
+                t.TransactionDate,
+                t.Payer,
+                t.Amount,
+                t.FileDownloaded,
+                HasXml = t.FileContentXml != null && t.FileContentXml.Length > 10,
+                t.SyncedAt
+            })
+            .Take(200)
+            .ToListAsync();
+
+        var txIds = recordItems.Select(t => t.Id).ToList();
+        var parsedGroups = await _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => txIds.Contains(r.PortalTransactionId))
+            .GroupBy(r => r.PortalTransactionId)
+            .Select(g => new
+            {
+                PortalTransactionId = g.Key,
+                ParsedRows = g.Count(),
+                ReadyRows = g.Count(r => r.ReadyForReport),
+                SubmissionRows = g.Count(r => r.RecordKind == "Submission"),
+                RemittanceRows = g.Count(r => r.RecordKind == "Remittance"),
+                MatchedRows = g.Count(r => r.IsMatched),
+                SampleClaimId = g.Select(r => r.ClaimId).FirstOrDefault(),
+                ParsedAt = g.Max(r => (DateTime?)r.ParsedAt)
+            })
+            .ToListAsync();
+        var parsedMap = parsedGroups.ToDictionary(x => x.PortalTransactionId);
+
+        var parsedRecordQuery = _db.XmlParsedRecords
+            .Include(r => r.Facility)
+            .AsNoTracking();
+
+        if (facilityIds?.Count > 0)
+            parsedRecordQuery = parsedRecordQuery.Where(r => facilityIds.Contains(r.FacilityId));
+        if (string.Equals(kind, "Submission", StringComparison.OrdinalIgnoreCase))
+            parsedRecordQuery = parsedRecordQuery.Where(r => r.RecordKind == "Submission");
+        else if (string.Equals(kind, "Remittance", StringComparison.OrdinalIgnoreCase))
+            parsedRecordQuery = parsedRecordQuery.Where(r => r.RecordKind == "Remittance");
+        if (!string.IsNullOrWhiteSpace(search))
+            parsedRecordQuery = parsedRecordQuery.Where(r =>
+                r.ClaimId.Contains(search)
+                || (r.FileName != null && r.FileName.Contains(search))
+                || (r.FileId != null && r.FileId.Contains(search))
+                || (r.PaymentReference != null && r.PaymentReference.Contains(search))
+                || (r.SenderId != null && r.SenderId.Contains(search))
+                || (r.ReceiverId != null && r.ReceiverId.Contains(search))
+                || (r.PayerName != null && r.PayerName.Contains(search))
+                || (r.Comments != null && r.Comments.Contains(search)));
+
+        var parsedRecordTotal = await parsedRecordQuery.CountAsync();
+        var parsedRecordItems = await parsedRecordQuery
+            .OrderByDescending(r => r.ParsedAt)
+            .ThenByDescending(r => r.Id)
+            .Select(r => new
+            {
+                r.Id,
+                r.PortalTransactionId,
+                r.FacilityId,
+                FacilityName = r.Facility!.Name,
+                r.RecordKind,
+                r.ClaimId,
+                r.FileName,
+                r.FileId,
+                r.TransactionDate,
+                r.SenderId,
+                r.ReceiverId,
+                r.PayerName,
+                r.NetAmount,
+                r.PaidAmount,
+                r.SettlementDate,
+                r.PaymentReference,
+                r.DenialCodesJson,
+                r.Comments,
+                r.IsMatched,
+                r.ReadyForReport,
+                r.ParsedAt
+            })
+            .Take(500)
+            .ToListAsync();
+
         return new XmlParsingViewModel
         {
-            Facilities  = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            Facilities = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
             FacilityIds = facilityIds ?? new(),
-            FacilityRows = rows
+            SearchText = search,
+            Kind = kind ?? "All",
+            FacilityRows = rows,
+            ParsedRecordTotal = parsedRecordTotal,
+            Records = recordItems.Select(t =>
+            {
+                parsedMap.TryGetValue(t.Id, out var parsed);
+                return new XmlParsingRecordRow
+                {
+                    TransactionDbId = t.Id,
+                    FacilityId = t.FacilityId,
+                    FacilityName = t.FacilityName,
+                    TransactionId = t.TransactionId,
+                    Type = t.Type,
+                    Direction = t.Direction,
+                    Status = t.Status,
+                    FileId = t.FileId,
+                    FileName = t.FileName,
+                    TransactionDate = t.TransactionDate,
+                    Payer = t.Payer,
+                    Amount = t.Amount,
+                    FileDownloaded = t.FileDownloaded,
+                    HasXml = t.HasXml,
+                    SyncedAt = t.SyncedAt,
+                    ParsedRows = parsed?.ParsedRows ?? 0,
+                    ReadyRows = parsed?.ReadyRows ?? 0,
+                    SubmissionRows = parsed?.SubmissionRows ?? 0,
+                    RemittanceRows = parsed?.RemittanceRows ?? 0,
+                    MatchedRows = parsed?.MatchedRows ?? 0,
+                    SampleClaimId = parsed?.SampleClaimId ?? "",
+                    ParsedAt = parsed?.ParsedAt
+                };
+            }).ToList(),
+            ParsedRecords = parsedRecordItems.Select(r => new XmlParsingParsedRecordRow
+            {
+                Id = r.Id,
+                PortalTransactionId = r.PortalTransactionId,
+                FacilityId = r.FacilityId,
+                FacilityName = r.FacilityName,
+                RecordKind = r.RecordKind,
+                ClaimId = r.ClaimId,
+                FileName = r.FileName,
+                FileId = r.FileId,
+                TransactionDate = r.TransactionDate,
+                SenderId = r.SenderId,
+                ReceiverId = r.ReceiverId,
+                PayerName = r.PayerName,
+                NetAmount = r.NetAmount,
+                PaidAmount = r.PaidAmount,
+                SettlementDate = r.SettlementDate,
+                PaymentReference = r.PaymentReference,
+                DenialCodes = FormatDenialCodes(r.DenialCodesJson),
+                Comments = r.Comments,
+                IsMatched = r.IsMatched,
+                ReadyForReport = r.ReadyForReport,
+                ParsedAt = r.ParsedAt
+            }).ToList()
         };
+    }
+
+    private static string FormatDenialCodes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return "";
+
+        try
+        {
+            var codes = JsonSerializer.Deserialize<List<string>>(json);
+            return string.Join(" | ", codes?.Where(c => !string.IsNullOrWhiteSpace(c)).Distinct() ?? []);
+        }
+        catch
+        {
+            return json;
+        }
     }
 
     public async Task<ReconciliationViewModel> GetReconciliationAsync(
@@ -135,71 +335,90 @@ public class ReconciliationService
     {
         var facilities = await _db.Facilities.Where(f => f.IsActive).ToListAsync();
 
-        // Load all DHA transactions that have downloaded XML content
-        var query = _db.PortalTransactions
-            .Where(t => t.Portal == "DHA" && t.FileContentXml != null && t.FileContentXml.Length > 10);
+        // Read from XmlParsedRecords cache instead of re-parsing raw XML each time
+        var parsedQuery = _db.XmlParsedRecords
+            .AsNoTracking()
+            .Where(r => r.ReadyForReport);
 
         if (facilityIds != null && facilityIds.Count > 0)
-            query = query.Where(t => facilityIds.Contains(t.FacilityId));
-        if (!string.IsNullOrEmpty(dateFrom)) query = query.Where(t => string.Compare(t.TransactionDate, dateFrom) >= 0);
-        if (!string.IsNullOrEmpty(dateTo))   query = query.Where(t => string.Compare(t.TransactionDate, dateTo)   <= 0);
+            parsedQuery = parsedQuery.Where(r => facilityIds.Contains(r.FacilityId));
+        if (!string.IsNullOrEmpty(dateFrom))
+            parsedQuery = parsedQuery.Where(r => r.TransactionDate != null && string.Compare(r.TransactionDate, dateFrom) >= 0);
+        if (!string.IsNullOrEmpty(dateTo))
+            parsedQuery = parsedQuery.Where(r => r.TransactionDate != null && string.Compare(r.TransactionDate, dateTo) <= 0);
 
-        // Only fetch columns needed for parsing — avoids loading large RawXml into memory
-        var transactions = await query
-            .Select(t => new PortalTransaction
+        var parsedRecords = await parsedQuery
+            .Select(r => new
             {
-                TransactionId  = t.TransactionId,
-                FileId         = t.FileId,
-                Type           = t.Type,
-                FileName       = t.FileName,
-                FileContentXml = t.FileContentXml,
-                FacilityId     = t.FacilityId
+                r.RecordKind,
+                r.ClaimId,
+                r.FacilityId,
+                r.PayerName,
+                r.PayerId,
+                r.TreatmentDate,
+                r.GrossAmount,
+                r.NetAmount,
+                r.PaidAmount,
+                r.SettlementDate,
+                r.FileId,
+                r.FileName
             })
-            .ToListAsync();   // no cap — unlimited records
+            .ToListAsync();
 
-        // Parse claims and remittances from XML content
-        var claimMap      = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
+        var claimMap = new Dictionary<string, ClaimEntry>(StringComparer.OrdinalIgnoreCase);
         var remittanceMap = new Dictionary<string, RemittanceEntry>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var tx in transactions)
+        foreach (var r in parsedRecords)
         {
-            // Check remittance FIRST — the stored Type column is unreliable (defaults to "Claim")
-            // so we always let XML content decide.
-            if (IsRemittanceFile(tx))
+            if (string.IsNullOrWhiteSpace(r.ClaimId)) continue;
+
+            if (r.RecordKind == "Submission")
             {
-                foreach (var r in ParseRemittanceXml(tx))
-                    remittanceMap.TryAdd(r.ClaimId, r);
+                claimMap.TryAdd(r.ClaimId, new ClaimEntry
+                {
+                    ClaimId = r.ClaimId,
+                    Payer = r.PayerName ?? r.PayerId,
+                    ServiceDate = r.TreatmentDate,
+                    SubmittedAmount = r.GrossAmount > 0 ? r.GrossAmount : (r.NetAmount > 0 ? r.NetAmount : null),
+                    SourceFileId = r.FileId ?? r.FileName
+                });
             }
-            else if (IsClaimFile(tx))
+            else if (r.RecordKind == "Remittance")
             {
-                foreach (var c in ParseClaimXml(tx))
-                    claimMap.TryAdd(c.ClaimId, c);
+                remittanceMap.TryAdd(r.ClaimId, new RemittanceEntry
+                {
+                    ClaimId = r.ClaimId,
+                    PaidAmount = r.PaidAmount,
+                    RemittanceDate = r.SettlementDate,
+                    PaymentStatus = r.PaidAmount <= 0 ? "Rejected" : "Paid",
+                    Payer = r.PayerName ?? r.PayerId,
+                    SourceFileId = r.FileId ?? r.FileName
+                });
             }
         }
 
-        // Join on ClaimID
         var allIds = claimMap.Keys.Union(remittanceMap.Keys, StringComparer.OrdinalIgnoreCase).ToList();
-        var rows   = new List<ReconciliationRow>();
+        var rows = new List<ReconciliationRow>();
 
         foreach (var id in allIds)
         {
-            claimMap     .TryGetValue(id, out var claim);
+            claimMap.TryGetValue(id, out var claim);
             remittanceMap.TryGetValue(id, out var remit);
 
             var status = DetermineStatus(claim, remit);
 
             rows.Add(new ReconciliationRow
             {
-                ClaimId          = id,
-                Payer            = claim?.Payer ?? remit?.Payer,
-                ServiceDate      = claim?.ServiceDate,
-                SubmittedAmount  = claim?.SubmittedAmount,
-                RemittanceDate   = remit?.RemittanceDate,
-                PaidAmount       = remit?.PaidAmount,
-                PaymentStatus    = status,
-                ClaimFileId      = claim?.SourceFileId,
+                ClaimId = id,
+                Payer = claim?.Payer ?? remit?.Payer,
+                ServiceDate = claim?.ServiceDate,
+                SubmittedAmount = claim?.SubmittedAmount,
+                RemittanceDate = remit?.RemittanceDate,
+                PaidAmount = remit?.PaidAmount,
+                PaymentStatus = status,
+                ClaimFileId = claim?.SourceFileId,
                 RemittanceFileId = remit?.SourceFileId,
-                FacilityId       = facilityIds?.Count == 1 ? facilityIds[0] : 0
+                FacilityId = facilityIds?.Count == 1 ? facilityIds[0] : 0
             });
         }
 
@@ -207,21 +426,21 @@ public class ReconciliationService
             rows = rows.Where(r => statusFilters.Contains(r.PaymentStatus)).ToList();
 
         rows = rows.OrderBy(r => r.PaymentStatus == "Rejected" ? 0
-                               : r.PaymentStatus == "Partial"  ? 1
-                               : r.PaymentStatus == "Pending"  ? 2
+                               : r.PaymentStatus == "Partial" ? 1
+                               : r.PaymentStatus == "Pending" ? 2
                                : 3)
                    .ThenBy(r => r.ServiceDate)
                    .ToList();
 
         return new ReconciliationViewModel
         {
-            Facilities    = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
-            FacilityIds   = facilityIds ?? new(),
+            Facilities = facilities.Select(f => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem(f.Name, f.Id.ToString())).ToList(),
+            FacilityIds = facilityIds ?? new(),
             StatusFilters = statusFilters ?? new(),
-            DateFrom      = dateFrom,
-            DateTo        = dateTo,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
             TotalRowCount = rows.Count,
-            Rows          = rows   // unlimited — no display cap
+            Rows = rows
         };
     }
 
@@ -251,7 +470,9 @@ public class ReconciliationService
         XDocument doc;
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — XML is already fully loaded; iterating every <Claim>
+        // is cheap and any hard cap silently drops rows for large submission files.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             // DHA Claim.Submission format uses child elements, not attributes
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
@@ -270,11 +491,11 @@ public class ReconciliationService
 
             yield return new ClaimEntry
             {
-                ClaimId         = claimId,
-                Payer           = Val(el, "PayerID", "InsuranceCompanyID", "Payer", "ReceiverID"),
-                ServiceDate     = serviceDate,
+                ClaimId = claimId,
+                Payer = Val(el, "PayerID", "InsuranceCompanyID", "Payer", "ReceiverID"),
+                ServiceDate = serviceDate,
                 SubmittedAmount = amount > 0 ? amount : null,
-                SourceFileId    = tx.FileId ?? tx.TransactionId
+                SourceFileId = tx.FileId ?? tx.TransactionId
             };
         }
     }
@@ -285,13 +506,14 @@ public class ReconciliationService
         XDocument doc;
         try { doc = XDocument.Parse(tx.FileContentXml); } catch { yield break; }
 
-        var header    = doc.Root?.Element("Header");
-        var rootDate  = Val(header, "TransactionDate", "RemittanceDate", "Date")
+        var header = doc.Root?.Element("Header");
+        var rootDate = Val(header, "TransactionDate", "RemittanceDate", "Date")
                      ?? (doc.Root != null ? Attr(doc.Root, "TransactionDate", "RemittanceDate", "Date") : null);
         var rootPayer = Val(header, "SenderID", "PayerID", "Payer")
                      ?? (doc.Root != null ? Attr(doc.Root, "PayerID", "Payer", "SenderID") : null);
 
-        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim").Take(5000))
+        // No Take() cap — see ParseClaimXml note.
+        foreach (var el in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
             var claimId = Val(el, "ID", "ClaimID", "ClaimId", "id");
             if (string.IsNullOrWhiteSpace(claimId)) continue;
@@ -322,12 +544,12 @@ public class ReconciliationService
 
             yield return new RemittanceEntry
             {
-                ClaimId         = claimId,
-                PaidAmount      = paid,
-                RemittanceDate  = remitDate,
-                PaymentStatus   = Val(el, "Status", "PaymentStatus", "ClaimStatus", "Comments") ?? "Unknown",
-                Payer           = Val(el, "IDPayer", "PayerID", "Payer") ?? rootPayer,
-                SourceFileId    = tx.FileId ?? tx.TransactionId
+                ClaimId = claimId,
+                PaidAmount = paid,
+                RemittanceDate = remitDate,
+                PaymentStatus = Val(el, "Status", "PaymentStatus", "ClaimStatus", "Comments") ?? "Unknown",
+                Payer = Val(el, "IDPayer", "PayerID", "Payer") ?? rootPayer,
+                SourceFileId = tx.FileId ?? tx.TransactionId
             };
         }
     }
@@ -364,10 +586,10 @@ public class ReconciliationService
     private static string DetermineStatus(ClaimEntry? claim, RemittanceEntry? remit)
     {
         if (remit == null) return "Pending";
-        var paid      = remit.PaidAmount ?? 0;
+        var paid = remit.PaidAmount ?? 0;
         var submitted = claim?.SubmittedAmount ?? 0;
 
-        if (paid <= 0)                                return "Rejected";
+        if (paid <= 0) return "Rejected";
         if (submitted > 0 && paid < submitted - 0.01m) return "Partial";
         return "Paid";
     }

@@ -4,48 +4,143 @@ using Analytika.Models;
 using ClosedXML.Excel;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json;
 
 namespace Analytika.Services;
 
 public class ReportService : IReportService
 {
+    private const string GhafInk = "#011C40";
+    // Table-header fill. Was a light cyan (#A7EBF2) that read poorly under the
+    // white header text; now a dark teal that matches the navy heading band.
+    private const string GhafPrimary = "#115E59";
+    private const string GhafTeal = "#54ACBF";
+    private const string GhafPale = "#26658C";
+    private const string GhafCream = "#EAF4FB";
+    private const string GhafBorder = "#35577D";
+
     private readonly AppDbContext _context;
     private readonly ILogger<ReportService> _logger;
     private readonly IWebHostEnvironment _env;
     private readonly IEmailService _emailService;
+    private readonly RemittanceParserService _remittanceParser;
+    private readonly XmlParsingService _xmlParsingService;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IConfiguration _configuration;
 
-    public ReportService(AppDbContext context, ILogger<ReportService> logger, IWebHostEnvironment env, IEmailService emailService)
+    public ReportService(
+        AppDbContext context,
+        ILogger<ReportService> logger,
+        IWebHostEnvironment env,
+        IEmailService emailService,
+        RemittanceParserService remittanceParser,
+        XmlParsingService xmlParsingService,
+        IServiceScopeFactory scopeFactory,
+        IConfiguration configuration)
     {
         _context = context;
         _logger = logger;
         _env = env;
         _emailService = emailService;
+        _remittanceParser = remittanceParser;
+        _xmlParsingService = xmlParsingService;
+        _scopeFactory = scopeFactory;
+        _configuration = configuration;
     }
 
-    public string GetNextReportId()
+    public string GetNextReportId(ReportRequest request, string? selectedDateRange = null)
     {
-        var lastReport = _context.ReportRequests.OrderByDescending(r => r.Id).FirstOrDefault();
-        int nextNum = lastReport != null
-            ? int.Parse(lastReport.ReportId.Replace("ANA-", "")) + 1
-            : 3000001;
-        return $"ANA-{nextNum:D7}";
+        var facilityName = "All";
+        if (request.BranchId.HasValue)
+        {
+            facilityName = _context.Facilities
+                .Where(f => f.Id == request.BranchId.Value)
+                .Select(f => f.Name)
+                .FirstOrDefault() ?? "Facility";
+        }
+
+        var dateRange = NormalizeReportIdSegment(selectedDateRange)
+            ?? NormalizeReportIdSegment(BuildDateRangeLabel(request.DateFrom, request.DateTo))
+            ?? "Range";
+
+        var generatedDate = DateTime.Now.ToString("yyyyMMddHHmmss");
+        return $"{NormalizeReportIdSegment(facilityName)}-{dateRange}-{generatedDate}";
     }
 
-    public async Task<string> QueueReportAsync(ReportRequest request)
+    public async Task<string> QueueReportAsync(ReportRequest request, string? selectedDateRange = null)
     {
-        request.ReportId = GetNextReportId();
+        request.ReportId = GetNextReportId(request, selectedDateRange);
         request.Status = "Pending";
         request.RequestedAt = DateTime.UtcNow;
 
         _context.ReportRequests.Add(request);
         await _context.SaveChangesAsync();
 
-        BackgroundJob.Enqueue<IReportService>(s => s.GenerateReportAsync(request.Id));
+        var facilityName = request.BranchId.HasValue
+            ? (await _context.Facilities
+                .Where(f => f.Id == request.BranchId.Value)
+                .Select(f => f.Name)
+                .FirstOrDefaultAsync()) ?? "Facility"
+            : "All";
+
+        ReportGenerationState.Start(
+            request.Id,
+            request.ReportId,
+            request.ReportType,
+            facilityName,
+            selectedDateRange ?? BuildDateRangeLabel(request.DateFrom, request.DateTo));
+
+        if (_configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false))
+        {
+            BackgroundJob.Enqueue<IReportService>(s => s.GenerateReportAsync(request.Id));
+        }
+        else
+        {
+            _logger.LogInformation("Hangfire server is disabled; generating report {ReportId} in background.", request.ReportId);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var service = scope.ServiceProvider.GetRequiredService<IReportService>();
+                    await service.GenerateReportAsync(request.Id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Background report runner failed for {ReportId}", request.ReportId);
+                    ReportGenerationState.Fail(request.Id, $"Report {request.ReportId} could not start.");
+                }
+            });
+        }
 
         return request.ReportId;
     }
 
-    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize)
+    private static string? NormalizeReportIdSegment(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var segment = new string(value.Trim()
+            .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
+            .ToArray());
+
+        while (segment.Contains("--", StringComparison.Ordinal))
+            segment = segment.Replace("--", "-", StringComparison.Ordinal);
+
+        return segment.Trim('-');
+    }
+
+    private static string BuildDateRangeLabel(DateTime from, DateTime to)
+    {
+        if (from.Date == to.Date)
+            return from.ToString("yyyyMMdd");
+
+        return $"{from:yyyyMMdd}-{to:yyyyMMdd}";
+    }
+
+    public async Task<(List<ReportRequest> Reports, int Total)> GetReportsAsync(string reportType, int page, int pageSize, List<int>? facilityIds = null)
     {
         var query = _context.ReportRequests
             .Include(r => r.Branch)
@@ -53,6 +148,8 @@ public class ReportService : IReportService
             .Include(r => r.Payer)
             .Include(r => r.Clinician)
             .Where(r => r.ReportType == reportType)
+            // null = global user (no restriction); empty list = facility user with no assignments (no results); non-empty = scope to those facilities
+            .Where(r => facilityIds == null || (facilityIds.Count > 0 && r.BranchId != null && facilityIds.Contains(r.BranchId.Value)))
             .OrderByDescending(r => r.RequestedAt);
 
         var total = await query.CountAsync();
@@ -68,6 +165,40 @@ public class ReportService : IReportService
             .Include(r => r.Receiver)
             .Include(r => r.Payer)
             .FirstOrDefaultAsync(r => r.Id == id);
+    }
+
+    public async Task RunScheduledReportAsync(int scheduleId)
+    {
+        var schedule = await _context.ReportSchedules.FindAsync(scheduleId);
+        if (schedule == null || !schedule.IsActive) return;
+
+        var facilityIds = string.IsNullOrWhiteSpace(schedule.FacilityIdsJson)
+            ? null
+            : JsonSerializer.Deserialize<List<int>>(schedule.FacilityIdsJson);
+
+        var request = new ReportRequest
+        {
+            ReportType = schedule.ReportType,
+            BranchId = facilityIds?.FirstOrDefault(),
+            DateFrom = DateTime.UtcNow.AddMonths(-1),
+            DateTo = DateTime.UtcNow,
+            FileFormat = schedule.FileFormat,
+            EmailTo = schedule.Recipients
+        };
+
+        try
+        {
+            await QueueReportAsync(request);
+            schedule.LastRunAt = DateTime.UtcNow;
+            schedule.LastRunStatus = "OK";
+        }
+        catch (Exception ex)
+        {
+            schedule.LastRunAt = DateTime.UtcNow;
+            schedule.LastRunStatus = $"Error: {ex.Message}";
+        }
+
+        await _context.SaveChangesAsync();
     }
 
     // ── Report Generation ──────────────────────────────────────────────
@@ -88,80 +219,274 @@ public class ReportService : IReportService
             report.Status = "Processing";
             await _context.SaveChangesAsync();
 
-            var reportsDir = Path.Combine(_env.WebRootPath, "reports");
+            var reportsDir = GetReportsDirectory();
             Directory.CreateDirectory(reportsDir);
 
             var fileName = $"{report.ReportId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
             var filePath = Path.Combine(reportsDir, fileName);
 
-            // ── Load claim transactions ────────────────────────────────
-            var claimQuery = _context.PortalTransactions
-                .Where(t => t.Portal == "DHA"
-                         && t.FileContentXml != null && t.FileContentXml.Length > 10
-                         && t.Type == "Claim");
+            void UpdateStage(string stage, int pct, int done = 0, int total = 0, string? message = null)
+                => ReportGenerationState.Update(report.Id, stage, pct, done, total, message);
 
-            if (report.BranchId.HasValue)
-                claimQuery = claimQuery.Where(t => t.FacilityId == report.BranchId);
+            // Facility scope: multi-select JSON is the source of truth; empty = all facilities.
+            var facilityIds = ResolveFacilityIds(report);
 
-            var claimTxs = await claimQuery
-                .Select(t => new { t.FileId, t.FileName, t.FacilityId, t.FileContentXml, t.TransactionDate })
-                .Take(20000)
+            // ── Dispatch: report types that use a purpose-built layout instead of
+            //    the matched-claim workbook fall out here and finalise on their own. ──
+            if (report.ReportType == "SubmissionXML")
+            {
+                // Fast, claim-level submissions from the slim XmlParsedRecords cache.
+                await GenerateSubmissionClaimsWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "LiveSubmission")
+            {
+                // File-level submission metadata straight from PortalTransactions
+                // (the "live" downloaded files). Backed by the covering index.
+                await GenerateSubmissionXmlWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "RemittanceClaim")
+            {
+                // Claim-level remittance (one row per claim) — enriched from the
+                // submission join + eClaimLink lookups.
+                await GenerateRemittanceWorkbookAsync(report, filePath, facilityIds,
+                    denialsOnly: false, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "RemittanceActivity")
+            {
+                // DHPO 43-column activity-level template (one row per activity).
+                await GenerateRemittanceActivityTemplateAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "DenialReport")
+            {
+                await GenerateRemittanceWorkbookAsync(report, filePath, facilityIds,
+                    denialsOnly: true, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "ClaimActivity")
+            {
+                // Genuine activity-level report — one row per SUBMISSION activity line,
+                // enriched with the RA outcome (paid/denied) for that activity.
+                await GenerateClaimActivityWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+            if (report.ReportType == "SystemOverview")
+            {
+                // System health dashboard: DB stats, sync status, portal health, user activity.
+                await GenerateSystemOverviewWorkbookAsync(report, filePath, facilityIds, UpdateStage);
+                await FinalizeReportAsync(report, fileName, filePath, UpdateStage);
+                return;
+            }
+
+            UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
+            UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
+            // Reports ALWAYS use the prepared parsed-XML cache and match in-memory
+            // by ClaimId. Neither raw-XML parsing NOR MatchParsedRecordsAsync runs
+            // here anymore: the latter rewrote IsMatched across the ENTIRE 776k-row
+            // table (two full-table UPDATEs incl. a correlated subquery) on every
+            // report, holding the SQLite write lock for minutes and starving all
+            // other writes — while its result only fed a progress message. The
+            // IsMatched flags belong to Portal > XML Parsing maintenance flows.
+            await _xmlParsingService.EnsureSchemaAsync();
+            var parseResult = new XmlParsingRunResult();
+            UpdateStage("Preparing parsed XML", 20, 0, 0, "Using prepared XML cache. Prepare or rebuild from Portal > XML Parsing when new files are downloaded.");
+            UpdateStage("Preparing parsed XML", 20, parseResult.RecordsSaved, parseResult.FilesScanned,
+                $"XML cache ready: {parseResult.RecordsSaved:N0} new claim row(s), {parseResult.MatchedClaimRefs:N0} matched claim ref(s).");
+
+            UpdateStage("Loading payer lookup", 18, 0, 0, "Query: DhpoCodingSets where Category = Payer.");
+            var payerLookup = await LoadPayerLookupAsync();
+
+            // ── Load parsed outbound claim submissions ─────────────────
+            UpdateStage("Querying parsed submissions", 25, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission and ReadyForReport = true.");
+            var parsedClaimQuery = _context.XmlParsedRecords
+                .AsNoTracking()
+                .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+
+            if (facilityIds.Count > 0)
+                parsedClaimQuery = parsedClaimQuery.Where(r => facilityIds.Contains(r.FacilityId));
+
+            var parsedSubmissions = await parsedClaimQuery
+                .OrderBy(r => r.ParsedAt)
                 .ToListAsync();
+            UpdateStage("Loading parsed submissions", 35, parsedSubmissions.Count, parsedSubmissions.Count, $"Loaded {parsedSubmissions.Count:N0} parsed submission claim row(s).");
 
-            // ── Load remittance transactions (RA) ──────────────────────
-            var raTxs = await _context.PortalTransactions
-                .Where(t => t.Portal == "DHA"
-                         && t.FileContentXml != null && t.FileContentXml.Length > 10
-                         && t.Type != "Claim"
-                         && (!report.BranchId.HasValue || t.FacilityId == report.BranchId))
-                .Select(t => new { t.FileId, t.FileName, t.TransactionDate, t.FileContentXml })
+            // ── Load parsed remittance rows and build a claim-id lookup ──
+            UpdateStage("Querying parsed remittances", 42, 0, 0, "Query: XmlParsedRecords where RecordKind = Remittance and ReadyForReport = true.");
+            var parsedRemittanceQuery = _context.XmlParsedRecords
+                .AsNoTracking()
+                .Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
+
+            if (facilityIds.Count > 0)
+                parsedRemittanceQuery = parsedRemittanceQuery.Where(r => facilityIds.Contains(r.FacilityId));
+
+            var remittanceClaims = await parsedRemittanceQuery
+                .Select(r => new RemittanceClaimRow
+                {
+                    ClaimId = r.ClaimId,
+                    PaidAmount = r.PaidAmount,
+                    OriginalAmount = r.NetAmount,
+                    SettlementDate = r.SettlementDate,
+                    PaymentReference = r.PaymentReference,
+                    DenialCodesJson = r.DenialCodesJson,
+                    Comments = r.Comments,
+                    FileName = r.FileName,
+                    TransactionDate = r.TransactionDate,
+                    ClaimCategory = r.ClaimCategory
+                })
                 .ToListAsync();
+            UpdateStage("Loading parsed remittances", 48, remittanceClaims.Count, remittanceClaims.Count, $"Loaded {remittanceClaims.Count:N0} parsed remittance claim row(s).");
 
-            // ── Build RA lookup keyed by ClaimID ──────────────────────
-            var raLookup = new Dictionary<string, RaEntry>(StringComparer.OrdinalIgnoreCase);
-            foreach (var ra in raTxs)
-                foreach (var entry in ParseRaXml(ra.FileContentXml!, ra.FileName, ra.TransactionDate))
-                    raLookup.TryAdd(entry.ClaimId, entry);
+            var raLookup = AggregateRemittances(remittanceClaims);
+            UpdateStage("Matching inbound and outbound", 55, raLookup.Count, remittanceClaims.Count, $"Matched {raLookup.Count:N0} remittance claim(s) by Claim ID.");
 
             // ── Facility name lookup ───────────────────────────────────
-            var facilityNames = await _context.Facilities
+            UpdateStage("Loading facility lookup", 58, 0, 0, "Query: Facilities lookup for report row labels.");
+            var facilityNames = await _context.Facilities.AsNoTracking()
                 .ToDictionaryAsync(f => f.Id, f => f.Name);
 
-            // ── Parse claims and build rows ────────────────────────────
+            // ── Build rows only after both sides are parsed and matched ──
             var rows = new List<ClaimRow>();
-            foreach (var tx in claimTxs)
+            var outboundCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var outboundResubTypes = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var inboundCounts = remittanceClaims
+                .Where(rc => !string.IsNullOrWhiteSpace(rc.ClaimId))
+                .GroupBy(rc => rc.ClaimId!, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+            void AddToLookup(Dictionary<string, HashSet<string>> lookup, string claimId, string value)
             {
-                var facilityName = facilityNames.TryGetValue(tx.FacilityId, out var fn) ? fn : $"Facility {tx.FacilityId}";
-                foreach (var row in ParseClaimXml(tx.FileContentXml!, tx.FileId, tx.FileName, tx.TransactionDate, facilityName))
+                if (string.IsNullOrWhiteSpace(claimId) || string.IsNullOrWhiteSpace(value))
+                    return;
+
+                if (!lookup.TryGetValue(claimId, out var set))
                 {
-                    // Date filter based on SearchCriteria
-                    var filterDate = report.SearchCriteria switch
-                    {
-                        "SubmissionDate"    => ParseDhpoDate(row.SubmissionDate),
-                        "EncounterEndDate"  => ParseDhpoDate(row.TreatmentDateEnd),
-                        _                  => ParseDhpoDate(row.TreatmentDate)   // default: encounter start
-                    };
-                    if (filterDate.HasValue &&
-                        (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
+                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    lookup[claimId] = set;
+                }
+                set.Add(value.Trim());
+            }
+
+            var allSubmissionRows = parsedSubmissions
+                .Select(parsed =>
+                {
+                    var facilityName = facilityNames.TryGetValue(parsed.FacilityId, out var fn) ? fn : $"Facility {parsed.FacilityId}";
+                    return MapParsedSubmission(parsed, facilityName, payerLookup);
+                })
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .ToList();
+
+            foreach (var row in allSubmissionRows)
+            {
+                outboundCounts[row.ClaimId] = outboundCounts.TryGetValue(row.ClaimId, out var count) ? count + 1 : 1;
+                AddToLookup(outboundResubTypes, row.ClaimId, row.ResubmissionType);
+            }
+
+            var resubmissionRows = allSubmissionRows.Where(IsResubmissionRow).ToList();
+            var initialSubmissionRows = allSubmissionRows.Where(r => !IsResubmissionRow(r)).ToList();
+            var resubmissionByClaim = AggregateResubmissions(resubmissionRows);
+            UpdateStage("Separating submissions", 58, initialSubmissionRows.Count, allSubmissionRows.Count,
+                $"Using {initialSubmissionRows.Count:N0} initial submission row(s) as claim line items; {resubmissionRows.Count:N0} resubmission row(s) kept for calculations.");
+
+            for (int i = 0; i < initialSubmissionRows.Count; i++)
+            {
+                var row = initialSubmissionRows[i];
+
+                // Date filter based on SearchCriteria
+                var filterDate = report.SearchCriteria switch
+                {
+                    "SubmissionDate" => ParseDhpoDate(row.SubmissionDate),
+                    "EncounterEndDate" => ParseDhpoDate(row.TreatmentDateEnd),
+                    _ => ParseDhpoDate(row.TreatmentDate)
+                };
+                if (filterDate.HasValue &&
+                    (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
+                    continue;
+
+                if (report.PayerId.HasValue)
+                {
+                    var payerCode = report.Payer?.Name ?? "";
+                    if (!string.IsNullOrEmpty(payerCode)
+                        && !row.PayerName.Contains(payerCode, StringComparison.OrdinalIgnoreCase)
+                        && !row.PayerId.Contains(payerCode, StringComparison.OrdinalIgnoreCase))
                         continue;
+                }
 
-                    // Payer filter
-                    if (report.PayerId.HasValue)
-                    {
-                        var payerCode = report.Payer?.Name ?? "";
-                        if (!string.IsNullOrEmpty(payerCode) && !row.PayerId.Contains(payerCode, StringComparison.OrdinalIgnoreCase))
-                            continue;
-                    }
+                raLookup.TryGetValue(row.ClaimId, out var ra);
+                row.Ra = ra;
 
-                    raLookup.TryGetValue(row.ClaimId, out var ra);
-                    row.Ra = ra;
-                    rows.Add(row);
+                var outboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundCounts.TryGetValue(row.ClaimId, out var obCount) ? obCount : 1;
+                var inboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && inboundCounts.TryGetValue(row.ClaimId, out var ibCount) ? ibCount : 0;
+                var resubTypes = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundResubTypes.TryGetValue(row.ClaimId, out var types) ? types : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                resubmissionByClaim.TryGetValue(row.ClaimId, out var resubmission);
+
+                row.OutboundCount = outboundCount;
+                row.InboundCount = inboundCount;
+                row.RecordCount = outboundCount + inboundCount;
+                row.SubmissionLevel = DetermineSubmissionLevel(outboundCount, inboundCount, resubTypes);
+                row.NetAmtResubmission = resubmission?.NetAmount ?? 0m;
+                row.ResubmissionFile = resubmission?.Files ?? "";
+
+                if (!string.IsNullOrWhiteSpace(row.ResubmissionFile))
+                    row.SubmissionFile = $"{row.SubmissionFile} | Resub: {row.ResubmissionFile}";
+                if (ra != null)
+                {
+                    row.RaFile = ra.RaFile;
+                    row.RaDate = ra.RaDate;
+                    row.ClaimCategory = ra.ClaimCategory;
+                }
+                rows.Add(row);
+
+                if (i == 0 || (i + 1) % 500 == 0 || i + 1 == initialSubmissionRows.Count)
+                {
+                    var pct = 50 + (int)Math.Round(((i + 1) / (double)Math.Max(1, initialSubmissionRows.Count)) * 35);
+                    UpdateStage("Matching inbound and outbound", Math.Min(85, pct), i + 1, initialSubmissionRows.Count, $"Matched {i + 1:N0} of {initialSubmissionRows.Count:N0} initial claim row(s).");
                 }
             }
 
+            var exportRows = rows
+                .GroupBy(r => r.ClaimId, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderBy(r =>
+                {
+                    var dt = ParseDhpoDate(r.SubmissionDate) ?? ParseDhpoDate(r.TreatmentDate);
+                    return dt ?? DateTime.MaxValue;
+                }).First())
+                .ToList();
+
+            var matchedSubmissionIds = exportRows
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .Select(r => r.ClaimId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var unmatchedRemittances = remittanceClaims
+                .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+                .Where(r => !matchedSubmissionIds.Contains(r.ClaimId))
+                .Where(r => IsRemittanceWithinReportRange(r, report.DateFrom, report.DateTo))
+                .Select(r => new UnmatchedRemittanceRow
+                {
+                    TransactionRef = r.ClaimId.Trim(),
+                    RemittanceFileName = string.IsNullOrWhiteSpace(r.FileName) ? "-" : r.FileName.Trim()
+                })
+                .GroupBy(r => $"{r.TransactionRef}\u001F{r.RemittanceFileName}", StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(r => r.TransactionRef, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(r => r.RemittanceFileName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             // ── Build Excel ────────────────────────────────────────────
+            UpdateStage("Generating workbook", 90, exportRows.Count, exportRows.Count, $"Grouping complete; writing {exportRows.Count:N0} matched row(s) to Excel and {unmatchedRemittances.Count:N0} unmatched remittance note(s).");
             using var wb = new XLWorkbook();
-            var ws = wb.Worksheets.Add("Claim Summary");
+            wb.Style.Font.FontName = "Inter";
+            var ws = wb.Worksheets.Add(GetWorksheetName(report.ReportType));
+            const int tableHeaderRow = 8;
 
             var headers = new[]
             {
@@ -169,101 +494,160 @@ public class ReportService : IReportService
                 "Payer", "Payer Name", "Patient ID", "Member Id",
                 "Treatment Date", "Date Of Admission", "Submission Date",
                 "Encounter Type", "Clinician", "Service Year", "Service Month",
-                "Submission Level", "Net Amt - Initial Sub", "RA Received Amt",
+                "Record Count", "Submission Level",
+                "Gross Amt", "Net Amt - Initial Sub", "RA Received Amt",
                 "Net Amt - Resubmission", "Approved Amt",
                 "Initial Sub Rejected Amt", "Rejected Amt - Resubmission",
-                "Unsettled Amt", "Payment Status", "Denial Code",
+                "Unsettled Amt", "Payment Status", "Claim Category", "Denial Code",
                 "Denial Description", "Payment Ref", "Settlement Date",
-                "ID Payer", "Submission File", "RA File", "RA Date", "TAT", "Diagnosis"
+                "ID Payer", "Submission File", "RA File", "RA Date", "TAT",
+                "Principal Diagnosis", "All Diagnoses",
+                "Patient Gender", "Patient DOB", "National ID"
             };
+
+            ApplyGhafReportHeader(ws, headers.Length, report, exportRows.Count, unmatchedRemittances.Count);
 
             // Header row styling
             for (int c = 0; c < headers.Length; c++)
             {
-                var cell = ws.Cell(1, c + 1);
+                var cell = ws.Cell(tableHeaderRow, c + 1);
                 cell.Value = headers[c];
                 cell.Style.Font.Bold = true;
                 cell.Style.Font.FontColor = XLColor.White;
-                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1A2F6E");
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPrimary);
                 cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
+            var tableHeaderRange = ws.Range(tableHeaderRow, 1, tableHeaderRow, headers.Length);
+            tableHeaderRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+            tableHeaderRange.Style.Border.BottomBorderColor = XLColor.FromHtml(GhafTeal);
 
             // Data rows
-            for (int i = 0; i < rows.Count; i++)
+            for (int i = 0; i < exportRows.Count; i++)
             {
-                var r   = rows[i];
-                var ra  = r.Ra;
-                var rn  = i + 2;
+                var r = exportRows[i];
+                var ra = r.Ra;
+                var rn = tableHeaderRow + 1 + i;
 
-                var netInitial   = r.NetAmtInitial;
-                var approvedAmt  = ra?.ApprovedAmt ?? 0m;
-                var receivedAmt  = ra?.ReceivedAmt ?? 0m;
-                var unsettled    = ra == null ? netInitial : Math.Max(0m, netInitial - approvedAmt);
-                var rejInitial   = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
-                var payStatus    = ra == null ? "Pending" : (approvedAmt <= 0 ? "Rejected" : approvedAmt < netInitial - 0.01m ? "Partial" : "Paid");
+                var netInitial = r.NetAmtInitial;
+                var netResubmission = r.NetAmtResubmission;
+                var approvedAmt = ra?.ApprovedAmt ?? 0m;
+                var receivedAmt = ra?.ReceivedAmt ?? 0m;
+                var balanceAmount = netResubmission > 0m ? netResubmission : netInitial;
+                var unsettled = ra == null ? balanceAmount : Math.Max(0m, balanceAmount - approvedAmt);
+                var rejInitial = ra == null ? 0m : Math.Max(0m, netInitial - approvedAmt);
+                var rejResubmission = netResubmission > 0m && ra != null ? Math.Max(0m, netResubmission - approvedAmt) : 0m;
+                var hasResubmission = r.NetAmtResubmission > 0m
+                    || r.SubmissionLevel.Contains("Resubmit", StringComparison.OrdinalIgnoreCase)
+                    || r.SubmissionLevel.Contains("Recon", StringComparison.OrdinalIgnoreCase)
+                    || r.SubmissionLevel.Contains("awaiting RA", StringComparison.OrdinalIgnoreCase);
+                var payStatus = ra == null
+                    ? (hasResubmission ? "Pending - Resubmitted" : "Pending")
+                    : (approvedAmt <= 0 ? "Rejected" : approvedAmt < balanceAmount - 0.01m ? "Partial" : "Paid");
 
                 // TAT in days
                 var tatDays = "";
-                if (ra != null && !string.IsNullOrEmpty(ra.SettlementDate))
+                if (ra != null && ra.SettlementDateValue.HasValue)
                 {
-                    var subDt  = ParseDhpoDate(r.SubmissionDate);
-                    var settDt = ParseDhpoDate(ra.SettlementDate);
-                    if (subDt.HasValue && settDt.HasValue)
-                        tatDays = ((int)(settDt.Value - subDt.Value).TotalDays).ToString();
+                    var subDt = ParseDhpoDate(r.SubmissionDate);
+                    if (subDt.HasValue)
+                        tatDays = ((int)(ra.SettlementDateValue.Value.Date - subDt.Value.Date).TotalDays).ToString();
                 }
 
-                ws.Cell(rn, 1).Value  = r.Facility;
-                ws.Cell(rn, 2).Value  = r.ClaimId;
-                ws.Cell(rn, 3).Value  = r.ReceiverId;
-                ws.Cell(rn, 4).Value  = r.ReceiverName;
-                ws.Cell(rn, 5).Value  = r.PayerId;
-                ws.Cell(rn, 6).Value  = r.PayerName;
-                ws.Cell(rn, 7).Value  = r.PatientId;
-                ws.Cell(rn, 8).Value  = r.MemberId;
-                ws.Cell(rn, 9).Value  = r.TreatmentDate;
+                ws.Cell(rn, 1).Value = r.Facility;
+                ws.Cell(rn, 2).Value = r.ClaimId;
+                ws.Cell(rn, 3).Value = r.ReceiverId;
+                ws.Cell(rn, 4).Value = r.ReceiverName;
+                ws.Cell(rn, 5).Value = r.PayerId;
+                ws.Cell(rn, 6).Value = r.PayerName;
+                ws.Cell(rn, 7).Value = r.PatientId;
+                ws.Cell(rn, 8).Value = r.MemberId;
+                ws.Cell(rn, 9).Value = r.TreatmentDate;
                 ws.Cell(rn, 10).Value = r.DateOfAdmission;
                 ws.Cell(rn, 11).Value = r.SubmissionDate;
                 ws.Cell(rn, 12).Value = r.EncounterType;
                 ws.Cell(rn, 13).Value = r.Clinician;
                 ws.Cell(rn, 14).Value = r.ServiceYear;
                 ws.Cell(rn, 15).Value = r.ServiceMonth;
-                ws.Cell(rn, 16).Value = r.SubmissionLevel;
-                ws.Cell(rn, 17).Value = netInitial;
-                ws.Cell(rn, 18).Value = receivedAmt;
-                ws.Cell(rn, 19).Value = 0m;           // Resubmission net — not yet available
-                ws.Cell(rn, 20).Value = approvedAmt;
-                ws.Cell(rn, 21).Value = rejInitial;
-                ws.Cell(rn, 22).Value = 0m;           // Rejected resubmission
-                ws.Cell(rn, 23).Value = unsettled;
-                ws.Cell(rn, 24).Value = payStatus;
-                ws.Cell(rn, 25).Value = ra?.DenialCode ?? "";
-                ws.Cell(rn, 26).Value = ra?.DenialDescription ?? "";
-                ws.Cell(rn, 27).Value = ra?.PaymentRef ?? "";
-                ws.Cell(rn, 28).Value = ra?.SettlementDate ?? "";
-                ws.Cell(rn, 29).Value = r.IdPayer;
-                ws.Cell(rn, 30).Value = r.SubmissionFile;
-                ws.Cell(rn, 31).Value = ra?.RaFile ?? "";
-                ws.Cell(rn, 32).Value = ra?.RaDate ?? "";
-                ws.Cell(rn, 33).Value = tatDays;
-                ws.Cell(rn, 34).Value = r.PrincipalDiagnosis;
+                ws.Cell(rn, 16).Value = r.RecordCount;
+                ws.Cell(rn, 17).Value = r.SubmissionLevel;
+                ws.Cell(rn, 18).Value = r.GrossAmtInitial;
+                ws.Cell(rn, 19).Value = netInitial;
+                ws.Cell(rn, 20).Value = receivedAmt;
+                ws.Cell(rn, 21).Value = netResubmission;
+                ws.Cell(rn, 22).Value = approvedAmt;
+                ws.Cell(rn, 23).Value = rejInitial;
+                ws.Cell(rn, 24).Value = rejResubmission;
+                ws.Cell(rn, 25).Value = unsettled;
+                ws.Cell(rn, 26).Value = payStatus;
+                ws.Cell(rn, 27).Value = r.ClaimCategory;
+                ws.Cell(rn, 28).Value = ra?.DenialCode ?? "";
+                ws.Cell(rn, 29).Value = ra?.DenialDescription ?? "";
+                ws.Cell(rn, 30).Value = ra?.PaymentRef ?? "";
+                ws.Cell(rn, 31).Value = ra?.SettlementDate ?? "";
+                ws.Cell(rn, 32).Value = r.IdPayer;
+                ws.Cell(rn, 33).Value = r.SubmissionFile;
+                ws.Cell(rn, 34).Value = r.RaFile;
+                ws.Cell(rn, 35).Value = r.RaDate;
+                ws.Cell(rn, 36).Value = tatDays;
+                ws.Cell(rn, 37).Value = r.PrincipalDiagnosis;
+                ws.Cell(rn, 38).Value = r.DiagnosesDisplay;
+                ws.Cell(rn, 39).Value = r.PatientGender;
+                ws.Cell(rn, 40).Value = r.PatientDob;
+                ws.Cell(rn, 41).Value = r.PatientNationalId;
 
                 // Zebra stripe
                 if (i % 2 == 1)
-                    ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F8F9FA");
+                    ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
 
                 // Amount columns format
-                foreach (var col in new[] { 17, 18, 19, 20, 21, 22, 23 })
+                foreach (var col in new[] { 18, 19, 20, 21, 22, 23, 24, 25 })
                     ws.Cell(rn, col).Style.NumberFormat.Format = "#,##0.00";
+
+                ws.Row(rn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                ws.Row(rn).Style.Border.BottomBorderColor = XLColor.FromHtml("#D9EFEA");
             }
 
-            ws.Row(1).Height = 20;
-            ws.SheetView.FreezeRows(1);
-            ws.Columns().AdjustToContents();
+            if (unmatchedRemittances.Count > 0)
+            {
+                var noteRow = tableHeaderRow + exportRows.Count + 3;
+                ws.Cell(noteRow, 1).Value = "Ledger Note";
+                ws.Cell(noteRow, 1).Style.Font.Bold = true;
+                ws.Cell(noteRow, 1).Style.Font.FontColor = XLColor.White;
+                ws.Range(noteRow, 1, noteRow, 3).Merge().Style.Fill.BackgroundColor = XLColor.FromHtml("#991B1B");
+
+                ws.Cell(noteRow + 1, 1).Value = "Unmatched Remittance records found";
+                ws.Range(noteRow + 1, 1, noteRow + 1, 3).Merge();
+                ws.Cell(noteRow + 1, 1).Style.Font.Bold = true;
+                ws.Cell(noteRow + 1, 1).Style.Font.FontColor = XLColor.FromHtml("#991B1B");
+                ws.Cell(noteRow + 1, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+
+                ws.Cell(noteRow + 2, 1).Value = "Transaction Ref";
+                ws.Cell(noteRow + 2, 2).Value = "Remittance file name";
+                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Font.Bold = true;
+                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPale);
+
+                for (int i = 0; i < unmatchedRemittances.Count; i++)
+                {
+                    var note = unmatchedRemittances[i];
+                    var rn = noteRow + 3 + i;
+                    ws.Cell(rn, 1).Value = note.TransactionRef;
+                    ws.Cell(rn, 2).Value = note.RemittanceFileName;
+                }
+            }
 
             // Auto-filter
-            ws.RangeUsed()?.SetAutoFilter();
+            var mainTableLastRow = tableHeaderRow + Math.Max(0, exportRows.Count);
+            ws.Range(tableHeaderRow, 1, mainTableLastRow, headers.Length).SetAutoFilter();
+
+            ws.Row(tableHeaderRow).Height = 24;
+            ws.SheetView.FreezeRows(tableHeaderRow);
+            ws.SheetView.FreezeColumns(2);
+            ws.Columns(1, headers.Length).AdjustToContents(1, Math.Min(mainTableLastRow, tableHeaderRow + 500));
+            ApplyGhafReportLayout(ws, headers.Length, mainTableLastRow);
 
             wb.SaveAs(filePath);
+            UpdateStage("Saving report", 95, exportRows.Count, exportRows.Count, "Workbook saved. Finalizing report record.");
 
             report.Status = "Completed";
             report.GeneratedAt = DateTime.UtcNow;
@@ -271,50 +655,1301 @@ public class ReportService : IReportService
 
             // Send email if recipients were specified
             if (!string.IsNullOrWhiteSpace(report.EmailTo))
-                await _emailService.SendReportAsync(report.EmailTo, report.ReportId, report.ReportType, filePath);
+            {
+                try
+                {
+                    UpdateStage("Sending email", 98, exportRows.Count, exportRows.Count, $"Sending report to {report.EmailTo}.");
+                    await _emailService.SendReportAsync(report.EmailTo, report.ReportId, report.ReportType, filePath);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning(emailEx, "Report {ReportId} generated but email delivery failed.", report.ReportId);
+                }
+            }
+
+            ReportGenerationState.Finish(report.Id, $"Report {report.ReportId} completed successfully.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate report {ReportId}", report.ReportId);
             report.Status = "Failed";
+            ReportGenerationState.Fail(report.Id, $"Report {report.ReportId} failed: {ex.Message}");
         }
 
         await _context.SaveChangesAsync();
     }
 
+    // Reports are written to a persistent folder NEXT TO the database (the data dir),
+    // NOT inside wwwroot — otherwise every `dotnet publish` redeploy wipes them and
+    // downloads 404 with "File not found on server". Shared with the download path.
+    public static string ResolveReportsDirectory(string? dbConnectionString, string fallbackWebRoot)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(dbConnectionString))
+            {
+                var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(dbConnectionString).DataSource;
+                if (!string.IsNullOrWhiteSpace(dbPath))
+                {
+                    var dir = Path.GetDirectoryName(Path.GetFullPath(dbPath));
+                    if (!string.IsNullOrEmpty(dir)) return Path.Combine(dir, "reports");
+                }
+            }
+        }
+        catch { }
+        return Path.Combine(fallbackWebRoot, "reports");
+    }
+
+    private string GetReportsDirectory()
+        => ResolveReportsDirectory(_context.Database.GetDbConnection().ConnectionString, _env.WebRootPath);
+
+    // Facility scope from the multi-select JSON (source of truth); falls back to the
+    // single BranchId. Empty list = all facilities.
+    private static List<int> ResolveFacilityIds(ReportRequest report)
+    {
+        var ids = new List<int>();
+        if (!string.IsNullOrWhiteSpace(report.FacilityIdsJson))
+        {
+            try { ids = System.Text.Json.JsonSerializer.Deserialize<List<int>>(report.FacilityIdsJson) ?? new(); }
+            catch { }
+        }
+        if (ids.Count == 0 && report.BranchId.HasValue) ids.Add(report.BranchId.Value);
+        return ids.Where(i => i > 0).Distinct().ToList();
+    }
+
+    private static HashSet<string> ResolveEncounterTypes(ReportRequest report)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(report.EncounterTypesJson))
+        {
+            try { foreach (var e in System.Text.Json.JsonSerializer.Deserialize<List<string>>(report.EncounterTypesJson) ?? new())
+                    if (!string.IsNullOrWhiteSpace(e)) set.Add(e.Trim()); }
+            catch { }
+        }
+        if (set.Count == 0 && !string.IsNullOrWhiteSpace(report.EncounterType)) set.Add(report.EncounterType.Trim());
+        return set;
+    }
+
+    private async Task FinalizeReportAsync(ReportRequest report, string fileName, string filePath,
+        Action<string, int, int, int, string?> updateStage)
+    {
+        report.Status = "Completed";
+        report.GeneratedAt = DateTime.UtcNow;
+        report.FilePath = $"/reports/{fileName}";
+        await _context.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(report.EmailTo))
+        {
+            try
+            {
+                updateStage("Sending email", 98, 0, 0, $"Sending report to {report.EmailTo}.");
+                await _emailService.SendReportAsync(report.EmailTo, report.ReportId, report.ReportType, filePath);
+            }
+            catch (Exception emailEx)
+            {
+                _logger.LogWarning(emailEx, "Report {ReportId} generated but email delivery failed.", report.ReportId);
+            }
+        }
+        ReportGenerationState.Finish(report.Id, $"Report {report.ReportId} completed successfully.");
+    }
+
+    private void WriteReportHeaderRow(IXLWorksheet ws, string[] headers, int headerRow)
+    {
+        for (int c = 0; c < headers.Length; c++)
+        {
+            var cell = ws.Cell(headerRow, c + 1);
+            cell.Value = headers[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPrimary);
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        }
+    }
+
+    private void FinishReportSheet(IXLWorksheet ws, int headerRow, int columns, int dataRows)
+    {
+        var lastRow = headerRow + Math.Max(0, dataRows);
+        ws.Range(headerRow, 1, lastRow, columns).SetAutoFilter();
+        ws.Row(headerRow).Height = 24;
+        ws.SheetView.FreezeRows(headerRow);
+        ws.SheetView.FreezeColumns(2);
+        ws.Columns(1, columns).AdjustToContents(1, Math.Min(lastRow, headerRow + 500));
+        ApplyGhafReportLayout(ws, columns, lastRow);
+    }
+
+    // Slim projection for the remittance/denial report layouts.
+    private sealed record RemitReportRow(
+        int FacilityId, string ClaimId, string? PayerId, string? PayerName, string? Clinician,
+        string? EncounterType, string? ServiceYear, string? ServiceMonth, decimal NetAmount,
+        decimal PaidAmount, string? DenialCodesJson, string? PaymentReference,
+        string? SettlementDate, string? TransactionDate, string? FileName);
+
+    // ── Remittance Activity report — DHPO template format: 43 columns, one row
+    //    per claim ACTIVITY, sourced from XmlParsedActivities joined to the
+    //    remittance record + its submission + eClaimLink lookups. Flat table,
+    //    dark-teal header (matches the "2026 Remittance" template). ──
+    private static readonly string[] RaTemplateHeaders =
+    {
+        "Facility ID","Facility Name","Receiver ID","Receiver Name","Payer ID","Payer Name",
+        "Patient ID","Member Id","Emirates Id","Encounter Start Date","Encounter End Date",
+        "Encounter Start Year","Encounter Start Month","Last Submission Date","First Submission Date",
+        "Transaction Date","Claim Number","Encounter Type","Encounter End Type","IDPayer",
+        "Payment Reference","Date Settlement","Service Date","Clinician","Ordering Clinician",
+        "Activity Code","Activity Type","Activity Type Name","No Of Unit","Gross Amt","Net Amt",
+        "Patient Share","Payment Amt","Denial Code","Denial Description","Denial Catgeory",
+        "Denial Type","Activity Detail ID","RASubmission File Name","RAFille Id",
+        "Claim Submission File Name","Response Comments","RAPament For"
+    };
+
+    private async Task GenerateRemittanceActivityTemplateAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying remittances", 15, 0, 0, "Query: XmlParsedRecords where RecordKind = Remittance.");
+        var q = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+
+        // Date scope honours the report's Search Criteria:
+        //  • RA-side dates (RemittanceDate / SettlementDate) -> filter the RA rows directly.
+        //  • Claim-side dates (Encounter/Submission) -> RA records don't carry them, so
+        //    qualify CLAIMS by their submission date and include ALL of those claims' RAs
+        //    (full lifecycle) regardless of RA date. Applied in-memory after load.
+        var criteria = report.SearchCriteria ?? "RemittanceDate";
+        var df = report.DateFrom.ToString("yyyyMMdd");
+        var dt = report.DateTo.ToString("yyyyMMdd");
+        if (criteria == "SettlementDate")
+            q = q.Where(r => r.SettlementDate == null || r.SettlementDate.Length < 10
+                || (string.Compare(r.SettlementDate.Substring(6,4)+r.SettlementDate.Substring(3,2)+r.SettlementDate.Substring(0,2), df) >= 0
+                 && string.Compare(r.SettlementDate.Substring(6,4)+r.SettlementDate.Substring(3,2)+r.SettlementDate.Substring(0,2), dt) <= 0));
+        else if (criteria == "RemittanceDate")
+            q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
+                || (string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), df) >= 0
+                 && string.Compare(r.TransactionDate.Substring(6,4)+r.TransactionDate.Substring(3,2)+r.TransactionDate.Substring(0,2), dt) <= 0));
+        // else (claim-side): no SQL date filter — narrowed to qualifying claims after load.
+
+        var recs = await q.Select(r => new
+        {
+            r.Id, r.FacilityId, r.ClaimId, r.PayerId, r.PayerName, r.ReceiverId, r.ReceiverName,
+            r.PatientId, r.MemberId, r.PatientNationalId, r.TreatmentDate, r.TreatmentDateEnd,
+            r.ServiceYear, r.ServiceMonth, r.SubmissionDate, r.TransactionDate, r.EncounterType,
+            r.IdPayer, r.PaymentReference, r.SettlementDate, r.Clinician, r.FileName, r.FileId,
+            r.Comments, r.ResubmissionType
+        }).Take(400000).ToListAsync();
+
+        if (!IsRemittanceSideCriteria(criteria))
+        {
+            var qualClaims = await LoadClaimsBySubmissionCriteriaAsync(facilityIds, criteria, report.DateFrom, report.DateTo);
+            recs = recs.Where(r => r.ClaimId != null && qualClaims.Contains(r.ClaimId.Trim())).ToList();
+        }
+
+        updateStage("Loading lookups", 40, 0, 0, "Activities, submissions, and eClaimLink code sets.");
+        var recIds = recs.Select(r => r.Id).ToList();
+        var actByRec = new Dictionary<int, List<dynamic>>();
+        for (int i = 0; i < recIds.Count; i += 20000)
+        {
+            var chunk = recIds.Skip(i).Take(20000).ToList();
+            var acts = await _context.XmlParsedActivities.AsNoTracking()
+                .Where(a => chunk.Contains(a.XmlParsedRecordId))
+                .Select(a => new { a.XmlParsedRecordId, a.ActivityCode, a.ActivityType, a.Quantity,
+                    a.Net, a.Gross, a.PaymentAmount, a.DenialCode, a.Clinician, a.Start, a.OrderingClinician, a.Id })
+                .ToListAsync();
+            foreach (var a in acts)
+            {
+                if (!actByRec.TryGetValue(a.XmlParsedRecordId, out var list)) { list = new(); actByRec[a.XmlParsedRecordId] = list; }
+                list.Add(a);
+            }
+        }
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+        var payerLookup = await LoadPayerLookupAsync();
+        var clinicianLookup = await LoadClinicianLookupAsync();
+        var denialLookup = await LoadDenialLookupAsync();
+        var subFull = await LoadSubmissionFullAsync(facilityIds);
+        // RA round number per remittance record, computed over each claim's ENTIRE RA
+        // timeline (NOT the report's date window) — so a July RA that is really a claim's
+        // 2nd/3rd RA is labelled correctly even when its earlier RAs fall outside the window.
+        var raRoundOrdinal = await LoadRaRoundOrdinalAsync(facilityIds);
+        SubFull S(string? claimId) => subFull.TryGetValue(claimId ?? "", out var s) ? s : SubFull.Empty;
+        string PayerName(string? code) => code != null && payerLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        string ClinName(string? code) => code != null && clinicianLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        static string FacCode(string? file) { var m = file == null ? null : System.Text.RegularExpressions.Regex.Match(file, @"DHA-F-\d+"); return m is { Success: true } ? m.Value : ""; }
+        // One DHA-F code per facility (scan file names once) so col A is filled on
+        // every row even when an individual RA file name lacks the token.
+        var facCodeByFacility = new Dictionary<int, string>();
+        foreach (var r in recs)
+        {
+            if (facCodeByFacility.ContainsKey(r.FacilityId)) continue;
+            var code = FacCode(FirstNonBlank(r.FileName, S(r.ClaimId).FileName));
+            if (!string.IsNullOrEmpty(code)) facCodeByFacility[r.FacilityId] = code;
+        }
+
+        updateStage("Generating workbook", 80, recs.Count, recs.Count, $"Writing activity rows for {recs.Count:N0} remittance claim(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Calibri";
+        var ws = wb.Worksheets.Add("Remittance Activity");
+        const int hr = 1;   // flat table: header on row 1 (matches template)
+        WriteReportHeaderRow(ws, RaTemplateHeaders, hr);
+        ws.SheetView.FreezeRows(1);
+        ws.SheetView.FreezeColumns(2);
+
+        static string D(string? s) => string.IsNullOrWhiteSpace(s) ? "" : s!.Trim();
+        int rn = hr;
+        int written = 0;
+        foreach (var r in recs)
+        {
+            var s = S(r.ClaimId);
+            var payerCode = FirstNonBlank(r.PayerId, s.PayerId);
+            var acts = actByRec.TryGetValue(r.Id, out var al) ? al : new List<dynamic> { (dynamic?)null };
+            foreach (var a in acts)
+            {
+                rn++;
+                // Round number from the claim's full RA sequence (window-independent).
+                var raPaymentFor = OrdinalRa(raRoundOrdinal.TryGetValue(r.Id, out var raOrd) ? raOrd : 1);
+                ws.Cell(rn, 1).Value = facCodeByFacility.TryGetValue(r.FacilityId, out var fc) ? fc : FacCode(FirstNonBlank(r.FileName, s.FileName));
+                ws.Cell(rn, 2).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
+                ws.Cell(rn, 3).Value = D(FirstNonBlank(r.ReceiverId, s.ReceiverId));
+                ws.Cell(rn, 4).Value = D(FirstNonBlank(r.ReceiverName, s.ReceiverName));
+                ws.Cell(rn, 5).Value = D(payerCode);
+                ws.Cell(rn, 6).Value = D(PayerName(payerCode) ?? FirstNonBlank(r.PayerName, s.PayerName));
+                ws.Cell(rn, 7).Value = D(FirstNonBlank(r.PatientId, s.PatientId));
+                ws.Cell(rn, 8).Value = D(FirstNonBlank(r.MemberId, s.MemberId));
+                ws.Cell(rn, 9).Value = D(FirstNonBlank(r.PatientNationalId, s.NationalId));
+                ws.Cell(rn,10).Value = D(FirstNonBlank(s.TreatmentDate, r.TreatmentDate));
+                ws.Cell(rn,11).Value = D(FirstNonBlank(s.TreatmentDateEnd, r.TreatmentDateEnd));
+                ws.Cell(rn,12).Value = D(FirstNonBlank(s.ServiceYear, r.ServiceYear));
+                ws.Cell(rn,13).Value = D(FirstNonBlank(s.ServiceMonth, r.ServiceMonth));
+                ws.Cell(rn,14).Value = D(FirstNonBlank(s.SubmissionDate, r.SubmissionDate));
+                ws.Cell(rn,15).Value = D(FirstNonBlank(s.SubmissionDate, r.SubmissionDate));
+                ws.Cell(rn,16).Value = D(r.TransactionDate);
+                ws.Cell(rn,17).Value = D(r.ClaimId);
+                ws.Cell(rn,18).Value = D(FirstNonBlank(s.EncounterType, r.EncounterType));
+                ws.Cell(rn,19).Value = "";
+                ws.Cell(rn,20).Value = D(FirstNonBlank(r.IdPayer, s.IdPayer));
+                ws.Cell(rn,21).Value = D((r.PaymentReference ?? "").TrimStart('\''));
+                ws.Cell(rn,22).Value = D(r.SettlementDate);
+                if (a is null)
+                {
+                    for (int c = 23; c <= 38; c++) ws.Cell(rn, c).Value = "";
+                    ws.Cell(rn,24).Value = D(ClinName(FirstNonBlank(r.Clinician, s.Clinician)));
+                }
+                else
+                {
+                    var net = Math.Round((decimal)a.Net, 2); var gross = Math.Round((decimal)a.Gross, 2);
+                    ws.Cell(rn,23).Value = D((string?)a.Start);
+                    ws.Cell(rn,24).Value = D(ClinName(FirstNonBlank((string?)a.Clinician, r.Clinician, s.Clinician)));
+                    ws.Cell(rn,25).Value = D(ClinName((string?)a.OrderingClinician));
+                    ws.Cell(rn,26).Value = D((string?)a.ActivityCode);
+                    ws.Cell(rn,27).Value = D((string?)a.ActivityType);
+                    ws.Cell(rn,28).Value = ActivityTypeName((string?)a.ActivityType);
+                    ws.Cell(rn,29).Value = (double)(decimal)a.Quantity;
+                    ws.Cell(rn,30).Value = (double)gross; ws.Cell(rn,30).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Cell(rn,31).Value = (double)net;   ws.Cell(rn,31).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Cell(rn,32).Value = (double)Math.Max(0m, gross - net); ws.Cell(rn,32).Style.NumberFormat.Format = "#,##0.00";
+                    ws.Cell(rn,33).Value = (double)Math.Round((decimal)a.PaymentAmount, 2); ws.Cell(rn,33).Style.NumberFormat.Format = "#,##0.00";
+                    var dcode = (string?)a.DenialCode;
+                    ws.Cell(rn,34).Value = D(dcode);
+                    ws.Cell(rn,35).Value = D(dcode != null && denialLookup.TryGetValue(dcode, out var dd) ? dd : null);
+                    var (denCat, denType) = DenialClassify(dcode);
+                    ws.Cell(rn,36).Value = denCat;   // Denial Category (derived)
+                    ws.Cell(rn,37).Value = denType;  // Denial Type (derived)
+                    ws.Cell(rn,38).Value = (int)a.Id;
+                    if (!string.IsNullOrWhiteSpace(dcode))
+                    {
+                        ws.Cell(rn,34).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+                        ws.Cell(rn,34).Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                        ws.Cell(rn,34).Style.Font.Bold = true;
+                    }
+                }
+                ws.Cell(rn,39).Value = D(r.FileName);
+                ws.Cell(rn,40).Value = D(r.FileId);
+                ws.Cell(rn,41).Value = D(s.FileName);
+                ws.Cell(rn,42).Value = D(r.Comments);
+                ws.Cell(rn,43).Value = raPaymentFor;
+                if (written % 2 == 1) ws.Range(rn, 1, rn, RaTemplateHeaders.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+                written++;
+            }
+        }
+
+        if (written == 0)
+        {
+            ws.Range(hr + 1, 1, hr + 1, RaTemplateHeaders.Length).Merge();
+            ws.Cell(hr + 1, 1).Value = "No data available for the selected filters.";
+            ws.Cell(hr + 1, 1).Style.Font.Italic = true;
+            ws.Cell(hr + 1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        ws.Range(hr, 1, Math.Max(hr, rn), RaTemplateHeaders.Length).SetAutoFilter();
+        ws.Columns(1, RaTemplateHeaders.Length).AdjustToContents(1, Math.Min(rn, hr + 400));
+        for (var c = 1; c <= RaTemplateHeaders.Length; c++)
+            { var w = ws.Column(c).Width; if (w > 34) ws.Column(c).Width = 34; if (w < 10) ws.Column(c).Width = 10; }
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.FitToPages(0, 0);
+        ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
+        wb.SaveAs(filePath);
+    }
+
+    private static readonly string[] ClaimActivityHeaders =
+    {
+        "Facility","Claim Number","Payer ID","Payer Name","Patient ID","Member Id","Emirates Id",
+        "Encounter Type","Encounter Start Date","Submission Date","Service Year","Service Month",
+        "Clinician","Ordering Clinician","Activity Code","Activity Type","Activity Type Name",
+        "No Of Unit","Gross Amt","Net Amt (Billed)","RA Payment Amt","Activity Status",
+        "Denial Code","Denial Description","Denial Catgeory","Denial Type",
+        "Claim Submission File Name"
+    };
+
+    // Activity-level CLAIM report: one row per submission <Activity> line (the billed
+    // activities), enriched with the matching RA outcome (paid / denied) for that
+    // (ClaimId, ActivityCode). Sourced entirely from parsed XML.
+    private async Task GenerateClaimActivityWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying submissions", 15, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission.");
+        var q = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+
+        var df = report.DateFrom.ToString("yyyyMMdd");
+        var dt = report.DateTo.ToString("yyyyMMdd");
+        switch (report.SearchCriteria)
+        {
+            case "EncounterStartDate":
+                q = q.Where(r => r.TreatmentDate == null || r.TreatmentDate.Length < 10
+                    || (string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), df) >= 0
+                     && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), dt) <= 0));
+                break;
+            case "EncounterEndDate":
+                q = q.Where(r => r.TreatmentDateEnd == null || r.TreatmentDateEnd.Length < 10
+                    || (string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), df) >= 0
+                     && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), dt) <= 0));
+                break;
+            default: // SubmissionDate
+                q = q.Where(r => r.SubmissionDate == null || r.SubmissionDate.Length < 10
+                    || (string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), df) >= 0
+                     && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), dt) <= 0));
+                break;
+        }
+
+        var recs = await q.Select(r => new {
+            r.Id, r.FacilityId, r.ClaimId, r.PayerId, r.PayerName, r.PatientId, r.MemberId, r.PatientNationalId,
+            r.EncounterType, r.TreatmentDate, r.SubmissionDate, r.ServiceYear, r.ServiceMonth, r.Clinician, r.FileName
+        }).Take(400000).ToListAsync();
+
+        updateStage("Loading activities", 40, 0, 0, "Submission activities, RA outcomes, and eClaimLink code sets.");
+        var recIds = recs.Select(r => r.Id).ToList();
+        var subActs = new Dictionary<int, List<dynamic>>();
+        for (int i = 0; i < recIds.Count; i += 20000)
+        {
+            var chunk = recIds.Skip(i).Take(20000).ToList();
+            var acts = await _context.XmlParsedActivities.AsNoTracking()
+                .Where(a => chunk.Contains(a.XmlParsedRecordId))
+                .Select(a => new { a.XmlParsedRecordId, a.ActivityCode, a.ActivityType, a.Quantity, a.Net, a.Gross, a.Clinician, a.OrderingClinician })
+                .ToListAsync();
+            foreach (var a in acts)
+            {
+                if (!subActs.TryGetValue(a.XmlParsedRecordId, out var list)) { list = new(); subActs[a.XmlParsedRecordId] = list; }
+                list.Add(a);
+            }
+        }
+
+        // RA outcome per (ClaimId + ActivityCode): summed payment + any denial code — from
+        // remittance activities of the same claims. Scoped to the report's claim set.
+        var claimSet = recs.Select(r => (r.ClaimId ?? "").Trim())
+            .Where(c => c.Length > 0).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var remQ = _context.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
+        if (facilityIds.Count > 0) remQ = remQ.Where(r => facilityIds.Contains(r.FacilityId));
+        var remRecs = await remQ.Select(r => new { r.Id, r.ClaimId }).Take(400000).ToListAsync();
+        var relRemIdToClaim = remRecs
+            .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId) && claimSet.Contains(r.ClaimId!.Trim()))
+            .ToDictionary(r => r.Id, r => r.ClaimId!.Trim());
+        var raOutcome = new Dictionary<string, (decimal Paid, string? Denial)>(StringComparer.OrdinalIgnoreCase);
+        var relRemIds = relRemIdToClaim.Keys.ToList();
+        for (int i = 0; i < relRemIds.Count; i += 20000)
+        {
+            var chunk = relRemIds.Skip(i).Take(20000).ToList();
+            var acts = await _context.XmlParsedActivities.AsNoTracking()
+                .Where(a => chunk.Contains(a.XmlParsedRecordId))
+                .Select(a => new { a.XmlParsedRecordId, a.ActivityCode, a.PaymentAmount, a.DenialCode })
+                .ToListAsync();
+            foreach (var a in acts)
+            {
+                if (!relRemIdToClaim.TryGetValue(a.XmlParsedRecordId, out var cid)) continue;
+                var key = cid + "" + (a.ActivityCode ?? "").Trim();
+                raOutcome.TryGetValue(key, out var cur);
+                var denial = !string.IsNullOrWhiteSpace(a.DenialCode) ? a.DenialCode : cur.Denial;
+                raOutcome[key] = (cur.Paid + a.PaymentAmount, denial);
+            }
+        }
+
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+        var payerLookup = await LoadPayerLookupAsync();
+        var clinicianLookup = await LoadClinicianLookupAsync();
+        var denialLookup = await LoadDenialLookupAsync();
+        string PayerName(string? code) => code != null && payerLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        string ClinName(string? code) => code != null && clinicianLookup.TryGetValue(code, out var n) ? n : (code ?? "");
+        static string D(string? s) => string.IsNullOrWhiteSpace(s) ? "" : s!.Trim();
+
+        updateStage("Generating workbook", 80, recs.Count, recs.Count, $"Writing activity rows for {recs.Count:N0} submission claim(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Calibri";
+        var ws = wb.Worksheets.Add(GetWorksheetName(report.ReportType));
+        const int hr = 1;
+        WriteReportHeaderRow(ws, ClaimActivityHeaders, hr);
+        ws.SheetView.FreezeRows(1);
+        ws.SheetView.FreezeColumns(2);
+
+        int rn = hr; int written = 0;
+        foreach (var r in recs)
+        {
+            var acts = subActs.TryGetValue(r.Id, out var al) ? al : new List<dynamic>();
+            foreach (var a in acts)
+            {
+                rn++;
+                var actCode = (string?)a.ActivityCode;
+                var net = Math.Round((decimal)a.Net, 2); var gross = Math.Round((decimal)a.Gross, 2);
+                raOutcome.TryGetValue((r.ClaimId ?? "").Trim() + "" + (actCode ?? "").Trim(), out var ra);
+                var hasRa = raOutcome.ContainsKey((r.ClaimId ?? "").Trim() + "" + (actCode ?? "").Trim());
+                var paid = Math.Round(ra.Paid, 2);
+                var dcode = ra.Denial;
+                var status = !hasRa ? "Pending"
+                           : (!string.IsNullOrWhiteSpace(dcode) || paid <= 0.009m) ? "Denied"
+                           : (paid < net - 0.009m) ? "Partial" : "Paid";
+
+                ws.Cell(rn,1).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
+                ws.Cell(rn,2).Value = D(r.ClaimId);
+                ws.Cell(rn,3).Value = D(r.PayerId);
+                ws.Cell(rn,4).Value = D(PayerName(r.PayerId) ?? FirstNonBlank(r.PayerName));
+                ws.Cell(rn,5).Value = D(r.PatientId);
+                ws.Cell(rn,6).Value = D(r.MemberId);
+                ws.Cell(rn,7).Value = D(r.PatientNationalId);
+                ws.Cell(rn,8).Value = D(r.EncounterType);
+                ws.Cell(rn,9).Value = D(r.TreatmentDate);
+                ws.Cell(rn,10).Value = D(r.SubmissionDate);
+                ws.Cell(rn,11).Value = D(r.ServiceYear);
+                ws.Cell(rn,12).Value = D(r.ServiceMonth);
+                ws.Cell(rn,13).Value = D(ClinName(FirstNonBlank((string?)a.Clinician, r.Clinician)));
+                ws.Cell(rn,14).Value = D(ClinName((string?)a.OrderingClinician));
+                ws.Cell(rn,15).Value = D(actCode);
+                ws.Cell(rn,16).Value = D((string?)a.ActivityType);
+                ws.Cell(rn,17).Value = ActivityTypeName((string?)a.ActivityType);
+                ws.Cell(rn,18).Value = (double)(decimal)a.Quantity;
+                ws.Cell(rn,19).Value = (double)gross; ws.Cell(rn,19).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,20).Value = (double)net;   ws.Cell(rn,20).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,21).Value = (double)paid;  ws.Cell(rn,21).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn,22).Value = status;
+                ws.Cell(rn,23).Value = D(dcode);
+                ws.Cell(rn,24).Value = D(dcode != null && denialLookup.TryGetValue(dcode, out var dd) ? dd : null);
+                var (denCat, denType) = DenialClassify(dcode);
+                ws.Cell(rn,25).Value = denCat;
+                ws.Cell(rn,26).Value = denType;
+                ws.Cell(rn,27).Value = D(r.FileName);
+                if (status == "Denied")
+                {
+                    ws.Cell(rn,22).Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                    ws.Cell(rn,22).Style.Font.Bold = true;
+                }
+                if (!string.IsNullOrWhiteSpace(dcode))
+                {
+                    ws.Cell(rn,23).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+                    ws.Cell(rn,23).Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                    ws.Cell(rn,23).Style.Font.Bold = true;
+                }
+                if (written % 2 == 1)
+                    ws.Range(rn, 1, rn, ClaimActivityHeaders.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+                written++;
+            }
+        }
+
+        if (written == 0)
+        {
+            ws.Range(hr + 1, 1, hr + 1, ClaimActivityHeaders.Length).Merge();
+            ws.Cell(hr + 1, 1).Value = "No data available for the selected filters.";
+            ws.Cell(hr + 1, 1).Style.Font.Italic = true;
+            ws.Cell(hr + 1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        ws.Range(hr, 1, Math.Max(hr, rn), ClaimActivityHeaders.Length).SetAutoFilter();
+        ws.Columns(1, ClaimActivityHeaders.Length).AdjustToContents(1, Math.Min(rn, hr + 400));
+        for (var c = 1; c <= ClaimActivityHeaders.Length; c++)
+            { var w = ws.Column(c).Width; if (w > 34) ws.Column(c).Width = 34; if (w < 10) ws.Column(c).Width = 10; }
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.FitToPages(0, 0);
+        ws.PageSetup.SetRowsToRepeatAtTop(1, 1);
+        wb.SaveAs(filePath);
+    }
+
+    // ── Remittance Denial report — sourced from the complete parsed
+    //    remittance data in XmlParsedRecords (the RemittanceClaims table is only
+    //    ~9% populated). Denial = Net > Paid, or a denial code is present. ──
+    private async Task GenerateRemittanceWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, bool denialsOnly, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying remittances", 20, 0, 0, "Query: XmlParsedRecords where RecordKind = Remittance.");
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+
+        if (report.PayerId.HasValue)
+        {
+            var payer = report.Payer?.Name;
+            if (!string.IsNullOrWhiteSpace(payer))
+                q = q.Where(r => (r.PayerName != null && r.PayerName.Contains(payer))
+                              || (r.PayerId != null && r.PayerId.Contains(payer)));
+        }
+        if (report.ClinicianId.HasValue)
+        {
+            var clin = report.Clinician?.Name;
+            if (!string.IsNullOrWhiteSpace(clin))
+                q = q.Where(r => r.Clinician != null && r.Clinician.Contains(clin));
+        }
+
+        // Date window applied IN SQL, before any cap. (A previous Take(200000)
+        // before filtering silently dropped ~62k valid rows — caught by
+        // tools/validate_remittance_report.py.)
+        // The date column honours the report's Search Criteria. RA-related reports
+        // DEFAULT to RA Date (the RA record's DHPO TransactionDate) but the user may
+        // pick another header. All source columns are dd/MM/yyyy text; rows with a
+        // missing/short value pass through.
+        // RA-side dates (RemittanceDate/SettlementDate) filter the RA rows directly.
+        // Claim-side dates (Encounter/Submission) can't — RA records don't carry them,
+        // so those qualify CLAIMS by submission date and pull the claim's FULL RA history
+        // (applied after load). This replaces the old switch whose Encounter/Submission
+        // cases matched on always-null RA columns and leaked every row through.
+        var criteria = report.SearchCriteria ?? "RemittanceDate";
+        var df = report.DateFrom.ToString("yyyyMMdd");
+        var dt = report.DateTo.ToString("yyyyMMdd");
+        if (criteria == "SettlementDate")
+            q = q.Where(r => r.SettlementDate == null || r.SettlementDate.Length < 10
+                || (string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), df) >= 0
+                 && string.Compare(r.SettlementDate.Substring(6, 4) + r.SettlementDate.Substring(3, 2) + r.SettlementDate.Substring(0, 2), dt) <= 0));
+        else if (IsRemittanceSideCriteria(criteria))   // RemittanceDate (RA Date) — the default
+            q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
+                || (string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), df) >= 0
+                 && string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), dt) <= 0));
+        // else (claim-side): no SQL date filter — narrowed to qualifying claims after load.
+
+        // Project only the columns this layout needs — the full entity carries
+        // 40+ columns (diagnosis JSON, comments, patient fields) we never write.
+        var list = await q.Take(500000)
+            .Select(r => new RemitReportRow(
+                r.FacilityId, r.ClaimId, r.PayerId, r.PayerName, r.Clinician,
+                r.EncounterType, r.ServiceYear, r.ServiceMonth, r.NetAmount,
+                r.PaidAmount, r.DenialCodesJson, r.PaymentReference,
+                r.SettlementDate, r.TransactionDate, r.FileName))
+            .ToListAsync();
+
+        if (!IsRemittanceSideCriteria(criteria))
+        {
+            var qualClaims = await LoadClaimsBySubmissionCriteriaAsync(facilityIds, criteria, report.DateFrom, report.DateTo);
+            list = list.Where(r => r.ClaimId != null && qualClaims.Contains(r.ClaimId.Trim())).ToList();
+        }
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+        var encTypes = ResolveEncounterTypes(report);
+        // Denial reports append the human description to each denial code (from the
+        // imported eClaimLink denial-code set). RemittanceActivity keeps raw codes.
+        var denialDesc = denialsOnly ? await LoadDenialLookupAsync() : null;
+
+        // Remittance (RA) records carry NO payer/clinician/encounter data — that
+        // lives on the matching SUBMISSION (same ClaimId). Join it in, and resolve
+        // the payer/clinician CODE to its real name via the imported eClaimLink sets.
+        var payerLookup = await LoadPayerLookupAsync();
+        var clinicianLookup = await LoadClinicianLookupAsync();
+        var subMeta = await LoadSubmissionMetaAsync(facilityIds);
+        SubMeta Enrich(RemitReportRow r) => subMeta.TryGetValue(r.ClaimId ?? "", out var s) ? s : SubMeta.Empty;
+        // RA History: the full remittance cascade per claim (every RA in date order),
+        // so a claim that was part-paid then later denied/resubmitted reads as a sequence.
+        var raHistory = await LoadRaHistoryAsync(facilityIds);
+
+        var rows = new List<RemitReportRow>();
+        foreach (var r in list)
+        {
+            // Date window already applied in SQL. Encounter-type filter uses the
+            // ENRICHED encounter type (from the submission), then denials-only.
+            var encForFilter = !string.IsNullOrWhiteSpace(r.EncounterType) ? r.EncounterType : Enrich(r).EncounterType;
+            if (encTypes.Count > 0 && (string.IsNullOrWhiteSpace(encForFilter)
+                || !encTypes.Any(e => encForFilter!.Contains(e, StringComparison.OrdinalIgnoreCase))))
+                continue;
+            var denied = (r.NetAmount - r.PaidAmount) > 0.009m || HasDenialCodes(r.DenialCodesJson);
+            if (denialsOnly && !denied) continue;
+            rows.Add(r);
+        }
+
+        updateStage("Generating workbook", 80, rows.Count, rows.Count, $"Writing {rows.Count:N0} remittance row(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Calibri";
+        var ws = wb.Worksheets.Add(denialsOnly ? "Denial Activity"
+            : (report.ReportType == "RemittanceClaim" ? "Remittance Claim" : "Remittance Activity"));
+        var headers = new[]
+        {
+            "Facility", "Claim ID", "Payer", "Payer Name", "Clinician", "Encounter Type",
+            "Service Year", "Service Month", "Original (Net) Amt", "Paid Amt", "Denied Amt",
+            "Denial Codes", "Payment Ref", "Settlement Date", "RA File", "RA History"
+        };
+        const int cols = 16;
+
+        // ── Executive header: title band, summary block, KPI cards. Data is
+        //    untouched; this is presentation only. Table header lands at row 11. ──
+        const string Navy = "#0A2540", Teal = "#0F766E", Slate = "#334155",
+                     RedDk = "#B42318", RedBg = "#FEE4E2", AmberBg = "#FEF0C7",
+                     Ink = "#0F172A", Muted = "#64748B", ZebraBg = "#F1F5F9", Line = "#E2E8F0";
+        const int hr = 11;
+
+        // Financial roll-ups (rounded consistently with row + totals math).
+        decimal totOrig = rows.Sum(r => Math.Round(r.NetAmount, 2));
+        decimal totPaid = rows.Sum(r => Math.Round(r.PaidAmount, 2));
+        decimal totDenied = rows.Sum(r => Math.Max(0m, Math.Round(r.NetAmount, 2) - Math.Round(r.PaidAmount, 2)));
+        double denialRate = totOrig != 0 ? (double)(totDenied / totOrig) : 0d;
+
+        var facilityLabel = report.Branch?.Name ?? "All Facilities";
+        var title = denialsOnly ? "REMITTANCE DENIAL REPORT"
+            : (report.ReportType == "RemittanceClaim" ? "REMITTANCE CLAIM REPORT" : "REMITTANCE ACTIVITY REPORT");
+
+        // Title band (rows 1-3)
+        ws.Range(1, 1, 3, cols).Style.Fill.BackgroundColor = XLColor.FromHtml(Navy);
+        ws.Range(1, 1, 3, cols).Merge();
+        ws.Cell(1, 1).Value = title;
+        ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
+        ws.Cell(1, 1).Style.Font.Bold = true;
+        ws.Cell(1, 1).Style.Font.FontSize = 22;
+        ws.Cell(1, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+        ws.Cell(1, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        ws.Cell(1, 1).Style.Alignment.Indent = 1;
+
+        // Summary block (labels row 5, values row 6)
+        void Summary(int col, int span, string label, string value)
+        {
+            ws.Cell(5, col).Value = label.ToUpperInvariant();
+            ws.Cell(5, col).Style.Font.FontSize = 8;
+            ws.Cell(5, col).Style.Font.Bold = true;
+            ws.Cell(5, col).Style.Font.FontColor = XLColor.FromHtml(Muted);
+            if (span > 1) ws.Range(6, col, 6, col + span - 1).Merge();
+            ws.Cell(6, col).Value = value;
+            ws.Cell(6, col).Style.Font.FontSize = 11;
+            ws.Cell(6, col).Style.Font.Bold = true;
+            ws.Cell(6, col).Style.Font.FontColor = XLColor.FromHtml(Ink);
+        }
+        Summary(1, 3, "Facility", facilityLabel);
+        Summary(4, 3, "Reporting Period", $"{report.DateFrom:dd MMM yyyy} – {report.DateTo:dd MMM yyyy}");
+        Summary(8, 1, "Rows", rows.Count.ToString("N0", CultureInfo.InvariantCulture));
+        Summary(10, 3, "Generated", DateTime.Now.ToString("dd MMM yyyy HH:mm"));
+        Summary(13, 3, "Report ID", report.ReportId);
+        ws.Range(7, 1, 7, cols).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+        ws.Range(7, 1, 7, cols).Style.Border.BottomBorderColor = XLColor.FromHtml(Line);
+
+        // KPI cards (labels row 9, values row 10)
+        void Kpi(int c1, int c2, string label, double value, string bg, bool percent = false)
+        {
+            ws.Range(9, c1, 10, c2).Style.Fill.BackgroundColor = XLColor.FromHtml(bg);
+            ws.Range(9, c1, 9, c2).Merge();
+            ws.Range(10, c1, 10, c2).Merge();
+            ws.Cell(9, c1).Value = label.ToUpperInvariant();
+            ws.Cell(9, c1).Style.Font.FontSize = 8;
+            ws.Cell(9, c1).Style.Font.Bold = true;
+            ws.Cell(9, c1).Style.Font.FontColor = XLColor.White;
+            ws.Cell(9, c1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            ws.Cell(9, c1).Style.Alignment.Indent = 1;
+            ws.Cell(10, c1).Value = value;
+            ws.Cell(10, c1).Style.NumberFormat.Format = percent ? "0.0%" : "#,##0.00";
+            ws.Cell(10, c1).Style.Font.FontSize = 15;
+            ws.Cell(10, c1).Style.Font.Bold = true;
+            ws.Cell(10, c1).Style.Font.FontColor = XLColor.White;
+            ws.Cell(10, c1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            ws.Cell(10, c1).Style.Alignment.Indent = 1;
+        }
+        Kpi(1, 4, "Total Original Amount", (double)totOrig, Navy);
+        Kpi(5, 8, "Total Paid Amount", (double)totPaid, Teal);
+        Kpi(9, 11, "Total Denied Amount", (double)totDenied, RedDk);
+        Kpi(12, cols, "Denial Rate", denialRate, Slate, percent: true);
+        ws.Row(9).Height = 16;
+        ws.Row(10).Height = 24;
+
+        // ── Table header + data ──
+        WriteReportHeaderRow(ws, headers, hr);
+        // Fill blank descriptive fields with an en-dash placeholder for clean
+        // scanning. Identity columns (Facility, Claim ID) and amounts are never
+        // dashed; the validation agent treats "—" as blank.
+        static string D(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!;
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var r = rows[i]; var rn = hr + 1 + i;
+            // Money math: round each amount to 2dp FIRST, then derive Denied —
+            // raw REAL-backed doubles subtracted before rounding produced
+            // off-by-0.01 denied values (caught by the validation agent).
+            var net = Math.Round(r.NetAmount, 2);
+            var paid = Math.Round(r.PaidAmount, 2);
+            var denied = Math.Max(0m, net - paid);
+            // Fill descriptive fields from the matching submission (remittance
+            // rows are blank), then resolve payer/clinician CODE -> real name.
+            var s = Enrich(r);
+            var payerCode = FirstNonBlank(r.PayerId, s.PayerId, r.PayerName, s.PayerName);
+            var payerName = payerCode != null && payerLookup.TryGetValue(payerCode, out var pn) ? pn
+                            : FirstNonBlank(r.PayerName, s.PayerName, payerCode);
+            var clinCode = FirstNonBlank(r.Clinician, s.Clinician);
+            var clinName = clinCode != null && clinicianLookup.TryGetValue(clinCode, out var cn) ? cn : clinCode;
+            ws.Cell(rn, 1).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
+            ws.Cell(rn, 2).Value = r.ClaimId;
+            ws.Cell(rn, 3).Value = D(payerCode);
+            ws.Cell(rn, 4).Value = D(payerName);
+            ws.Cell(rn, 5).Value = D(clinName);
+            ws.Cell(rn, 6).Value = D(FirstNonBlank(r.EncounterType, s.EncounterType));
+            ws.Cell(rn, 7).Value = D(FirstNonBlank(r.ServiceYear, s.ServiceYear));
+            ws.Cell(rn, 8).Value = D(FirstNonBlank(r.ServiceMonth, s.ServiceMonth));
+            ws.Cell(rn, 9).Value = net;
+            ws.Cell(rn, 10).Value = paid;
+            ws.Cell(rn, 11).Value = denied;
+            var codes = FormatDenialCodes(r.DenialCodesJson, denialDesc);
+            ws.Cell(rn, 12).Value = D(codes);
+            // Some source PaymentReference values carry a leading apostrophe
+            // (an Excel text-marker artifact in the portal data). Strip it.
+            ws.Cell(rn, 13).Value = D((r.PaymentReference ?? "").TrimStart('\''));
+            ws.Cell(rn, 14).Value = D(r.SettlementDate);
+            ws.Cell(rn, 15).Value = D(r.FileName);
+            ws.Cell(rn, 16).Value = D(raHistory.TryGetValue(r.ClaimId ?? "", out var rah) ? rah : null);
+            foreach (var col in new[] { 9, 10, 11 })
+            {
+                ws.Cell(rn, col).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(rn, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            }
+            // Zebra striping for scan-ability
+            if (i % 2 == 1) ws.Range(rn, 1, rn, cols).Style.Fill.BackgroundColor = XLColor.FromHtml(ZebraBg);
+            // Conditional emphasis: denied amount + denial codes
+            if (denied > 0.009m)
+            {
+                ws.Cell(rn, 11).Style.Font.Bold = true;
+                ws.Cell(rn, 11).Style.Font.FontColor = XLColor.FromHtml(RedDk);
+                ws.Cell(rn, 11).Style.Fill.BackgroundColor = XLColor.FromHtml(RedBg);
+            }
+            if (!string.IsNullOrEmpty(codes))
+            {
+                ws.Cell(rn, 12).Style.Fill.BackgroundColor = XLColor.FromHtml(AmberBg);
+                ws.Cell(rn, 12).Style.Font.FontColor = XLColor.FromHtml(RedDk);
+                ws.Cell(rn, 12).Style.Font.Bold = true;
+            }
+        }
+
+        if (rows.Count == 0)
+        {
+            var mr = hr + 1;
+            ws.Range(mr, 1, mr, cols).Merge();
+            ws.Cell(mr, 1).Value = "No data available for the selected filters.";
+            ws.Cell(mr, 1).Style.Font.Italic = true;
+            ws.Cell(mr, 1).Style.Font.FontColor = XLColor.FromHtml("#8A6D3B");
+            ws.Cell(mr, 1).Style.Fill.BackgroundColor = XLColor.FromHtml(AmberBg);
+            ws.Cell(mr, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Row(mr).Height = 28;
+        }
+        else
+        {
+            // Totals row: financial sums must reconcile against the database source.
+            var tr = hr + rows.Count + 1;
+            ws.Range(tr, 1, tr, cols).Style.Fill.BackgroundColor = XLColor.FromHtml(Navy);
+            ws.Range(tr, 1, tr, cols).Style.Font.FontColor = XLColor.White;
+            ws.Cell(tr, 1).Value = "TOTALS";
+            ws.Cell(tr, 1).Style.Font.Bold = true;
+            ws.Cell(tr, 8).Value = $"{rows.Count:N0} rows";
+            ws.Cell(tr, 8).Style.Font.Bold = true;
+            ws.Cell(tr, 9).Value = totOrig;
+            ws.Cell(tr, 10).Value = totPaid;
+            ws.Cell(tr, 11).Value = totDenied;
+            foreach (var col in new[] { 9, 10, 11 })
+            {
+                ws.Cell(tr, col).Style.NumberFormat.Format = "#,##0.00";
+                ws.Cell(tr, col).Style.Font.Bold = true;
+                ws.Cell(tr, col).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            }
+            ws.Range(tr, 1, tr, cols).Style.Border.TopBorder = XLBorderStyleValues.Medium;
+        }
+
+        FinishReportSheet(ws, hr, cols, rows.Count);
+
+        // Readable, capped column widths (override autofit where it runs wide)
+        double[] widths = { 24, 16, 10, 26, 22, 14, 11, 12, 16, 16, 16, 20, 20, 18, 40, 60 };
+        for (int c = 0; c < cols; c++) ws.Column(c + 1).Width = widths[c];
+
+        // Print-friendly: landscape, fit width, repeat title+header, margins, footer.
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        ws.PageSetup.FitToPages(1, 0);
+        ws.PageSetup.Margins.Top = 0.5; ws.PageSetup.Margins.Bottom = 0.6;
+        ws.PageSetup.Margins.Left = 0.4; ws.PageSetup.Margins.Right = 0.4;
+        ws.PageSetup.SetRowsToRepeatAtTop(1, hr);
+        ws.PageSetup.Footer.Left.AddText(title + " · " + report.ReportId, XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText("Page ", XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(XLHFPredefinedText.PageNumber, XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(" of ", XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(XLHFPredefinedText.NumberOfPages, XLHFOccurrence.AllPages);
+
+        wb.SaveAs(filePath);
+    }
+
+    // ── Submission report (FAST) — claim-level submissions from the slim
+    //    XmlParsedRecords cache. No blob table, so it runs in seconds. ──
+    private async Task GenerateSubmissionClaimsWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying submissions", 20, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission.");
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+
+        // Date window in SQL on the submission's DHPO TransactionDate (dd/MM/yyyy);
+        // rows with a missing/short value pass through.
+        var df = report.DateFrom.ToString("yyyyMMdd");
+        var dt = report.DateTo.ToString("yyyyMMdd");
+        q = q.Where(r => r.TransactionDate == null || r.TransactionDate.Length < 10
+            || (string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), df) >= 0
+             && string.Compare(r.TransactionDate.Substring(6, 4) + r.TransactionDate.Substring(3, 2) + r.TransactionDate.Substring(0, 2), dt) <= 0));
+
+        var list = await q.Take(500000)
+            .Select(r => new
+            {
+                r.FacilityId, r.ClaimId, r.PayerId, r.PayerName, r.Clinician, r.EncounterType,
+                r.ServiceYear, r.ServiceMonth, r.NetAmount, r.SubmissionDate, r.TransactionDate, r.FileName
+            })
+            .ToListAsync();
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+
+        updateStage("Generating workbook", 80, list.Count, list.Count, $"Writing {list.Count:N0} submission row(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Calibri";
+        var ws = wb.Worksheets.Add("Submissions");
+        const int hr = 8;
+        var headers = new[]
+        {
+            "Facility", "Claim ID", "Payer", "Payer Name", "Clinician", "Encounter Type",
+            "Service Year", "Service Month", "Net (Billed) Amt", "Submission Date", "Transaction Date", "Source File"
+        };
+        ApplyGhafReportHeader(ws, headers.Length, report, list.Count, 0);
+        WriteReportHeaderRow(ws, headers, hr);
+        static string D(string? s) => string.IsNullOrWhiteSpace(s) ? "—" : s!;
+        for (int i = 0; i < list.Count; i++)
+        {
+            var r = list[i]; var rn = hr + 1 + i;
+            ws.Cell(rn, 1).Value = facNames.TryGetValue(r.FacilityId, out var fn) ? fn : $"Facility {r.FacilityId}";
+            ws.Cell(rn, 2).Value = r.ClaimId;
+            ws.Cell(rn, 3).Value = D(r.PayerId);
+            ws.Cell(rn, 4).Value = D(r.PayerName);
+            ws.Cell(rn, 5).Value = D(r.Clinician);
+            ws.Cell(rn, 6).Value = D(r.EncounterType);
+            ws.Cell(rn, 7).Value = D(r.ServiceYear);
+            ws.Cell(rn, 8).Value = D(r.ServiceMonth);
+            ws.Cell(rn, 9).Value = Math.Round(r.NetAmount, 2);
+            ws.Cell(rn, 9).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(rn, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+            ws.Cell(rn, 10).Value = D(r.SubmissionDate);
+            ws.Cell(rn, 11).Value = D(r.TransactionDate);
+            ws.Cell(rn, 12).Value = D(r.FileName);
+            if (i % 2 == 1) ws.Range(rn, 1, rn, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+        if (list.Count == 0)
+        {
+            var mr = hr + 1;
+            ws.Range(mr, 1, mr, headers.Length).Merge();
+            ws.Cell(mr, 1).Value = "No data available for the selected filters.";
+            ws.Cell(mr, 1).Style.Font.Italic = true;
+            ws.Cell(mr, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            ws.Cell(mr, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+        }
+        else
+        {
+            var tr = hr + list.Count + 1;
+            ws.Range(tr, 1, tr, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#0A2540");
+            ws.Range(tr, 1, tr, headers.Length).Style.Font.FontColor = XLColor.White;
+            ws.Cell(tr, 1).Value = "TOTALS";
+            ws.Cell(tr, 1).Style.Font.Bold = true;
+            ws.Cell(tr, 8).Value = $"{list.Count:N0} rows";
+            ws.Cell(tr, 8).Style.Font.Bold = true;
+            ws.Cell(tr, 9).Value = list.Sum(r => Math.Round(r.NetAmount, 2));
+            ws.Cell(tr, 9).Style.NumberFormat.Format = "#,##0.00";
+            ws.Cell(tr, 9).Style.Font.Bold = true;
+            ws.Cell(tr, 9).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+        }
+        FinishReportSheet(ws, hr, headers.Length, list.Count);
+        wb.SaveAs(filePath);
+    }
+
+    // ── Live Submission report — downloaded submission/claim FILE metadata
+    //    straight from PortalTransactions (no claim matching). File-level.
+    //    Backed by IX_PortalTransactions_Submission_Cover so it runs index-only. ──
+    private async Task GenerateSubmissionXmlWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Querying submission files", 20, 0, 0, "Query: PortalTransactions downloaded files.");
+        var q = _context.PortalTransactions.AsNoTracking().Where(t => t.FileDownloaded);
+        if (facilityIds.Count > 0) q = q.Where(t => facilityIds.Contains(t.FacilityId));
+        // PERF: PortalTransactions stores multi-MB FileContentXml/RawXml blobs
+        // BEFORE the metadata columns we need, so reading any post-blob column
+        // walks the blob overflow chain per row. ORDER BY SyncedAt (the LAST
+        // column) forced that traversal across the whole set and hung the report.
+        //   • Order by Id (rowid) — a chronological proxy that is free to sort.
+        //   • A covering index (IX_PortalTransactions_Submission_Cover) lets this
+        //     run index-only, avoiding the blobs entirely.
+        //   • CommandTimeout guarantees the job fails fast instead of hanging
+        //     forever if the index is not yet present.
+        _context.Database.SetCommandTimeout(180);
+        var list = await q.OrderByDescending(t => t.Id).Take(50000)
+            .Select(t => new
+            {
+                t.FacilityId, t.Portal, t.TransactionId, t.Type, t.Direction,
+                t.FileId, t.FileName, t.FileDownloadedAt, t.FileSizeBytes,
+                t.TransactionDate, t.Payer, t.Amount, t.Operation, t.SyncPeriod, t.SyncedAt
+            })
+            .ToListAsync();
+
+        var rows = list.Where(t =>
+        {
+            var d = ParseDhpoDate(t.TransactionDate);
+            return !d.HasValue || (d.Value.Date >= report.DateFrom.Date && d.Value.Date <= report.DateTo.Date);
+        }).ToList();
+
+        var facNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(f => f.Id, f => f.Name);
+
+        updateStage("Generating workbook", 80, rows.Count, rows.Count, $"Writing {rows.Count:N0} file row(s).");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Inter";
+        var ws = wb.Worksheets.Add("Submission XML Files");
+        const int hr = 8;
+        var headers = new[]
+        {
+            "Facility", "Portal", "Transaction ID", "Type", "Direction", "File ID", "File Name",
+            "Downloaded", "Size (KB)", "Transaction Date", "Payer", "Amount", "Operation", "Sync Period", "Synced At"
+        };
+        ApplyGhafReportHeader(ws, headers.Length, report, rows.Count, 0);
+        WriteReportHeaderRow(ws, headers, hr);
+        for (int i = 0; i < rows.Count; i++)
+        {
+            var t = rows[i]; var rn = hr + 1 + i;
+            ws.Cell(rn, 1).Value = facNames.TryGetValue(t.FacilityId, out var fn) ? fn : $"Facility {t.FacilityId}";
+            ws.Cell(rn, 2).Value = t.Portal;
+            ws.Cell(rn, 3).Value = t.TransactionId;
+            ws.Cell(rn, 4).Value = t.Type;
+            ws.Cell(rn, 5).Value = t.Direction ?? "";
+            ws.Cell(rn, 6).Value = t.FileId ?? "";
+            ws.Cell(rn, 7).Value = t.FileName ?? "";
+            ws.Cell(rn, 8).Value = t.FileDownloadedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Yes";
+            ws.Cell(rn, 9).Value = t.FileSizeBytes.HasValue ? Math.Round(t.FileSizeBytes.Value / 1024.0, 1) : 0;
+            ws.Cell(rn, 10).Value = t.TransactionDate ?? "";
+            ws.Cell(rn, 11).Value = t.Payer ?? "";
+            ws.Cell(rn, 12).Value = t.Amount ?? "";
+            ws.Cell(rn, 13).Value = t.Operation;
+            ws.Cell(rn, 14).Value = t.SyncPeriod ?? "";
+            ws.Cell(rn, 15).Value = t.SyncedAt.ToString("dd/MM/yyyy HH:mm");
+            if (i % 2 == 1) ws.Row(rn).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
+        }
+        FinishReportSheet(ws, hr, headers.Length, rows.Count);
+        wb.SaveAs(filePath);
+    }
+
+    private static bool HasDenialCodes(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        var s = json.Trim();
+        return s.Length > 2 && s != "[]" && !s.Equals("null", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatDenialCodes(string? json, IReadOnlyDictionary<string, string>? descLookup = null)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return "";
+        List<string>? arr = null;
+        try { arr = System.Text.Json.JsonSerializer.Deserialize<List<string>>(json); } catch { }
+        if (arr == null || arr.Count == 0)
+        {
+            var raw = json.Trim('[', ']', '"', ' ');
+            arr = raw.Length == 0 ? new() : raw.Split(',').Select(s => s.Trim()).ToList();
+        }
+        var codes = arr.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim());
+        if (descLookup == null)
+            return string.Join(", ", codes);
+        // Denial report: append the human description to each code.
+        return string.Join("; ", codes.Select(c =>
+            descLookup.TryGetValue(c, out var d) && !string.IsNullOrWhiteSpace(d) ? $"{c} — {d}" : c));
+    }
+
+    // Shared executive report palette (matches GenerateRemittanceWorkbookAsync).
+    private const string RptNavy = "#0A2540", RptMuted = "#64748B", RptInk = "#0F172A", RptLine = "#E2E8F0";
+
+    private void ApplyGhafReportHeader(IXLWorksheet ws, int lastColumn, ReportRequest report, int rowCount, int unmatchedRemittanceCount)
+    {
+        var title = GetReportTitle(report.ReportType).ToUpperInvariant();
+        var generatedLocal = DateTime.Now;
+        var period = $"{report.DateFrom:dd MMM yyyy} – {report.DateTo:dd MMM yyyy}";
+        var facility = report.Branch?.Name ?? "All Facilities";
+
+        // Executive header: navy title band + structured summary block.
+        // Unbranded — no logo, company/application name, taglines, or contacts.
+        // Table header lands at row 8 (unchanged) so all callers stay aligned.
+        ws.Range(1, 1, 3, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml(RptNavy);
+        ws.Range(1, 1, 3, lastColumn).Merge();
+        ws.Cell(1, 1).Value = title;
+        ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
+        ws.Cell(1, 1).Style.Font.Bold = true;
+        ws.Cell(1, 1).Style.Font.FontSize = 20;
+        ws.Cell(1, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        ws.Cell(1, 1).Style.Alignment.Indent = 1;
+
+        AddReportMeta(ws, 5, 1, "Facility", facility);
+        AddReportMeta(ws, 5, 4, "Reporting Period", period);
+        AddReportMeta(ws, 5, 8, "Rows", rowCount.ToString("N0", CultureInfo.InvariantCulture));
+        AddReportMeta(ws, 5, 11, "Generated", generatedLocal.ToString("dd MMM yyyy HH:mm"));
+        AddReportMeta(ws, 5, 14, "Report ID", report.ReportId);
+        if (unmatchedRemittanceCount > 0)
+            AddReportMeta(ws, 5, 17, "Ledger Notes", unmatchedRemittanceCount.ToString("N0", CultureInfo.InvariantCulture));
+
+        ws.Range(7, 1, 7, lastColumn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+        ws.Range(7, 1, 7, lastColumn).Style.Border.BottomBorderColor = XLColor.FromHtml(RptLine);
+
+        ws.Row(1).Height = 30;
+        ws.Row(2).Height = 4;
+        ws.Row(4).Height = 6;
+        ws.Row(5).Height = 14;
+        ws.Row(6).Height = 20;
+        ws.Row(7).Height = 6;
+    }
+
+    // Stacked summary field: small-caps muted label (row) over bold value (row+1).
+    private void AddReportMeta(IXLWorksheet ws, int row, int column, string label, string value)
+    {
+        ws.Cell(row, column).Value = label.ToUpperInvariant();
+        ws.Cell(row, column).Style.Font.FontSize = 8;
+        ws.Cell(row, column).Style.Font.Bold = true;
+        ws.Cell(row, column).Style.Font.FontColor = XLColor.FromHtml(RptMuted);
+
+        ws.Range(row + 1, column, row + 1, column + 2).Merge();
+        ws.Cell(row + 1, column).Value = value;
+        ws.Cell(row + 1, column).Style.Font.FontSize = 11;
+        ws.Cell(row + 1, column).Style.Font.Bold = true;
+        ws.Cell(row + 1, column).Style.Font.FontColor = XLColor.FromHtml(RptInk);
+    }
+
+    private void ApplyGhafReportLayout(IXLWorksheet ws, int lastColumn, int lastTableRow)
+    {
+        ws.Range(1, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Font.FontName = "Inter";
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorderColor = XLColor.FromHtml("#D9EFEA");
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorderColor = XLColor.FromHtml(GhafBorder);
+
+        ws.Columns(1, lastColumn).Style.Alignment.WrapText = false;
+        ws.Columns(33, 41).Style.Alignment.WrapText = true;
+        ws.Column(2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+        ws.Column(2).Style.Font.Bold = true;
+        ws.Column(16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        ws.Column(26).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+        ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
+        ws.PageSetup.FitToPages(1, 0);
+        ws.PageSetup.Margins.Top = 0.4;
+        ws.PageSetup.Margins.Bottom = 0.5;
+        ws.PageSetup.Margins.Left = 0.25;
+        ws.PageSetup.Margins.Right = 0.25;
+        ws.SheetView.ZoomScale = 90;
+        // Repeat the title band + summary + column headers on every printed page,
+        // and a clean unbranded footer (page numbers only).
+        ws.PageSetup.SetRowsToRepeatAtTop(1, 8);
+        ws.PageSetup.Footer.Right.AddText("Page ", XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(XLHFPredefinedText.PageNumber, XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(" of ", XLHFOccurrence.AllPages);
+        ws.PageSetup.Footer.Right.AddText(XLHFPredefinedText.NumberOfPages, XLHFOccurrence.AllPages);
+
+        for (var c = 1; c <= lastColumn; c++)
+        {
+            var width = ws.Column(c).Width;
+            if (width > 34)
+                ws.Column(c).Width = 34;
+            if (width < 9)
+                ws.Column(c).Width = 9;
+        }
+
+        ws.Column(2).Width = 26;
+        ws.Column(6).Width = 28;
+        ws.Column(29).Width = 30;
+        ws.Column(33).Width = 36;
+        ws.Column(34).Width = 36;
+        ws.Column(37).Width = 20;
+        ws.Column(38).Width = 32;
+        ws.Column(41).Width = 20;
+    }
+
+    private string? ResolveReportLogoPath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884-2x.jpg"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.jpg"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.png"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-soft-78C2C2.png"),
+            Path.Combine(_env.WebRootPath, "images", "ghaf-report-logo-teal.png"),
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-exact-teal.png",
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-lockup-exact-teal.png",
+            "/Users/jawaa/Library/CloudStorage/OneDrive-GhafBusinessServices/Ghaf Docs/Ghaf Logo !/ghaf logo/Working file/resized/ghaf-logo-max-2048.jpg",
+            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo.png"
+        };
+
+        return candidates.FirstOrDefault(System.IO.File.Exists);
+    }
+
+    private static void WriteTextFallbackLogo(IXLWorksheet ws)
+    {
+        ws.Cell(2, 2).Value = "GHAF";
+        ws.Cell(2, 2).Style.Font.Bold = true;
+        ws.Cell(2, 2).Style.Font.FontSize = 20;
+        ws.Cell(2, 2).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(3, 2).Value = "BUSINESS SERVICES";
+        ws.Cell(3, 2).Style.Font.FontSize = 8;
+        ws.Cell(3, 2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+    }
+
+    private static string GetReportTitle(string reportType) => reportType switch
+    {
+        "ClaimSummary" => "Claim Summary Report",
+        "ClaimActivity" => "Claim Activity Report",
+        "RemittanceActivity" => "Remittance Activity Report",
+        "RemittanceClaim" => "Remittance Claim Report",
+        "ClaimReceiver" => "Claim Receiver Report",
+        "ClaimClinician" => "Claim Clinician Report",
+        "FinanceTAT" => "Finance TAT Report",
+        "DenialReport" => "Denial Query Report",
+        "ClaimLifeCycle" => "Claim Life Cycle Report",
+        "SubmissionXML" => "Submission XML File Report",
+        "LiveSubmission" => "Live Submission Report",
+        // Unbranded fallback — the title must never carry company/app branding.
+        _ => "Analytics Report"
+    };
+
+    private static string GetWorksheetName(string reportType)
+    {
+        var title = reportType switch
+        {
+            "ClaimSummary" => "Claim Summary",
+            "ClaimActivity" => "Claim Activity",
+            "RemittanceActivity" => "Remittance Activity",
+            "RemittanceClaim" => "Remittance Claims",
+            "ClaimReceiver" => "Claim Receiver",
+            "ClaimClinician" => "Claim Clinician",
+            "FinanceTAT" => "Finance TAT",
+            "DenialReport" => "Denial Query",
+            "ClaimLifeCycle" => "Claim Life Cycle",
+            "SubmissionXML" => "Submissions",
+            "LiveSubmission" => "Live Submissions",
+            _ => "Report"
+        };
+
+        return title.Length <= 31 ? title : title[..31];
+    }
+
     // ── XML parsers ────────────────────────────────────────────────────
 
+    private static ClaimRow MapParsedSubmission(
+        XmlParsedRecord record,
+        string facilityName,
+        IReadOnlyDictionary<string, string> payerLookup)
+    {
+        var receiverId = record.ReceiverId ?? "";
+        var payerId = record.PayerId ?? "";
+
+        var diagDisplay = "";
+        if (!string.IsNullOrWhiteSpace(record.DiagnosesJson))
+        {
+            try
+            {
+                var diags = JsonSerializer.Deserialize<List<DiagnosisEntry>>(record.DiagnosesJson);
+                if (diags?.Count > 0)
+                    diagDisplay = string.Join(", ", diags.Select(d =>
+                        string.IsNullOrWhiteSpace(d.Type) ? d.Code : $"{d.Code} ({d.Type})"));
+            }
+            catch { /* ignore malformed JSON */ }
+        }
+
+        return new ClaimRow
+        {
+            Facility = facilityName,
+            ClaimId = record.ClaimId,
+            ReceiverId = receiverId,
+            ReceiverName = string.IsNullOrWhiteSpace(record.ReceiverName)
+                ? ResolveLookupName(receiverId, payerLookup)
+                : record.ReceiverName,
+            PayerId = payerId,
+            PayerName = string.IsNullOrWhiteSpace(record.PayerName)
+                ? ResolveLookupName(payerId, payerLookup)
+                : record.PayerName,
+            PatientId = record.PatientId ?? "",
+            MemberId = record.MemberId ?? "",
+            TreatmentDate = record.TreatmentDate ?? "",
+            TreatmentDateEnd = record.TreatmentDateEnd ?? "",
+            DateOfAdmission = record.DateOfAdmission ?? "",
+            SubmissionDate = record.SubmissionDate ?? record.TransactionDate ?? "",
+            EncounterType = record.EncounterType ?? "",
+            Clinician = record.Clinician ?? "",
+            ServiceYear = record.ServiceYear ?? "",
+            ServiceMonth = record.ServiceMonth ?? "",
+            SubmissionLevel = "Initial",
+            GrossAmtInitial = record.GrossAmount,
+            NetAmtInitial = record.NetAmount,
+            IdPayer = record.IdPayer ?? "",
+            SubmissionFile = record.FileName ?? record.FileId ?? "",
+            ResubmissionType = record.ResubmissionType ?? "",
+            PrincipalDiagnosis = record.PrincipalDiagnosis ?? "",
+            DiagnosesDisplay = diagDisplay,
+            PatientGender = record.PatientGender ?? "",
+            PatientDob = record.PatientDob ?? "",
+            PatientNationalId = record.PatientNationalId ?? ""
+        };
+    }
+
+    private class DiagnosisEntry
+    {
+        public string Type { get; set; } = "";
+        public string Code { get; set; } = "";
+    }
+
     private static IEnumerable<ClaimRow> ParseClaimXml(
-        string xml, string? fileId, string? fileName, string? txDate, string facilityName)
+        string xml, string? fileId, string? fileName, string? txDate, string facilityName,
+        IReadOnlyDictionary<string, string> payerLookup)
     {
         if (string.IsNullOrEmpty(xml)) yield break;
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
-        var header      = doc.Root?.Element("Header");
-        var receiverId  = header?.Element("ReceiverID")?.Value ?? "";
-        var submDate    = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
+        if (!string.Equals(doc.Root?.Name.LocalName, "Claim.Submission", StringComparison.OrdinalIgnoreCase))
+            yield break;
+
+        var header = doc.Root?.Element("Header");
+        var receiverId = header?.Element("ReceiverID")?.Value ?? "";
+        var submDate = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
+
+        if (receiverId.StartsWith("DHA-F-", StringComparison.OrdinalIgnoreCase))
+            yield break;
 
         foreach (var claim in doc.Descendants("Claim"))
         {
-            var enc           = claim.Element("Encounter");
-            var treatStart    = enc?.Element("Start")?.Value ?? "";
-            var treatEnd      = enc?.Element("End")?.Value ?? "";
-            var encTypeRaw    = enc?.Element("Type")?.Value ?? "";
-            var encType       = MapEncounterType(encTypeRaw);
-            var clinician     = claim.Descendants("Activity")
+            var enc = claim.Element("Encounter");
+            var treatStart = enc?.Element("Start")?.Value ?? "";
+            var treatEnd = enc?.Element("End")?.Value ?? "";
+            var encTypeRaw = enc?.Element("Type")?.Value ?? "";
+            var encType = MapEncounterType(encTypeRaw);
+            var clinician = claim.Descendants("Activity")
                                      .FirstOrDefault()?.Element("Clinician")?.Value ?? "";
-            var principalDiag = claim.Elements("Diagnosis")
-                                     .FirstOrDefault(d => d.Element("Type")?.Value == "Principal")
-                                     ?.Element("Code")?.Value ?? "";
+            var principalDiag = string.Join(" | ",
+                                     claim.Elements("Diagnosis")
+                                          .Where(d => d.Element("Type")?.Value == "Principal")
+                                          .Select(d => d.Element("Code")?.Value)
+                                          .Where(c => !string.IsNullOrWhiteSpace(c))
+                                          .Distinct(StringComparer.OrdinalIgnoreCase));
+            var claimId = claim.Element("ID")?.Value ?? "";
+            var receiverName = ResolveLookupName(receiverId, payerLookup);
+            var payerId = claim.Element("PayerID")?.Value ?? "";
+            var payerName = ResolveLookupName(payerId, payerLookup);
+            var resubmissionType = claim.Element("Resubmission")?.Element("Type")?.Value
+                                ?? claim.Descendants("Resubmission").FirstOrDefault()?.Element("Type")?.Value
+                                ?? "";
 
-            var serviceYear  = "";
+            var serviceYear = "";
             var serviceMonth = "";
-            var admDate      = "";
+            var admDate = "";
             if (DateTime.TryParseExact(treatStart, "dd/MM/yyyy HH:mm",
                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var td))
             {
-                serviceYear  = td.Year.ToString();
+                serviceYear = td.Year.ToString();
                 serviceMonth = td.ToString("MMMM");
                 if (encTypeRaw == "2") admDate = treatStart; // inpatient only
             }
@@ -324,26 +1959,27 @@ public class ReportService : IReportService
 
             yield return new ClaimRow
             {
-                Facility         = facilityName,
-                ClaimId          = claim.Element("ID")?.Value ?? "",
-                ReceiverId       = receiverId,
-                ReceiverName     = receiverId,  // plain code — no receiver name table
-                PayerId          = claim.Element("PayerID")?.Value ?? "",
-                PayerName        = claim.Element("PayerID")?.Value ?? "",
-                PatientId        = enc?.Element("PatientID")?.Value ?? "",
-                MemberId         = claim.Element("MemberID")?.Value ?? "",
-                TreatmentDate    = treatStart,
+                Facility = facilityName,
+                ClaimId = claimId,
+                ReceiverId = receiverId,
+                ReceiverName = receiverName,
+                PayerId = payerId,
+                PayerName = payerName,
+                PatientId = enc?.Element("PatientID")?.Value ?? "",
+                MemberId = claim.Element("MemberID")?.Value ?? "",
+                TreatmentDate = treatStart,
                 TreatmentDateEnd = treatEnd,
-                DateOfAdmission  = admDate,
-                SubmissionDate   = submDate,
-                EncounterType    = encType,
-                Clinician        = clinician,
-                ServiceYear      = serviceYear,
-                ServiceMonth     = serviceMonth,
-                SubmissionLevel  = "Initial",
-                NetAmtInitial    = net,
-                IdPayer          = claim.Element("IDPayer")?.Value ?? "",
-                SubmissionFile   = fileName ?? fileId ?? "",
+                DateOfAdmission = admDate,
+                SubmissionDate = submDate,
+                EncounterType = encType,
+                Clinician = clinician,
+                ServiceYear = serviceYear,
+                ServiceMonth = serviceMonth,
+                SubmissionLevel = "Initial",
+                NetAmtInitial = net,
+                IdPayer = claim.Element("IDPayer")?.Value ?? "",
+                SubmissionFile = fileName ?? fileId ?? "",
+                ResubmissionType = resubmissionType,
                 PrincipalDiagnosis = principalDiag
             };
         }
@@ -355,38 +1991,69 @@ public class ReportService : IReportService
         XDocument doc;
         try { doc = XDocument.Parse(xml); } catch { yield break; }
 
-        var header  = doc.Root?.Element("Header");
-        var raDate  = header?.Element("TransactionDate")?.Value ?? txDate ?? "";
-        var payRef  = header?.Element("PaymentReference")?.Value
-                   ?? doc.Root?.Element("PaymentReference")?.Value ?? "";
+        if (!string.Equals(doc.Root?.Name.LocalName, "Remittance.Advice", StringComparison.OrdinalIgnoreCase))
+            yield break;
 
-        foreach (var claim in doc.Descendants("Claim"))
+        static string? ChildValue(XElement element, string localName) =>
+            element.Elements().FirstOrDefault(e => e.Name.LocalName == localName)?.Value?.Trim();
+
+        var header = doc.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "Header");
+        var raDate = header == null ? txDate ?? "" : ChildValue(header, "TransactionDate") ?? txDate ?? "";
+        var headerPayRef = header == null ? "" : ChildValue(header, "PaymentReference") ?? "";
+
+        foreach (var claim in doc.Descendants().Where(e => e.Name.LocalName == "Claim"))
         {
-            var claimId = claim.Element("ID")?.Value ?? claim.Element("ClaimID")?.Value ?? "";
+            var claimId = ChildValue(claim, "ID") ?? ChildValue(claim, "ClaimID") ?? "";
             if (string.IsNullOrWhiteSpace(claimId)) continue;
 
-            decimal.TryParse(claim.Element("Net")?.Value ?? claim.Element("PaidAmount")?.Value,
-                NumberStyles.Any, CultureInfo.InvariantCulture, out var approved);
-            decimal.TryParse(claim.Element("Gross")?.Value,
-                NumberStyles.Any, CultureInfo.InvariantCulture, out var received);
+            decimal received = 0m;
+            decimal approved = 0m;
+            var denialCodes = new List<string>();
+            var denialDescriptions = new List<string>();
 
-            var denialCode = claim.Descendants("Denial").FirstOrDefault()?.Element("Code")?.Value
-                          ?? claim.Element("DenialCode")?.Value ?? "";
-            var denialDesc = claim.Descendants("Denial").FirstOrDefault()?.Element("Description")?.Value
-                          ?? claim.Element("DenialDescription")?.Value ?? "";
+            foreach (var activity in claim.Descendants().Where(e => e.Name.LocalName == "Activity"))
+            {
+                if (decimal.TryParse(ChildValue(activity, "Net"), NumberStyles.Any, CultureInfo.InvariantCulture, out var net))
+                    received += net;
+
+                if (decimal.TryParse(ChildValue(activity, "PaymentAmount"), NumberStyles.Any, CultureInfo.InvariantCulture, out var payment))
+                    approved += payment;
+
+                var denialCode = ChildValue(activity, "DenialCode");
+                if (!string.IsNullOrWhiteSpace(denialCode) && !denialCodes.Contains(denialCode, StringComparer.OrdinalIgnoreCase))
+                    denialCodes.Add(denialCode);
+            }
+
+            foreach (var denial in claim.Descendants().Where(e => e.Name.LocalName == "Denial"))
+            {
+                var denialCode = ChildValue(denial, "Code");
+                if (!string.IsNullOrWhiteSpace(denialCode) && !denialCodes.Contains(denialCode, StringComparer.OrdinalIgnoreCase))
+                    denialCodes.Add(denialCode);
+
+                var denialDesc = ChildValue(denial, "Description");
+                if (!string.IsNullOrWhiteSpace(denialDesc))
+                    denialDescriptions.Add(denialDesc);
+            }
+
+            var claimComments = ChildValue(claim, "Comments");
+            if (!string.IsNullOrWhiteSpace(claimComments))
+                denialDescriptions.Add(claimComments);
+
+            var settlementDate = ChildValue(claim, "DateSettlement") ?? raDate;
+            var payRef = ChildValue(claim, "PaymentReference") ?? headerPayRef;
 
             yield return new RaEntry
             {
-                ClaimId          = claimId,
-                ApprovedAmt      = approved,
-                ReceivedAmt      = received,
-                RaFile           = fileName ?? "",
-                RaDate           = raDate,
-                SettlementDate   = raDate,
-                PaymentRef       = payRef,
-                DenialCode       = denialCode,
-                DenialDescription = denialDesc,
-                Status           = approved <= 0 ? "Rejected" : "Paid"
+                ClaimId = claimId,
+                ApprovedAmt = approved,
+                ReceivedAmt = received,
+                RaFile = fileName ?? "",
+                RaDate = raDate,
+                SettlementDate = settlementDate,
+                PaymentRef = payRef,
+                DenialCode = string.Join(" | ", denialCodes),
+                DenialDescription = string.Join(" | ", denialDescriptions.Distinct(StringComparer.OrdinalIgnoreCase)),
+                Status = approved <= 0 ? "Rejected" : "Paid"
             };
         }
     }
@@ -407,8 +2074,418 @@ public class ReportService : IReportService
         "2" => "Inpatient",
         "3" => "Emergency",
         "4" => "Dental",
-        _   => code ?? ""
+        _ => code ?? ""
     };
+
+    private static string ExtractFirstDenialCode(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return "";
+
+        try
+        {
+            var codes = JsonSerializer.Deserialize<List<string>>(json);
+            return codes?.FirstOrDefault() ?? "";
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    // Descriptive fields pulled from a submission (claim) record to enrich its
+    // remittance row (matched by ClaimId).
+    private sealed record SubMeta(string? PayerId, string? PayerName, string? Clinician,
+        string? EncounterType, string? ServiceYear, string? ServiceMonth)
+    {
+        public static readonly SubMeta Empty = new(null, null, null, null, null, null);
+    }
+
+    // Richer submission-side fields for the DHPO template report.
+    private sealed record SubFull(string? PayerId, string? PayerName, string? Clinician,
+        string? EncounterType, string? ServiceYear, string? ServiceMonth, string? ReceiverId,
+        string? ReceiverName, string? PatientId, string? MemberId, string? NationalId,
+        string? TreatmentDate, string? TreatmentDateEnd, string? SubmissionDate,
+        string? IdPayer, string? FileName)
+    {
+        public static readonly SubFull Empty = new(null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null, null);
+    }
+
+    private async Task<IReadOnlyDictionary<string, SubFull>> LoadSubmissionFullAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q.Select(r => new
+        {
+            r.ClaimId, r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth,
+            r.ReceiverId, r.ReceiverName, r.PatientId, r.MemberId, r.PatientNationalId,
+            r.TreatmentDate, r.TreatmentDateEnd, r.SubmissionDate, r.IdPayer, r.FileName
+        }).Take(1000000).ToListAsync();
+        var map = new Dictionary<string, SubFull>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.ClaimId))
+                map[r.ClaimId!.Trim()] = new SubFull(r.PayerId, r.PayerName, r.Clinician, r.EncounterType,
+                    r.ServiceYear, r.ServiceMonth, r.ReceiverId, r.ReceiverName, r.PatientId, r.MemberId,
+                    r.PatientNationalId, r.TreatmentDate, r.TreatmentDateEnd, r.SubmissionDate, r.IdPayer, r.FileName);
+        return map;
+    }
+
+    private static string ActivityTypeName(string? code) => (code ?? "").Trim() switch
+    {
+        "3" => "CPT", "4" => "HCPCS", "5" => "Drug", "6" => "Dental",
+        "8" => "Service", "9" => "DRG", "10" => "Scenario", "11" => "Unspecified",
+        _ => code ?? ""
+    };
+
+    // Denial code -> (Category, Type). The eClaimLink denial set has no category/
+    // type columns, but the code PREFIX is the standard DHPO taxonomy, so:
+    //   Category = the readable prefix SERIES (ELIGIBILITY, PRICE DESCREP., ...)
+    //   Type     = the broad Technical vs Medical grouping.
+    private static (string Category, string Type) DenialClassify(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return ("", "");
+        var pfx = new string(code.TrimStart().TakeWhile(char.IsLetter).ToArray()).ToUpperInvariant();
+        var series = pfx switch
+        {
+            "AUTH" => "AUTHORIZATION", "BENX" => "BENEFIT", "BSMA" => "BASMAH",
+            "CLAI" => "CLAIM", "CODE" => "CODING", "COPY" => "CO-PAY/DEDUCTIBLE", "DRG" => "DRG",
+            "DUPL" => "DUPLICATE", "ELIG" => "ELIGIBILITY", "MNEC" => "MEDICAL NECESSITY",
+            "NCOV" => "NOT COVERED", "PRCE" => "PRICE DESCREP.", "SURC" => "DRUG INTERACTION",
+            "TIME" => "TIMELY FILING", "WRNG" => "WRONG SUBMISSION", _ => pfx
+        };
+        var techMed = pfx is "MNEC" or "NCOV" or "SURC" ? "Medical" : "Technical";
+        return (series, techMed);
+    }
+
+    private static string? FirstNonBlank(params string?[] vals)
+        => vals.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    // Clinician code -> professional name, from the imported eClaimLink clinician set.
+    private async Task<IReadOnlyDictionary<string, string>> LoadClinicianLookupAsync()
+    {
+        var rows = await _context.DhpoCodingSets.AsNoTracking()
+            .Where(x => x.Category == "Clinician")
+            .Select(x => new { x.Code, x.Name })
+            .ToListAsync();
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.Code) && !string.IsNullOrWhiteSpace(r.Name))
+                lookup[r.Code.Trim()] = r.Name.Trim();
+        return lookup;
+    }
+
+    // ClaimId -> submission descriptive fields, for the report's facility scope.
+    private async Task<IReadOnlyDictionary<string, SubMeta>> LoadSubmissionMetaAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q
+            .Select(r => new { r.ClaimId, r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth })
+            .Take(1000000)
+            .ToListAsync();
+        var map = new Dictionary<string, SubMeta>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.ClaimId))
+                map[r.ClaimId!.Trim()] = new SubMeta(r.PayerId, r.PayerName, r.Clinician, r.EncounterType, r.ServiceYear, r.ServiceMonth);
+        return map;
+    }
+
+    // ClaimId -> the full remittance cascade in chronological order, e.g.
+    //   "1) 29/04/2026 · Paid 164.46  →  2) 02/07/2026 · Denied 0.00"
+    // Every RA for the claim within the facility scope is included (not just the
+    // ones in the report's date window) so the column reads as a complete history.
+    private async Task<IReadOnlyDictionary<string, string>> LoadRaHistoryAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Remittance" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q
+            .Select(r => new { r.ClaimId, r.TransactionDate, r.PaidAmount, r.NetAmount })
+            .Take(1000000)
+            .ToListAsync();
+
+        // dd/MM/yyyy[ HH:mm] -> yyyyMMddHHmm sortable key; missing/short dates sort last.
+        static string SortKey(string? td)
+            => td != null && td.Length >= 10
+                ? td.Substring(6, 4) + td.Substring(3, 2) + td.Substring(0, 2)
+                    + (td.Length >= 16 ? td.Substring(11, 2) + td.Substring(14, 2) : "0000")
+                : "999999999999";
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var g in rows.GroupBy(r => r.ClaimId!.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            var parts = new List<string>();
+            int i = 1;
+            foreach (var e in g.OrderBy(x => SortKey(x.TransactionDate)))
+            {
+                var d = (e.TransactionDate ?? "").Length >= 10 ? e.TransactionDate!.Substring(0, 10) : "—";
+                var paid = Math.Round(e.PaidAmount, 2);
+                var net = Math.Round(e.NetAmount, 2);
+                var st = paid <= 0.009m ? "Denied" : (paid < net - 0.009m ? "Partial" : "Paid");
+                parts.Add($"{i}) {d} · {st} {paid.ToString("#,##0.00", CultureInfo.InvariantCulture)}");
+                i++;
+            }
+            map[g.Key] = string.Join("  →  ", parts);
+        }
+        return map;
+    }
+
+    // remittance record Id -> its 1-based round number within the claim's FULL RA
+    // timeline (ordered by RA date), computed WITHOUT any date-window filter so the
+    // count is correct even when a claim's earlier RAs sit outside the report window.
+    private async Task<IReadOnlyDictionary<int, int>> LoadRaRoundOrdinalAsync(List<int> facilityIds)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Remittance" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var rows = await q.Select(r => new { r.Id, r.ClaimId, r.TransactionDate }).Take(1000000).ToListAsync();
+
+        static string SortKey(string? td)
+            => td != null && td.Length >= 10
+                ? td.Substring(6, 4) + td.Substring(3, 2) + td.Substring(0, 2)
+                    + (td.Length >= 16 ? td.Substring(11, 2) + td.Substring(14, 2) : "0000")
+                : "999999999999";
+
+        var map = new Dictionary<int, int>();
+        foreach (var g in rows.GroupBy(r => r.ClaimId!.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            int i = 1;
+            foreach (var e in g.OrderBy(x => SortKey(x.TransactionDate)).ThenBy(x => x.Id))
+                map[e.Id] = i++;
+        }
+        return map;
+    }
+
+    // 1 -> "1st RA", 2 -> "2nd RA", 3 -> "3rd RA", 4 -> "4th RA", ...
+    private static string OrdinalRa(int n)
+    {
+        var suffix = (n % 100) is >= 11 and <= 13 ? "th"
+            : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" };
+        return $"{n}{suffix} RA";
+    }
+
+    private static bool IsRemittanceSideCriteria(string? criteria)
+        => criteria is null or "RemittanceDate" or "SettlementDate";
+
+    // Claim-side date criteria on a remittance report (Encounter/Submission dates): RA
+    // records don't carry those dates, so qualify the CLAIMS by their SUBMISSION date;
+    // the caller then includes ALL of those claims' RAs regardless of RA date (so a
+    // claim whose June encounter had RAs in Aug/Sep still shows its full RA history).
+    private async Task<HashSet<string>> LoadClaimsBySubmissionCriteriaAsync(
+        List<int> facilityIds, string criteria, DateTime from, DateTime to)
+    {
+        var q = _context.XmlParsedRecords.AsNoTracking()
+            .Where(r => r.ReadyForReport && r.RecordKind == "Submission" && r.ClaimId != null);
+        if (facilityIds.Count > 0) q = q.Where(r => facilityIds.Contains(r.FacilityId));
+        var df = from.ToString("yyyyMMdd");
+        var dt = to.ToString("yyyyMMdd");
+        q = criteria switch
+        {
+            "EncounterStartDate" => q.Where(r => r.TreatmentDate != null && r.TreatmentDate.Length >= 10
+                && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), df) >= 0
+                && string.Compare(r.TreatmentDate.Substring(6,4)+r.TreatmentDate.Substring(3,2)+r.TreatmentDate.Substring(0,2), dt) <= 0),
+            "EncounterEndDate" => q.Where(r => r.TreatmentDateEnd != null && r.TreatmentDateEnd.Length >= 10
+                && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), df) >= 0
+                && string.Compare(r.TreatmentDateEnd.Substring(6,4)+r.TreatmentDateEnd.Substring(3,2)+r.TreatmentDateEnd.Substring(0,2), dt) <= 0),
+            _ => q.Where(r => r.SubmissionDate != null && r.SubmissionDate.Length >= 10   // SubmissionDate (default)
+                && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), df) >= 0
+                && string.Compare(r.SubmissionDate.Substring(6,4)+r.SubmissionDate.Substring(3,2)+r.SubmissionDate.Substring(0,2), dt) <= 0),
+        };
+        var ids = await q.Select(r => r.ClaimId!).Distinct().Take(1000000).ToListAsync();
+        return ids.Select(x => x.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    // Denial code -> human description, from the imported eClaimLink denial-code set.
+    private async Task<IReadOnlyDictionary<string, string>> LoadDenialLookupAsync()
+    {
+        var rows = await _context.DhpoCodingSets.AsNoTracking()
+            .Where(x => x.Category == "DenialCode")
+            .Select(x => new { x.Code, x.Name })
+            .ToListAsync();
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in rows)
+            if (!string.IsNullOrWhiteSpace(r.Code) && !string.IsNullOrWhiteSpace(r.Name))
+                lookup[r.Code.Trim()] = r.Name.Trim();
+        return lookup;
+    }
+
+    private async Task<IReadOnlyDictionary<string, string>> LoadPayerLookupAsync()
+    {
+        var rows = await _context.DhpoCodingSets
+            .AsNoTracking()
+            .Where(x => x.Category == "Payer")
+            .Select(x => new { x.Code, x.Name })
+            .ToListAsync();
+
+        var lookup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (string.IsNullOrWhiteSpace(row.Code) || string.IsNullOrWhiteSpace(row.Name))
+                continue;
+
+            lookup[row.Code.Trim()] = row.Name.Trim();
+        }
+
+        return lookup;
+    }
+
+    private static string ResolveLookupName(string code, IReadOnlyDictionary<string, string> lookup)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            return "";
+        return lookup.TryGetValue(code.Trim(), out var name) ? name : code.Trim();
+    }
+
+    private static bool IsResubmissionRow(ClaimRow row)
+    {
+        if (!string.IsNullOrWhiteSpace(row.ResubmissionType))
+            return true;
+
+        return row.SubmissionFile.StartsWith("RES-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static Dictionary<string, ResubmissionAggregate> AggregateResubmissions(IEnumerable<ClaimRow> rows)
+    {
+        return rows
+            .Where(r => !string.IsNullOrWhiteSpace(r.ClaimId))
+            .GroupBy(r => r.ClaimId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => new ResubmissionAggregate
+                {
+                    ClaimId = g.Key,
+                    Count = g.Count(),
+                    NetAmount = g.Sum(r => r.NetAmtInitial),
+                    Files = string.Join(" | ", g.Select(r => r.SubmissionFile)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)),
+                    Types = string.Join(" | ", g.Select(r => r.ResubmissionType)
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase))
+                },
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string DetermineSubmissionLevel(int outboundCount, int inboundCount, IEnumerable<string> resubmissionTypes)
+    {
+        var type = resubmissionTypes
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .FirstOrDefault();
+
+        if (outboundCount <= 1)
+        {
+            if (inboundCount > 0)
+                return $"{inboundCount} RA received";
+            return "Initial Submission";
+        }
+
+        if (!string.IsNullOrWhiteSpace(type))
+        {
+            if (type.Equals("correction", StringComparison.OrdinalIgnoreCase))
+                return "Resubmitted - Correction";
+            if (type.Equals("internal complaint", StringComparison.OrdinalIgnoreCase))
+                return "Resubmitted - Internal Complaint";
+            if (type.Equals("reconciliation", StringComparison.OrdinalIgnoreCase) ||
+                type.Equals("reconciled", StringComparison.OrdinalIgnoreCase))
+                return "Resubmitted - Reconciliation";
+            if (type.Equals("recon pending", StringComparison.OrdinalIgnoreCase))
+                return "Recon Pending";
+            return $"Resubmitted - {type}";
+        }
+
+        // No explicit type — infer from submission/RA count pattern
+        if (outboundCount > 2)
+        {
+            if (inboundCount == 0) return "Resubmitted - awaiting RA";
+            return "Recon Pending";
+        }
+
+        return "Resubmitted";
+    }
+
+    private static bool IsRemittanceWithinReportRange(RemittanceClaimRow row, DateTime from, DateTime to)
+    {
+        var remittanceDate = ParseDhpoDate(row.SettlementDate) ?? ParseDhpoDate(row.TransactionDate);
+        return !remittanceDate.HasValue
+            || (remittanceDate.Value.Date >= from.Date && remittanceDate.Value.Date <= to.Date);
+    }
+
+    private static Dictionary<string, RaEntry> AggregateRemittances(IEnumerable<RemittanceClaimRow> remittanceClaims)
+    {
+        return remittanceClaims
+            .Where(x => !string.IsNullOrWhiteSpace(x.ClaimId))
+            .GroupBy(x => x.ClaimId!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var paid = g.Sum(x => x.PaidAmount ?? 0m);
+                    var received = g.Sum(x => x.OriginalAmount ?? 0m);
+
+                    var settlementDates = g
+                        .Select(x => x.SettlementDate ?? x.TransactionDate ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var parsedDates = settlementDates
+                        .Select(ParseDhpoDate)
+                        .Where(d => d.HasValue)
+                        .Select(d => d!.Value)
+                        .ToList();
+
+                    var fileNames = g.Select(x => x.FileName ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var paymentRefs = g.Select(x => x.PaymentReference ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var denialCodes = g.Select(x => ExtractFirstDenialCode(x.DenialCodesJson))
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var denialDescriptions = g.Select(x => x.Comments ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    var categories = g.Select(x => x.ClaimCategory ?? "")
+                        .Where(s => !string.IsNullOrWhiteSpace(s) && s != "None")
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    return new RaEntry
+                    {
+                        ClaimId = g.Key,
+                        ApprovedAmt = paid,
+                        ReceivedAmt = received,
+                        RaFile = string.Join(" | ", fileNames),
+                        RaDate = string.Join(" | ", settlementDates),
+                        SettlementDate = string.Join(" | ", settlementDates),
+                        SettlementDateValue = parsedDates.OrderByDescending(d => d).FirstOrDefault(),
+                        PaymentRef = string.Join(" | ", paymentRefs),
+                        DenialCode = string.Join(" | ", denialCodes),
+                        DenialDescription = string.Join(" | ", denialDescriptions),
+                        Status = paid <= 0 ? "Rejected" : "Paid",
+                        ClaimCategory = categories.Count switch
+                        {
+                            0 => denialCodes.Count > 0 ? "Technical" : "",
+                            1 => categories[0],
+                            _ => "Mixed"
+                        }
+                    };
+                },
+                StringComparer.OrdinalIgnoreCase);
+    }
 
     // ── Internal DTOs ──────────────────────────────────────────────────
 
@@ -431,11 +2508,54 @@ public class ReportService : IReportService
         public string ServiceYear { get; set; } = "";
         public string ServiceMonth { get; set; } = "";
         public string SubmissionLevel { get; set; } = "Initial";
+        public int OutboundCount { get; set; }
+        public int InboundCount { get; set; }
+        public int RecordCount { get; set; }
+        public decimal GrossAmtInitial { get; set; }
         public decimal NetAmtInitial { get; set; }
+        public decimal NetAmtResubmission { get; set; }
         public string IdPayer { get; set; } = "";
         public string SubmissionFile { get; set; } = "";
+        public string ResubmissionFile { get; set; } = "";
+        public string RaFile { get; set; } = "";
+        public string RaDate { get; set; } = "";
+        public string ResubmissionType { get; set; } = "";
         public string PrincipalDiagnosis { get; set; } = "";
+        public string DiagnosesDisplay { get; set; } = "";
+        public string PatientGender { get; set; } = "";
+        public string PatientDob { get; set; } = "";
+        public string PatientNationalId { get; set; } = "";
+        public string ClaimCategory { get; set; } = "";
         public RaEntry? Ra { get; set; }
+    }
+
+    private class ResubmissionAggregate
+    {
+        public string ClaimId { get; set; } = "";
+        public int Count { get; set; }
+        public decimal NetAmount { get; set; }
+        public string Files { get; set; } = "";
+        public string Types { get; set; } = "";
+    }
+
+    private class RemittanceClaimRow
+    {
+        public string ClaimId { get; set; } = "";
+        public decimal? PaidAmount { get; set; }
+        public decimal? OriginalAmount { get; set; }
+        public string? SettlementDate { get; set; }
+        public string? PaymentReference { get; set; }
+        public string? DenialCodesJson { get; set; }
+        public string? Comments { get; set; }
+        public string? FileName { get; set; }
+        public string? TransactionDate { get; set; }
+        public string? ClaimCategory { get; set; }
+    }
+
+    private class UnmatchedRemittanceRow
+    {
+        public string TransactionRef { get; set; } = "";
+        public string RemittanceFileName { get; set; } = "";
     }
 
     private class RaEntry
@@ -446,9 +2566,379 @@ public class ReportService : IReportService
         public string RaFile { get; set; } = "";
         public string RaDate { get; set; } = "";
         public string SettlementDate { get; set; } = "";
+        public DateTime? SettlementDateValue { get; set; }
         public string PaymentRef { get; set; } = "";
         public string DenialCode { get; set; } = "";
         public string DenialDescription { get; set; } = "";
         public string Status { get; set; } = "";
+        public string ClaimCategory { get; set; } = "";
+    }
+
+    // ── System Overview report — operational health dashboard for admins ──
+    private async Task GenerateSystemOverviewWorkbookAsync(ReportRequest report, string filePath,
+        List<int> facilityIds, Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Collecting system metrics", 10, 0, 0, "Querying database statistics, sync health, and portal status.");
+
+        // ── Database statistics ──
+        var dbStats = new Dictionary<string, object>();
+        var conn = _context.Database.GetDbConnection();
+        var isSqlite = conn is Microsoft.Data.Sqlite.SqliteConnection;
+        long dbSizeBytes = 0;
+        if (isSqlite)
+        {
+            var dbPath = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(conn.ConnectionString).DataSource;
+            if (!string.IsNullOrWhiteSpace(dbPath) && System.IO.File.Exists(dbPath))
+                dbSizeBytes = new FileInfo(dbPath).Length;
+        }
+
+        // Table row counts for key tables
+        var tableCounts = new Dictionary<string, long>();
+        var keyTables = new[]
+        {
+            "AspNetUsers", "AspNetRoles", "AspNetUserRoles", "Facilities",
+            "PortalCredentials", "PortalTransactions", "PortalFetchLogs",
+            "XmlParsedRecords", "XmlParsedActivities", "RemittanceClaims",
+            "ReportRequests", "ReportSchedules", "Tenants", "UserFacilities",
+            "Payers", "Receivers", "Clinicians", "Departments", "DhpoCodingSets",
+            "AiUsageLogs", "ResubmissionTasks", "SystemSettings"
+        };
+
+        foreach (var table in keyTables)
+        {
+            try
+            {
+                var count = await _context.Database.SqlQueryRaw<long>($"SELECT COUNT(*) FROM \"{table}\"").FirstOrDefaultAsync();
+                tableCounts[table] = count;
+            }
+            catch { tableCounts[table] = -1; }
+        }
+
+        // ── Portal sync health ──
+        var syncHealth = new List<SyncHealthRow>();
+        var credentials = await _context.PortalCredentials
+            .Where(c => c.IsActive)
+            .Include(c => c.Facility)
+            .ToListAsync();
+
+        foreach (var cred in credentials)
+        {
+            var lastFetch = await _context.PortalFetchLogs
+                .Where(l => l.FacilityId == cred.FacilityId && l.Portal == cred.Portal)
+                .OrderByDescending(l => l.FetchedAt)
+                .FirstOrDefaultAsync();
+
+            var pendingDl = await _context.PortalTransactions
+                .CountAsync(t => t.FacilityId == cred.FacilityId
+                    && t.Portal == cred.Portal
+                    && !t.FileDownloaded
+                    && !t.FileUnavailable);
+
+            var lastSyncStatus = lastFetch?.Status ?? "Never";
+            var lastSyncTime = lastFetch?.FetchedAt;
+            var hoursSinceSync = lastSyncTime.HasValue
+                ? (DateTime.UtcNow - lastSyncTime.Value).TotalHours
+                : double.MaxValue;
+
+            syncHealth.Add(new SyncHealthRow
+            {
+                Facility = cred.Facility?.Name ?? $"Facility {cred.FacilityId}",
+                Portal = cred.Portal,
+                LastSync = lastSyncTime?.ToString("dd/MM/yyyy HH:mm") ?? "Never",
+                Status = lastSyncStatus,
+                PendingDownloads = pendingDl,
+                HoursSinceSync = hoursSinceSync,
+                IsHealthy = hoursSinceSync < 48 && lastSyncStatus == "Success"
+            });
+        }
+
+        // ── User activity ──
+        var userStats = await _context.Users
+            .GroupBy(u => u.IsActive ? "Active" : "Inactive")
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var roleCounts = await _context.UserRoles
+            .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+            .GroupBy(n => n)
+            .Select(g => new { Role = g.Key!, Count = g.Count() })
+            .ToListAsync();
+
+        // ── Recent report activity ──
+        var recentReports = await _context.ReportRequests
+            .OrderByDescending(r => r.RequestedAt)
+            .Take(20)
+            .Select(r => new
+            {
+                r.ReportId,
+                r.ReportType,
+                r.Status,
+                Facility = r.Branch != null ? r.Branch.Name : "All",
+                r.RequestedAt,
+                r.GeneratedAt
+            })
+            .ToListAsync();
+
+        // ── Disk space ──
+        var reportsDir = GetReportsDirectory();
+        var driveInfo = new DriveInfo(Path.GetPathRoot(reportsDir) ?? @"C:\");
+        var freeSpaceGb = driveInfo.AvailableFreeSpace / (1024.0 * 1024 * 1024);
+        var totalSpaceGb = driveInfo.TotalSize / (1024.0 * 1024 * 1024);
+
+        // ── Build Excel ──
+        updateStage("Generating workbook", 80, 0, 0, "Writing system overview to Excel.");
+        using var wb = new XLWorkbook();
+        wb.Style.Font.FontName = "Inter";
+
+        // Sheet 1: Executive Summary
+        var ws1 = wb.Worksheets.Add("System Overview");
+        const int hr = 8;
+        var headers = new[]
+        {
+            "Category", "Metric", "Value", "Status", "Details"
+        };
+        ApplyGhafReportHeader(ws1, headers.Length, report, 0, 0);
+        WriteReportHeaderRow(ws1, headers, hr);
+
+        var summaryRows = new List<SystemOverviewRow>();
+
+        // Database section
+        summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = "Provider", Value = isSqlite ? "SQLite" : "PostgreSQL", Status = "Info", Details = "" });
+        summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = "File Size", Value = FormatBytes(dbSizeBytes), Status = "Info", Details = dbSizeBytes > 10L * 1024 * 1024 * 1024 ? "Large DB — consider archiving" : "OK" });
+        foreach (var kvp in tableCounts.OrderBy(k => k.Key))
+        {
+            var status = kvp.Value >= 0 ? "OK" : "Error";
+            var detail = kvp.Value >= 1000000 ? "Large table — ensure indexes exist" : "";
+            summaryRows.Add(new SystemOverviewRow { Category = "Database", Metric = $"Table: {kvp.Key}", Value = kvp.Value >= 0 ? kvp.Value.ToString("N0") : "N/A", Status = status, Details = detail });
+        }
+
+        // Portal Sync section
+        summaryRows.Add(new SystemOverviewRow { Category = "Portal Sync", Metric = "Active Credentials", Value = credentials.Count.ToString(), Status = "Info", Details = "" });
+        foreach (var sh in syncHealth)
+        {
+            var status = sh.IsHealthy ? "Healthy" : (sh.HoursSinceSync >= 48 ? "Stale" : sh.Status);
+            summaryRows.Add(new SystemOverviewRow
+            {
+                Category = "Portal Sync",
+                Metric = $"{sh.Facility} / {sh.Portal}",
+                Value = $"{sh.PendingDownloads} pending",
+                Status = status,
+                Details = $"Last: {sh.LastSync} ({sh.Status})"
+            });
+        }
+
+        // User section
+        summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = "Total Users", Value = userStats.Sum(u => u.Count).ToString(), Status = "Info", Details = "" });
+        foreach (var us in userStats)
+        {
+            summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = us.Status, Value = us.Count.ToString(), Status = "Info", Details = "" });
+        }
+        foreach (var rc in roleCounts.OrderByDescending(r => r.Count))
+        {
+            summaryRows.Add(new SystemOverviewRow { Category = "Users", Metric = $"Role: {rc.Role}", Value = rc.Count.ToString(), Status = "Info", Details = "" });
+        }
+
+        // Storage section
+        summaryRows.Add(new SystemOverviewRow { Category = "Storage", Metric = "Free Space", Value = $"{freeSpaceGb:F1} GB / {totalSpaceGb:F1} GB", Status = freeSpaceGb < 5 ? "Low" : "OK", Details = freeSpaceGb < 5 ? "Clean up old reports/backups" : "" });
+        summaryRows.Add(new SystemOverviewRow { Category = "Storage", Metric = "Reports Directory", Value = reportsDir, Status = "Info", Details = "" });
+
+        // Reports section
+        summaryRows.Add(new SystemOverviewRow { Category = "Reports", Metric = "Recent (20)", Value = recentReports.Count.ToString(), Status = "Info", Details = "" });
+        foreach (var rr in recentReports.Take(10))
+        {
+            var age = (DateTime.UtcNow - rr.RequestedAt).TotalMinutes;
+            var ageStr = age < 60 ? $"{age:F0} min ago" : $"{(int)(age / 60)} hr ago";
+            summaryRows.Add(new SystemOverviewRow
+            {
+                Category = "Reports",
+                Metric = rr.ReportType,
+                Value = rr.ReportId,
+                Status = rr.Status,
+                Details = $"{rr.Facility} · {ageStr} · {rr.Status}"
+            });
+        }
+
+        // Write rows
+        for (int i = 0; i < summaryRows.Count; i++)
+        {
+            var r = summaryRows[i];
+            var rn = hr + 1 + i;
+            ws1.Cell(rn, 1).Value = r.Category;
+            ws1.Cell(rn, 2).Value = r.Metric;
+            ws1.Cell(rn, 3).Value = r.Value;
+            ws1.Cell(rn, 4).Value = r.Status;
+            ws1.Cell(rn, 5).Value = r.Details;
+
+            // Color coding for status
+            var statusCell = ws1.Cell(rn, 4);
+            if (r.Status == "Healthy" || r.Status == "OK")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else if (r.Status == "Stale" || r.Status == "Low" || r.Status == "Failed" || r.Status == "Error")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+            else if (r.Status == "Processing" || r.Status == "Pending")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#8A6D3B");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            }
+
+            if (i % 2 == 1) ws1.Range(rn, 1, rn, headers.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
+        }
+
+        // Sheet 2: Portal Sync Detail
+        var ws2 = wb.Worksheets.Add("Portal Sync");
+        const int hr2 = 1;
+        var headers2 = new[]
+        {
+            "Facility", "Portal", "Username", "Last Sync", "Status", "Pending Downloads", "Hours Since Sync", "Healthy"
+        };
+        WriteReportHeaderRow(ws2, headers2, hr2);
+        ws2.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < syncHealth.Count; i++)
+        {
+            var sh = syncHealth[i];
+            var rn = hr2 + 1 + i;
+            ws2.Cell(rn, 1).Value = sh.Facility;
+            ws2.Cell(rn, 2).Value = sh.Portal;
+            ws2.Cell(rn, 3).Value = credentials.FirstOrDefault(c => c.FacilityId == _context.Facilities.Where(f => f.Name == sh.Facility).Select(f => f.Id).FirstOrDefault() && c.Portal == sh.Portal)?.Username ?? "";
+            ws2.Cell(rn, 4).Value = sh.LastSync;
+            ws2.Cell(rn, 5).Value = sh.Status;
+            ws2.Cell(rn, 6).Value = sh.PendingDownloads;
+            ws2.Cell(rn, 7).Value = sh.HoursSinceSync == double.MaxValue ? "N/A" : sh.HoursSinceSync.ToString("F1");
+            ws2.Cell(rn, 8).Value = sh.IsHealthy ? "Yes" : "No";
+
+            var healthyCell = ws2.Cell(rn, 8);
+            if (sh.IsHealthy)
+            {
+                healthyCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                healthyCell.Style.Font.Bold = true;
+                healthyCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else
+            {
+                healthyCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                healthyCell.Style.Font.Bold = true;
+                healthyCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+
+            if (i % 2 == 1) ws2.Range(rn, 1, rn, headers2.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Sheet 3: Database Tables
+        var ws3 = wb.Worksheets.Add("Database Tables");
+        const int hr3 = 1;
+        var headers3 = new[] { "Table", "Row Count", "Status" };
+        WriteReportHeaderRow(ws3, headers3, hr3);
+        ws3.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < tableCounts.Count; i++)
+        {
+            var kvp = tableCounts.ElementAt(i);
+            var rn = hr3 + 1 + i;
+            ws3.Cell(rn, 1).Value = kvp.Key;
+            ws3.Cell(rn, 2).Value = kvp.Value >= 0 ? kvp.Value : 0;
+            ws3.Cell(rn, 2).Style.NumberFormat.Format = "#,##0";
+            ws3.Cell(rn, 3).Value = kvp.Value >= 0 ? "OK" : "Error";
+
+            if (kvp.Value >= 1000000)
+                ws3.Cell(rn, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            if (i % 2 == 1) ws3.Range(rn, 1, rn, headers3.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Sheet 4: Recent Reports
+        var ws4 = wb.Worksheets.Add("Recent Reports");
+        const int hr4 = 1;
+        var headers4 = new[] { "Report ID", "Type", "Facility", "Status", "Requested", "Generated", "Age" };
+        WriteReportHeaderRow(ws4, headers4, hr4);
+        ws4.SheetView.FreezeRows(1);
+
+        for (int i = 0; i < recentReports.Count; i++)
+        {
+            var rr = recentReports[i];
+            var rn = hr4 + 1 + i;
+            var age = (DateTime.UtcNow - rr.RequestedAt).TotalMinutes;
+            var ageStr = age < 60 ? $"{age:F0} min ago" : $"{(int)(age / 60)} hr ago";
+            ws4.Cell(rn, 1).Value = rr.ReportId;
+            ws4.Cell(rn, 2).Value = rr.ReportType;
+            ws4.Cell(rn, 3).Value = rr.Facility;
+            ws4.Cell(rn, 4).Value = rr.Status;
+            ws4.Cell(rn, 5).Value = rr.RequestedAt.ToString("dd/MM/yyyy HH:mm");
+            ws4.Cell(rn, 6).Value = rr.GeneratedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—";
+            ws4.Cell(rn, 7).Value = ageStr;
+
+            var statusCell = ws4.Cell(rn, 4);
+            if (rr.Status == "Completed")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#0F766E");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#D1FAE5");
+            }
+            else if (rr.Status == "Failed")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#B42318");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEE2E2");
+            }
+            else if (rr.Status == "Processing" || rr.Status == "Pending")
+            {
+                statusCell.Style.Font.FontColor = XLColor.FromHtml("#8A6D3B");
+                statusCell.Style.Font.Bold = true;
+                statusCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#FEF0C7");
+            }
+
+            if (i % 2 == 1) ws4.Range(rn, 1, rn, headers4.Length).Style.Fill.BackgroundColor = XLColor.FromHtml("#F1F5F9");
+        }
+
+        // Auto-fit all sheets
+        foreach (var ws in wb.Worksheets)
+        {
+            var lastRow = ws.LastRowUsed();
+            ws.Columns().AdjustToContents(1, Math.Min(50, lastRow?.RowNumber() ?? 1));
+            ws.SheetView.FreezeRows(1);
+        }
+
+        wb.SaveAs(filePath);
+    }
+
+    private sealed record SyncHealthRow
+    {
+        public string Facility { get; init; } = "";
+        public string Portal { get; init; } = "";
+        public string LastSync { get; init; } = "";
+        public string Status { get; init; } = "";
+        public int PendingDownloads { get; init; }
+        public double HoursSinceSync { get; init; }
+        public bool IsHealthy { get; init; }
+    }
+
+    private sealed record SystemOverviewRow
+    {
+        public string Category { get; init; } = "";
+        public string Metric { get; init; } = "";
+        public string Value { get; init; } = "";
+        public string Status { get; init; } = "";
+        public string Details { get; init; } = "";
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        string[] units = { "B", "KB", "MB", "GB", "TB" };
+        int unit = 0;
+        double size = bytes;
+        while (size >= 1024 && unit < units.Length - 1)
+        {
+            size /= 1024;
+            unit++;
+        }
+        return $"{size:F1} {units[unit]}";
     }
 }

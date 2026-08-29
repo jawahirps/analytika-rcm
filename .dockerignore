@@ -3,3 +3,12 @@ Analytika/obj/
 Analytika/analytika.db
 Analytika/publish/
 Analytika/wwwroot/portal-downloads/
+Analytika/wwwroot/reports/
+exports/
+outputs/
+artifacts/
+.git/
+.idea/
+.DS_Store
+*.user
+*.swp

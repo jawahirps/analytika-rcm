@@ -17,11 +17,11 @@ public static class ActiveSyncState
         {
             _snap = new SyncSnapshot
             {
-                IsRunning        = true,
-                StartedAt        = DateTime.UtcNow,
-                TotalFacilities  = totalFacilities,
-                TotalMonths      = totalMonths,
-                TotalSteps       = totalFacilities * totalMonths
+                IsRunning = true,
+                StartedAt = DateTime.UtcNow,
+                TotalFacilities = totalFacilities,
+                TotalMonths = totalMonths,
+                TotalSteps = totalFacilities * totalMonths
             };
         }
     }
@@ -34,13 +34,13 @@ public static class ActiveSyncState
             if (!_snap.IsRunning) return;
             _snap = _snap with
             {
-                StepsDone       = stepsDone,
-                FacilityIndex   = facilityIndex,
+                StepsDone = stepsDone,
+                FacilityIndex = facilityIndex,
                 CurrentFacility = facilityName,
-                CurrentMonth    = month,
-                RecordsSaved    = recordsSaved,
+                CurrentMonth = month,
+                RecordsSaved = recordsSaved,
                 FilesDownloaded = filesDownloaded,
-                Pct             = pct
+                Pct = pct
             };
         }
     }
@@ -51,11 +51,11 @@ public static class ActiveSyncState
         {
             _snap = _snap with
             {
-                IsRunning       = false,
-                Pct             = 100,
-                RecordsSaved    = recordsSaved,
+                IsRunning = false,
+                Pct = 100,
+                RecordsSaved = recordsSaved,
                 FilesDownloaded = filesDownloaded,
-                FinishedAt      = DateTime.UtcNow
+                FinishedAt = DateTime.UtcNow
             };
         }
     }
@@ -68,17 +68,17 @@ public static class ActiveSyncState
 
 public record SyncSnapshot
 {
-    public bool     IsRunning        { get; init; }
-    public int      Pct              { get; init; }
-    public int      FacilityIndex    { get; init; }
-    public int      TotalFacilities  { get; init; }
-    public int      TotalMonths      { get; init; }
-    public int      TotalSteps       { get; init; }
-    public int      StepsDone        { get; init; }
-    public string   CurrentFacility  { get; init; } = "";
-    public string   CurrentMonth     { get; init; } = "";
-    public int      RecordsSaved     { get; init; }
-    public int      FilesDownloaded  { get; init; }
-    public DateTime StartedAt        { get; init; }
-    public DateTime? FinishedAt      { get; init; }
+    public bool IsRunning { get; init; }
+    public int Pct { get; init; }
+    public int FacilityIndex { get; init; }
+    public int TotalFacilities { get; init; }
+    public int TotalMonths { get; init; }
+    public int TotalSteps { get; init; }
+    public int StepsDone { get; init; }
+    public string CurrentFacility { get; init; } = "";
+    public string CurrentMonth { get; init; } = "";
+    public int RecordsSaved { get; init; }
+    public int FilesDownloaded { get; init; }
+    public DateTime StartedAt { get; init; }
+    public DateTime? FinishedAt { get; init; }
 }

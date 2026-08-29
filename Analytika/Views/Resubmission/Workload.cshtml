@@ -12,22 +12,30 @@
 
 @section Styles {
 <style>
-.wl-card  { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1.25rem; margin-bottom:1rem; }
-.wl-label { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
-.wl-val   { font-size:1.1rem; font-weight:700; color:#0A1828; }
-.bar-bg   { height:8px; background:#f3f4f6; border-radius:4px; margin-top:6px; }
-.bar-fill { height:8px; border-radius:4px; background:#C87A10; transition:width .4s; }
-.coder-row:hover { background:#fafafa; }
+.wl-card  {
+    border-radius:14px; border:1px solid rgba(1,28,64,.08); background:#fff;
+    padding:1.25rem; margin-bottom:1rem; box-shadow:var(--shadow-sm);
+    transition:box-shadow var(--transition), transform var(--transition);
+}
+.wl-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); }
+.wl-label { font-size:.72rem; color:#35577D; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+.wl-val   { font-size:1.45rem; font-weight:800; color:#011C40; font-variant-numeric:tabular-nums; letter-spacing:-.03em; }
+.bar-bg   { height:8px; background:rgba(84,172,191,.14); border-radius:999px; margin-top:6px; overflow:hidden; }
+.bar-fill { height:8px; border-radius:999px; background:linear-gradient(90deg,#26658C,#54ACBF); transition:width .4s; }
+.coder-row:hover { background:rgba(84,172,191,.06); }
 .count-input { width:70px; text-align:center; }
-.overdue-badge { font-size:.68rem; color:#991b1b; background:#fee2e2; padding:.2em .5em; border-radius:4px; font-weight:600; }
+.overdue-badge { font-size:.68rem; color:#B94A3F; background:rgba(185,74,63,.11); padding:.2em .55em; border-radius:999px; font-weight:700; }
+/* Dark-mode legibility: light-authored view on globally-darkened cards. */
+html[data-theme="dark"] .wl-val { color:#e8eef5; }
+html[data-theme="dark"] .wl-label { color:#9fb3c6; }
 </style>
 }
 
 <div class="container-fluid py-3 px-4" style="max-width:1200px;">
 
     <!-- Breadcrumb -->
-    <nav style="font-size:.78rem;" class="mb-3">
-        <a href="/Resubmission" class="text-decoration-none" style="color:#C87A10;">
+    <nav class="fs-78 mb-3">
+        <a href="/Resubmission" class="text-decoration-none text-slate">
             <i class="fas fa-tasks me-1"></i>Resubmission
         </a>
         <span class="mx-2 text-muted">/</span>
@@ -40,7 +48,7 @@
             <div class="wl-card text-center">
                 <div class="wl-label">Unassigned</div>
                 <div class="wl-val text-danger">@unassigned.ToString("N0")</div>
-                <div style="font-size:.72rem; color:#6b7280;">AED @unassignedDenied.ToString("N0") denied</div>
+                <div class="fs-72 text-slate">AED @unassignedDenied.ToString("N0") denied</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -69,12 +77,12 @@
         <div class="col-lg-7">
             <div class="wl-card">
                 <h6 class="fw-semibold mb-3">
-                    <i class="fas fa-chart-bar me-2" style="color:#C87A10;"></i>Per-Coder Workload
-                    <span class="text-muted fw-normal" style="font-size:.75rem;">(today / this week / active)</span>
+                    <i class="fas fa-chart-bar me-2 text-slate"></i>Per-Coder Workload
+                    <span class="text-muted fw-normal fs-75">(today / this week / active)</span>
                 </h6>
 
                 <div class="table-responsive">
-                    <table class="table table-sm align-middle" style="font-size:.82rem;">
+                    <table class="table table-sm align-middle fs-82">
                         <thead style="background:#f9fafb;">
                             <tr>
                                 <th>Coder</th>
@@ -100,14 +108,14 @@
                                     </td>
                                     <td class="text-center fw-semibold">@r.TodayCount</td>
                                     <td class="text-center">@r.WeekCount</td>
-                                    <td class="text-center fw-semibold" style="color:#1e40af;">@r.TotalActive</td>
+                                    <td class="text-center fw-semibold text-teal">@r.TotalActive</td>
                                     <td class="text-center text-success">@r.Resubmitted</td>
                                     <td class="text-center text-muted">@r.Closed</td>
                                     <td>
                                         <div class="bar-bg">
                                             <div class="bar-fill" style="width:@pct%;"></div>
                                         </div>
-                                        <div style="font-size:.65rem; color:#9ca3af;">@pct%</div>
+                                        <div class="fs-65" style="color:#9ca3af;">@pct%</div>
                                     </td>
                                 </tr>
                             }
@@ -121,13 +129,13 @@
         <div class="col-lg-5">
             <div class="wl-card">
                 <h6 class="fw-semibold mb-3">
-                    <i class="fas fa-random me-2" style="color:#C87A10;"></i>Distribute Unassigned
+                    <i class="fas fa-random me-2 text-slate"></i>Distribute Unassigned
                     <span class="badge bg-danger ms-1">@unassigned</span>
                 </h6>
 
                 <div class="row g-2 mb-3">
                     <div class="col-6">
-                        <label class="form-label fw-semibold" style="font-size:.8rem;">Facility</label>
+                        <label class="form-label fw-semibold fs-80">Facility</label>
                         <select id="distFacility" class="form-select form-select-sm">
                             <option value="">All Facilities</option>
                             @foreach (var f in facilities)
@@ -137,20 +145,20 @@
                         </select>
                     </div>
                     <div class="col-6">
-                        <label class="form-label fw-semibold" style="font-size:.8rem;">Priority</label>
+                        <label class="form-label fw-semibold fs-80">Priority</label>
                         <select id="distPriority" class="form-select form-select-sm">
                             @foreach (var p in priorities)
                             {
-                                <option value="@p" selected="@(p == "Normal")">@p</option>
+                                <option value="@p" selected="@(p == "Normal" ? "selected" : null)">@p</option>
                             }
                         </select>
                     </div>
                     <div class="col-6">
-                        <label class="form-label fw-semibold" style="font-size:.8rem;">Due Date</label>
+                        <label class="form-label fw-semibold fs-80">Due Date</label>
                         <input type="date" id="distDueDate" class="form-control form-control-sm" />
                     </div>
                     <div class="col-6 d-flex align-items-end">
-                        <button class="btn btn-sm w-100" style="background:#6b7280;color:#fff;border:none;"
+                        <button class="btn btn-sm w-100" style="background:#35577D;color:#fff;border:none;"
                                 onclick="setEqual()">
                             <i class="fas fa-balance-scale me-1"></i>Split Equally
                         </button>
@@ -158,7 +166,7 @@
                 </div>
 
                 <div class="table-responsive mb-3">
-                    <table class="table table-sm align-middle" style="font-size:.82rem;">
+                    <table class="table table-sm align-middle fs-82">
                         <thead style="background:#f9fafb;">
                             <tr>
                                 <th>Coder</th>
@@ -172,9 +180,9 @@
                                 <tr>
                                     <td>
                                         <input type="hidden" class="uid-input" value="@r.UserId" />
-                                        <div style="font-size:.8rem;" class="fw-semibold">@r.Name</div>
+                                        <div class="fs-80 fw-semibold">@r.Name</div>
                                     </td>
-                                    <td class="text-center" style="color:#6b7280;">@r.TotalActive</td>
+                                    <td class="text-center text-slate">@r.TotalActive</td>
                                     <td class="text-center">
                                         <input type="number" class="form-control form-control-sm count-input assign-count"
                                                min="0" max="@unassigned" value="0" />
@@ -184,17 +192,17 @@
                         </tbody>
                         <tfoot>
                             <tr style="background:#f9fafb;">
-                                <td colspan="2" class="fw-semibold" style="font-size:.78rem;">Total to assign</td>
+                                <td colspan="2" class="fw-semibold fs-78">Total to assign</td>
                                 <td class="text-center fw-semibold" id="totalToAssign">0</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
 
-                <div id="distAlert" class="alert alert-warning py-2" style="font-size:.8rem; display:none;"></div>
+                <div id="distAlert" class="alert alert-warning py-2 fs-80" style="display:none;"></div>
 
-                <button class="btn btn-sm w-100 fw-semibold"
-                        style="background:#0A1828;color:#fff;border:none;"
+                <button class="btn btn-sm w-100 fw-semibold btn-navy"
+                        style="border:none;"
                         onclick="distribute()">
                     <i class="fas fa-paper-plane me-1"></i>Distribute Claims
                 </button>
@@ -216,7 +224,7 @@ function updateTotal() {
     const sum = [...document.querySelectorAll('.assign-count')].reduce((a, i) => a + (parseInt(i.value) || 0), 0);
     const el = document.getElementById('totalToAssign');
     el.textContent = sum;
-    el.style.color = sum > unassigned ? '#dc2626' : '#0A1828';
+    el.style.color = sum > unassigned ? '#dc2626' : '#011C40';
 }
 
 // Split equally among all coders

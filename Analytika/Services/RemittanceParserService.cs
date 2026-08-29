@@ -22,20 +22,17 @@ public class RemittanceParserService
     /// </summary>
     public async Task<(int Parsed, int Skipped, int Errors)> ParsePendingAsync(int? facilityId = null)
     {
-        var alreadyParsed = await _db.RemittanceClaims
-            .Select(rc => rc.RemittanceTransactionId)
-            .ToHashSetAsync();
-
+        // Use NOT EXISTS at database level instead of loading HashSet into memory
         var query = _db.PortalTransactions
             .Where(pt => pt.Type == "Remittance"
                       && pt.FileDownloaded
-                      && pt.FileContentXml != null && pt.FileContentXml != "");
+                      && pt.FileContentXml != null && pt.FileContentXml != "")
+            .Where(pt => !_db.RemittanceClaims.Any(rc => rc.RemittanceTransactionId == pt.Id));
 
         if (facilityId.HasValue)
             query = query.Where(pt => pt.FacilityId == facilityId.Value);
 
         var transactions = await query
-            .Where(pt => !alreadyParsed.Contains(pt.Id))
             .AsNoTracking()
             .ToListAsync();
 
@@ -48,26 +45,29 @@ public class RemittanceParserService
                 var claims = ParseXml(tx);
                 if (claims.Count == 0) { skipped++; continue; }
 
-                // Store one RemittanceClaim per XML (aggregated claim-level data)
-                // Each XML maps 1-to-1 with RemittanceTransactionId
+                // RemittanceClaims still supports one row per remittance transaction for the
+                // resubmission workspace. Claim Summary uses XmlParsedRecords for claim-level RA.
+                var first = claims[0];
                 var rc = new RemittanceClaim
                 {
                     RemittanceTransactionId = tx.Id,
-                    FacilityId              = tx.FacilityId,
-                    ClaimId                 = claims[0].ClaimId,
-                    PayerClaimId            = claims[0].PayerClaimId,
-                    PayerCode               = claims[0].PayerCode,
-                    ClinicianLicense        = claims[0].ClinicianLicense,
-                    OriginalAmount          = claims.Sum(c => c.OriginalAmount),
-                    PaidAmount              = claims.Sum(c => c.PaidAmount),
-                    DenialCodesJson         = JsonSerializer.Serialize(
+                    FacilityId = tx.FacilityId,
+                    ClaimId = first.ClaimId,
+                    PayerClaimId = first.PayerClaimId,
+                    PayerCode = first.PayerCode,
+                    ClinicianLicense = first.ClinicianLicense,
+                    OriginalAmount = claims.Sum(c => c.OriginalAmount),
+                    PaidAmount = claims.Sum(c => c.PaidAmount),
+                    DenialCodesJson = JsonSerializer.Serialize(
                         claims.SelectMany(c => c.DenialCodes).Distinct().OrderBy(x => x).ToList()),
-                    Comments                = string.Join(" | ", claims
-                        .Select(c => c.Comments).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct()),
-                    ActivityCount           = claims.Sum(c => c.ActivityCount),
-                    SettlementDate          = claims[0].SettlementDate,
-                    PaymentReference        = claims[0].PaymentReference,
-                    ParsedAt                = DateTime.UtcNow
+                    Comments = string.Join(" | ", claims
+                        .Select(c => c.Comments)
+                        .Where(c => !string.IsNullOrWhiteSpace(c))
+                        .Distinct()),
+                    ActivityCount = claims.Sum(c => c.ActivityCount),
+                    SettlementDate = first.SettlementDate,
+                    PaymentReference = first.PaymentReference,
+                    ParsedAt = DateTime.UtcNow
                 };
 
                 _db.RemittanceClaims.Add(rc);
@@ -99,33 +99,32 @@ public class RemittanceParserService
     private static List<ClaimData> ParseXml(PortalTransaction tx)
     {
         var xml = XDocument.Parse(tx.FileContentXml!);
-        var ns  = xml.Root?.Name.Namespace ?? XNamespace.None;
+        var ns = xml.Root?.Name.Namespace ?? XNamespace.None;
 
         var senderIdEl = xml.Descendants(ns + "SenderID").FirstOrDefault()
                       ?? xml.Descendants("SenderID").FirstOrDefault();
-        var payerCode  = senderIdEl?.Value?.Trim();
+        var payerCode = senderIdEl?.Value?.Trim();
 
         var results = new List<ClaimData>();
 
-        var claimEls = xml.Descendants(ns + "Claim").Concat(xml.Descendants("Claim"));
+        var claimEls = xml.Descendants().Where(e => e.Name.LocalName == "Claim");
 
         foreach (var claimEl in claimEls)
         {
             string? V(string tag) =>
                 (claimEl.Element(ns + tag) ?? claimEl.Element(tag))?.Value?.Trim();
 
-            var claimId     = V("ID") ?? "";
-            var payerClId   = V("IDPayer");
-            var settlement  = V("DateSettlement");
-            var payRef      = V("PaymentReference");
-            var comments    = V("Comments");
+            var claimId = V("ID") ?? "";
+            var payerClId = V("IDPayer");
+            var settlement = V("DateSettlement");
+            var payRef = V("PaymentReference");
+            var comments = V("Comments");
 
             // Activities (line items)
-            var actEls   = claimEl.Descendants(ns + "Activity")
-                .Concat(claimEl.Descendants("Activity")).ToList();
+            var actEls = claimEl.Descendants().Where(e => e.Name.LocalName == "Activity").ToList();
 
-            decimal net  = 0, paid = 0;
-            var denials  = new List<string>();
+            decimal net = 0, paid = 0;
+            var denials = new List<string>();
             string? clin = null;
 
             foreach (var act in actEls)
@@ -133,7 +132,7 @@ public class RemittanceParserService
                 string? AV(string tag) =>
                     (act.Element(ns + tag) ?? act.Element(tag))?.Value?.Trim();
 
-                if (decimal.TryParse(AV("Net"),           out var n)) net  += n;
+                if (decimal.TryParse(AV("Net"), out var n)) net += n;
                 if (decimal.TryParse(AV("PaymentAmount"), out var p)) paid += p;
 
                 var dc = AV("DenialCode");
@@ -146,16 +145,16 @@ public class RemittanceParserService
             if (string.IsNullOrWhiteSpace(claimId)) continue;
 
             results.Add(new ClaimData(
-                ClaimId:         claimId,
-                PayerClaimId:    payerClId,
-                PayerCode:       payerCode,
+                ClaimId: claimId,
+                PayerClaimId: payerClId,
+                PayerCode: payerCode,
                 ClinicianLicense: clin,
-                OriginalAmount:  net,
-                PaidAmount:      paid,
-                DenialCodes:     denials,
-                Comments:        comments,
-                ActivityCount:   actEls.Count,
-                SettlementDate:  settlement,
+                OriginalAmount: net,
+                PaidAmount: paid,
+                DenialCodes: denials,
+                Comments: comments,
+                ActivityCount: actEls.Count,
+                SettlementDate: settlement,
                 PaymentReference: payRef));
         }
 

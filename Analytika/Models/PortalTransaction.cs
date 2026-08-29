@@ -19,6 +19,8 @@ public class PortalTransaction
 
     // Downloaded file data
     public bool FileDownloaded { get; set; } = false;         // Whether DownloadTransactionFile was called
+    public bool FileUnavailable { get; set; } = false;        // Both normal + archive endpoints returned empty — permanently unfetchable, excluded from pending
+    public bool ParseYieldedNothing { get; set; } = false;    // Parsed cleanly but produced 0 records — excluded from future parse scans so it is not re-read forever
     public string? FileContentXml { get; set; }               // Parsed/raw XML from the downloaded file
     public long? FileSizeBytes { get; set; }
     public DateTime? FileDownloadedAt { get; set; }

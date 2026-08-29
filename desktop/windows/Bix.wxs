@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX v5 installer for the Bix desktop app (Windows).
+  Built in CI by .github/workflows/desktop-release.yml:
+    wix build desktop/windows/Bix.wxs -arch x64 -d PublishDir=publish-win -d Version=1.0.0 -o Bix-win-x64.msi
+  The published folder ($(var.PublishDir)) is a self-contained win-x64 build of Analytika.
+  The Start-menu shortcut launches the app in desktop mode (--desktop): it starts the
+  local web server on http://localhost:5097 and opens the default browser.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Bix"
+           Manufacturer="Ghaf BI Solutions"
+           Version="$(var.Version)"
+           UpgradeCode="6d2b6f7e-9a4c-4d2e-bf11-b1c0ffee0001"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Bix is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Install location: C:\Program Files\Bix -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Bix" />
+    </StandardDirectory>
+
+    <!-- Start-menu folder -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppShortcutFolder" Name="Bix" />
+    </StandardDirectory>
+
+    <!-- Harvest the entire self-contained publish output at build time -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <!-- Start-menu shortcut → launches the desktop app -->
+    <Component Id="AppShortcut" Directory="AppShortcutFolder" Guid="b1c0ffee-0000-4a00-9000-bixdesktop0002">
+      <Shortcut Id="BixStartMenuShortcut"
+                Name="Bix"
+                Description="Bix — Business Intelligence"
+                Target="[INSTALLFOLDER]Analytika.exe"
+                Arguments="--desktop"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveAppShortcutFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\GhafBI\Bix" Name="installed"
+                     Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="Main" Title="Bix" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcut" />
+    </Feature>
+  </Package>
+</Wix>

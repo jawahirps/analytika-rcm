@@ -4,9 +4,11 @@
 }
 
 <div class="container-fluid py-4 px-4">
-    <div class="mb-4">
-        <h4 class="mb-0 fw-bold" style="color:#0A1828;">Portal Data Fetch</h4>
-        <small class="text-muted">Retrieve transactions from RHA (Riayati) and DHA (eClaimLink) portals</small>
+    <div class="page-header mb-4">
+        <div>
+            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Portal Data Fetch</h4>
+            <small class="text-muted">Retrieve transactions from RHA (Riayati) and DHA (eClaimLink) portals</small>
+        </div>
     </div>
 
     <div class="row g-4">
@@ -14,7 +16,7 @@
         <div class="col-lg-4">
             <div class="card border-0 shadow-sm" style="border-radius:12px;">
                 <div class="card-body p-4">
-                    <h6 class="fw-bold mb-3" style="color:#0A1828;">Fetch Parameters</h6>
+                    <h6 class="fw-bold mb-3" style="color:#011C40;">Fetch Parameters</h6>
                     <form asp-action="Fetch" method="post">
                         @Html.AntiForgeryToken()
 
@@ -39,14 +41,25 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label small fw-semibold">Facility</label>
-                            <select name="FacilityIds" id="fetchFacilitySelect" class="form-select form-select-sm select2-multi" multiple>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label small fw-semibold mb-0">Facility <span class="text-muted fw-normal">(branches)</span></label>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-ghost btn-xs" onclick="selectAllFacilities()" title="Select every branch">
+                                        <i class="fas fa-check-double me-1"></i>All branches
+                                    </button>
+                                    <button type="button" class="btn btn-ghost btn-xs" onclick="clearFacilities()" title="Clear selection">Clear</button>
+                                </div>
+                            </div>
+                            <select name="FacilityIds" id="fetchFacilitySelect" class="form-select form-select-sm select2-multi mt-1" multiple>
                                 @foreach (var f in Model.Facilities)
                                 {
                                     if (Model.FacilityIds.Contains(int.Parse(f.Value))) { <option value="@f.Value" selected>@f.Text</option> }
                                     else { <option value="@f.Value">@f.Text</option> }
                                 }
                             </select>
+                            <div class="form-text" style="font-size:.7rem;">
+                                Pick <strong>All branches</strong> + <strong>2 Years</strong> below, then <strong>Bulk Save</strong> to pull full data for every branch.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -97,6 +110,11 @@
                                 <option value="1" selected>1 — New (not yet downloaded)</option>
                                 <option value="2" selected>2 — Already downloaded</option>
                             </select>
+                            <div class="mt-2 d-flex gap-1 flex-wrap">
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([1])">New Only</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([2])">Downloaded Only</button>
+                                <button type="button" class="btn btn-ghost btn-xs" onclick="setTxStatus([1,2])">Both</button>
+                            </div>
                         </div>
 
                         <div class="mb-3" id="txTypeSection" style="display:none;">
@@ -128,7 +146,7 @@
                             <div class="form-text" style="font-size:.7rem;">Filters by # of claims inside each file. Use -1 to disable. Max 500 files returned per call.</div>
                         </div>
 
-                        <button type="submit" class="btn w-100" style="background:#0D7272;color:#fff;border-radius:8px;font-weight:600;">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-cloud-download-alt me-1"></i> Fetch Data
                         </button>
                     </form>
@@ -140,17 +158,17 @@
             {
                 <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold mb-3" style="color:#0A1828;">Recent Fetches</h6>
+                        <h6 class="fw-bold mb-3" style="color:#011C40;">Recent Fetches</h6>
                         @foreach (var log in Model.RecentLogs)
                         {
                             <div class="d-flex align-items-start gap-2 mb-3">
                                 <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#ccf7f7" : "#ffe8e8");">
+                                     style="width:28px;height:28px;background:@(log.Status == "Success" ? "#EAF4FB" : "#ffe8e8");">
                                     <i class="fas fa-@(log.Status == "Success" ? "check" : "times") fa-xs"
-                                       style="color:@(log.Status == "Success" ? "#0A1828" : "#dc3545");"></i>
+                                       style="color:@(log.Status == "Success" ? "#011C40" : "#dc3545");"></i>
                                 </div>
                                 <div style="font-size:.78rem;">
-                                    <div class="fw-semibold" style="color:#0A1828;">@log.Portal — @log.Operation</div>
+                                    <div class="fw-semibold" style="color:#011C40;">@log.Portal — @log.Operation</div>
                                     <div class="text-muted">@(log.Facility?.Name) · @log.RecordsFetched records</div>
                                     <div class="text-muted">@log.FetchedAt.ToString("dd MMM HH:mm")</div>
                                 </div>
@@ -173,29 +191,43 @@
 
             @if (Model.Results.Any())
             {
-                <div class="card border-0 shadow-sm" style="border-radius:12px;">
+                var isDhaSearch = Model.Operation == "SearchTransactions" && Model.Portal == "DHA";
+                var canBulk = isDhaSearch && Model.FacilityIds.Count >= 1;   // Bulk Save across one or many branches
+                var canManual = isDhaSearch && Model.FacilityIds.Count == 1; // per-row manual download (single branch only)
+                <div id="resultsCard" class="card border-0 shadow-sm" style="border-radius:12px;">
                     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="fw-bold" style="color:#0A1828;">Fetch Results</span>
-                            <span class="badge ms-2" style="background:#ccf7f7;color:#0A1828;">@Model.TotalFetched records</span>
+                            <span class="fw-bold" style="color:#011C40;">Fetch Results</span>
+                            <span class="badge ms-2" style="background:#EAF4FB;color:#011C40;">@Model.TotalFetched records</span>
                         </div>
                         <div class="d-flex gap-2">
-                            @if (Model.Operation == "SearchTransactions" && Model.Portal == "DHA")
+                            @if (canBulk)
                             {
                                 <form id="saveAllForm" style="display:none;">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="Portal"            value="@Model.Portal" />
+                                    @foreach (var fid in Model.FacilityIds)
+                                    {
+                                        <input type="hidden" name="FacilityIds" value="@fid" />
+                                    }
                                     <input type="hidden" name="FacilityId"        value="@Model.FacilityId" />
                                     <input type="hidden" name="DateFrom"          value="@Model.DateFrom" />
                                     <input type="hidden" name="DateTo"            value="@Model.DateTo" />
-                                    <input type="hidden" name="Direction"         value="@Model.Direction" />
-                                    <input type="hidden" name="TransactionStatus" value="@Model.TransactionStatus" />
-                                    <input type="hidden" name="TransactionId"     value="@Model.TransactionId" />
-                                    <input type="hidden" name="MinRecord"         value="@Model.MinRecord" />
-                                    <input type="hidden" name="MaxRecord"         value="@Model.MaxRecord" />
                                 </form>
-                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm" style="background:#0D7272;color:#fff;border-radius:6px;font-size:.78rem;">
-                                    <i class="fas fa-database me-1"></i> Bulk Save
+                            }
+                            @if (canManual)
+                            {
+                                <button type="button" id="selModeBtn" onclick="toggleSelMode()" class="btn btn-sm btn-outline-secondary" style="font-size:.78rem;" title="Manual select mode — for special cases only">
+                                    <i class="fas fa-list-check me-1"></i> Select
+                                </button>
+                                <button type="button" id="dlSelBtn" onclick="downloadSelected()" class="btn btn-sm btn-outline-primary" style="font-size:.78rem;" disabled>
+                                    <i class="fas fa-download me-1"></i> Download Selected (<span id="selCount">0</span>)
+                                </button>
+                            }
+                            @if (canBulk)
+                            {
+                                <button type="button" id="bulkSaveBtn" onclick="bulkSave()" class="btn btn-sm btn-primary" style="font-size:.78rem;" title="@(Model.FacilityIds.Count > 1 ? $"Fetch & save full data for all {Model.FacilityIds.Count} selected branches" : "Fetch & save full data")">
+                                    <i class="fas fa-database me-1"></i> Bulk Save@(Model.FacilityIds.Count > 1 ? $" · {Model.FacilityIds.Count} branches" : "")
                                 </button>
                             }
                             <button class="btn btn-sm btn-outline-secondary" onclick="exportCsv()" style="border-radius:6px;font-size:.78rem;">
@@ -206,8 +238,13 @@
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height:500px;overflow-y:auto;">
                             <table class="table table-hover mb-0" style="font-size:.82rem;" id="resultsTable">
-                                <thead style="background:#f8f9fa;position:sticky;top:0;">
+                                <thead style="background:#EAF4FB;position:sticky;top:0;">
                                     <tr>
+                                        @if (canManual)
+                                        {
+                                            <th class="ps-4 py-2 border-0 sel-col" style="width:34px;"><input type="checkbox" id="selAll" onclick="toggleSelAll(this)" title="Select all"></th>
+                                        }
+                                        <th class="ps-4 py-2 fw-semibold text-muted border-0">Facility</th>
                                         <th class="ps-4 py-2 fw-semibold text-muted border-0">Transaction ID</th>
                                         <th class="py-2 fw-semibold text-muted border-0">Type</th>
                                         <th class="py-2 fw-semibold text-muted border-0">Status</th>
@@ -221,9 +258,14 @@
                                     @foreach (var r in Model.Results)
                                     {
                                         <tr>
-                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#0A1828;">@r.FileId</td>
+                                            @if (canManual)
+                                            {
+                                                <td class="ps-4 py-2 align-middle sel-col"><input type="checkbox" class="rowchk" onclick="updateSelCount()" data-fileid="@r.FileId" data-filename="@r.FileName" data-type="@r.Type" data-status="@r.Status" data-date="@r.Date" data-payer="@r.Payer" data-amount="@r.Amount"></td>
+                                            }
+                                            <td class="ps-4 py-2 align-middle text-muted">@(!string.IsNullOrWhiteSpace(r.FacilityName) ? r.FacilityName : (r.FacilityId > 0 ? $"Facility {r.FacilityId}" : "—"))</td>
+                                            <td class="ps-4 py-2 align-middle fw-semibold" style="color:#011C40;">@r.FileId</td>
                                             <td class="py-2 align-middle">
-                                                <span class="badge rounded-pill" style="background:#ccf7f7;color:#164055;font-size:.7rem;">@r.Type</span>
+                                                <span class="badge rounded-pill" style="background:#EAF4FB;color:#54ACBF;font-size:.7rem;">@r.Type</span>
                                             </td>
                                             <td class="py-2 align-middle">
                                                 <span class="badge rounded-pill @(r.Status.Contains("Complete") || r.Status == "1" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning")" style="font-size:.7rem;">
@@ -234,7 +276,16 @@
                                             <td class="py-2 align-middle text-muted">@(r.Amount ?? "—")</td>
                                             <td class="py-2 align-middle text-muted">@(r.Date ?? "—")</td>
                                             <td class="pe-4 py-2 align-middle" style="font-size:.75rem;">
-                                                @if (!string.IsNullOrEmpty(r.FileName))
+                                                @if (r.DbFileDownloaded && r.TransactionDbId > 0)
+                                                {
+                                                    <a href="/Portal/DownloadFile/@r.TransactionDbId"
+                                                       class="btn btn-sm btn-outline-success"
+                                                       style="border-radius:6px;font-size:.72rem;"
+                                                       title="Download saved XML">
+                                                        <i class="fas fa-download me-1"></i>@(!string.IsNullOrEmpty(r.FileName) ? r.FileName : "Download XML")
+                                                    </a>
+                                                }
+                                                else if (!string.IsNullOrEmpty(r.FileName))
                                                 {
                                                     <button type="button" class="btn btn-sm btn-outline-info" style="border-radius:6px;font-size:.72rem;"
                                                             onclick="prefillDownload('@r.FileName')">
@@ -263,31 +314,32 @@
                 <div class="card-body p-4">
                     <!-- header row -->
                     <div class="d-flex align-items-center gap-2 mb-3">
-                        <div id="saveStatusIcon" class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;background:#ccf7f7;">
-                            <i class="fas fa-spinner fa-spin" style="color:#164055;font-size:.85rem;"></i>
+                        <div id="saveStatusIcon" class="d-flex align-items-center justify-content-center flex-shrink-0" style="width:56px;height:56px;">
+                            @* Server-sync loader shown while fetching & syncing (loader-12 port) *@
+                            <span style="transform:scale(.62);transform-origin:center;"><partial name="_LoaderSync" /></span>
                         </div>
                         <div>
-                            <div class="fw-bold" id="saveStatusTitle" style="color:#0A1828;">Searching portal…</div>
+                            <div class="fw-bold" id="saveStatusTitle" style="color:#011C40;">Searching portal…</div>
                             <div class="text-muted small" id="saveStatusSubtitle">Fetching transaction list</div>
                         </div>
                     </div>
                     <!-- progress bar -->
                     <div class="progress mb-3" style="height:6px;border-radius:4px;">
-                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:#0D7272;transition:width .3s;"></div>
+                        <div id="saveProgressBar" class="progress-bar" role="progressbar" style="width:0%;background:var(--classic-teal);transition:width .3s;"></div>
                     </div>
                     <!-- counters -->
                     <div class="row g-2 text-center">
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#0A1828;" id="statFound">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#011C40;" id="statFound">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Found</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#0D7272;" id="statSaved">—</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:var(--classic-teal);" id="statSaved">—</div>
                             <div class="text-muted" style="font-size:.72rem;">Saved</div>
                         </div>
                         <div class="col">
-                            <div class="fw-bold" style="font-size:1.4rem;color:#164055;" id="statFiles">—</div>
-                            <div class="text-muted" style="font-size:.72rem;">Downloaded</div>
+                            <div class="fw-bold" style="font-size:1.4rem;color:#54ACBF;" id="statFiles">—</div>
+                            <div class="text-muted" style="font-size:.72rem;">Files Downloaded</div>
                         </div>
                         <div class="col">
                             <div class="fw-bold" style="font-size:1.4rem;color:#6c757d;" id="statDups">—</div>
@@ -306,14 +358,14 @@
 
             @if (!string.IsNullOrEmpty(Model.DownloadedFileName))
             {
-                <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;border-left:4px solid #0D7272;">
+                <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;border-left:4px solid #A7EBF2;">
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3 mb-3">
                             <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:44px;height:44px;background:#e8fff7;flex-shrink:0;">
-                                <i class="fas fa-file-download" style="color:#0D7272;font-size:1.1rem;"></i>
+                                <i class="fas fa-file-download" style="color:#A7EBF2;font-size:1.1rem;"></i>
                             </div>
                             <div>
-                                <div class="fw-bold" style="color:#0A1828;">@Model.DownloadedFileName</div>
+                                <div class="fw-bold" style="color:#011C40;">@Model.DownloadedFileName</div>
                                 <div class="text-muted small">Transaction file downloaded and marked on portal</div>
                             </div>
                         </div>
@@ -321,7 +373,7 @@
                         {
                             <a href="data:application/octet-stream;base64,@Model.DownloadedFileBase64"
                                download="@Model.DownloadedFileName"
-                               class="btn btn-sm" style="background:#0D7272;color:#fff;border-radius:8px;">
+                               class="btn btn-sm btn-primary">
                                 <i class="fas fa-download me-1"></i> Save File
                             </a>
                         }
@@ -333,7 +385,7 @@
             {
                 <div class="card border-0 shadow-sm d-flex align-items-center justify-content-center" style="border-radius:12px;min-height:300px;">
                     <div class="text-center text-muted py-5">
-                        <i class="fas fa-cloud-download-alt fa-3x mb-3" style="color:#dee2e6;"></i>
+                        <i class="fas fa-cloud-download-alt fa-3x mb-3" style="color:#EAF4FB;"></i>
                         <p class="mb-0">Select a portal and operation, then click <strong>Fetch Data</strong></p>
                         <small>Fetched transactions will appear here</small>
                     </div>
@@ -345,15 +397,27 @@
 
 @section Styles {
 <style>
+/* Segmented control — Apple-style portal selector */
 .portal-toggle { cursor:pointer; }
 .portal-toggle span {
-    display:block; padding:10px 12px; border-radius:8px; text-align:center;
-    border:1.5px solid #dee2e6; background:#f8f9fa; font-size:.82rem;
-    font-weight:600; color:#495057; transition:all .15s; user-select:none;
+    display:block; padding:10px 12px; border-radius:10px; text-align:center;
+    border:1.5px solid var(--border); background:var(--surface-alt);
+    font-size:.82rem; font-weight:600; color:var(--text-secondary);
+    transition:all var(--transition); user-select:none;
 }
+.portal-toggle:hover span { border-color:var(--classic-teal); color:var(--text); }
 .portal-toggle input:checked + span {
-    background:#0A1828; color:#fff; border-color:#0A1828;
+    background:var(--deep-navy); color:#fff; border-color:var(--deep-navy);
+    box-shadow:0 4px 12px rgba(1,28,64,0.18);
 }
+.portal-toggle input:checked + span small { color:rgba(255,255,255,0.72) !important; }
+
+/* Manual multi-select download — hidden by default, revealed by the "Select" switch (special cases only) */
+#resultsCard .sel-col { display: none; }
+#resultsCard.sel-mode .sel-col { display: table-cell; }
+#dlSelBtn { display: none; }
+#resultsCard.sel-mode #dlSelBtn { display: inline-flex; }
+#resultsCard.sel-mode #selModeBtn { background: var(--deep-navy); color: #fff; border-color: var(--deep-navy); }
 </style>
 }
 
@@ -421,10 +485,62 @@ function prefillDownload(fileId) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function toggleSelMode() {
+    const card = document.getElementById('resultsCard');
+    if (!card) return;
+    const on = card.classList.toggle('sel-mode');
+    if (!on) {
+        document.querySelectorAll('.rowchk').forEach(c => c.checked = false);
+        const all = document.getElementById('selAll'); if (all) all.checked = false;
+        updateSelCount();
+    }
+}
+function toggleSelAll(cb) {
+    document.querySelectorAll('.rowchk').forEach(c => c.checked = cb.checked);
+    updateSelCount();
+}
+function updateSelCount() {
+    const n = document.querySelectorAll('.rowchk:checked').length;
+    const el = document.getElementById('selCount'); if (el) el.textContent = n;
+    const btn = document.getElementById('dlSelBtn'); if (btn) btn.disabled = n === 0;
+    const all = document.getElementById('selAll');
+    const total = document.querySelectorAll('.rowchk').length;
+    if (all) all.checked = total > 0 && n === total;
+}
+async function downloadSelected() {
+    const checked = [...document.querySelectorAll('.rowchk:checked')];
+    if (!checked.length) return;
+    const rows = checked.map(c => ({
+        fileId: c.dataset.fileid, fileName: c.dataset.filename, type: c.dataset.type,
+        status: c.dataset.status, date: c.dataset.date, payer: c.dataset.payer, amount: c.dataset.amount
+    }));
+    const form = document.getElementById('saveAllForm');
+    const token = form.querySelector('input[name=__RequestVerificationToken]').value;
+    const portal = form.querySelector('input[name=Portal]').value;
+    const facilityId = form.querySelector('input[name=FacilityId]').value;
+    const btn = document.getElementById('dlSelBtn'); const orig = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="pulsating-dots is-sm on-accent align-middle me-2"><span></span><span></span><span></span></span> Downloading…';
+    try {
+        const fd = new FormData();
+        fd.append('__RequestVerificationToken', token);
+        fd.append('portal', portal);
+        fd.append('facilityId', facilityId);
+        fd.append('rowsJson', JSON.stringify(rows));
+        const resp = await fetch('/Portal/DownloadSelected', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.error) { alert('Download failed: ' + data.error); }
+        else {
+            alert(`Downloaded ${data.downloaded} file(s) · ${data.saved} new · ${data.duplicates} already in DB. Reloading…`);
+            location.reload();
+        }
+    } catch (e) { alert('Error: ' + e.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; updateSelCount(); }
+}
+
 async function bulkSave() {
     const btn = document.getElementById('bulkSaveBtn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving…';
+    btn.innerHTML = '<span class="pulsating-dots is-sm on-accent align-middle me-2"><span></span><span></span><span></span></span> Saving…';
 
     const card = document.getElementById('saveStatusCard');
     card.style.display = '';
@@ -454,7 +570,7 @@ async function bulkSave() {
                     updateSaveUI(json);
                     if (json.status === 'done') {
                         btn.innerHTML = '<i class="fas fa-check me-1"></i> Done';
-                        btn.style.background = '#0A1828';
+                        btn.style.background = '#011C40';
                     }
                 } catch {}
             }
@@ -468,11 +584,15 @@ async function bulkSave() {
 }
 
 function updateSaveUI(d) {
+    const branchTag = (d.facCount && d.facCount > 1 && d.facIndex) ? ` · branch ${d.facIndex}/${d.facCount}` : '';
+    const facLabel  = d.facility ? `${d.facility}` : '';
+    const doneSub   = `${d.saved} new saved · ${d.downloaded} files downloaded · ${d.duplicates} duplicates`
+                      + (d.skipped ? `<br><span class="text-warning">Skipped: ${d.skipped}</span>` : '');
     const titles = {
-        searching:  ['Searching portal…',         'Fetching transaction list across all types'],
-        found:      ['Records found — processing…','Downloading &amp; saving to database'],
-        processing: ['Saving files…',              `${d.saved ?? 0} saved · ${d.downloaded ?? 0} downloaded · ${d.pending ?? 0} pending`],
-        done:       ['Complete',                   `${d.saved} new saved · ${d.downloaded} files downloaded · ${d.duplicates} duplicates`],
+        searching:  [facLabel ? `Searching ${facLabel}…` : 'Searching portal…',  `Fetching transaction list across all types${branchTag}`],
+        found:      [facLabel ? `Found in ${facLabel} — processing…` : 'Records found — processing…', `Downloading &amp; saving to database${branchTag}`],
+        processing: [facLabel ? `Saving ${facLabel}…` : 'Saving files…',          `${d.saved ?? 0} saved · ${d.downloaded ?? 0} downloaded · ${d.pending ?? 0} pending${branchTag}`],
+        done:       ['Complete',                   doneSub],
         error:      ['Error',                      d.message ?? 'An error occurred']
     };
     const [title, sub] = titles[d.status] ?? ['Working…', ''];
@@ -481,8 +601,8 @@ function updateSaveUI(d) {
 
     const icon = document.getElementById('saveStatusIcon');
     if (d.status === 'done') {
-        icon.style.background = '#ccf7f7';
-        icon.innerHTML = '<i class="fas fa-check" style="color:#0A1828;font-size:.85rem;"></i>';
+        icon.style.background = '#EAF4FB';
+        icon.innerHTML = '<i class="fas fa-check" style="color:#011C40;font-size:.85rem;"></i>';
     } else if (d.status === 'error') {
         icon.style.background = '#ffe8e8';
         icon.innerHTML = '<i class="fas fa-times" style="color:#dc3545;font-size:.85rem;"></i>';
@@ -510,6 +630,30 @@ function setFetchRange(months) {
     from.setMonth(from.getMonth() - months);
     document.getElementById('DateFrom').value = from.toISOString().split('T')[0];
     document.getElementById('DateTo').value   = today.toISOString().split('T')[0];
+}
+
+function setTxStatus(statuses) {
+    const sel = document.getElementById('txStatusSelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+        opt.selected = statuses.includes(parseInt(opt.value));
+    });
+    if (sel.classList.contains('select2-hidden-accessible')) {
+        $(sel).trigger('change');
+    }
+}
+
+function selectAllFacilities() {
+    const sel = document.getElementById('fetchFacilitySelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => o.selected = true);
+    if (sel.classList.contains('select2-hidden-accessible')) { $(sel).trigger('change'); }
+}
+function clearFacilities() {
+    const sel = document.getElementById('fetchFacilitySelect');
+    if (!sel) return;
+    Array.from(sel.options).forEach(o => o.selected = false);
+    if (sel.classList.contains('select2-hidden-accessible')) { $(sel).trigger('change'); }
 }
 
 // Init on load

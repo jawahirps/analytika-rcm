@@ -9,28 +9,34 @@
 
 @section Styles {
 <style>
-.rsb-card { border-radius:10px; border:1px solid #e5e7eb; background:#fff; padding:1rem 1.25rem; }
-.rsb-stat-val { font-size:1.6rem; font-weight:700; color:#0A1828; line-height:1.1; }
-.rsb-stat-lbl { font-size:.72rem; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
-.rsb-stat-sub { font-size:.75rem; color:#C87A10; font-weight:600; margin-top:2px; }
+.rsb-card { border-radius:10px; border:1px solid #EAF4FB; background:#fff; padding:1rem 1.25rem; }
+.rsb-stat-val { font-size:1.6rem; font-weight:700; color:#011C40; line-height:1.1; }
+.rsb-stat-lbl { font-size:.72rem; color:#35577D; text-transform:uppercase; letter-spacing:.04em; margin-top:2px; }
+.rsb-stat-sub { font-size:.75rem; color:#35577D; font-weight:600; margin-top:2px; }
 .badge-status { font-size:.68rem; padding:.25em .6em; border-radius:99px; font-weight:600; }
-.bs-Unassigned  { background:#f3f4f6; color:#374151; }
-.bs-Assigned    { background:#dbeafe; color:#1e40af; }
-.bs-InReview    { background:#fef3c7; color:#92400e; }
-.bs-Resubmitted { background:#d1fae5; color:#065f46; }
+.bs-Unassigned  { background:#EAF4FB; color:#374151; }
+.bs-Assigned    { background:#EAF4FB; color:#54ACBF; }
+.bs-InReview    { background:#EAF4FB; color:#92400e; }
+.bs-Resubmitted { background:#EAF4FB; color:#065f46; }
 .bs-Appealed    { background:#ede9fe; color:#5b21b6; }
 .bs-Closed      { background:#f0fdf4; color:#166534; }
 .bs-Rejected    { background:#fee2e2; color:#991b1b; }
 .prio-Urgent { color:#dc2626; font-weight:700; }
 .prio-High   { color:#ea580c; font-weight:600; }
-.prio-Normal { color:#2563eb; }
-.prio-Low    { color:#6b7280; }
+.prio-Normal { color:#26658C; }   /* was pale cyan (#A7EBF2) — invisible on white */
+.prio-Low    { color:#35577D; }
 .claim-row { cursor:pointer; transition:background .12s; }
-.claim-row:hover { background:#f8fafc; }
+.claim-row:hover { background:#EAF4FB; }
 .claim-row.selected { background:#eff6ff; }
 .denied-amt { font-weight:700; color:#dc2626; }
 .paid-amt   { font-weight:600; color:#16a34a; }
-.filter-bar { background:#f8f9fa; border:1px solid #e5e7eb; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; }
+.filter-bar { background:#EAF4FB; border:1px solid #EAF4FB; border-radius:8px; padding:.75rem 1rem; margin-bottom:1rem; }
+/* Dark-mode legibility: light-authored view on globally-darkened cards. */
+html[data-theme="dark"] .rsb-stat-val { color:#e8eef5; }
+html[data-theme="dark"] .rsb-stat-lbl,
+html[data-theme="dark"] .rsb-stat-sub { color:#9fb3c6; }
+html[data-theme="dark"] .prio-Low { color:#9fb3c6; }
+html[data-theme="dark"] .prio-Normal { color:#7cc7dd; }
 </style>
 }
 
@@ -39,8 +45,8 @@
     <!-- ── Header ─────────────────────────────────────────────────────────── -->
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
-            <h4 class="fw-bold mb-0"><i class="fas fa-tasks me-2" style="color:#C87A10;"></i>Resubmission Allocation</h4>
-            <span class="text-muted" style="font-size:.8rem;">Delegate denied/partial claims to medical coders</span>
+            <h4 class="fw-bold mb-0"><i class="fas fa-tasks me-2 text-slate"></i>Resubmission Allocation</h4>
+            <span class="text-muted fs-80">Delegate denied/partial claims to medical coders</span>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             @if (ViewBag.UnparsedCount > 0 && isAdmin)
@@ -54,7 +60,7 @@
             }
             @if (isAdmin)
             {
-                <button class="btn btn-sm btn-primary fw-semibold" id="bulkAssignBtn" style="background:#0A1828;border-color:#0A1828;" disabled
+                <button class="btn btn-sm btn-primary fw-semibold bg-navy" id="bulkAssignBtn" style="border-color:#011C40;" disabled
                         onclick="showBulkModal()">
                     <i class="fas fa-user-plus me-1"></i>Assign Selected
                 </button>
@@ -78,7 +84,7 @@
         </div>
         <div class="col-6 col-md-3 col-xl">
             <div class="rsb-card text-center">
-                <div class="rsb-stat-val" style="color:#C87A10;">@ViewBag.InProgress</div>
+                <div class="rsb-stat-val text-slate">@ViewBag.InProgress</div>
                 <div class="rsb-stat-lbl">In Progress</div>
             </div>
         </div>
@@ -106,64 +112,64 @@
     <!-- ── Filters ────────────────────────────────────────────────────────── -->
     <form method="get" class="filter-bar d-flex flex-wrap gap-2 align-items-end">
         <div>
-            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">STATUS</label>
+            <label class="form-label mb-1 fs-72" style="font-weight:600;">STATUS</label>
             <select name="status" class="form-select form-select-sm" style="min-width:110px;">
                 <option value="">All</option>
                 @foreach (var s in (string[])ViewBag.Statuses)
                 {
-                    <option value="@s" selected="@(ViewBag.FilterStatus == s)">@s</option>
+                    <option value="@s" selected="@(ViewBag.FilterStatus == s ? "selected" : null)">@s</option>
                 }
             </select>
         </div>
         <div>
-            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">FACILITY</label>
+            <label class="form-label mb-1 fs-72" style="font-weight:600;">FACILITY</label>
             <select name="facilityId" class="form-select form-select-sm" style="min-width:130px;">
                 <option value="">All</option>
                 @foreach (var f in facilities)
                 {
-                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString())">@f.Name</option>
+                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString() ? "selected" : null)">@f.Name</option>
                 }
             </select>
         </div>
         <div>
-            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">PRIORITY</label>
+            <label class="form-label mb-1 fs-72" style="font-weight:600;">PRIORITY</label>
             <select name="priority" class="form-select form-select-sm" style="min-width:100px;">
                 <option value="">All</option>
                 @foreach (var p in (string[])ViewBag.Priorities)
                 {
-                    <option value="@p" selected="@(ViewBag.FilterPriority == p)">@p</option>
+                    <option value="@p" selected="@(ViewBag.FilterPriority == p ? "selected" : null)">@p</option>
                 }
             </select>
         </div>
         @if (isAdmin)
         {
             <div>
-                <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">ASSIGNEE</label>
+                <label class="form-label mb-1 fs-72" style="font-weight:600;">ASSIGNEE</label>
                 <select name="assignee" class="form-select form-select-sm" style="min-width:130px;">
                     <option value="">All</option>
-                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__")">Unassigned</option>
+                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__" ? "selected" : null)">Unassigned</option>
                     @foreach (var u in coders)
                     {
-                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id)">@(u.FullName ?? u.Email)</option>
+                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id ? "selected" : null)">@(u.FullName ?? u.Email)</option>
                     }
                 </select>
             </div>
         }
         <div>
-            <label class="form-label mb-1" style="font-size:.72rem;font-weight:600;">SEARCH</label>
+            <label class="form-label mb-1 fs-72" style="font-weight:600;">SEARCH</label>
             <input name="search" value="@ViewBag.FilterSearch" class="form-control form-select-sm"
                    placeholder="Claim ID / payer ref…" style="min-width:160px;" />
         </div>
         <button class="btn btn-sm btn-dark">Filter</button>
         <a href="/Resubmission" class="btn btn-sm btn-outline-secondary">Reset</a>
-        <span class="ms-auto text-muted" style="font-size:.78rem;">@ViewBag.TotalFiltered result(s)</span>
+        <span class="ms-auto text-muted fs-78">@ViewBag.TotalFiltered result(s)</span>
     </form>
 
     <!-- ── Claims Table ───────────────────────────────────────────────────── -->
     <div class="card shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover mb-0" style="font-size:.8rem;">
-                <thead style="background:#0A1828; color:#fff;">
+            <table class="table table-hover mb-0 fs-80">
+                <thead class="bg-navy" style="color:#fff;">
                     <tr>
                         @if (isAdmin)
                         {
@@ -202,12 +208,12 @@
                                            onchange="updateBulkBtn()" />
                                 </td>
                             }
-                            <td class="fw-semibold" style="color:#0A1828;">
+                            <td class="fw-semibold text-navy">
                                 <a href="/Resubmission/Claim/@rc.Id" class="text-decoration-none"
                                    onclick="event.stopPropagation()">@rc.ClaimId</a>
                                 @if (!string.IsNullOrEmpty(rc.PayerClaimId))
                                 {
-                                    <div class="text-muted" style="font-size:.68rem;">@rc.PayerClaimId</div>
+                                    <div class="text-muted fs-68">@rc.PayerClaimId</div>
                                 }
                             </td>
                             <td>@rc.Facility?.Name</td>
@@ -217,11 +223,11 @@
                             <td>
                                 @foreach (var code in codes.Take(3))
                                 {
-                                    <span class="badge bg-light text-dark border me-1" style="font-size:.65rem;">@code</span>
+                                    <span class="badge bg-light text-dark border me-1 fs-65">@code</span>
                                 }
                                 @if (codes.Count > 3)
                                 {
-                                    <span class="text-muted" style="font-size:.68rem;">+@(codes.Count-3)</span>
+                                    <span class="text-muted fs-68">+@(codes.Count-3)</span>
                                 }
                             </td>
                             <td><span class="badge-status bs-@status">@status</span></td>
@@ -230,28 +236,27 @@
                                 <td>
                                     @if (task?.AssignedTo != null)
                                     {
-                                        <span style="font-size:.75rem;">@(task.AssignedTo.FullName ?? task.AssignedTo.Email?.Split('@')[0])</span>
+                                        <span class="fs-75">@(task.AssignedTo.FullName ?? task.AssignedTo.Email?.Split('@')[0])</span>
                                     }
                                     else
                                     {
-                                        <span class="text-muted" style="font-size:.72rem;">—</span>
+                                        <span class="text-muted fs-72">—</span>
                                     }
                                 </td>
                             }
-                            <td><span class="prio-@priority" style="font-size:.75rem;">@priority</span></td>
-                            <td style="font-size:.72rem; color:#6b7280;">
+                            <td><span class="prio-@priority fs-75">@priority</span></td>
+                            <td class="fs-72 text-slate">
                                 @(task?.DueDate?.ToString("dd MMM") ?? "—")
                             </td>
                             <td onclick="event.stopPropagation()">
                                 @if (isAdmin)
                                 {
-                                    <button class="btn btn-xs btn-outline-primary py-0 px-2"
-                                            style="font-size:.7rem;"
+                                    <button class="btn btn-xs btn-outline-primary py-0 px-2 fs-70"
                                             onclick="openAssignModal(@rc.Id, '@rc.ClaimId', '@(task?.AssignedToUserId ?? "")', '@priority', '@(task?.DueDate?.ToString("yyyy-MM-dd") ?? "")')">
                                         <i class="fas fa-user-plus"></i>
                                     </button>
                                 }
-                                <a href="/Resubmission/Claim/@rc.Id" class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:.7rem;">
+                                <a href="/Resubmission/Claim/@rc.Id" class="btn btn-xs btn-outline-secondary py-0 px-2 fs-70">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </td>
@@ -279,7 +284,7 @@
     @if ((int)ViewBag.TotalPages > 1)
     {
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <span class="text-muted" style="font-size:.78rem;">
+            <span class="text-muted fs-78">
                 Page @ViewBag.Page of @ViewBag.TotalPages
             </span>
             <nav>
@@ -301,15 +306,15 @@
 <div class="modal fade" id="assignModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background:#0A1828; color:#fff;">
+            <div class="modal-header bg-navy" style="color:#fff;">
                 <h6 class="modal-title mb-0"><i class="fas fa-user-plus me-2"></i>Assign Claim</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="mb-1 text-muted" style="font-size:.78rem;">Claim: <strong id="modalClaimId"></strong></div>
+                <div class="mb-1 text-muted fs-78">Claim: <strong id="modalClaimId"></strong></div>
                 <input type="hidden" id="modalClaimIdVal" />
                 <div class="mb-3">
-                    <label class="form-label fw-semibold" style="font-size:.82rem;">Assign To</label>
+                    <label class="form-label fw-semibold fs-82">Assign To</label>
                     <select id="modalAssignee" class="form-select form-select-sm">
                         @foreach (var u in coders)
                         {
@@ -319,7 +324,7 @@
                 </div>
                 <div class="row g-2">
                     <div class="col-6">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                        <label class="form-label fw-semibold fs-82">Priority</label>
                         <select id="modalPriority" class="form-select form-select-sm">
                             @foreach (var p in (string[])ViewBag.Priorities)
                             {
@@ -328,18 +333,18 @@
                         </select>
                     </div>
                     <div class="col-6">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                        <label class="form-label fw-semibold fs-82">Due Date</label>
                         <input type="date" id="modalDue" class="form-control form-control-sm" />
                     </div>
                 </div>
                 <div class="mt-3">
-                    <label class="form-label fw-semibold" style="font-size:.82rem;">Notes</label>
+                    <label class="form-label fw-semibold fs-82">Notes</label>
                     <textarea id="modalNotes" class="form-control form-control-sm" rows="2" placeholder="Optional notes for coder…"></textarea>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn btn-sm btn-primary" style="background:#0A1828;border-color:#0A1828;"
+                <button class="btn btn-sm btn-primary bg-navy" style="border-color:#011C40;"
                         onclick="saveAssign()">Assign</button>
             </div>
         </div>
@@ -350,7 +355,7 @@
 <div class="modal fade" id="bulkModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header" style="background:#0A1828; color:#fff;">
+            <div class="modal-header bg-navy" style="color:#fff;">
                 <h6 class="modal-title mb-0"><i class="fas fa-users me-2"></i>Bulk Assign</h6>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -358,9 +363,9 @@
                 @Html.AntiForgeryToken()
                 <div id="bulkClaimInputs"></div>
                 <div class="modal-body">
-                    <p class="text-muted" style="font-size:.82rem;"><span id="bulkCount">0</span> claim(s) selected</p>
+                    <p class="text-muted fs-82"><span id="bulkCount">0</span> claim(s) selected</p>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" style="font-size:.82rem;">Assign To</label>
+                        <label class="form-label fw-semibold fs-82">Assign To</label>
                         <select name="assignToUserId" class="form-select form-select-sm">
                             @foreach (var u in coders)
                             {
@@ -370,23 +375,23 @@
                     </div>
                     <div class="row g-2">
                         <div class="col-6">
-                            <label class="form-label fw-semibold" style="font-size:.82rem;">Priority</label>
+                            <label class="form-label fw-semibold fs-82">Priority</label>
                             <select name="priority" class="form-select form-select-sm">
                                 @foreach (var p in (string[])ViewBag.Priorities)
                                 {
-                                    <option value="@p" selected="@(p == "Normal")">@p</option>
+                                    <option value="@p" selected="@(p == "Normal" ? "selected" : null)">@p</option>
                                 }
                             </select>
                         </div>
                         <div class="col-6">
-                            <label class="form-label fw-semibold" style="font-size:.82rem;">Due Date</label>
+                            <label class="form-label fw-semibold fs-82">Due Date</label>
                             <input type="date" name="dueDate" class="form-control form-control-sm" />
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-sm btn-primary" style="background:#0A1828;border-color:#0A1828;">Assign All</button>
+                    <button type="submit" class="btn btn-sm btn-primary bg-navy" style="border-color:#011C40;">Assign All</button>
                 </div>
             </form>
         </div>

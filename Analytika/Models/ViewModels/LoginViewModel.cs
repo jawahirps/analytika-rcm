@@ -5,7 +5,7 @@ namespace Analytika.Models.ViewModels;
 public class LoginViewModel
 {
     [Required]
-    [EmailAddress]
+    [Display(Name = "Username")]
     public string Email { get; set; } = string.Empty;
 
     [Required]
