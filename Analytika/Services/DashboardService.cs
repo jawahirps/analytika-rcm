@@ -2,6 +2,7 @@ using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace Analytika.Services;
@@ -348,6 +349,7 @@ public class DashboardService : IDashboardService
         var netTotal = await tabQuery.SumAsync(r => r.NetAmount);
         var grossTotal = await tabQuery.SumAsync(r => r.GrossAmount);
         var paidTotal = await tabQuery.SumAsync(r => r.PaidAmount);
+        var matchedCount = await tabQuery.CountAsync(r => r.IsMatched);
 
         // Compute prior-period comparison (last 30d vs prev 30d)
         var now = DateTime.UtcNow;
@@ -394,8 +396,8 @@ public class DashboardService : IDashboardService
                 new DashboardMetric
                 {
                     Label = "Matched",
-                    Value = $"{await tabQuery.CountAsync(r => r.IsMatched):N0}",
-                    Delta = totalClaims > 0 ? $"{(await tabQuery.CountAsync(r => r.IsMatched) * 100.0 / totalClaims):F0}%" : "",
+                    Value = $"{matchedCount:N0}",
+                    Delta = totalClaims > 0 ? $"{(matchedCount * 100.0 / totalClaims):F0}%" : "",
                     Icon = "fa-link",
                     Tone = "blue"
                 }
@@ -458,8 +460,10 @@ public class DashboardService : IDashboardService
             .Select(i =>
             {
                 var month = sixMonthsAgo.AddMonths(i + 1);
-                var yr = month.Year.ToString();
-                var mo = month.Month.ToString("D2");
+                var yr = month.Year.ToString(CultureInfo.InvariantCulture);
+                // ServiceMonth is persisted as the full month name (see XmlParsingService
+                // "MMMM" formatting), so the trend join key must match that, not "01".
+                var mo = month.ToString("MMMM", CultureInfo.InvariantCulture);
                 var count = trendData
                     .Where(t => t.ServiceYear == yr && t.ServiceMonth == mo)
                     .Sum(t => t.Count);

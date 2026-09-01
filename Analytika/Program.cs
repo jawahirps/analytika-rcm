@@ -68,11 +68,8 @@ if (System.IO.File.Exists(pendingDb))
     if (System.IO.File.Exists(dbPath)) System.IO.File.Delete(dbPath);
     System.IO.File.Move(pendingDb, dbPath);
 }
-// Persist Data Protection keys with the DB so encrypted credentials survive restarts/redeploys
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDir, "dataprotection-keys")))
-    .SetApplicationName("Analytika");
-
+// Data Protection keys are configured once in AddAnalytikaModules (persisted to the
+// data dir's "dp-keys" folder) so encrypted credentials survive restarts/redeploys.
 builder.Services.AddAnalytikaModules(
     builder.Configuration,
     dbPath,

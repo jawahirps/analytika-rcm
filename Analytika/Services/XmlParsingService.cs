@@ -235,6 +235,10 @@ public class XmlParsingService
             if (pendingRows >= 1000 || processed % 50 == 0 || processed == total)
             {
                 await _db.SaveChangesAsync(ct);
+                // Detach saved entities so subsequent SaveChangesAsync calls don't
+                // re-run change detection over the whole accumulated set (O(n^2))
+                // and don't pin every parsed row in memory for the entire run.
+                _db.ChangeTracker.Clear();
                 pendingRows = 0;
 
                 if (onProgress != null)
