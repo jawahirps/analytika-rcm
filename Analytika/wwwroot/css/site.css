@@ -264,6 +264,16 @@ small,
   box-shadow: 0 10px 30px rgba(8,20,35,0.07), inset 0 -1px 0 rgba(255,255,255,0.78);
 }
 
+/* The legacy Bootstrap navbar wrapper only groups the fixed .sidebar and
+   .topbar now. Its backdrop-filter established a containing block for those
+   fixed children (anchoring them to the wrapper instead of the viewport) and
+   its .container-fluid { height:56px; overflow:hidden } clipped the sidebar to
+   its header. Collapse the wrapper out of the layout with display:contents so
+   .sidebar/.topbar anchor to the viewport; descendant style selectors
+   (.analytika-navbar .nav-link, …) still match. */
+.analytika-navbar,
+.analytika-navbar > .container-fluid { display: contents !important; }
+
 .analytika-navbar .container-fluid {
   height: 56px;
   align-items: stretch;
@@ -2737,8 +2747,7 @@ html[data-theme="dark"] .table-responsive {
   background-attachment: local, local;
 }
 
-/* ── Legacy navbar hidden ───────────────────────────────────── */
-.analytika-navbar { display: none !important; }
+/* ── Server-rendered navbar (sidebar + topbar) — restored ──── */
 
 /* ================================================================
    Glass Design System v7 — Light & Dark Theme Polish
@@ -3940,8 +3949,7 @@ html[data-theme="dark"] body {
 }
 
 /* ── Page wrapper / main content area ──────────────────────────── */
-/* ── Deprecated navbar (kept to avoid breaking any stray ref) ─ */
-.analytika-navbar { display: none !important; }
+/* ── Server-rendered navbar (sidebar + topbar) — restored ──── */
 
 /* ================================================================
    Glass Design System v7 — Light & Dark Theme Polish
