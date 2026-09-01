@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -24,9 +25,10 @@ public class PortalController : Controller
     private readonly XmlParsingService _xmlParsing;
     private readonly IMemoryCache _cache;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PortalController> _logger;
 
-    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, ILogger<PortalController> logger)
+    public PortalController(AppDbContext db, IDhaPortalService dha, IRhaPortalService rha, PortalSyncService sync, ReconciliationService reconciliation, XmlParsingService xmlParsing, IMemoryCache cache, Analytika.Security.ICredentialProtector credentials, IServiceScopeFactory scopeFactory, ILogger<PortalController> logger)
     {
         _db = db;
         _dha = dha;
@@ -36,6 +38,7 @@ public class PortalController : Controller
         _xmlParsing = xmlParsing;
         _cache = cache;
         _credentials = credentials;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -885,16 +888,19 @@ public class PortalController : Controller
         Response.ContentType = "text/event-stream; charset=utf-8";
         Response.Headers["Cache-Control"] = "no-cache";
         Response.Headers["X-Accel-Buffering"] = "no";
+        using var sendGate = new SemaphoreSlim(1, 1);
 
         async Task Send(object obj)
         {
             if (ct.IsCancellationRequested) return;
+            await sendGate.WaitAsync(ct);
             try
             {
                 await Response.WriteAsync($"data: {JsonSerializer.Serialize(obj)}\n\n", ct);
                 await Response.Body.FlushAsync(ct);
             }
             catch { }
+            finally { sendGate.Release(); }
         }
 
         var selected = facilityId?.Where(id => id > 0).Distinct().ToList() ?? new();
@@ -914,24 +920,55 @@ public class PortalController : Controller
             return;
         }
 
-        var combined = new XmlParsingRunResult();
-        for (var i = 0; i < selected.Count; i++)
-        {
-            var currentFacilityId = selected[i];
-            await Send(new { status = "facility", message = $"Preparing facility {i + 1:N0} of {selected.Count:N0}", facilityId = currentFacilityId });
+        var configuration = HttpContext.RequestServices.GetRequiredService<IConfiguration>();
+        var configuredParallelism = configuration.GetValue("XmlParsing:MaxParallelFacilities", 32);
+        var maxParallelism = Math.Clamp(configuredParallelism, 1, Math.Min(selected.Count, 32));
+        var results = new System.Collections.Concurrent.ConcurrentBag<XmlParsingRunResult>();
+        var completed = 0;
 
-            var result = await _xmlParsing.ParseDownloadedXmlAsync(currentFacilityId, rebuild, p => Send(new
+        await Send(new
+        {
+            status = "parallelism",
+            message = $"Parsing {selected.Count:N0} facilit{(selected.Count == 1 ? "y" : "ies")} with up to {maxParallelism:N0} parallel worker(s)",
+            workers = maxParallelism
+        });
+
+        await Parallel.ForEachAsync(selected, new ParallelOptions
+        {
+            MaxDegreeOfParallelism = maxParallelism,
+            CancellationToken = ct
+        }, async (currentFacilityId, workerCt) =>
+        {
+            await Send(new { status = "facility", message = $"Preparing facility {currentFacilityId:N0}", facilityId = currentFacilityId });
+
+            await using var workerScope = _scopeFactory.CreateAsyncScope();
+            var parser = workerScope.ServiceProvider.GetRequiredService<XmlParsingService>();
+            var result = await parser.ParseDownloadedXmlAsync(currentFacilityId, rebuild, p => Send(new
             {
                 status = p.Status,
                 message = p.Message,
                 done = p.Done,
                 total = p.Total,
                 facilityId = currentFacilityId,
-                facilityIndex = i + 1,
                 facilityTotal = selected.Count,
                 result = p.Result
-            }), ct);
+            }), workerCt);
 
+            results.Add(result);
+            var finished = Interlocked.Increment(ref completed);
+            await Send(new
+            {
+                status = "facility_done",
+                message = $"Completed {finished:N0} of {selected.Count:N0} facilities",
+                facilityId = currentFacilityId,
+                done = finished,
+                total = selected.Count
+            });
+        });
+
+        var combined = new XmlParsingRunResult();
+        foreach (var result in results)
+        {
             combined.FilesScanned += result.FilesScanned;
             combined.FilesParsed += result.FilesParsed;
             combined.FilesSkipped += result.FilesSkipped;
