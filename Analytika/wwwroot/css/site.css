@@ -1327,19 +1327,27 @@ html[data-theme="dark"] .empty-state {
   background: var(--border);
 }
 
-/* ----------------------------------------------------------------
-   Utility
-   ---------------------------------------------------------------- */
-.text-emerald  { color: var(--emerald) !important; }
-.text-navy     { color: var(--navy) !important; }
-.bg-emerald-pale { background: var(--emerald-pale) !important; }
-.bg-surface    { background: var(--surface) !important; }
-.bg-surface-alt { background: var(--surface-alt) !important; }
+/* ================================================================
+   Utility Classes — Color, Spacing, Layout
+   ================================================================ */
 
-.rounded-custom { border-radius: var(--radius) !important; }
+/* Text color utilities — see end of file for complete color utilities */
+.text-emerald     { color: var(--emerald) !important; }
+.bg-emerald-pale  { background: var(--emerald-pale) !important; }
+.bg-surface       { background: var(--surface) !important; }
+.bg-surface-alt   { background: var(--surface-alt) !important; }
+
+/* Border radius shortcuts */
+.rounded-xs       { border-radius: 4px !important; }
+.rounded-custom   { border-radius: var(--radius) !important; }
 .rounded-lg-custom { border-radius: var(--radius-lg) !important; }
 
-.shadow-custom { box-shadow: var(--shadow-sm) !important; }
+/* Shadow utilities */
+.shadow-custom    { box-shadow: var(--shadow-sm) !important; }
+
+/* Spacing utilities */
+.px-2-5  { padding-left: 0.625rem !important; padding-right: 0.625rem !important; }
+.gap-2-5 { gap: 0.625rem !important; }
 
 /* Fade-in animation */
 @keyframes fadeInUp {
@@ -5962,6 +5970,7 @@ html[data-theme="dark"] {
   --c-slate-700:  var(--dt-text-2);
 }
 
+/* Text color utilities (full set, accounts for all skin variations) */
 .text-navy       { color: var(--c-navy) !important; }
 .text-slate      { color: var(--c-slate) !important; }
 .text-teal       { color: var(--c-teal-mid) !important; }
@@ -5970,6 +5979,7 @@ html[data-theme="dark"] {
 .text-gray-700   { color: var(--c-gray-700) !important; }
 .text-slate-700  { color: var(--c-slate-700) !important; }
 
+/* Background color utilities */
 .bg-sky-wash     { background-color: var(--c-sky-wash) !important; }
 .bg-navy         { background-color: var(--c-navy) !important; }
 
@@ -6019,3 +6029,432 @@ html[data-theme="dark"] .badge-sky {
 /* ── Word-break utility ───────────────────────────────────────── */
 .break-all { word-break: break-all; }
 
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE DESIGN IMPROVEMENTS (Mobile-First Enhancements)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── PHASE 1: CRITICAL TOUCH TARGET FIXES ───────────────────────── */
+/* WCAG 2.5.5 requires 44x44px minimum touch targets */
+
+/* Sidebar navigation — increase from ~32px to 44px */
+@media (max-width: 991.98px) {
+  .sidebar-link {
+    padding: 11px 16px; /* Increased from 9px → 11px (now ~40px min) */
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .sidebar-section-toggle {
+    padding: 11px 16px;
+    min-height: 44px;
+  }
+
+  .sidebar-sublink {
+    padding: 10px 16px 10px 44px; /* Increased from 7px */
+    min-height: 40px;
+  }
+}
+
+/* Filter tabs — increase from ~28px to 40px+ */
+.filter-tab {
+  padding: 8px 16px; /* Increased from 6px → 8px */
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Form controls — ensure 44px minimum on mobile */
+@media (max-width: 768px) {
+  .form-control,
+  .form-select,
+  .form-check-input {
+    min-height: 44px;
+    padding: 10px 13px; /* Increased from 9px */
+  }
+
+  .btn,
+  .btn-sm,
+  a.btn,
+  button.btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+}
+
+/* Topbar buttons — increase from 40px to 44px */
+@media (max-width: 991.98px) {
+  .topbar-hamburger {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 1.2rem;
+  }
+
+  .topbar .bell-btn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Language and theme toggle buttons */
+.lang-toggle-group .btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 6px 12px;
+}
+
+.theme-toggle-btn {
+  min-height: 40px;
+  padding: 6px 14px;
+}
+
+/* Pagination buttons — increase from 32px to 40px */
+div.dt-container .dt-paging .dt-paging-button {
+  min-width: 40px !important;
+  min-height: 40px !important;
+}
+
+/* ── PHASE 1: MODAL DIALOG MOBILE FIXES ──────────────────────────── */
+
+/* Ensure modals don't exceed viewport width */
+@media (max-width: 576px) {
+  .modal-dialog {
+    max-width: calc(100vw - 32px); /* 16px margin on each side */
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .modal-dialog.modal-sm {
+    max-width: 100%;
+  }
+
+  .modal-content {
+    border-radius: 16px;
+  }
+
+  .modal-body {
+    padding: 20px 16px;
+  }
+
+  .modal-header,
+  .modal-footer {
+    padding: 16px;
+  }
+}
+
+/* ── PHASE 1: TABLE RESPONSIVENESS FIXES ────────────────────────── */
+
+/* Improve table readability on tablets and mobile */
+@media (max-width: 768px) {
+  .table {
+    font-size: 0.85rem; /* Increased from 0.78rem */
+  }
+
+  .table thead th {
+    font-size: 0.75rem; /* Increased from 0.7rem - STILL SMALL but more readable */
+    padding: 10px 12px; /* Increased from default */
+  }
+
+  .data-table thead th {
+    font-size: 0.75rem;
+    padding: 10px 12px;
+  }
+
+  .table tbody td,
+  .data-table tbody td {
+    font-size: 0.825rem;
+    padding: 10px 12px; /* Increased from 12px 14px */
+  }
+}
+
+/* Ultra-mobile: stack table columns instead of horizontal scroll */
+@media (max-width: 576px) {
+  .table {
+    font-size: 0.875rem;
+  }
+
+  .table thead th {
+    font-size: 0.78rem;
+    padding: 8px 10px;
+  }
+
+  .table tbody td {
+    font-size: 0.8rem;
+    padding: 8px 10px;
+  }
+
+  /* Allow table to scroll with proper indicators */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* iOS smooth scroll */
+    border-radius: 12px;
+  }
+
+  /* Add visual scroll indicator */
+  .table-responsive::after {
+    content: "← Scroll for more →";
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+}
+
+/* ── PHASE 1: SIDEBAR OVERLAY AND MOBILE BEHAVIOR ──────────────── */
+
+/* Show overlay when sidebar is open on mobile */
+@media (max-width: 991.98px) {
+  .sidebar-overlay {
+    display: block;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(.4,0,.2,1);
+  }
+
+  .sidebar-open .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Improve sidebar animation */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1);
+  }
+
+  .sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* RTL support */
+  [dir="rtl"] .sidebar {
+    transform: translateX(100%);
+  }
+
+  [dir="rtl"] .sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+}
+
+/* ── PHASE 2: SIDEBAR LABEL OVERFLOW ───────────────────────────── */
+
+/* Fix sidebar labels that disappear without ellipsis */
+.sidebar-label {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-collapsed .sidebar-label {
+  display: none;
+}
+
+/* ── PHASE 2: IMPROVED TOUCH FEEDBACK ──────────────────────────── */
+
+/* Better visual feedback for touch interactions */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch device adjustments */
+  .btn,
+  .sidebar-link,
+  .sidebar-sublink,
+  .filter-tab,
+  a,
+  button {
+    -webkit-tap-highlight-color: rgba(84,172,191,0.2);
+  }
+}
+
+/* ── PHASE 2: PAGE HEADER ON MOBILE ────────────────────────────── */
+
+@media (max-width: 576px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .page-header-left {
+    width: 100%;
+  }
+
+  .page-header-left h4 {
+    font-size: 1.05rem;
+  }
+
+  /* Stack buttons in header if present */
+  .page-header .btn,
+  .page-header-right {
+    width: 100%;
+  }
+
+  .page-header-right {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .page-header-right .btn {
+    width: 100%;
+  }
+}
+
+/* ── PHASE 2: TOPBAR RESPONSIVE SPACING ────────────────────────── */
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 10px;
+    height: 56px;
+  }
+
+  .topbar-right {
+    gap: 6px; /* Reduced from 10px for tighter space */
+  }
+
+  .topbar-left {
+    gap: 8px;
+  }
+}
+
+/* Hide text labels on small screens, show only icons */
+@media (max-width: 576px) {
+  .topbar .profile-btn span {
+    display: none;
+  }
+
+  .topbar-hamburger {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* ── PHASE 2: NAVBAR LANG/THEME BUTTONS ──────────────────────────– */
+
+@media (max-width: 768px) {
+  .lang-toggle-group {
+    margin-right: auto;
+  }
+
+  .lang-toggle-group .btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  .theme-toggle-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    min-height: 40px;
+  }
+}
+
+/* ── PHASE 3: IMPROVED TYPOGRAPHY SCALE ────────────────────────── */
+
+/* Use CSS custom properties for fluid typography */
+@media (max-width: 480px) {
+  body {
+    font-size: 15px; /* Increased from 14px for better readability */
+    line-height: 1.65;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.35;
+  }
+
+  .page-title {
+    font-size: clamp(1rem, 5vw, 1.25rem);
+  }
+
+  .page-subtitle {
+    font-size: clamp(0.75rem, 3vw, 0.825rem);
+  }
+}
+
+/* ── PHASE 3: FORM LABEL IMPROVEMENTS ────────────────────────────– */
+
+@media (max-width: 768px) {
+  .form-label {
+    font-size: 0.75rem;
+    margin-bottom: 6px;
+  }
+
+  .form-group,
+  .mb-3 {
+    margin-bottom: 1.25rem; /* Increased spacing between form groups */
+  }
+
+  /* Better touch targeting for checkboxes/radios */
+  .form-check {
+    padding-left: 1.75rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .form-check-input {
+    width: 1.25em;
+    height: 1.25em;
+    margin-top: 0.3rem;
+  }
+}
+
+/* ── PHASE 3: GRID IMPROVEMENTS ──────────────────────────────────– */
+
+/* Better breakpoint for tablet landscape (iPad) */
+@media (max-width: 1024px) and (min-width: 768px) {
+  .rcm-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rcm-aside {
+    position: static;
+  }
+
+  .rcm-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── CONTAINER QUERIES (when supported) ────────────────────────── */
+
+@supports (container-type: inline-size) {
+  .card,
+  .panel,
+  .dashboard-card {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 400px) {
+    .card-body {
+      padding: 12px !important;
+    }
+
+    .btn {
+      width: 100%;
+    }
+  }
+}
+
+/* ── FOCUS VISIBLE IMPROVEMENTS ──────────────────────────────────– */
+
+/* Ensure focus outlines are visible on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  :focus-visible {
+    outline: 3px solid var(--classic-teal) !important;
+    outline-offset: 3px !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   END OF RESPONSIVE IMPROVEMENTS
+   ════════════════════════════════════════════════════════════════ */

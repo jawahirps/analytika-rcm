@@ -1,14 +1,21 @@
 @model Analytika.Models.ViewModels.SyncedDataViewModel
 @{
-    ViewData["Title"] = "Portal Files";
+    ViewData["Title"] = "Synced Transactions";
 }
 
 <div class="container-fluid py-4 px-4">
 
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Synced Transactions",
+        Subtitle = "View downloaded portal transaction files and download pending files",
+        Crumbs = new[] { ("Portal", "/Portal/Sync"), ("Synced Transactions", (string?)null) }
+    })
+
     <!-- Header -->
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold text-navy">Portal Files</h4>
+            <h5 class="mb-0 fw-bold text-navy">Transaction Summary</h5>
             <div class="d-flex gap-2 mt-1 flex-wrap">
                 <small class="text-muted">@Model.TotalCount.ToString("N0") records total</small>
                 <small class="text-muted">·</small>
