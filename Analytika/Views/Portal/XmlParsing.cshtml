@@ -74,10 +74,17 @@
 <div class="xp-page">
     @Html.AntiForgeryToken()
 
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "XML Reconciliation",
+        Subtitle = "Reconcile and match XML claim extracts with remittance data",
+        Crumbs = new[] { ("Portal", "/Portal/Sync"), ("XML Reconciliation", (string?)null) }
+    })
+
     <div class="xp-topbar">
         <div class="xp-title">
             <i class="fas fa-file-code text-primary"></i>
-            <h4>Claim Extracts</h4>
+            <h4>XML Reconciliation</h4>
         </div>
         <form method="get" class="xp-filters" id="xpFilterForm">
             <select name="facilityId" multiple class="form-select form-select-sm select2-multi" style="min-width:230px;">

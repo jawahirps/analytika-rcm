@@ -1,14 +1,20 @@
 @model Analytika.Models.ViewModels.RoleListViewModel
 @{
-    ViewData["Title"] = "Roles";
+    ViewData["Title"] = "Role Management";
 }
 
 <div class="container-fluid py-4 px-4">
+
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Role Management",
+        Subtitle = "Create, edit, and manage standard application roles and permissions",
+        Crumbs = new[] { ("Admin", "/Admin/Users"), ("Roles", (string?)null) }
+    })
+
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold text-navy">User Roles</h4>
-            <small class="text-muted">Create, edit, and manage standard application roles</small>
-        </div>
+            <h5 class="mb-0 fw-bold text-navy">User Roles</h5>
         <div class="d-flex gap-2">
             <form asp-action="EnsureStandardRoles" method="post">
                 @Html.AntiForgeryToken()
