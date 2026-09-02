@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ruflo": {
+      "command": "node",
+      "args": ["/tmp/claude-0/-home-user-analytika-rcm/f6fb01cc-e9b7-50c2-a85f-e6386f25b709/scratchpad/ruflo/plugins/ruflo-core/scripts/mcp-launch.cjs"],
+      "env": {
+        "CLAUDE_FLOW_MCP_TRANSPORT": "stdio",
+        "NODE_NO_WARNINGS": "1"
+      }
+    }
+  }
+}
