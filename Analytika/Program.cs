@@ -225,6 +225,15 @@ if (recurringJobsEnabled)
         svc => svc.RunDailyDhaSyncAsync(),
         Cron.Daily(2));
 
+    // Monthly (5th, 3 AM): rolling archive backfill — pull the calendar month that
+    // just aged past DHA's ~24-month live-retention boundary from the archive endpoint,
+    // so old submissions keep flowing in beyond the daily 90-day window. A one-off
+    // wide-range backfill for older years is triggered on demand via Portal → Fetch.
+    recurringJobs.AddOrUpdate<PortalSyncService>(
+        "dha-archive-backfill-monthly",
+        svc => svc.RunMonthlyDhaArchiveBackfillAsync(),
+        Cron.Monthly(5, 3));
+
     // Every 2 hours: parse any remittance XMLs not yet turned into claims (uses stored FileContentXml — no portal request)
     recurringJobs.AddOrUpdate<RemittanceParserService>(
         "remittance-auto-parse",

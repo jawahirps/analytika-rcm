@@ -90,6 +90,100 @@ public class PortalSyncService
         await _db.SaveChangesAsync();
     }
 
+    // ── DHA archive backfill ───────────────────────────────────────
+    // The live SearchTransactions endpoint only exposes recent files (and the
+    // daily cron only reaches back 90 days), so submissions older than DHA's
+    // live-retention window are never fetched — leaving remittances that arrive
+    // later with no submission to reconcile against. This pulls those older SENT
+    // claim (submission) files from the DHA *archive* endpoint (>24 months old),
+    // chunked into <=1-month windows as the archive API requires, and persists +
+    // downloads them through the same upsert path as the daily sync.
+    public async Task<(int newCount, int filesDownloaded)> RunDhaArchiveBackfillAsync(
+        DateTime from, DateTime to, int? onlyFacilityId = null, string operation = "ArchiveBackfill")
+    {
+        if (from > to) (from, to) = (to, from);
+        _logger.LogInformation("[ArchiveBackfill] DHA archive backfill {From:yyyy-MM-dd} → {To:yyyy-MM-dd}, facility={Facility}",
+            from, to, onlyFacilityId?.ToString() ?? "all");
+
+        var credentials = await _db.PortalCredentials
+            .AsNoTracking()
+            .Where(c => c.Portal == "DHA" && c.IsActive)
+            .Where(c => onlyFacilityId == null || c.FacilityId == onlyFacilityId)
+            .ToListAsync();
+
+        int grandNew = 0, grandFiles = 0;
+
+        foreach (var cred in credentials)
+        {
+            var pwd = _credentials.Unprotect(cred.PasswordEncrypted);
+            // Archive search period must not exceed 1 month per call.
+            var chunks = GetDateChunks(from, to, 30);
+            int facNew = 0, facFiles = 0;
+
+            foreach (var (start, end) in chunks)
+            {
+                var dhpoFrom = DhaPortalService.FormatDhpoDate(start.ToString("yyyy-MM-dd"));
+                var dhpoTo = DhaPortalService.FormatDhpoDate(end.ToString("yyyy-MM-dd"), endOfDay: true);
+
+                // Sent claim (submission) files — both new and already-downloaded
+                // status, so a re-run also repairs rows whose file never downloaded.
+                var rows = new List<PortalFetchResultRow>();
+                foreach (var status in new[] { DhaPortalService.StatusNew, DhaPortalService.StatusDownloaded })
+                {
+                    var (_, r, err) = await _dha.SearchTransactionsWithSplittingAsync(
+                        cred.Username, pwd, DhaPortalService.DirectionSent, dhpoFrom, dhpoTo,
+                        status, DhaPortalService.TxTypeClaim, maxRecord: 500, useArchive: true);
+                    if (!string.IsNullOrEmpty(err))
+                    {
+                        _logger.LogWarning("[ArchiveBackfill] Facility {Id} {Period}: {Error}",
+                            cred.FacilityId, start.ToString("yyyy-MM"), err);
+                        continue;
+                    }
+                    rows.AddRange(r);
+                }
+
+                var uniqueRows = DeduplicateRows(rows);
+                if (!uniqueRows.Any()) continue;
+
+                var (n, _, files) = await UpsertDhaTransactionsWithDownloadAsync(
+                    uniqueRows, cred.Username, pwd, cred.FacilityId, operation, start.ToString("yyyy-MM"), "DHA");
+                facNew += n; facFiles += files;
+            }
+
+            grandNew += facNew; grandFiles += facFiles;
+
+            _db.PortalFetchLogs.Add(new PortalFetchLog
+            {
+                Portal = "DHA",
+                FacilityId = cred.FacilityId,
+                Operation = operation,
+                FetchedBy = "system",
+                RecordsFetched = facNew,
+                Status = "Success",
+                ResponseSummary = $"Archive backfill {from:yyyy-MM-dd}..{to:yyyy-MM-dd}: {facNew} new, {facFiles} files"
+            });
+            await _db.SaveChangesAsync();
+
+            _logger.LogInformation("[ArchiveBackfill] Facility {Id}: {New} new, {Files} files",
+                cred.FacilityId, facNew, facFiles);
+        }
+
+        return (grandNew, grandFiles);
+    }
+
+    // Rolling monthly archive backfill for the recurring job: pulls the single
+    // calendar month that has just aged past DHA's ~24-month live-retention
+    // boundary, so old submissions keep flowing in without a manual trigger.
+    public async Task RunMonthlyDhaArchiveBackfillAsync()
+    {
+        var anchor = DateTime.Today.AddMonths(-25);
+        var monthStart = new DateTime(anchor.Year, anchor.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+        var (n, files) = await RunDhaArchiveBackfillAsync(monthStart, monthEnd, null, "ArchiveBackfillMonthly");
+        _logger.LogInformation("[ArchiveBackfill] Monthly rolling backfill {Month}: {New} new, {Files} files",
+            monthStart.ToString("yyyy-MM"), n, files);
+    }
+
     // ── Core download + upsert ─────────────────────────────────────
     // • Deduplicates input by FileId before touching the DB.
     // • One batch DB query to find existing records (avoids N queries).

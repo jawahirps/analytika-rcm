@@ -27,7 +27,7 @@ public interface IDhaPortalService
     // Input dates must be in the DHA "dd/MM/yyyy HH:mm:ss" format.
     Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsWithSplittingAsync(
         string login, string pwd, int direction, string? fromDate, string? toDate,
-        int transactionStatus, int transactionId = 2, int maxRecord = 500);
+        int transactionStatus, int transactionId = 2, int maxRecord = 500, bool useArchive = false);
 
     // DownloadTransactionFile — fileId is the FileID attribute from <File> element
     Task<(int result, string? fileName, byte[]? fileBytes, string? error)> DownloadTransactionFileAsync(string login, string pwd, string fileId);

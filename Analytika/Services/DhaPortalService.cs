@@ -316,8 +316,15 @@ public class DhaPortalService : IDhaPortalService
 
     public async Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchTransactionsWithSplittingAsync(
         string login, string pwd, int direction, string? fromDate, string? toDate,
-        int transactionStatus, int transactionId = 2, int maxRecord = 500)
+        int transactionStatus, int transactionId = 2, int maxRecord = 500, bool useArchive = false)
     {
+        // Route each sub-call to the live or the archive SearchTransactions endpoint.
+        // Archive holds claims >24 months old; callers must pre-chunk to <=1 month windows.
+        Task<(int result, List<PortalFetchResultRow> rows, string? error)> SearchAsync(string? a, string? b) =>
+            useArchive
+                ? SearchTransactionsArchiveAsync(login, pwd, direction, a, b, transactionStatus, transactionId, -1, maxRecord)
+                : SearchTransactionsAsync(login, pwd, direction, a, b, transactionStatus, transactionId, -1, maxRecord);
+
         // Parse the DHA date format ("dd/MM/yyyy HH:mm:ss")
         static bool TryParseDha(string? s, out DateTime dt)
         {
@@ -332,8 +339,7 @@ public class DhaPortalService : IDhaPortalService
         {
             // If either bound is missing / malformed, fall back to a single call —
             // splitting requires a parseable range.
-            return await SearchTransactionsAsync(login, pwd, direction, fromDate, toDate,
-                transactionStatus, transactionId, -1, maxRecord);
+            return await SearchAsync(fromDate, toDate);
         }
 
         var allRows = new List<PortalFetchResultRow>();
@@ -347,8 +353,7 @@ public class DhaPortalService : IDhaPortalService
 
             var aStr = a.ToString("dd/MM/yyyy HH:mm:ss");
             var bStr = b.ToString("dd/MM/yyyy HH:mm:ss");
-            var (result, rows, error) = await SearchTransactionsAsync(login, pwd, direction,
-                aStr, bStr, transactionStatus, transactionId, -1, maxRecord);
+            var (result, rows, error) = await SearchAsync(aStr, bStr);
 
             if (!string.IsNullOrEmpty(error))
             {
