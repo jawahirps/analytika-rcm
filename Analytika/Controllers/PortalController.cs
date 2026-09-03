@@ -39,6 +39,33 @@ public class PortalController : Controller
         _logger = logger;
     }
 
+    // POST Portal/ArchiveBackfill — on-demand pull of OLD sent claim (submission)
+    // files from the DHA archive endpoint over a wide date range (e.g. 2022–2023),
+    // so remittances that arrive later have their originating submissions to match.
+    // Enqueued as a background job (a multi-year backfill is long-running); the
+    // worker container's Hangfire server processes it.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public IActionResult ArchiveBackfill(DateTime from, DateTime to, int? facilityId)
+    {
+        if (from == default || to == default)
+        {
+            TempData["Error"] = "Enter both a From and To date for the archive backfill.";
+            return RedirectToAction(nameof(Fetch));
+        }
+        if (from > to) (from, to) = (to, from);
+
+        var jobId = Hangfire.BackgroundJob.Enqueue<PortalSyncService>(
+            s => s.RunDhaArchiveBackfillAsync(from, to, facilityId, "ArchiveBackfillManual"));
+
+        _logger.LogInformation("[ArchiveBackfill] Queued manual backfill {From:yyyy-MM-dd}→{To:yyyy-MM-dd} facility={Fac} job={Job}",
+            from, to, facilityId?.ToString() ?? "all", jobId);
+        TempData["Success"] = $"Archive backfill queued for {from:yyyy-MM-dd} → {to:yyyy-MM-dd}"
+            + (facilityId is int f ? $" (facility {f})" : " (all facilities)")
+            + $". Job {jobId}. Downloaded submissions appear under Portal → Files.";
+        return RedirectToAction(nameof(Fetch));
+    }
+
     [HttpGet]
     public async Task<IActionResult> Fetch()
     {

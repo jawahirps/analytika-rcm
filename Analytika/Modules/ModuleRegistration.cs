@@ -158,9 +158,6 @@ public static class ModuleRegistration
         AddPortalHttpClient("DHA");
         AddPortalHttpClient("RHA");
 
-        services.AddSingleton<ICredentialProtector, CredentialProtector>();
-        services.AddHealthChecks().AddDbContextCheck<AppDbContext>("database");
-
         return services;
     }
 
