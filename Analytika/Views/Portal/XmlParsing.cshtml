@@ -14,13 +14,14 @@
     .xp-shell { background:#fff; border:1px solid #EAF4FB; border-radius:8px; box-shadow:0 1px 4px rgba(8,20,35,.05); }
     .xp-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; border-bottom:1px solid #edf2f7; }
     .xp-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-    .xp-stats { display:grid; grid-template-columns:repeat(9, minmax(110px,1fr)); gap:8px; margin:14px 0; }
+    .xp-stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px,1fr)); gap:8px; margin:14px 0; }
     .xp-stat { background:#fff; border:1px solid #EAF4FB; border-radius:8px; padding:12px; min-height:82px; }
     .xp-stat .num { color:#011C40; font-size:1.35rem; font-weight:800; line-height:1.1; }
     .xp-stat .lbl { color:#35577D; font-size:.67rem; font-weight:700; text-transform:uppercase; margin-top:6px; }
     .xp-stat.sub { border-top:3px solid #A7EBF2; }
     .xp-stat.rem { border-top:3px solid #805ad5; }
     .xp-stat.ok { border-top:3px solid #16a34a; }
+    .xp-stat.rate { border-top:3px solid #047857; }
     .xp-stat.warn { border-top:3px solid #f59e0b; }
     .xp-progress { display:none; margin:12px 0 14px; background:#fff; border:1px solid #EAF4FB; border-radius:8px; padding:12px 14px; }
     .xp-progress-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:8px; color:#334155; font-size:.83rem; font-weight:700; }
@@ -151,6 +152,7 @@
         <div class="xp-stat sub"><div class="num">@Model.TotalSubmissionRecords.ToString("N0")</div><div class="lbl">Sub Rows</div></div>
         <div class="xp-stat"><div class="num">@Model.TotalClaimCount.ToString("N0")</div><div class="lbl">Sub Claim Refs</div></div>
         <div class="xp-stat ok"><div class="num">@Model.TotalMatched.ToString("N0")</div><div class="lbl">Matched Refs</div></div>
+        <div class="xp-stat rate"><div class="num">@Model.TotalRemittanceMatchRate.ToString("N1")%</div><div class="lbl">Remittance Match Rate</div></div>
         <div class="xp-stat warn"><div class="num">@Model.TotalUnmatched.ToString("N0")</div><div class="lbl">Open Sub Refs</div></div>
         <div class="xp-stat warn"><div class="num">@Model.TotalUnmatchedRemittances.ToString("N0")</div><div class="lbl">Unmatched RA Refs</div></div>
     </div>
@@ -171,7 +173,7 @@
                         <th>RA Claim Refs</th>
                         <th>Sub Rows</th>
                         <th>Sub Claim Refs</th>
-                        <th>Matched Refs</th>
+                        <th>Matched RA Refs</th>
                         <th>Open Sub Refs</th>
                         <th>Unmatched RA Refs</th>
                     </tr>
@@ -191,7 +193,7 @@
                             <td>@r.RemittanceClaimRefCount.ToString("N0")</td>
                             <td>@r.SubmissionRecordCount.ToString("N0")</td>
                             <td>@r.ClaimCount.ToString("N0")</td>
-                            <td><span class="xp-badge match">@r.Matched.ToString("N0") · @r.MatchRate%</span></td>
+                            <td><span class="xp-badge match">@r.Matched.ToString("N0") · @r.RemittanceMatchRate%</span></td>
                             <td>@r.UnmatchedSubmissions.ToString("N0")</td>
                             <td>@r.UnmatchedRemittances.ToString("N0")</td>
                         </tr>

@@ -1,0 +1,81 @@
+2026-07-06T15:15:59Z INF Starting tunnel tunnelID=da8a96d0-6f65-4c2b-bc9e-cd4386a75da1
+2026-07-06T15:15:59Z INF Version 2026.6.1 (Checksum 5253e66f1f493c4e13539749f1aa86fd0c61e3072900fec29a44ba046a6d97e2)
+2026-07-06T15:15:59Z INF GOOS: windows, GOVersion: go1.26.4, GoArch: amd64
+2026-07-06T15:15:59Z INF Settings: map[cred-file:C:\Users\jawah\.cloudflared\cc5c75c4-a585-4002-b643-75db7e662122.json credentials-file:C:\Users\jawah\.cloudflared\cc5c75c4-a585-4002-b643-75db7e662122.json token:*****]
+2026-07-06T15:15:59Z INF cloudflared will not automatically update on Windows systems.
+2026-07-06T15:15:59Z INF Generated Connector ID: 8961089e-a5e0-4398-95b5-424ac6099481
+2026-07-06T15:15:59Z INF Initial protocol quic
+2026-07-06T15:16:00Z INF ICMP proxy will use 192.168.2.111 as source for IPv4
+2026-07-06T15:16:04Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-06T15:16:04Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-07-06T15:16:04Z INF ICMP proxy will use 192.168.2.111 as source for IPv4
+2026-07-06T15:16:04Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:04Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:04Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:04Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:04Z INF Retrying connection in up to 2s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:04Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:16:04Z INF |                               CONNECTIVITY PRE-CHECKS                               |
+2026-07-06T15:16:04Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:16:04Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+2026-07-06T15:16:04Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-06T15:16:04Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-06T15:16:04Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-06T15:16:04Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-06T15:16:04Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-06T15:16:04Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-06T15:16:04Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+2026-07-06T15:16:04Z INF |                                                                                     |
+2026-07-06T15:16:04Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+2026-07-06T15:16:04Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:16:04Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:16:04Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:16:04Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:16:04Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:16:07Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:16:07Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:16:07Z INF precheck component="Cloudflare API" details="API is reachable" run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 status=pass target=api.cloudflare.com:443
+2026-07-06T15:16:07Z INF precheck complete hard_fail=false run_id=7cf1486a-72d0-48d5-bf7e-7bf14ac5f720 suggested_protocol=quic
+2026-07-06T15:16:07Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-06T15:16:05Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:07Z INF Starting metrics server on 127.0.0.1:20242/metrics
+2026-07-06T15:16:07Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:07Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:07Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:07Z INF Retrying connection in up to 4s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:09Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:09Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:09Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:09Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:09Z INF Retrying connection in up to 8s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:15Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:15Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:15Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:15Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:15Z INF Retrying connection in up to 16s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:27Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:27Z ERR failed to run the datagram handler error="context canceled" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:27Z ERR failed to serve tunnel connection error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:27Z ERR Serve tunnel error error="control stream encountered a failure while serving" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:27Z INF Retrying connection in up to 32s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:40Z INF Switching to fallback protocol http2 connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:40Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:40Z ERR failed to serve incoming request error="Unauthorized: Invalid tunnel secret"
+2026-07-06T15:16:40Z ERR Register tunnel error from server side error="Unauthorized: Invalid tunnel secret" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:40Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:41Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:41Z ERR failed to serve incoming request error="Unauthorized: Invalid tunnel secret"
+2026-07-06T15:16:41Z ERR Register tunnel error from server side error="Unauthorized: Invalid tunnel secret" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:41Z INF Retrying connection in up to 4s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:45Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:45Z ERR failed to serve incoming request error="Unauthorized: Invalid tunnel secret"
+2026-07-06T15:16:45Z ERR Register tunnel error from server side error="Unauthorized: Invalid tunnel secret" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:45Z INF Retrying connection in up to 8s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:50Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:50Z ERR failed to serve incoming request error="Unauthorized: Invalid tunnel secret"
+2026-07-06T15:16:50Z ERR Register tunnel error from server side error="Unauthorized: Invalid tunnel secret" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:50Z INF Retrying connection in up to 16s connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:59Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:59Z ERR failed to serve incoming request error="Unauthorized: Invalid tunnel secret"
+2026-07-06T15:16:59Z ERR Register tunnel error from server side error="Unauthorized: Invalid tunnel secret" connIndex=0 event=0 ip=198.41.192.67
+2026-07-06T15:16:59Z INF Retrying connection in up to 32s connIndex=0 event=0 ip=198.41.192.67

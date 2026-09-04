@@ -1,0 +1,14 @@
+
+Url                                                        Ok Status Length Error
+---                                                        -- ------ ------ -----
+http://localhost:5000/Home/Dashboard                     True    200  31660      
+http://localhost:5000/Home/RCMDashboard                  True    200  31660      
+http://localhost:5000/Portal/Sync                        True    200  31660      
+http://localhost:5000/Admin/Credentials                  True    200  31660      
+http://localhost:5000/ReportScheduler/ClaimSummaryReport True    200  31660      
+http://localhost:5000/Resubmission/Workload              True    200  31660      
+http://localhost:5000/Admin/Users                        True    200  31660      
+
+
+Startup QA passed.
+Verified app is running at http://localhost:5000 (PID 22176).

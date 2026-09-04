@@ -1,0 +1,48 @@
+2026-07-09T11:16:57Z INF Starting tunnel tunnelID=da8a96d0-6f65-4c2b-bc9e-cd4386a75da1
+2026-07-09T11:16:57Z INF Version 2026.6.1 (Checksum 5253e66f1f493c4e13539749f1aa86fd0c61e3072900fec29a44ba046a6d97e2)
+2026-07-09T11:16:57Z INF GOOS: windows, GOVersion: go1.26.4, GoArch: amd64
+2026-07-09T11:16:57Z INF Settings: map[config:J:\Ghaf BI\analytika-rcm\.codex-bix-cloudflared.yml token-file:C:\Users\jawah\AppData\Local\Temp\bix-tunnel-token.txt]
+2026-07-09T11:16:57Z INF cloudflared will not automatically update on Windows systems.
+2026-07-09T11:16:57Z INF Generated Connector ID: d9ec6ccc-bd0d-4211-8c1f-a04700750654
+2026-07-09T11:16:57Z INF Initial protocol quic
+2026-07-09T11:16:57Z INF ICMP proxy will use 192.168.2.94 as source for IPv4
+2026-07-09T11:16:58Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-09T11:16:58Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-07-09T11:16:58Z INF ICMP proxy will use 192.168.2.94 as source for IPv4
+2026-07-09T11:16:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.73
+2026-07-09T11:16:58Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-09T11:16:58Z INF Starting metrics server on 127.0.0.1:20242/metrics
+2026-07-09T11:16:58Z INF +-------------------------------------------------------------------------------------+
+2026-07-09T11:16:58Z INF |                               CONNECTIVITY PRE-CHECKS                               |
+2026-07-09T11:16:58Z INF +-------------------------------------------------------------------------------------+
+2026-07-09T11:16:58Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+2026-07-09T11:16:58Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-09T11:16:58Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-09T11:16:58Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-09T11:16:58Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-09T11:16:58Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-09T11:16:58Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-09T11:16:58Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+2026-07-09T11:16:58Z INF |                                                                                     |
+2026-07-09T11:16:58Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+2026-07-09T11:16:58Z INF +-------------------------------------------------------------------------------------+
+2026-07-09T11:16:58Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region1.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region2.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region1.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region2.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region1.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=region2.v2.argotunnel.com
+2026-07-09T11:16:58Z INF precheck component="Cloudflare API" details="API is reachable" run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 status=pass target=api.cloudflare.com:443
+2026-07-09T11:16:58Z INF precheck complete hard_fail=false run_id=7bd632e0-aae0-46a9-92c1-a749a63084d2 suggested_protocol=quic
+2026-07-09T11:16:58Z INF Registered tunnel connection connIndex=0 connection=4fcc7560-8586-4200-bc38-0ec827a68439 event=0 ip=198.41.200.73 location=cdg11 protocol=quic
+2026-07-09T11:16:58Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-07-09T11:16:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.47
+2026-07-09T11:16:58Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-07-09T11:16:58Z INF Updated to new configuration config="{\"ingress\":[{\"hostname\":\"bix.ghafservices.com\",\"originRequest\":{},\"service\":\"http://localhost:5000\"},{\"hostname\":\"www.biz.ghafservices.com\",\"originRequest\":{},\"service\":\"https://localhost:5200\"},{\"service\":\"http_status:404\"}],\"warp-routing\":{\"enabled\":true}}" version=7
+2026-07-09T11:16:59Z INF Registered tunnel connection connIndex=1 connection=b1fad5ce-9256-4bce-a405-1356b2ad9f4d event=0 ip=198.41.192.47 location=dxb01 protocol=quic
+2026-07-09T11:16:59Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.192.57
+2026-07-09T11:17:00Z INF Registered tunnel connection connIndex=2 connection=86fec75b-ac59-4f12-b006-4953e4da9c3e event=0 ip=198.41.192.57 location=dxb01 protocol=quic
+2026-07-09T11:17:00Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.200.113
+2026-07-09T11:17:01Z INF Registered tunnel connection connIndex=3 connection=5572a45e-45f1-4fef-bf92-251f152bbc1f event=0 ip=198.41.200.113 location=cdg09 protocol=quic
+2026-07-09T17:20:44Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=2 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-09T17:20:44Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=2 dest=https://bix.ghafservices.com/ event=0 ip=198.41.192.57 type=http

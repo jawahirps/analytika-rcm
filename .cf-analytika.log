@@ -1,0 +1,210 @@
+2026-07-06T15:17:32Z INF Starting tunnel tunnelID=cc5c75c4-a585-4002-b643-75db7e662122
+2026-07-06T15:17:32Z INF Version 2026.6.1 (Checksum 5253e66f1f493c4e13539749f1aa86fd0c61e3072900fec29a44ba046a6d97e2)
+2026-07-06T15:17:32Z INF GOOS: windows, GOVersion: go1.26.4, GoArch: amd64
+2026-07-06T15:17:32Z INF Settings: map[config:C:/Users/jawah/.cloudflared/config.yml cred-file:C:\Users\jawah\.cloudflared\cc5c75c4-a585-4002-b643-75db7e662122.json credentials-file:C:\Users\jawah\.cloudflared\cc5c75c4-a585-4002-b643-75db7e662122.json]
+2026-07-06T15:17:32Z INF cloudflared will not automatically update on Windows systems.
+2026-07-06T15:17:32Z INF Generated Connector ID: b2aa4eed-ddd9-477c-8256-d4ecf7c8f4fb
+2026-07-06T15:17:32Z INF Initial protocol quic
+2026-07-06T15:17:32Z INF ICMP proxy will use 192.168.2.111 as source for IPv4
+2026-07-06T15:17:34Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-06T15:17:34Z INF cloudflared does not support loading the system root certificate pool on Windows. Please use --origin-ca-pool <PATH> to specify the path to the certificate pool
+2026-07-06T15:17:34Z INF ICMP proxy will use 192.168.2.111 as source for IPv4
+2026-07-06T15:17:34Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.33
+2026-07-06T15:17:34Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:17:34Z INF |                               CONNECTIVITY PRE-CHECKS                               |
+2026-07-06T15:17:34Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:17:34Z INF |  COMPONENT         TARGET                     STATUS  DETAILS                       |
+2026-07-06T15:17:34Z INF |  DNS Resolution    region1.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-06T15:17:34Z INF |  DNS Resolution    region2.v2.argotunnel.com  PASS    DNS Resolved successfully     |
+2026-07-06T15:17:34Z INF |  UDP Connectivity  region1.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-06T15:17:34Z INF |  UDP Connectivity  region2.v2.argotunnel.com  PASS    QUIC connection successful    |
+2026-07-06T15:17:34Z INF |  TCP Connectivity  region1.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-06T15:17:34Z INF |  TCP Connectivity  region2.v2.argotunnel.com  PASS    HTTP/2 connection successful  |
+2026-07-06T15:17:34Z INF |  Cloudflare API    api.cloudflare.com:443     PASS    API is reachable              |
+2026-07-06T15:17:34Z INF |                                                                                     |
+2026-07-06T15:17:34Z INF |  SUMMARY: Environment is healthy. cloudflared will use 'quic' as primary protocol.  |
+2026-07-06T15:17:34Z INF +-------------------------------------------------------------------------------------+
+2026-07-06T15:17:34Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="DNS Resolution" details="DNS Resolved successfully" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="UDP Connectivity" details="QUIC connection successful" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region1.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="TCP Connectivity" details="HTTP/2 connection successful" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=region2.v2.argotunnel.com
+2026-07-06T15:17:34Z INF precheck component="Cloudflare API" details="API is reachable" run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 status=pass target=api.cloudflare.com:443
+2026-07-06T15:17:34Z INF precheck complete hard_fail=false run_id=7fe195dd-0b65-4b18-b7f3-097527b51329 suggested_protocol=quic
+2026-07-06T15:17:34Z INF Registered tunnel connection connIndex=0 connection=2a4c687a-6292-4d6b-abe5-5b9802aed0b1 event=0 ip=198.41.200.33 location=ams18 protocol=quic
+2026-07-06T15:17:34Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.67
+2026-07-06T15:17:35Z INF Registered tunnel connection connIndex=1 connection=36e55f09-9513-47eb-a46e-527e7478ad85 event=0 ip=198.41.192.67 location=dxb01 protocol=quic
+2026-07-06T15:17:35Z INF ICMP proxy will use fe80::599d:de91:e357:2cf5 in zone Wi-Fi as source for IPv6
+2026-07-06T15:17:35Z INF Starting metrics server on 127.0.0.1:20242/metrics
+2026-07-06T15:17:35Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.200.113
+2026-07-06T15:17:36Z INF Registered tunnel connection connIndex=2 connection=0b300a78-5f2d-4b65-a43d-362bebf258e7 event=0 ip=198.41.200.113 location=nrt16 protocol=quic
+2026-07-06T15:17:36Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.77
+2026-07-06T15:17:37Z INF Registered tunnel connection connIndex=3 connection=2c3efe43-80bc-4acc-8a29-a06fa1b1b4bc event=0 ip=198.41.192.77 location=dxb01 protocol=quic
+2026-07-07T00:28:05Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:05Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:08Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:08Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:08Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:08Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T00:28:09Z INF Registered tunnel connection connIndex=0 connection=05e9c2c2-5e87-4936-ab37-62863c1afef2 event=0 ip=198.41.200.33 location=ams18 protocol=quic
+2026-07-07T07:37:58Z ERR Failed to refresh DNS local resolver error="lookup region1.v2.argotunnel.com: i/o timeout"
+2026-07-07T09:23:18Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T09:23:18Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-07T09:23:35Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T09:23:35Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-07T09:24:17Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T09:24:17Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-07T10:42:45Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:45Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:45Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:45Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:45Z INF Retrying connection in up to 1s connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:47Z WRN Connection terminated error="accept stream listener encountered a failure while serving" connIndex=2
+2026-07-07T10:42:50Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T10:42:51Z INF Registered tunnel connection connIndex=2 connection=17e06ded-a988-4c83-aba6-b6fa01fe4eec event=0 ip=198.41.200.113 location=nrt16 protocol=quic
+2026-07-07T10:53:08Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=2 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T10:53:08Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=2 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.200.113 type=http
+2026-07-07T13:43:49Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:49Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:49Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:49Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:49Z INF Retrying connection in up to 1s connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:49Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:49Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:49Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:49Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:49Z INF Retrying connection in up to 1s connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:49Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:49Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:49Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:49Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:49Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:50Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:50Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:50Z ERR failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:50Z ERR Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:50Z INF Retrying connection in up to 1s connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:51Z ERR Connection terminated error="datagram manager encountered a failure while serving" connIndex=3
+2026-07-07T13:43:51Z ERR Connection terminated error="datagram manager encountered a failure while serving" connIndex=1
+2026-07-07T13:43:51Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.33
+2026-07-07T13:43:51Z ERR Connection terminated error="accept stream listener encountered a failure while serving" connIndex=2
+2026-07-07T13:43:52Z INF Registered tunnel connection connIndex=0 connection=42eeac6d-d7fd-4548-82f6-697e71c4bfed event=0 ip=198.41.200.33 location=ams18 protocol=quic
+2026-07-07T13:43:53Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.67
+2026-07-07T13:43:53Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.77
+2026-07-07T13:43:53Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.200.113
+2026-07-07T13:43:53Z INF Registered tunnel connection connIndex=3 connection=f2c8d1ee-d111-444f-a1a6-4d37d3668258 event=0 ip=198.41.192.77 location=dxb01 protocol=quic
+2026-07-07T13:43:53Z INF Registered tunnel connection connIndex=1 connection=1366b576-ab6b-4533-baac-4ade47cd8e9a event=0 ip=198.41.192.67 location=dxb01 protocol=quic
+2026-07-07T13:43:53Z INF Registered tunnel connection connIndex=2 connection=af513d4f-377d-405b-9323-3116740bea04 event=0 ip=198.41.200.113 location=nrt16 protocol=quic
+2026-07-07T17:02:45Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=2 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T17:02:45Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=2 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.200.113 type=http
+2026-07-07T17:12:37Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T17:12:37Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Portal/SyncedData?facilityId=12&portal=DHA event=0 ip=198.41.192.77 type=http
+2026-07-07T20:25:28Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T20:25:28Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-07T20:25:56Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T20:25:56Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-07T20:26:16Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-07T20:26:16Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-08T06:29:35Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:29:35Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-08T06:30:02Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:30:02Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.192.77 type=http
+2026-07-08T06:32:35Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=2 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:32:35Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=2 dest=https://bix.ghafservices.com/Home/Dashboard event=0 ip=198.41.200.113 type=http
+2026-07-08T06:44:26Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:44:26Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/ event=0 ip=198.41.192.77 type=http
+2026-07-08T06:44:26Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:44:26Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/Sync event=0 ip=198.41.192.77 type=http
+2026-07-08T06:44:27Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:44:27Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/favicon.ico event=0 ip=198.41.192.77 type=http
+2026-07-08T06:44:29Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:44:29Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/Sync event=0 ip=198.41.192.77 type=http
+2026-07-08T06:51:46Z ERR  error="read tcp [::1]:56398->[::1]:5000: wsarecv: An existing connection was forcibly closed by the remote host." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:51:46Z ERR Request failed error="read tcp [::1]:56398->[::1]:5000: wsarecv: An existing connection was forcibly closed by the remote host." connIndex=3 dest=https://bix.ghafservices.com/Portal/SyncFacilityStream?facilityId=2&from=2024-07-08&to=2026-07-08 event=0 ip=198.41.192.77 type=http
+2026-07-08T06:51:48Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:51:48Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:51:55Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:51:55Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:52:00Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:52:00Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:52:06Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:52:06Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:52:12Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:52:12Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:54:42Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:54:42Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:54:48Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:54:48Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:54:54Z ERR  error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:54:54Z ERR Request failed error="Unable to reach the origin service. The service may be down or it may not be responding to traffic from cloudflared: dial tcp [::1]:5000: connectex: No connection could be made because the target machine actively refused it." connIndex=3 dest=https://bix.ghafservices.com/Portal/PendingDownloadStatusApi event=0 ip=198.41.192.77 type=http
+2026-07-08T06:59:49Z ERR  error="Incoming request ended abruptly: context canceled" connIndex=3 event=1 ingressRule=0 originService=http://localhost:5000
+2026-07-08T06:59:49Z ERR Request failed error="Incoming request ended abruptly: context canceled" connIndex=3 dest=https://bix.ghafservices.com/Portal/SyncedData?facilityId=4&portal=DHA event=0 ip=198.41.192.77 type=http
+2026-07-08T11:25:01Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:01Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:01Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:01Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:01Z INF Retrying connection in up to 1s connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:03Z WRN Connection terminated error="accept stream listener encountered a failure while serving" connIndex=1
+2026-07-08T11:25:03Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T11:25:03Z INF Registered tunnel connection connIndex=1 connection=a5838d5c-5983-4aa8-a126-7322477c97ae event=0 ip=198.41.192.67 location=dxb01 protocol=quic
+2026-07-08T11:25:06Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:06Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:06Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:06Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:06Z INF Retrying connection in up to 1s connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:07Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:07Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:07Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:07Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:07Z INF Retrying connection in up to 1s connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:07Z WRN Connection terminated error="datagram manager encountered a failure while serving" connIndex=3
+2026-07-08T11:25:07Z ERR failed to run the datagram handler error="timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:07Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: timeout: no recent network activity" connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:07Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:07Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:07Z INF Retrying connection in up to 1s connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:07Z WRN Connection terminated error="datagram manager encountered a failure while serving" connIndex=2
+2026-07-08T11:25:08Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=0 event=0 ip=198.41.200.33
+2026-07-08T11:25:08Z INF Registered tunnel connection connIndex=0 connection=6f0ca5a8-97b3-48db-98fa-21584738a80e event=0 ip=198.41.200.33 location=ams19 protocol=quic
+2026-07-08T11:25:27Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T11:25:27Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=2 event=0 ip=198.41.200.113
+2026-07-08T11:25:27Z INF Registered tunnel connection connIndex=3 connection=3aeae2b6-52cd-4391-b5ec-246fb0967e89 event=0 ip=198.41.192.77 location=dxb01 protocol=quic
+2026-07-08T11:25:27Z INF Registered tunnel connection connIndex=2 connection=0a45cd23-49c7-493e-b877-09e013a8642d event=0 ip=198.41.200.113 location=nrt16 protocol=quic
+2026-07-08T15:08:47Z ERR failed to run the datagram handler error="Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:08:47Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:08:47Z WRN failed to serve tunnel connection error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:08:47Z WRN Serve tunnel error error="datagram manager encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:08:47Z INF Retrying connection in up to 1s connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:08:49Z WRN Connection terminated error="datagram manager encountered a failure while serving" connIndex=3
+2026-07-08T15:09:06Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:09:11Z WRN Failed to dial a quic connection error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:09:11Z INF Retrying connection in up to 4s connIndex=3 event=0 ip=198.41.192.77
+2026-07-08T15:09:14Z WRN Connection terminated error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=3
+2026-07-08T15:09:26Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:09:26Z INF Registered tunnel connection connIndex=3 connection=3be238ee-c322-4770-a84e-892be7d60629 event=0 ip=198.41.192.27 location=dxb01 protocol=quic
+2026-07-08T15:17:33Z WRN Your version 2026.6.1 is outdated. We recommend upgrading it to 2026.7.0
+2026-07-08T15:19:11Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: Application error 0x0 (remote)" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:11Z ERR failed to run the datagram handler error="Application error 0x0 (remote)" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:11Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:11Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:11Z INF Retrying connection in up to 1s connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:12Z WRN Connection terminated error="accept stream listener encountered a failure while serving" connIndex=1
+2026-07-08T15:19:30Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:35Z WRN Failed to dial a quic connection error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:35Z INF Retrying connection in up to 4s connIndex=1 event=0 ip=198.41.192.67
+2026-07-08T15:19:38Z WRN Connection terminated error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=1
+2026-07-08T15:20:10Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=1 event=0 ip=198.41.192.7
+2026-07-08T15:20:10Z INF Registered tunnel connection connIndex=1 connection=0bfb77e9-1c03-4ac9-b250-2501fc140776 event=0 ip=198.41.192.7 location=dxb01 protocol=quic
+2026-07-08T15:22:27Z ERR failed to accept incoming stream requests error="failed to accept QUIC stream: Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:27Z ERR failed to run the datagram handler error="Application error 0x0 (remote)" connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:27Z WRN failed to serve tunnel connection error="accept stream listener encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:27Z WRN Serve tunnel error error="accept stream listener encountered a failure while serving" connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:27Z INF Retrying connection in up to 1s connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:29Z WRN Connection terminated error="accept stream listener encountered a failure while serving" connIndex=3
+2026-07-08T15:22:32Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:37Z WRN Failed to dial a quic connection error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:37Z INF Retrying connection in up to 4s connIndex=3 event=0 ip=198.41.192.27
+2026-07-08T15:22:38Z WRN Connection terminated error="failed to dial to edge with quic: timeout: no recent network activity" connIndex=3
+2026-07-08T15:22:58Z INF Tunnel connection curve preferences: [X25519MLKEM768 CurveID(65074) CurveP256] connIndex=3 event=0 ip=198.41.192.47
+2026-07-08T15:22:58Z INF Registered tunnel connection connIndex=3 connection=8f482b09-2e52-4db2-b481-f2875a2a88bf event=0 ip=198.41.192.47 location=dxb01 protocol=quic

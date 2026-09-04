@@ -1,0 +1,1214 @@
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.12.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.12.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1902: Package 'OpenTelemetry.Api' 1.12.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-g94r-2vxg-569j
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1902: Package 'OpenTelemetry.Exporter.OpenTelemetryProtocol' 1.12.0 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-4625-4j76-fww9
+J:\Ghaf BI\analytika-rcm\Analytika\Analytika.csproj : warning NU1903: Package 'SQLitePCLRaw.lib.e_sqlite3' 2.1.11 has a known high severity vulnerability, https://github.com/advisories/GHSA-2m69-gcr7-jv3q
+[21:24:26 INF] Using SQLite database at J:\GhafAnalytika\Analytika\analytika.db
+[21:24:27 INF] Now listening on: http://localhost:5000
+[21:24:27 INF] Application started. Press Ctrl+C to shut down.
+[21:24:27 INF] Hosting environment: Production
+[21:24:27 INF] Content root path: J:\Ghaf BI\analytika-rcm\Analytika
+[21:24:29 WRN] Health check portal-sync with status Degraded completed after 171.1678ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:24:29 INF] HTTP GET /healthz responded 200 in 278.3092 ms
+[21:24:34 WRN] The query uses a row limiting operator ('Skip'/'Take') without an 'OrderBy' operator. This may lead to unpredictable results. If the 'Distinct' operator is used after 'OrderBy', then make sure to use the 'OrderBy' operator after 'Distinct' as the ordering would otherwise get erased.
+[21:24:35 INF] Pre-warmed dashboard caches in 7826 ms
+[21:24:42 WRN] Health check portal-sync with status Degraded completed after 1.0421ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:24:42 INF] HTTP GET /healthz responded 200 in 7.2301 ms
+[21:24:56 WRN] Health check portal-sync with status Degraded completed after 1.7409ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:24:56 INF] HTTP GET /healthz responded 200 in 12.5288 ms
+[21:25:42 WRN] Health check portal-sync with status Degraded completed after 0.8847ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:25:45 INF] HTTP GET /healthz responded 200 in 2534.6337 ms
+[21:26:45 WRN] Health check portal-sync with status Degraded completed after 1.0076ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:26:47 INF] HTTP GET /healthz responded 200 in 2490.5008 ms
+[21:27:47 WRN] Health check portal-sync with status Degraded completed after 0.7946ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:27:50 INF] HTTP GET /healthz responded 200 in 2429.4858 ms
+[21:28:25 INF] HTTP GET /Home/Dashboard responded 200 in 230.0269 ms
+[21:28:26 INF] HTTP GET /js/site.js responded 200 in 31.8570 ms
+[21:28:31 INF] Refreshed dashboard facility status in background
+[21:28:31 INF] HTTP GET /api/dashboard/summary responded 200 in 4807.3164 ms
+[21:28:33 INF] HTTP GET / responded 302 in 23.4545 ms
+[21:28:33 INF] HTTP GET /Home/Dashboard responded 200 in 10.1891 ms
+[21:28:33 INF] HTTP GET /api/dashboard/summary responded 200 in 2.1809 ms
+[21:28:50 WRN] Health check portal-sync with status Degraded completed after 0.7465ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:28:50 INF] HTTP GET /healthz responded 200 in 2.7443 ms
+[21:29:50 WRN] Health check portal-sync with status Degraded completed after 0.9719ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:29:52 INF] HTTP GET /healthz responded 200 in 2532.5235 ms
+[21:30:52 WRN] Health check portal-sync with status Degraded completed after 0.6867ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:30:55 INF] HTTP GET /healthz responded 200 in 2482.0350 ms
+[21:31:55 WRN] Health check portal-sync with status Degraded completed after 0.9474ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:31:57 INF] HTTP GET /healthz responded 200 in 2498.0246 ms
+[21:32:57 WRN] Health check portal-sync with status Degraded completed after 0.6728ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:33:00 INF] HTTP GET /healthz responded 200 in 2438.8297 ms
+[21:34:00 WRN] Health check portal-sync with status Degraded completed after 0.7313ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:34:02 INF] HTTP GET /healthz responded 200 in 2498.1109 ms
+[21:35:02 WRN] Health check portal-sync with status Degraded completed after 0.9458ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:35:05 INF] HTTP GET /healthz responded 200 in 2512.3533 ms
+[21:36:05 WRN] Health check portal-sync with status Degraded completed after 0.5948ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:36:07 INF] HTTP GET /healthz responded 200 in 2473.9420 ms
+[21:37:07 WRN] Health check portal-sync with status Degraded completed after 0.7868ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:37:10 INF] HTTP GET /healthz responded 200 in 2444.9430 ms
+[21:38:10 WRN] Health check portal-sync with status Degraded completed after 0.6946ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:38:12 INF] HTTP GET /healthz responded 200 in 2488.2375 ms
+[21:38:49 INF] HTTP GET /Portal/Sync responded 200 in 266.8721 ms
+[21:39:12 WRN] Health check portal-sync with status Degraded completed after 1.2201ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:39:12 INF] HTTP GET /healthz responded 200 in 9.9613 ms
+[21:40:12 WRN] Health check portal-sync with status Degraded completed after 0.9583ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:40:13 INF] HTTP GET /healthz responded 200 in 362.2604 ms
+[21:41:13 WRN] Health check portal-sync with status Degraded completed after 0.6004ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:41:15 INF] HTTP GET /healthz responded 200 in 2543.3241 ms
+[21:42:15 WRN] Health check portal-sync with status Degraded completed after 0.9028ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:42:18 INF] HTTP GET /healthz responded 200 in 2494.8750 ms
+[21:43:18 WRN] Health check portal-sync with status Degraded completed after 0.8932ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:43:20 INF] HTTP GET /healthz responded 200 in 2445.1437 ms
+[21:44:20 WRN] Health check portal-sync with status Degraded completed after 0.6336ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:44:23 INF] HTTP GET /healthz responded 200 in 2504.0867 ms
+[21:45:23 WRN] Health check portal-sync with status Degraded completed after 0.8569ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:45:25 INF] HTTP GET /healthz responded 200 in 2503.2559 ms
+[21:46:25 WRN] Health check portal-sync with status Degraded completed after 0.6961ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:46:25 INF] HTTP GET /healthz responded 200 in 3.7501 ms
+[21:47:25 WRN] Health check portal-sync with status Degraded completed after 0.5511ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:47:27 INF] HTTP GET /healthz responded 200 in 2220.3954 ms
+[21:48:27 WRN] Health check portal-sync with status Degraded completed after 0.5092ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:48:30 INF] HTTP GET /healthz responded 200 in 2433.9572 ms
+[21:49:30 WRN] Health check portal-sync with status Degraded completed after 0.6412ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:49:30 INF] HTTP GET /healthz responded 200 in 394.8331 ms
+[21:50:30 WRN] Health check portal-sync with status Degraded completed after 0.6465ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:50:33 INF] HTTP GET /healthz responded 200 in 2670.2398 ms
+[21:51:33 WRN] Health check portal-sync with status Degraded completed after 0.6578ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:51:35 INF] HTTP GET /healthz responded 200 in 2437.8580 ms
+[21:52:35 WRN] Health check portal-sync with status Degraded completed after 0.6871ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:52:38 INF] HTTP GET /healthz responded 200 in 2505.8104 ms
+[21:53:38 WRN] Health check portal-sync with status Degraded completed after 0.6322ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:53:40 INF] HTTP GET /healthz responded 200 in 2439.6326 ms
+[21:54:40 WRN] Health check portal-sync with status Degraded completed after 0.6131ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:54:43 INF] HTTP GET /healthz responded 200 in 2490.7971 ms
+[21:55:43 WRN] Health check portal-sync with status Degraded completed after 0.6686ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:55:45 INF] HTTP GET /healthz responded 200 in 2469.5286 ms
+[21:56:45 WRN] Health check portal-sync with status Degraded completed after 0.427ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:56:48 INF] HTTP GET /healthz responded 200 in 2525.4485 ms
+[21:57:48 WRN] Health check portal-sync with status Degraded completed after 0.9208ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:57:50 INF] HTTP GET /healthz responded 200 in 2512.7709 ms
+[21:58:50 WRN] Health check portal-sync with status Degraded completed after 0.6098ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:58:53 INF] HTTP GET /healthz responded 200 in 2528.5247 ms
+[21:59:53 WRN] Health check portal-sync with status Degraded completed after 0.8094ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[21:59:55 INF] HTTP GET /healthz responded 200 in 2463.6841 ms
+[22:00:55 WRN] Health check portal-sync with status Degraded completed after 0.6225ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:00:58 INF] HTTP GET /healthz responded 200 in 2511.9801 ms
+[22:01:58 WRN] Health check portal-sync with status Degraded completed after 0.9429ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:02:00 INF] HTTP GET /healthz responded 200 in 2496.8724 ms
+[22:03:00 WRN] Health check portal-sync with status Degraded completed after 0.5488ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:03:03 INF] HTTP GET /healthz responded 200 in 2412.7784 ms
+[22:04:03 WRN] Health check portal-sync with status Degraded completed after 0.5894ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:04:03 INF] HTTP GET /healthz responded 200 in 2.8190 ms
+[22:05:03 WRN] Health check portal-sync with status Degraded completed after 0.5485ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:05:05 INF] HTTP GET /healthz responded 200 in 2438.5950 ms
+[22:06:05 WRN] Health check portal-sync with status Degraded completed after 0.5591ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:06:08 INF] HTTP GET /healthz responded 200 in 2445.3401 ms
+[22:07:08 WRN] Health check portal-sync with status Degraded completed after 0.4918ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:07:10 INF] HTTP GET /healthz responded 200 in 2484.2252 ms
+[22:08:10 WRN] Health check portal-sync with status Degraded completed after 0.9322ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:08:13 INF] HTTP GET /healthz responded 200 in 2446.1769 ms
+[22:09:13 WRN] Health check portal-sync with status Degraded completed after 0.4867ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:09:15 INF] HTTP GET /healthz responded 200 in 2503.8074 ms
+[22:10:15 WRN] Health check portal-sync with status Degraded completed after 0.563ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:10:18 INF] HTTP GET /healthz responded 200 in 2482.5063 ms
+[22:11:18 WRN] Health check portal-sync with status Degraded completed after 0.5707ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:11:20 INF] HTTP GET /healthz responded 200 in 2476.4874 ms
+[22:12:20 WRN] Health check portal-sync with status Degraded completed after 0.6268ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:12:23 INF] HTTP GET /healthz responded 200 in 2542.6336 ms
+[22:13:23 WRN] Health check portal-sync with status Degraded completed after 0.4182ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:13:25 INF] HTTP GET /healthz responded 200 in 2508.5499 ms
+[22:14:25 WRN] Health check portal-sync with status Degraded completed after 0.462ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:14:28 INF] HTTP GET /healthz responded 200 in 2507.4934 ms
+[22:15:28 WRN] Health check portal-sync with status Degraded completed after 0.6476ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:15:30 INF] HTTP GET /healthz responded 200 in 2481.7721 ms
+[22:16:30 WRN] Health check portal-sync with status Degraded completed after 0.584ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:16:33 INF] HTTP GET /healthz responded 200 in 2425.4284 ms
+[22:17:33 WRN] Health check portal-sync with status Degraded completed after 0.6944ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:17:35 INF] HTTP GET /healthz responded 200 in 2464.1289 ms
+[22:18:35 WRN] Health check portal-sync with status Degraded completed after 1.0206ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:18:38 INF] HTTP GET /healthz responded 200 in 2685.4492 ms
+[22:19:38 WRN] Health check portal-sync with status Degraded completed after 0.468ms with message 'Last successful portal fetch was 109h ago (threshold 26h).'
+[22:19:40 INF] HTTP GET /healthz responded 200 in 2499.7670 ms
+[22:20:40 WRN] Health check portal-sync with status Degraded completed after 0.5466ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:20:40 INF] HTTP GET /healthz responded 200 in 1.8004 ms
+[22:21:40 WRN] Health check portal-sync with status Degraded completed after 0.5617ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:21:40 INF] HTTP GET /healthz responded 200 in 27.1494 ms
+[22:22:41 WRN] Health check portal-sync with status Degraded completed after 10.5555ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:22:41 INF] HTTP GET /healthz responded 200 in 21.1161 ms
+[22:23:41 WRN] Health check portal-sync with status Degraded completed after 2.5549ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:23:41 INF] HTTP GET /healthz responded 200 in 393.5243 ms
+[22:24:41 WRN] Health check portal-sync with status Degraded completed after 0.6871ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:24:42 INF] HTTP GET /healthz responded 200 in 713.9571 ms
+[22:25:42 WRN] Health check portal-sync with status Degraded completed after 0.6686ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:25:44 INF] HTTP GET /healthz responded 200 in 2480.7161 ms
+[22:26:44 WRN] Health check portal-sync with status Degraded completed after 0.6166ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:26:47 INF] HTTP GET /healthz responded 200 in 2535.5149 ms
+[22:27:47 WRN] Health check portal-sync with status Degraded completed after 0.4681ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:27:49 INF] HTTP GET /healthz responded 200 in 2446.6218 ms
+[22:28:49 WRN] Health check portal-sync with status Degraded completed after 0.6267ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:28:52 INF] HTTP GET /healthz responded 200 in 2430.4496 ms
+[22:29:52 WRN] Health check portal-sync with status Degraded completed after 0.6271ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:29:54 INF] HTTP GET /healthz responded 200 in 2448.7626 ms
+[22:30:54 WRN] Health check portal-sync with status Degraded completed after 0.5106ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:30:57 INF] HTTP GET /healthz responded 200 in 2482.2626 ms
+[22:31:57 WRN] Health check portal-sync with status Degraded completed after 0.5787ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:31:59 INF] HTTP GET /healthz responded 200 in 2501.8859 ms
+[22:32:59 WRN] Health check portal-sync with status Degraded completed after 0.5667ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:33:02 INF] HTTP GET /healthz responded 200 in 2487.5793 ms
+[22:34:02 WRN] Health check portal-sync with status Degraded completed after 0.5519ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:34:02 INF] HTTP GET /healthz responded 200 in 2.6970 ms
+[22:35:02 WRN] Health check portal-sync with status Degraded completed after 0.7254ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:35:04 INF] HTTP GET /healthz responded 200 in 2481.5668 ms
+[22:36:04 WRN] Health check portal-sync with status Degraded completed after 0.6307ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:36:07 INF] HTTP GET /healthz responded 200 in 2520.7090 ms
+[22:37:07 WRN] Health check portal-sync with status Degraded completed after 0.5283ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:37:09 INF] HTTP GET /healthz responded 200 in 2413.4632 ms
+[22:38:09 WRN] Health check portal-sync with status Degraded completed after 0.5146ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:38:12 INF] HTTP GET /healthz responded 200 in 2464.5403 ms
+[22:39:12 WRN] Health check portal-sync with status Degraded completed after 0.6208ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:39:12 INF] HTTP GET /healthz responded 200 in 2.4968 ms
+[22:40:12 WRN] Health check portal-sync with status Degraded completed after 0.6183ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:40:12 INF] HTTP GET /healthz responded 200 in 543.2289 ms
+[22:41:12 WRN] Health check portal-sync with status Degraded completed after 0.6063ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:41:15 INF] HTTP GET /healthz responded 200 in 2506.4830 ms
+[22:42:15 WRN] Health check portal-sync with status Degraded completed after 0.5879ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:42:17 INF] HTTP GET /healthz responded 200 in 2431.4907 ms
+[22:43:17 WRN] Health check portal-sync with status Degraded completed after 0.6567ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:43:17 INF] HTTP GET /healthz responded 200 in 2.2272 ms
+[22:44:17 WRN] Health check portal-sync with status Degraded completed after 0.6573ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:44:17 INF] HTTP GET /healthz responded 200 in 2.6590 ms
+[22:45:17 WRN] Health check portal-sync with status Degraded completed after 0.8716ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:45:17 INF] HTTP GET /healthz responded 200 in 2.6968 ms
+[22:46:17 WRN] Health check portal-sync with status Degraded completed after 3.3138ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:46:17 INF] HTTP GET /healthz responded 200 in 50.1263 ms
+[22:47:17 WRN] Health check portal-sync with status Degraded completed after 0.9263ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:47:17 INF] HTTP GET /healthz responded 200 in 14.5982 ms
+[22:48:17 WRN] Health check portal-sync with status Degraded completed after 0.7221ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:48:17 INF] HTTP GET /healthz responded 200 in 2.1820 ms
+[22:49:17 WRN] Health check portal-sync with status Degraded completed after 1.0012ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:49:17 INF] HTTP GET /healthz responded 200 in 86.5848 ms
+[22:50:17 WRN] Health check portal-sync with status Degraded completed after 0.5053ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:50:17 INF] HTTP GET /healthz responded 200 in 1.7767 ms
+[22:51:17 WRN] Health check portal-sync with status Degraded completed after 0.4614ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:51:17 INF] HTTP GET /healthz responded 200 in 1.8060 ms
+[22:52:17 WRN] Health check portal-sync with status Degraded completed after 0.6742ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:52:17 INF] HTTP GET /healthz responded 200 in 3.7800 ms
+[22:53:17 WRN] Health check portal-sync with status Degraded completed after 0.5783ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:53:17 INF] HTTP GET /healthz responded 200 in 1.5237 ms
+[22:54:17 WRN] Health check portal-sync with status Degraded completed after 0.5089ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:54:17 INF] HTTP GET /healthz responded 200 in 16.1875 ms
+[22:55:17 WRN] Health check portal-sync with status Degraded completed after 0.5238ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:55:17 INF] HTTP GET /healthz responded 200 in 1.8076 ms
+[22:56:17 WRN] Health check portal-sync with status Degraded completed after 0.6698ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:56:17 INF] HTTP GET /healthz responded 200 in 1.9686 ms
+[22:57:17 WRN] Health check portal-sync with status Degraded completed after 0.5568ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:57:17 INF] HTTP GET /healthz responded 200 in 15.2977 ms
+[22:58:17 WRN] Health check portal-sync with status Degraded completed after 0.5737ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:58:17 INF] HTTP GET /healthz responded 200 in 1.8699 ms
+[22:59:17 WRN] Health check portal-sync with status Degraded completed after 0.5827ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[22:59:17 INF] HTTP GET /healthz responded 200 in 14.4352 ms
+[23:00:17 WRN] Health check portal-sync with status Degraded completed after 0.9292ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:00:17 INF] HTTP GET /healthz responded 200 in 2.8924 ms
+[23:01:17 WRN] Health check portal-sync with status Degraded completed after 0.4744ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:01:17 INF] HTTP GET /healthz responded 200 in 4.7022 ms
+[23:02:17 WRN] Health check portal-sync with status Degraded completed after 1.4383ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:02:18 INF] HTTP GET /healthz responded 200 in 35.9218 ms
+[23:03:18 WRN] Health check portal-sync with status Degraded completed after 0.6149ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:03:18 INF] HTTP GET /healthz responded 200 in 99.6179 ms
+[23:04:18 WRN] Health check portal-sync with status Degraded completed after 0.5323ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:04:18 INF] HTTP GET /healthz responded 200 in 55.7140 ms
+[23:05:18 WRN] Health check portal-sync with status Degraded completed after 0.5638ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:05:18 INF] HTTP GET /healthz responded 200 in 14.9485 ms
+[23:06:18 WRN] Health check portal-sync with status Degraded completed after 0.4843ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:06:18 INF] HTTP GET /healthz responded 200 in 16.5006 ms
+[23:07:18 WRN] Health check portal-sync with status Degraded completed after 0.6589ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:07:18 INF] HTTP GET /healthz responded 200 in 1.8382 ms
+[23:08:18 WRN] Health check portal-sync with status Degraded completed after 0.4986ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:08:18 INF] HTTP GET /healthz responded 200 in 53.1116 ms
+[23:09:18 WRN] Health check portal-sync with status Degraded completed after 1.2818ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:09:18 INF] HTTP GET /healthz responded 200 in 11.4443 ms
+[23:10:18 WRN] Health check portal-sync with status Degraded completed after 1.3869ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:10:18 INF] HTTP GET /healthz responded 200 in 19.7547 ms
+[23:11:18 WRN] Health check portal-sync with status Degraded completed after 100.6736ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:11:18 INF] HTTP GET /healthz responded 200 in 195.4957 ms
+[23:12:18 WRN] Health check portal-sync with status Degraded completed after 0.6373ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:12:18 INF] HTTP GET /healthz responded 200 in 6.8340 ms
+[23:13:18 WRN] Health check portal-sync with status Degraded completed after 0.631ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:13:19 INF] HTTP GET /healthz responded 200 in 29.0818 ms
+[23:14:19 WRN] Health check portal-sync with status Degraded completed after 47.1301ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:14:19 INF] HTTP GET /healthz responded 200 in 49.9741 ms
+[23:15:19 WRN] Health check portal-sync with status Degraded completed after 0.5709ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:15:19 INF] HTTP GET /healthz responded 200 in 12.6883 ms
+[23:16:19 WRN] Health check portal-sync with status Degraded completed after 0.4901ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:16:26 INF] HTTP GET /healthz responded 200 in 7240.7763 ms
+[23:17:26 WRN] Health check portal-sync with status Degraded completed after 0.5794ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:17:26 INF] HTTP GET /healthz responded 200 in 1.9692 ms
+[23:18:26 WRN] Health check portal-sync with status Degraded completed after 0.4902ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:18:26 INF] HTTP GET /healthz responded 200 in 2.3514 ms
+[23:19:26 WRN] Health check portal-sync with status Degraded completed after 1.7561ms with message 'Last successful portal fetch was 110h ago (threshold 26h).'
+[23:19:28 INF] HTTP GET /healthz responded 200 in 2297.0793 ms
+[23:20:28 WRN] Health check portal-sync with status Degraded completed after 0.5746ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:20:28 INF] HTTP GET /healthz responded 200 in 2.1002 ms
+[23:21:28 WRN] Health check portal-sync with status Degraded completed after 0.5989ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:21:31 INF] HTTP GET /healthz responded 200 in 2525.6893 ms
+[23:22:31 WRN] Health check portal-sync with status Degraded completed after 1.1405ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:22:33 INF] HTTP GET /healthz responded 200 in 2618.7000 ms
+[23:23:33 WRN] Health check portal-sync with status Degraded completed after 0.6226ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:23:36 INF] HTTP GET /healthz responded 200 in 2441.6126 ms
+[23:24:36 WRN] Health check portal-sync with status Degraded completed after 0.5254ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:24:38 INF] HTTP GET /healthz responded 200 in 2587.1210 ms
+[23:25:38 WRN] Health check portal-sync with status Degraded completed after 0.868ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:25:41 INF] HTTP GET /healthz responded 200 in 2480.1228 ms
+[23:26:41 WRN] Health check portal-sync with status Degraded completed after 0.6991ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:26:43 INF] HTTP GET /healthz responded 200 in 2432.6878 ms
+[23:27:43 WRN] Health check portal-sync with status Degraded completed after 0.5605ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:27:43 INF] HTTP GET /healthz responded 200 in 13.9194 ms
+[23:28:43 WRN] Health check portal-sync with status Degraded completed after 0.9116ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:28:43 INF] HTTP GET /healthz responded 200 in 24.8893 ms
+[23:29:43 WRN] Health check portal-sync with status Degraded completed after 1.0056ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:29:46 INF] HTTP GET /healthz responded 200 in 2420.0527 ms
+[23:30:46 WRN] Health check portal-sync with status Degraded completed after 1.2275ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:30:46 INF] HTTP GET /healthz responded 200 in 11.7633 ms
+[23:31:46 WRN] Health check portal-sync with status Degraded completed after 0.7088ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:31:46 INF] HTTP GET /healthz responded 200 in 2.7634 ms
+[23:32:46 WRN] Health check portal-sync with status Degraded completed after 0.4998ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:32:48 INF] HTTP GET /healthz responded 200 in 2483.8466 ms
+[23:33:48 WRN] Health check portal-sync with status Degraded completed after 0.5872ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:33:51 INF] HTTP GET /healthz responded 200 in 2032.0405 ms
+[23:34:51 WRN] Health check portal-sync with status Degraded completed after 2.8763ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:34:53 INF] HTTP GET /healthz responded 200 in 2482.2657 ms
+[23:35:53 WRN] Health check portal-sync with status Degraded completed after 0.6466ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:35:55 INF] HTTP GET /healthz responded 200 in 2498.6370 ms
+[23:36:55 WRN] Health check portal-sync with status Degraded completed after 0.5847ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:36:58 INF] HTTP GET /healthz responded 200 in 2640.0888 ms
+[23:37:58 WRN] Health check portal-sync with status Degraded completed after 0.8144ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:38:01 INF] HTTP GET /healthz responded 200 in 2493.8151 ms
+[23:39:01 WRN] Health check portal-sync with status Degraded completed after 0.4868ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:39:01 INF] HTTP GET /healthz responded 200 in 15.9520 ms
+[23:40:01 WRN] Health check portal-sync with status Degraded completed after 0.5789ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:40:01 INF] HTTP GET /healthz responded 200 in 380.8858 ms
+[23:41:01 WRN] Health check portal-sync with status Degraded completed after 0.5292ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:41:04 INF] HTTP GET /healthz responded 200 in 2520.3555 ms
+[23:42:04 WRN] Health check portal-sync with status Degraded completed after 0.6556ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:42:06 INF] HTTP GET /healthz responded 200 in 2483.7438 ms
+[23:43:06 WRN] Health check portal-sync with status Degraded completed after 2.5561ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:43:09 INF] HTTP GET /healthz responded 200 in 2479.0930 ms
+[23:44:09 WRN] Health check portal-sync with status Degraded completed after 0.6245ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:44:11 INF] HTTP GET /healthz responded 200 in 2416.7004 ms
+[23:45:11 WRN] Health check portal-sync with status Degraded completed after 0.5217ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:45:13 INF] HTTP GET /healthz responded 200 in 2410.7110 ms
+[23:46:13 WRN] Health check portal-sync with status Degraded completed after 0.5485ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:46:16 INF] HTTP GET /healthz responded 200 in 2436.6004 ms
+[23:47:16 WRN] Health check portal-sync with status Degraded completed after 422.7489ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:47:16 INF] HTTP GET /healthz responded 200 in 424.0496 ms
+[23:48:16 WRN] Health check portal-sync with status Degraded completed after 0.4935ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:48:19 INF] HTTP GET /healthz responded 200 in 2449.3642 ms
+[23:49:19 WRN] Health check portal-sync with status Degraded completed after 0.583ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:49:21 INF] HTTP GET /healthz responded 200 in 2443.5526 ms
+[23:50:21 WRN] Health check portal-sync with status Degraded completed after 0.7438ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:50:24 INF] HTTP GET /healthz responded 200 in 2617.1224 ms
+[23:51:24 WRN] Health check portal-sync with status Degraded completed after 0.9198ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:51:24 INF] HTTP GET /healthz responded 200 in 361.7736 ms
+[23:52:24 WRN] Health check portal-sync with status Degraded completed after 0.4906ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:52:27 INF] HTTP GET /healthz responded 200 in 2496.4104 ms
+[23:53:27 WRN] Health check portal-sync with status Degraded completed after 0.4513ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:53:29 INF] HTTP GET /healthz responded 200 in 2450.7075 ms
+[23:54:29 WRN] Health check portal-sync with status Degraded completed after 0.4025ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:54:31 INF] HTTP GET /healthz responded 200 in 2005.8810 ms
+[23:55:31 WRN] Health check portal-sync with status Degraded completed after 0.518ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:55:34 INF] HTTP GET /healthz responded 200 in 2473.9754 ms
+[23:56:34 WRN] Health check portal-sync with status Degraded completed after 0.5943ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:56:36 INF] HTTP GET /healthz responded 200 in 2497.6414 ms
+[23:57:36 WRN] Health check portal-sync with status Degraded completed after 0.5132ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:57:39 INF] HTTP GET /healthz responded 200 in 2471.6203 ms
+[23:58:39 WRN] Health check portal-sync with status Degraded completed after 0.577ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:58:41 INF] HTTP GET /healthz responded 200 in 2433.5884 ms
+[23:59:41 WRN] Health check portal-sync with status Degraded completed after 0.8061ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[23:59:44 INF] HTTP GET /healthz responded 200 in 2449.2279 ms
+[00:00:44 WRN] Health check portal-sync with status Degraded completed after 0.9066ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:00:46 INF] HTTP GET /healthz responded 200 in 2532.6418 ms
+[00:01:46 WRN] Health check portal-sync with status Degraded completed after 2.7556ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:01:49 INF] HTTP GET /healthz responded 200 in 2460.9703 ms
+[00:02:49 WRN] Health check portal-sync with status Degraded completed after 0.5778ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:02:51 INF] HTTP GET /healthz responded 200 in 2594.7158 ms
+[00:03:51 WRN] Health check portal-sync with status Degraded completed after 0.8128ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:03:54 INF] HTTP GET /healthz responded 200 in 2496.7767 ms
+[00:04:54 WRN] Health check portal-sync with status Degraded completed after 0.4874ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:04:56 INF] HTTP GET /healthz responded 200 in 2421.4179 ms
+[00:05:56 WRN] Health check portal-sync with status Degraded completed after 0.4608ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:05:59 INF] HTTP GET /healthz responded 200 in 2446.6940 ms
+[00:06:59 WRN] Health check portal-sync with status Degraded completed after 0.5073ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:07:01 INF] HTTP GET /healthz responded 200 in 2444.3559 ms
+[00:08:01 WRN] Health check portal-sync with status Degraded completed after 1.1539ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:08:04 INF] HTTP GET /healthz responded 200 in 2454.5753 ms
+[00:09:04 WRN] Health check portal-sync with status Degraded completed after 0.595ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:09:04 INF] HTTP GET /healthz responded 200 in 2.4704 ms
+[00:10:04 WRN] Health check portal-sync with status Degraded completed after 0.5188ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:10:04 INF] HTTP GET /healthz responded 200 in 2.6491 ms
+[00:11:04 WRN] Health check portal-sync with status Degraded completed after 0.5713ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:11:04 INF] HTTP GET /healthz responded 200 in 2.2824 ms
+[00:12:04 WRN] Health check portal-sync with status Degraded completed after 0.6205ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:12:06 INF] HTTP GET /healthz responded 200 in 2441.9575 ms
+[00:13:06 WRN] Health check portal-sync with status Degraded completed after 0.5905ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:13:08 INF] HTTP GET /healthz responded 200 in 2436.4883 ms
+[00:14:08 WRN] Health check portal-sync with status Degraded completed after 0.5869ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:14:11 INF] HTTP GET /healthz responded 200 in 2463.7068 ms
+[00:15:11 WRN] Health check portal-sync with status Degraded completed after 0.5625ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:15:11 INF] HTTP GET /healthz responded 200 in 2.2017 ms
+[00:16:11 WRN] Health check portal-sync with status Degraded completed after 0.6623ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:16:11 INF] HTTP GET /healthz responded 200 in 16.2553 ms
+[00:17:11 WRN] Health check portal-sync with status Degraded completed after 0.6153ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:17:13 INF] HTTP GET /healthz responded 200 in 2468.5728 ms
+[00:18:13 WRN] Health check portal-sync with status Degraded completed after 0.5173ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:18:16 INF] HTTP GET /healthz responded 200 in 2420.8906 ms
+[00:19:16 WRN] Health check portal-sync with status Degraded completed after 0.8839ms with message 'Last successful portal fetch was 111h ago (threshold 26h).'
+[00:19:18 INF] HTTP GET /healthz responded 200 in 2441.6647 ms
+[00:20:18 WRN] Health check portal-sync with status Degraded completed after 0.4377ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:20:21 INF] HTTP GET /healthz responded 200 in 2490.8951 ms
+[00:21:21 WRN] Health check portal-sync with status Degraded completed after 0.6639ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:21:21 INF] HTTP GET /healthz responded 200 in 347.9134 ms
+[00:22:21 WRN] Health check portal-sync with status Degraded completed after 0.9156ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:22:24 INF] HTTP GET /healthz responded 200 in 2457.8729 ms
+[00:23:24 WRN] Health check portal-sync with status Degraded completed after 0.6913ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:23:24 INF] HTTP GET /healthz responded 200 in 2.7768 ms
+[00:24:24 WRN] Health check portal-sync with status Degraded completed after 0.6482ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:24:26 INF] HTTP GET /healthz responded 200 in 2478.0343 ms
+[00:25:26 WRN] Health check portal-sync with status Degraded completed after 4.6826ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:25:26 INF] HTTP GET /healthz responded 200 in 7.3752 ms
+[00:26:26 WRN] Health check portal-sync with status Degraded completed after 0.5072ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:26:26 INF] HTTP GET /healthz responded 200 in 16.3702 ms
+[00:27:26 WRN] Health check portal-sync with status Degraded completed after 0.625ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:27:28 INF] HTTP GET /healthz responded 200 in 2263.4515 ms
+[00:28:28 WRN] Health check portal-sync with status Degraded completed after 0.726ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:28:31 INF] HTTP GET /healthz responded 200 in 2438.1614 ms
+[00:29:31 WRN] Health check portal-sync with status Degraded completed after 1.4896ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:29:31 INF] HTTP GET /healthz responded 200 in 3.5501 ms
+[00:30:31 WRN] Health check portal-sync with status Degraded completed after 0.551ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:30:31 INF] HTTP GET /healthz responded 200 in 393.9777 ms
+[00:31:31 WRN] Health check portal-sync with status Degraded completed after 0.5167ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:31:34 INF] HTTP GET /healthz responded 200 in 2491.7008 ms
+[00:32:34 WRN] Health check portal-sync with status Degraded completed after 0.5538ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:32:36 INF] HTTP GET /healthz responded 200 in 2506.8068 ms
+[00:33:36 WRN] Health check portal-sync with status Degraded completed after 0.621ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:33:39 INF] HTTP GET /healthz responded 200 in 2429.5800 ms
+[00:34:39 WRN] Health check portal-sync with status Degraded completed after 0.5941ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:34:41 INF] HTTP GET /healthz responded 200 in 2420.8901 ms
+[00:35:41 WRN] Health check portal-sync with status Degraded completed after 0.5376ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:35:44 INF] HTTP GET /healthz responded 200 in 2508.5686 ms
+[00:36:44 WRN] Health check portal-sync with status Degraded completed after 0.7184ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:36:46 INF] HTTP GET /healthz responded 200 in 2515.1480 ms
+[00:37:46 WRN] Health check portal-sync with status Degraded completed after 0.6809ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:37:47 INF] HTTP GET /healthz responded 200 in 413.6755 ms
+[00:38:47 WRN] Health check portal-sync with status Degraded completed after 0.5127ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:38:49 INF] HTTP GET /healthz responded 200 in 2460.8367 ms
+[00:39:49 WRN] Health check portal-sync with status Degraded completed after 0.6843ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:39:52 INF] HTTP GET /healthz responded 200 in 2422.6835 ms
+[00:40:52 WRN] Health check portal-sync with status Degraded completed after 0.5866ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:40:54 INF] HTTP GET /healthz responded 200 in 2615.0840 ms
+[00:41:54 WRN] Health check portal-sync with status Degraded completed after 0.5555ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:41:54 INF] HTTP GET /healthz responded 200 in 15.4315 ms
+[00:42:54 WRN] Health check portal-sync with status Degraded completed after 0.6672ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:42:54 INF] HTTP GET /healthz responded 200 in 6.2082 ms
+[00:43:54 WRN] Health check portal-sync with status Degraded completed after 1.734ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:43:54 INF] HTTP GET /healthz responded 200 in 9.1893 ms
+[00:44:54 WRN] Health check portal-sync with status Degraded completed after 0.6456ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:44:54 INF] HTTP GET /healthz responded 200 in 3.1868 ms
+[00:45:54 WRN] Health check portal-sync with status Degraded completed after 22.4075ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:45:54 INF] HTTP GET /healthz responded 200 in 67.3664 ms
+[00:46:54 WRN] Health check portal-sync with status Degraded completed after 0.5637ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:46:54 INF] HTTP GET /healthz responded 200 in 16.1003 ms
+[00:47:54 WRN] Health check portal-sync with status Degraded completed after 0.7665ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:47:54 INF] HTTP GET /healthz responded 200 in 14.3705 ms
+[00:48:54 WRN] Health check portal-sync with status Degraded completed after 0.4691ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:48:54 INF] HTTP GET /healthz responded 200 in 15.3625 ms
+[00:49:55 WRN] Health check portal-sync with status Degraded completed after 0.5578ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:49:57 INF] HTTP GET /healthz responded 200 in 2513.6450 ms
+[00:50:57 WRN] Health check portal-sync with status Degraded completed after 0.5147ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:50:57 INF] HTTP GET /healthz responded 200 in 2.9586 ms
+[00:51:57 WRN] Health check portal-sync with status Degraded completed after 0.5812ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:52:00 INF] HTTP GET /healthz responded 200 in 2616.6183 ms
+[00:53:00 WRN] Health check portal-sync with status Degraded completed after 0.6137ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:53:00 INF] HTTP GET /healthz responded 200 in 16.4273 ms
+[00:54:00 WRN] Health check portal-sync with status Degraded completed after 0.5644ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:54:02 INF] HTTP GET /healthz responded 200 in 2482.5498 ms
+[00:55:02 WRN] Health check portal-sync with status Degraded completed after 0.566ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:55:05 INF] HTTP GET /healthz responded 200 in 2498.7314 ms
+[00:56:05 WRN] Health check portal-sync with status Degraded completed after 0.7221ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:56:07 INF] HTTP GET /healthz responded 200 in 2514.2707 ms
+[00:57:07 WRN] Health check portal-sync with status Degraded completed after 0.5325ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:57:10 INF] HTTP GET /healthz responded 200 in 2506.3170 ms
+[00:58:10 WRN] Health check portal-sync with status Degraded completed after 0.6699ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:58:12 INF] HTTP GET /healthz responded 200 in 2519.6522 ms
+[00:59:12 WRN] Health check portal-sync with status Degraded completed after 1.0619ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[00:59:13 INF] HTTP GET /healthz responded 200 in 400.1772 ms
+[01:00:13 WRN] Health check portal-sync with status Degraded completed after 0.5217ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:00:15 INF] HTTP GET /healthz responded 200 in 2484.7243 ms
+[01:01:15 WRN] Health check portal-sync with status Degraded completed after 0.5375ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:01:18 INF] HTTP GET /healthz responded 200 in 2513.2021 ms
+[01:02:18 WRN] Health check portal-sync with status Degraded completed after 0.8841ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:02:20 INF] HTTP GET /healthz responded 200 in 2477.0598 ms
+[01:03:20 WRN] Health check portal-sync with status Degraded completed after 0.5865ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:03:23 INF] HTTP GET /healthz responded 200 in 2516.9627 ms
+[01:04:23 WRN] Health check portal-sync with status Degraded completed after 0.8276ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:04:23 INF] HTTP GET /healthz responded 200 in 14.4532 ms
+[01:05:23 WRN] Health check portal-sync with status Degraded completed after 0.7466ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:05:23 INF] HTTP GET /healthz responded 200 in 20.6057 ms
+[01:06:23 WRN] Health check portal-sync with status Degraded completed after 0.5662ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:06:23 INF] HTTP GET /healthz responded 200 in 2.4581 ms
+[01:07:23 WRN] Health check portal-sync with status Degraded completed after 0.5747ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:07:23 INF] HTTP GET /healthz responded 200 in 328.1166 ms
+[01:08:23 WRN] Health check portal-sync with status Degraded completed after 1.4983ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:08:26 INF] HTTP GET /healthz responded 200 in 2441.9876 ms
+[01:09:26 WRN] Health check portal-sync with status Degraded completed after 6.8182ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:09:28 INF] HTTP GET /healthz responded 200 in 2448.2993 ms
+[01:10:28 WRN] Health check portal-sync with status Degraded completed after 0.549ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:10:29 INF] HTTP GET /healthz responded 200 in 1408.6139 ms
+[01:11:29 WRN] Health check portal-sync with status Degraded completed after 0.464ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:11:29 INF] HTTP GET /healthz responded 200 in 16.2380 ms
+[01:12:30 WRN] Health check portal-sync with status Degraded completed after 0.4558ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:12:32 INF] HTTP GET /healthz responded 200 in 2495.4870 ms
+[01:13:32 WRN] Health check portal-sync with status Degraded completed after 0.6324ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:13:35 INF] HTTP GET /healthz responded 200 in 2420.0695 ms
+[01:14:35 WRN] Health check portal-sync with status Degraded completed after 0.7561ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:14:37 INF] HTTP GET /healthz responded 200 in 2419.8836 ms
+[01:15:37 WRN] Health check portal-sync with status Degraded completed after 0.9063ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:15:39 INF] HTTP GET /healthz responded 200 in 2467.7427 ms
+[01:16:39 WRN] Health check portal-sync with status Degraded completed after 0.779ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:16:39 INF] HTTP GET /healthz responded 200 in 5.9080 ms
+[01:17:39 WRN] Health check portal-sync with status Degraded completed after 0.5478ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:17:39 INF] HTTP GET /healthz responded 200 in 18.5702 ms
+[01:18:39 WRN] Health check portal-sync with status Degraded completed after 0.765ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:18:39 INF] HTTP GET /healthz responded 200 in 2.3863 ms
+[01:19:40 WRN] Health check portal-sync with status Degraded completed after 0.5184ms with message 'Last successful portal fetch was 112h ago (threshold 26h).'
+[01:19:40 INF] HTTP GET /healthz responded 200 in 15.6072 ms
+[01:20:40 WRN] Health check portal-sync with status Degraded completed after 0.6248ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:20:42 INF] HTTP GET /healthz responded 200 in 2493.6051 ms
+[01:21:42 WRN] Health check portal-sync with status Degraded completed after 0.4307ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:21:42 INF] HTTP GET /healthz responded 200 in 2.2981 ms
+[01:22:42 WRN] Health check portal-sync with status Degraded completed after 0.7088ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:22:45 INF] HTTP GET /healthz responded 200 in 2460.9282 ms
+[01:23:45 WRN] Health check portal-sync with status Degraded completed after 0.4861ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:23:47 INF] HTTP GET /healthz responded 200 in 2530.5819 ms
+[01:24:47 WRN] Health check portal-sync with status Degraded completed after 0.443ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:24:47 INF] HTTP GET /healthz responded 200 in 2.2469 ms
+[01:25:47 WRN] Health check portal-sync with status Degraded completed after 0.4803ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:25:47 INF] HTTP GET /healthz responded 200 in 16.0634 ms
+[01:26:47 WRN] Health check portal-sync with status Degraded completed after 0.9758ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:26:48 INF] HTTP GET /healthz responded 200 in 455.9170 ms
+[01:27:48 WRN] Health check portal-sync with status Degraded completed after 0.8962ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:27:50 INF] HTTP GET /healthz responded 200 in 2524.8545 ms
+[01:28:50 WRN] Health check portal-sync with status Degraded completed after 0.5067ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:28:53 INF] HTTP GET /healthz responded 200 in 2490.3035 ms
+[01:29:53 WRN] Health check portal-sync with status Degraded completed after 0.3842ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:29:55 INF] HTTP GET /healthz responded 200 in 2660.4061 ms
+[01:30:55 WRN] Health check portal-sync with status Degraded completed after 0.6469ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:30:58 INF] HTTP GET /healthz responded 200 in 2492.5990 ms
+[01:31:58 WRN] Health check portal-sync with status Degraded completed after 0.6508ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:32:00 INF] HTTP GET /healthz responded 200 in 2526.6134 ms
+[01:33:00 WRN] Health check portal-sync with status Degraded completed after 0.8448ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:33:03 INF] HTTP GET /healthz responded 200 in 2250.5851 ms
+[01:34:03 WRN] Health check portal-sync with status Degraded completed after 0.6842ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:34:05 INF] HTTP GET /healthz responded 200 in 2466.9711 ms
+[01:35:05 WRN] Health check portal-sync with status Degraded completed after 0.9106ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:35:08 INF] HTTP GET /healthz responded 200 in 2524.8164 ms
+[01:36:08 WRN] Health check portal-sync with status Degraded completed after 0.5767ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:36:10 INF] HTTP GET /healthz responded 200 in 2503.9622 ms
+[01:37:10 WRN] Health check portal-sync with status Degraded completed after 0.6656ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:37:12 INF] HTTP GET /healthz responded 200 in 2424.5049 ms
+[01:38:13 WRN] Health check portal-sync with status Degraded completed after 0.4535ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:38:15 INF] HTTP GET /healthz responded 200 in 2492.9384 ms
+[01:39:15 WRN] Health check portal-sync with status Degraded completed after 0.5923ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:39:17 INF] HTTP GET /healthz responded 200 in 2484.5699 ms
+[01:40:18 WRN] Health check portal-sync with status Degraded completed after 0.7971ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:40:20 INF] HTTP GET /healthz responded 200 in 2507.2160 ms
+[01:41:20 WRN] Health check portal-sync with status Degraded completed after 0.6207ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:41:22 INF] HTTP GET /healthz responded 200 in 2460.5771 ms
+[01:42:22 WRN] Health check portal-sync with status Degraded completed after 0.4365ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:42:25 INF] HTTP GET /healthz responded 200 in 2519.6001 ms
+[01:43:25 WRN] Health check portal-sync with status Degraded completed after 0.7253ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:43:27 INF] HTTP GET /healthz responded 200 in 2476.8915 ms
+[01:44:28 WRN] Health check portal-sync with status Degraded completed after 0.664ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:44:30 INF] HTTP GET /healthz responded 200 in 2494.3030 ms
+[01:45:30 WRN] Health check portal-sync with status Degraded completed after 0.688ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:45:30 INF] HTTP GET /healthz responded 200 in 2.6525 ms
+[01:46:30 WRN] Health check portal-sync with status Degraded completed after 0.4652ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:46:30 INF] HTTP GET /healthz responded 200 in 16.9679 ms
+[01:47:30 WRN] Health check portal-sync with status Degraded completed after 0.6937ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:47:33 INF] HTTP GET /healthz responded 200 in 2481.5188 ms
+[01:48:33 WRN] Health check portal-sync with status Degraded completed after 0.5052ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:48:33 INF] HTTP GET /healthz responded 200 in 17.3589 ms
+[01:49:33 WRN] Health check portal-sync with status Degraded completed after 0.4999ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:49:35 INF] HTTP GET /healthz responded 200 in 2526.2846 ms
+[01:50:35 WRN] Health check portal-sync with status Degraded completed after 0.5464ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:50:36 INF] HTTP GET /healthz responded 200 in 414.0751 ms
+[01:51:36 WRN] Health check portal-sync with status Degraded completed after 0.4536ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:51:36 INF] HTTP GET /healthz responded 200 in 415.6081 ms
+[01:52:36 WRN] Health check portal-sync with status Degraded completed after 0.4357ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:52:38 INF] HTTP GET /healthz responded 200 in 2498.5627 ms
+[01:53:38 WRN] Health check portal-sync with status Degraded completed after 0.4897ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:53:41 INF] HTTP GET /healthz responded 200 in 2442.3357 ms
+[01:54:41 WRN] Health check portal-sync with status Degraded completed after 0.4425ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:54:43 INF] HTTP GET /healthz responded 200 in 2498.4983 ms
+[01:55:43 WRN] Health check portal-sync with status Degraded completed after 0.3949ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:55:46 INF] HTTP GET /healthz responded 200 in 2488.1751 ms
+[01:56:46 WRN] Health check portal-sync with status Degraded completed after 0.53ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:56:46 INF] HTTP GET /healthz responded 200 in 405.1315 ms
+[01:57:46 WRN] Health check portal-sync with status Degraded completed after 0.4604ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:57:49 INF] HTTP GET /healthz responded 200 in 2487.3637 ms
+[01:58:49 WRN] Health check portal-sync with status Degraded completed after 0.5184ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:58:51 INF] HTTP GET /healthz responded 200 in 2499.6825 ms
+[01:59:51 WRN] Health check portal-sync with status Degraded completed after 0.4847ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[01:59:54 INF] HTTP GET /healthz responded 200 in 2500.2439 ms
+[02:00:54 WRN] Health check portal-sync with status Degraded completed after 0.4288ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:00:56 INF] HTTP GET /healthz responded 200 in 2479.5321 ms
+[02:01:56 WRN] Health check portal-sync with status Degraded completed after 2.1267ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:01:59 INF] HTTP GET /healthz responded 200 in 2490.0885 ms
+[02:02:59 WRN] Health check portal-sync with status Degraded completed after 0.4305ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:03:01 INF] HTTP GET /healthz responded 200 in 2470.5837 ms
+[02:04:01 WRN] Health check portal-sync with status Degraded completed after 0.7693ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:04:04 INF] HTTP GET /healthz responded 200 in 2438.7671 ms
+[02:05:04 WRN] Health check portal-sync with status Degraded completed after 0.5653ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:05:06 INF] HTTP GET /healthz responded 200 in 2462.5995 ms
+[02:06:06 WRN] Health check portal-sync with status Degraded completed after 0.5389ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:06:09 INF] HTTP GET /healthz responded 200 in 2478.3971 ms
+[02:07:09 WRN] Health check portal-sync with status Degraded completed after 0.5508ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:07:11 INF] HTTP GET /healthz responded 200 in 2492.7017 ms
+[02:08:11 WRN] Health check portal-sync with status Degraded completed after 0.4652ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:08:14 INF] HTTP GET /healthz responded 200 in 2660.1027 ms
+[02:09:14 WRN] Health check portal-sync with status Degraded completed after 0.4566ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:09:16 INF] HTTP GET /healthz responded 200 in 2467.6236 ms
+[02:10:16 WRN] Health check portal-sync with status Degraded completed after 0.627ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:10:19 INF] HTTP GET /healthz responded 200 in 2484.5167 ms
+[02:11:19 WRN] Health check portal-sync with status Degraded completed after 0.6616ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:11:21 INF] HTTP GET /healthz responded 200 in 2362.5746 ms
+[02:12:21 WRN] Health check portal-sync with status Degraded completed after 0.9407ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:12:24 INF] HTTP GET /healthz responded 200 in 2506.2099 ms
+[02:13:24 WRN] Health check portal-sync with status Degraded completed after 0.4996ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:13:26 INF] HTTP GET /healthz responded 200 in 2490.5488 ms
+[02:14:26 WRN] Health check portal-sync with status Degraded completed after 3.2955ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:14:29 INF] HTTP GET /healthz responded 200 in 2502.7870 ms
+[02:15:29 WRN] Health check portal-sync with status Degraded completed after 0.6073ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:15:31 INF] HTTP GET /healthz responded 200 in 2486.9783 ms
+[02:16:31 WRN] Health check portal-sync with status Degraded completed after 0.6382ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:16:34 INF] HTTP GET /healthz responded 200 in 2504.6121 ms
+[02:17:34 WRN] Health check portal-sync with status Degraded completed after 0.5506ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:17:36 INF] HTTP GET /healthz responded 200 in 2528.8707 ms
+[02:18:36 WRN] Health check portal-sync with status Degraded completed after 0.6316ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:18:39 INF] HTTP GET /healthz responded 200 in 2506.5102 ms
+[02:19:39 WRN] Health check portal-sync with status Degraded completed after 0.7518ms with message 'Last successful portal fetch was 113h ago (threshold 26h).'
+[02:19:41 INF] HTTP GET /healthz responded 200 in 2485.3526 ms
+[02:20:41 WRN] Health check portal-sync with status Degraded completed after 0.7753ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:20:42 INF] HTTP GET /healthz responded 200 in 421.2377 ms
+[02:21:42 WRN] Health check portal-sync with status Degraded completed after 0.9505ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:21:42 INF] HTTP GET /healthz responded 200 in 565.0923 ms
+[02:22:42 WRN] Health check portal-sync with status Degraded completed after 0.4656ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:22:45 INF] HTTP GET /healthz responded 200 in 2464.1844 ms
+[02:23:45 WRN] Health check portal-sync with status Degraded completed after 0.6557ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:23:47 INF] HTTP GET /healthz responded 200 in 2489.0779 ms
+[02:24:47 WRN] Health check portal-sync with status Degraded completed after 0.7375ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:24:50 INF] HTTP GET /healthz responded 200 in 2475.0120 ms
+[02:25:50 WRN] Health check portal-sync with status Degraded completed after 0.4466ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:25:52 INF] HTTP GET /healthz responded 200 in 2506.5282 ms
+[02:26:52 WRN] Health check portal-sync with status Degraded completed after 0.5446ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:26:55 INF] HTTP GET /healthz responded 200 in 2495.8955 ms
+[02:27:55 WRN] Health check portal-sync with status Degraded completed after 0.7974ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:27:57 INF] HTTP GET /healthz responded 200 in 2504.1873 ms
+[02:28:57 WRN] Health check portal-sync with status Degraded completed after 0.7163ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:29:00 INF] HTTP GET /healthz responded 200 in 2467.4606 ms
+[02:30:00 WRN] Health check portal-sync with status Degraded completed after 0.4014ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:30:02 INF] HTTP GET /healthz responded 200 in 2486.8905 ms
+[02:31:02 WRN] Health check portal-sync with status Degraded completed after 0.5951ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:31:05 INF] HTTP GET /healthz responded 200 in 2482.4099 ms
+[02:32:05 WRN] Health check portal-sync with status Degraded completed after 0.4926ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:32:06 INF] HTTP GET /healthz responded 200 in 1603.4322 ms
+[02:33:06 WRN] Health check portal-sync with status Degraded completed after 0.4918ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:33:09 INF] HTTP GET /healthz responded 200 in 2478.6055 ms
+[02:34:09 WRN] Health check portal-sync with status Degraded completed after 0.5753ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:34:11 INF] HTTP GET /healthz responded 200 in 2473.8226 ms
+[02:35:11 WRN] Health check portal-sync with status Degraded completed after 0.6055ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:35:14 INF] HTTP GET /healthz responded 200 in 2637.5624 ms
+[02:36:14 WRN] Health check portal-sync with status Degraded completed after 0.5928ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:36:17 INF] HTTP GET /healthz responded 200 in 2485.7527 ms
+[02:37:17 WRN] Health check portal-sync with status Degraded completed after 0.4517ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:37:19 INF] HTTP GET /healthz responded 200 in 2498.5737 ms
+[02:38:19 WRN] Health check portal-sync with status Degraded completed after 0.6493ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:38:22 INF] HTTP GET /healthz responded 200 in 2501.6617 ms
+[02:39:22 WRN] Health check portal-sync with status Degraded completed after 0.6395ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:39:24 INF] HTTP GET /healthz responded 200 in 2421.5241 ms
+[02:40:24 WRN] Health check portal-sync with status Degraded completed after 0.3837ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:40:27 INF] HTTP GET /healthz responded 200 in 2469.8299 ms
+[02:41:27 WRN] Health check portal-sync with status Degraded completed after 0.6554ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:41:29 INF] HTTP GET /healthz responded 200 in 2471.5558 ms
+[02:42:29 WRN] Health check portal-sync with status Degraded completed after 0.5379ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:42:31 INF] HTTP GET /healthz responded 200 in 2480.6268 ms
+[02:43:31 WRN] Health check portal-sync with status Degraded completed after 0.4161ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:43:34 INF] HTTP GET /healthz responded 200 in 2478.1773 ms
+[02:44:34 WRN] Health check portal-sync with status Degraded completed after 0.5446ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:44:34 INF] HTTP GET /healthz responded 200 in 2.5047 ms
+[02:45:34 WRN] Health check portal-sync with status Degraded completed after 1.1364ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:45:37 INF] HTTP GET /healthz responded 200 in 2501.2573 ms
+[02:46:37 WRN] Health check portal-sync with status Degraded completed after 0.5714ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:46:37 INF] HTTP GET /healthz responded 200 in 15.4145 ms
+[02:47:37 WRN] Health check portal-sync with status Degraded completed after 0.6333ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:47:39 INF] HTTP GET /healthz responded 200 in 2483.3882 ms
+[02:48:39 WRN] Health check portal-sync with status Degraded completed after 0.4465ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:48:42 INF] HTTP GET /healthz responded 200 in 2661.7524 ms
+[02:49:42 WRN] Health check portal-sync with status Degraded completed after 0.8933ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:49:44 INF] HTTP GET /healthz responded 200 in 2505.0083 ms
+[02:50:44 WRN] Health check portal-sync with status Degraded completed after 0.6734ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:50:47 INF] HTTP GET /healthz responded 200 in 2464.6702 ms
+[02:51:47 WRN] Health check portal-sync with status Degraded completed after 0.4456ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:51:47 INF] HTTP GET /healthz responded 200 in 403.1953 ms
+[02:52:47 WRN] Health check portal-sync with status Degraded completed after 0.9172ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:52:50 INF] HTTP GET /healthz responded 200 in 2373.9223 ms
+[02:53:50 WRN] Health check portal-sync with status Degraded completed after 0.4734ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:53:52 INF] HTTP GET /healthz responded 200 in 2507.3071 ms
+[02:54:52 WRN] Health check portal-sync with status Degraded completed after 0.5074ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:54:54 INF] HTTP GET /healthz responded 200 in 2424.7520 ms
+[02:55:54 WRN] Health check portal-sync with status Degraded completed after 0.4889ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:55:57 INF] HTTP GET /healthz responded 200 in 2471.3476 ms
+[02:56:57 WRN] Health check portal-sync with status Degraded completed after 0.5369ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:56:59 INF] HTTP GET /healthz responded 200 in 2477.6352 ms
+[02:57:59 WRN] Health check portal-sync with status Degraded completed after 0.7594ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:58:02 INF] HTTP GET /healthz responded 200 in 2480.7904 ms
+[02:59:02 WRN] Health check portal-sync with status Degraded completed after 2.8876ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[02:59:04 INF] HTTP GET /healthz responded 200 in 2517.1307 ms
+[03:00:04 WRN] Health check portal-sync with status Degraded completed after 0.4929ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:00:07 INF] HTTP GET /healthz responded 200 in 2498.2539 ms
+[03:01:07 WRN] Health check portal-sync with status Degraded completed after 0.3827ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:01:09 INF] HTTP GET /healthz responded 200 in 2466.5552 ms
+[03:02:09 WRN] Health check portal-sync with status Degraded completed after 0.6002ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:02:12 INF] HTTP GET /healthz responded 200 in 2485.9271 ms
+[03:03:12 WRN] Health check portal-sync with status Degraded completed after 2.6673ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:03:14 INF] HTTP GET /healthz responded 200 in 2495.8551 ms
+[03:04:14 WRN] Health check portal-sync with status Degraded completed after 0.5844ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:04:17 INF] HTTP GET /healthz responded 200 in 2490.3830 ms
+[03:05:17 WRN] Health check portal-sync with status Degraded completed after 0.75ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:05:19 INF] HTTP GET /healthz responded 200 in 2455.4251 ms
+[03:06:19 WRN] Health check portal-sync with status Degraded completed after 0.5076ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:06:22 INF] HTTP GET /healthz responded 200 in 2494.3561 ms
+[03:07:22 WRN] Health check portal-sync with status Degraded completed after 0.4957ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:07:24 INF] HTTP GET /healthz responded 200 in 2499.5107 ms
+[03:08:24 WRN] Health check portal-sync with status Degraded completed after 0.4788ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:08:24 INF] HTTP GET /healthz responded 200 in 2.3279 ms
+[03:09:24 WRN] Health check portal-sync with status Degraded completed after 0.5271ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:09:27 INF] HTTP GET /healthz responded 200 in 2496.6116 ms
+[03:10:27 WRN] Health check portal-sync with status Degraded completed after 0.6751ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:10:29 INF] HTTP GET /healthz responded 200 in 2483.7378 ms
+[03:11:29 WRN] Health check portal-sync with status Degraded completed after 0.8594ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:11:29 INF] HTTP GET /healthz responded 200 in 15.7398 ms
+[03:12:29 WRN] Health check portal-sync with status Degraded completed after 0.5092ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:12:32 INF] HTTP GET /healthz responded 200 in 2464.5349 ms
+[03:13:32 WRN] Health check portal-sync with status Degraded completed after 0.5477ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:13:34 INF] HTTP GET /healthz responded 200 in 2506.9122 ms
+[03:14:34 WRN] Health check portal-sync with status Degraded completed after 0.4489ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:14:37 INF] HTTP GET /healthz responded 200 in 2493.2131 ms
+[03:15:37 WRN] Health check portal-sync with status Degraded completed after 0.4796ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:15:40 INF] HTTP GET /healthz responded 200 in 2674.9640 ms
+[03:16:40 WRN] Health check portal-sync with status Degraded completed after 0.5774ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:16:40 INF] HTTP GET /healthz responded 200 in 405.7038 ms
+[03:17:40 WRN] Health check portal-sync with status Degraded completed after 0.5488ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:17:43 INF] HTTP GET /healthz responded 200 in 2491.8507 ms
+[03:18:43 WRN] Health check portal-sync with status Degraded completed after 1.9589ms with message 'Last successful portal fetch was 114h ago (threshold 26h).'
+[03:18:45 INF] HTTP GET /healthz responded 200 in 2496.1960 ms
+[03:19:45 WRN] Health check portal-sync with status Degraded completed after 0.5568ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:19:48 INF] HTTP GET /healthz responded 200 in 2480.8724 ms
+[03:20:48 WRN] Health check portal-sync with status Degraded completed after 0.4904ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:20:50 INF] HTTP GET /healthz responded 200 in 2489.4917 ms
+[03:21:50 WRN] Health check portal-sync with status Degraded completed after 0.6926ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:21:52 INF] HTTP GET /healthz responded 200 in 1817.7805 ms
+[03:22:52 WRN] Health check portal-sync with status Degraded completed after 0.7781ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:22:54 INF] HTTP GET /healthz responded 200 in 2478.8471 ms
+[03:23:54 WRN] Health check portal-sync with status Degraded completed after 0.6167ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:23:57 INF] HTTP GET /healthz responded 200 in 2640.1815 ms
+[03:24:57 WRN] Health check portal-sync with status Degraded completed after 0.506ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:25:00 INF] HTTP GET /healthz responded 200 in 2492.6425 ms
+[03:26:00 WRN] Health check portal-sync with status Degraded completed after 0.7029ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:26:02 INF] HTTP GET /healthz responded 200 in 2490.5158 ms
+[03:27:02 WRN] Health check portal-sync with status Degraded completed after 0.5725ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:27:05 INF] HTTP GET /healthz responded 200 in 2498.4301 ms
+[03:28:05 WRN] Health check portal-sync with status Degraded completed after 0.5341ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:28:07 INF] HTTP GET /healthz responded 200 in 2705.5253 ms
+[03:29:07 WRN] Health check portal-sync with status Degraded completed after 0.7ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:29:10 INF] HTTP GET /healthz responded 200 in 2505.4774 ms
+[03:30:10 WRN] Health check portal-sync with status Degraded completed after 0.4557ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:30:12 INF] HTTP GET /healthz responded 200 in 2432.4765 ms
+[03:31:12 WRN] Health check portal-sync with status Degraded completed after 1.1085ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:31:15 INF] HTTP GET /healthz responded 200 in 2570.1516 ms
+[03:32:15 WRN] Health check portal-sync with status Degraded completed after 0.5187ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:32:15 INF] HTTP GET /healthz responded 200 in 2.7454 ms
+[03:33:15 WRN] Health check portal-sync with status Degraded completed after 0.4621ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:33:17 INF] HTTP GET /healthz responded 200 in 2490.3722 ms
+[03:34:17 WRN] Health check portal-sync with status Degraded completed after 0.5347ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:34:20 INF] HTTP GET /healthz responded 200 in 2497.9212 ms
+[03:35:20 WRN] Health check portal-sync with status Degraded completed after 0.697ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:35:22 INF] HTTP GET /healthz responded 200 in 2460.5181 ms
+[03:36:22 WRN] Health check portal-sync with status Degraded completed after 0.5267ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:36:25 INF] HTTP GET /healthz responded 200 in 2516.5195 ms
+[03:37:25 WRN] Health check portal-sync with status Degraded completed after 0.5063ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:37:27 INF] HTTP GET /healthz responded 200 in 2412.4258 ms
+[03:38:27 WRN] Health check portal-sync with status Degraded completed after 0.8149ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:38:30 INF] HTTP GET /healthz responded 200 in 2484.0801 ms
+[03:39:30 WRN] Health check portal-sync with status Degraded completed after 1.2945ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:39:32 INF] HTTP GET /healthz responded 200 in 2502.5914 ms
+[03:40:32 WRN] Health check portal-sync with status Degraded completed after 0.5759ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:40:33 INF] HTTP GET /healthz responded 200 in 418.4335 ms
+[03:41:33 WRN] Health check portal-sync with status Degraded completed after 0.6603ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:41:35 INF] HTTP GET /healthz responded 200 in 2468.4425 ms
+[03:42:35 WRN] Health check portal-sync with status Degraded completed after 0.5204ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:42:38 INF] HTTP GET /healthz responded 200 in 2496.6204 ms
+[03:43:38 WRN] Health check portal-sync with status Degraded completed after 0.5089ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:43:40 INF] HTTP GET /healthz responded 200 in 2464.8998 ms
+[03:44:40 WRN] Health check portal-sync with status Degraded completed after 0.4856ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:44:43 INF] HTTP GET /healthz responded 200 in 2480.6641 ms
+[03:45:43 WRN] Health check portal-sync with status Degraded completed after 0.5451ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:45:45 INF] HTTP GET /healthz responded 200 in 2511.5393 ms
+[03:46:45 WRN] Health check portal-sync with status Degraded completed after 0.5341ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:46:45 INF] HTTP GET /healthz responded 200 in 2.7598 ms
+[03:47:45 WRN] Health check portal-sync with status Degraded completed after 0.612ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:47:48 INF] HTTP GET /healthz responded 200 in 2400.4549 ms
+[03:48:48 WRN] Health check portal-sync with status Degraded completed after 0.4485ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:48:50 INF] HTTP GET /healthz responded 200 in 2411.7254 ms
+[03:49:50 WRN] Health check portal-sync with status Degraded completed after 0.5269ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:49:52 INF] HTTP GET /healthz responded 200 in 2504.5406 ms
+[03:50:52 WRN] Health check portal-sync with status Degraded completed after 0.5475ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:50:55 INF] HTTP GET /healthz responded 200 in 2535.7094 ms
+[03:51:55 WRN] Health check portal-sync with status Degraded completed after 0.7314ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:51:58 INF] HTTP GET /healthz responded 200 in 2494.9116 ms
+[03:52:58 WRN] Health check portal-sync with status Degraded completed after 0.6191ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:53:00 INF] HTTP GET /healthz responded 200 in 2451.8343 ms
+[03:54:00 WRN] Health check portal-sync with status Degraded completed after 0.623ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:54:03 INF] HTTP GET /healthz responded 200 in 2586.1750 ms
+[03:55:03 WRN] Health check portal-sync with status Degraded completed after 0.4574ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:55:05 INF] HTTP GET /healthz responded 200 in 2474.3633 ms
+[03:56:05 WRN] Health check portal-sync with status Degraded completed after 0.5287ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:56:08 INF] HTTP GET /healthz responded 200 in 2505.3430 ms
+[03:57:08 WRN] Health check portal-sync with status Degraded completed after 0.4327ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:57:10 INF] HTTP GET /healthz responded 200 in 2486.4850 ms
+[03:58:10 WRN] Health check portal-sync with status Degraded completed after 0.4973ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:58:13 INF] HTTP GET /healthz responded 200 in 2526.3996 ms
+[03:59:13 WRN] Health check portal-sync with status Degraded completed after 0.4604ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[03:59:15 INF] HTTP GET /healthz responded 200 in 2502.5193 ms
+[04:00:15 WRN] Health check portal-sync with status Degraded completed after 0.4642ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:00:18 INF] HTTP GET /healthz responded 200 in 2491.4225 ms
+[04:01:18 WRN] Health check portal-sync with status Degraded completed after 0.4826ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:01:19 INF] HTTP GET /healthz responded 200 in 1659.8238 ms
+[04:02:19 WRN] Health check portal-sync with status Degraded completed after 0.475ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:02:22 INF] HTTP GET /healthz responded 200 in 2504.2355 ms
+[04:03:22 WRN] Health check portal-sync with status Degraded completed after 0.8456ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:03:24 INF] HTTP GET /healthz responded 200 in 2517.7343 ms
+[04:04:24 WRN] Health check portal-sync with status Degraded completed after 0.4882ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:04:24 INF] HTTP GET /healthz responded 200 in 2.2034 ms
+[04:05:24 WRN] Health check portal-sync with status Degraded completed after 0.5955ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:05:27 INF] HTTP GET /healthz responded 200 in 2471.6749 ms
+[04:06:27 WRN] Health check portal-sync with status Degraded completed after 0.4156ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:06:29 INF] HTTP GET /healthz responded 200 in 2428.0774 ms
+[04:07:29 WRN] Health check portal-sync with status Degraded completed after 1.051ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:07:32 INF] HTTP GET /healthz responded 200 in 2671.1981 ms
+[04:08:32 WRN] Health check portal-sync with status Degraded completed after 3.972ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:08:32 INF] HTTP GET /healthz responded 200 in 15.3698 ms
+[04:09:32 WRN] Health check portal-sync with status Degraded completed after 0.7828ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:09:34 INF] HTTP GET /healthz responded 200 in 2487.5791 ms
+[04:10:34 WRN] Health check portal-sync with status Degraded completed after 0.483ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:10:37 INF] HTTP GET /healthz responded 200 in 2418.2113 ms
+[04:11:37 WRN] Health check portal-sync with status Degraded completed after 0.4844ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:11:37 INF] HTTP GET /healthz responded 200 in 16.9628 ms
+[04:12:37 WRN] Health check portal-sync with status Degraded completed after 0.6098ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:12:37 INF] HTTP GET /healthz responded 200 in 365.7515 ms
+[04:13:37 WRN] Health check portal-sync with status Degraded completed after 0.4858ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:13:40 INF] HTTP GET /healthz responded 200 in 2485.5591 ms
+[04:14:40 WRN] Health check portal-sync with status Degraded completed after 0.6388ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:14:42 INF] HTTP GET /healthz responded 200 in 2475.5840 ms
+[04:15:42 WRN] Health check portal-sync with status Degraded completed after 0.5459ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:15:45 INF] HTTP GET /healthz responded 200 in 2523.6908 ms
+[04:16:45 WRN] Health check portal-sync with status Degraded completed after 0.5081ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:16:47 INF] HTTP GET /healthz responded 200 in 2477.3090 ms
+[04:17:47 WRN] Health check portal-sync with status Degraded completed after 0.4672ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:17:50 INF] HTTP GET /healthz responded 200 in 2499.6787 ms
+[04:18:50 WRN] Health check portal-sync with status Degraded completed after 0.4962ms with message 'Last successful portal fetch was 115h ago (threshold 26h).'
+[04:18:52 INF] HTTP GET /healthz responded 200 in 2510.3020 ms
+[04:19:52 WRN] Health check portal-sync with status Degraded completed after 2.6027ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:19:55 INF] HTTP GET /healthz responded 200 in 2474.8395 ms
+[04:20:55 WRN] Health check portal-sync with status Degraded completed after 0.4257ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:20:57 INF] HTTP GET /healthz responded 200 in 2480.2837 ms
+[04:21:57 WRN] Health check portal-sync with status Degraded completed after 0.4654ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:22:00 INF] HTTP GET /healthz responded 200 in 2475.6276 ms
+[04:23:00 WRN] Health check portal-sync with status Degraded completed after 0.4734ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:23:02 INF] HTTP GET /healthz responded 200 in 2467.2785 ms
+[04:24:02 WRN] Health check portal-sync with status Degraded completed after 0.5694ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:24:05 INF] HTTP GET /healthz responded 200 in 2566.9982 ms
+[04:25:05 WRN] Health check portal-sync with status Degraded completed after 0.6103ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:25:07 INF] HTTP GET /healthz responded 200 in 2502.5193 ms
+[04:26:07 WRN] Health check portal-sync with status Degraded completed after 0.4821ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:26:10 INF] HTTP GET /healthz responded 200 in 2494.4966 ms
+[04:27:10 WRN] Health check portal-sync with status Degraded completed after 0.4886ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:27:12 INF] HTTP GET /healthz responded 200 in 2433.2362 ms
+[04:28:12 WRN] Health check portal-sync with status Degraded completed after 0.4425ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:28:12 INF] HTTP GET /healthz responded 200 in 2.3172 ms
+[04:29:12 WRN] Health check portal-sync with status Degraded completed after 1.4838ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:29:15 INF] HTTP GET /healthz responded 200 in 2494.3506 ms
+[04:30:15 WRN] Health check portal-sync with status Degraded completed after 0.4712ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:30:17 INF] HTTP GET /healthz responded 200 in 2499.5082 ms
+[04:31:17 WRN] Health check portal-sync with status Degraded completed after 0.6689ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:31:20 INF] HTTP GET /healthz responded 200 in 2497.2581 ms
+[04:32:20 WRN] Health check portal-sync with status Degraded completed after 0.5733ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:32:22 INF] HTTP GET /healthz responded 200 in 2492.8696 ms
+[04:33:22 WRN] Health check portal-sync with status Degraded completed after 0.4215ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:33:25 INF] HTTP GET /healthz responded 200 in 2675.1305 ms
+[04:34:25 WRN] Health check portal-sync with status Degraded completed after 0.4776ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:34:28 INF] HTTP GET /healthz responded 200 in 2482.6673 ms
+[04:35:28 WRN] Health check portal-sync with status Degraded completed after 0.5936ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:35:30 INF] HTTP GET /healthz responded 200 in 2450.2963 ms
+[04:36:30 WRN] Health check portal-sync with status Degraded completed after 0.5242ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:36:30 INF] HTTP GET /healthz responded 200 in 15.7471 ms
+[04:37:30 WRN] Health check portal-sync with status Degraded completed after 0.7045ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:37:32 INF] HTTP GET /healthz responded 200 in 2396.4807 ms
+[04:38:32 WRN] Health check portal-sync with status Degraded completed after 0.4722ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:38:35 INF] HTTP GET /healthz responded 200 in 2407.5033 ms
+[04:39:35 WRN] Health check portal-sync with status Degraded completed after 0.5246ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:39:37 INF] HTTP GET /healthz responded 200 in 2478.5485 ms
+[04:40:37 WRN] Health check portal-sync with status Degraded completed after 0.5964ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:40:40 INF] HTTP GET /healthz responded 200 in 2446.7605 ms
+[04:41:40 WRN] Health check portal-sync with status Degraded completed after 0.3981ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:41:40 INF] HTTP GET /healthz responded 200 in 412.3780 ms
+[04:42:40 WRN] Health check portal-sync with status Degraded completed after 0.5922ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:42:43 INF] HTTP GET /healthz responded 200 in 2490.0952 ms
+[04:43:43 WRN] Health check portal-sync with status Degraded completed after 0.9349ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:43:45 INF] HTTP GET /healthz responded 200 in 2474.8327 ms
+[04:44:45 WRN] Health check portal-sync with status Degraded completed after 0.4515ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:44:48 INF] HTTP GET /healthz responded 200 in 2434.5828 ms
+[04:45:48 WRN] Health check portal-sync with status Degraded completed after 0.8151ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:45:50 INF] HTTP GET /healthz responded 200 in 2504.4752 ms
+[04:46:50 WRN] Health check portal-sync with status Degraded completed after 0.56ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:46:53 INF] HTTP GET /healthz responded 200 in 2646.5068 ms
+[04:47:53 WRN] Health check portal-sync with status Degraded completed after 0.5096ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:47:55 INF] HTTP GET /healthz responded 200 in 2506.4286 ms
+[04:48:55 WRN] Health check portal-sync with status Degraded completed after 0.5364ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:48:58 INF] HTTP GET /healthz responded 200 in 2497.5903 ms
+[04:49:58 WRN] Health check portal-sync with status Degraded completed after 1.2793ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:50:00 INF] HTTP GET /healthz responded 200 in 2431.4238 ms
+[04:51:00 WRN] Health check portal-sync with status Degraded completed after 0.5918ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:51:03 INF] HTTP GET /healthz responded 200 in 2448.7842 ms
+[04:52:03 WRN] Health check portal-sync with status Degraded completed after 0.4544ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:52:05 INF] HTTP GET /healthz responded 200 in 2567.6197 ms
+[04:53:05 WRN] Health check portal-sync with status Degraded completed after 0.7342ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:53:08 INF] HTTP GET /healthz responded 200 in 2478.7411 ms
+[04:54:08 WRN] Health check portal-sync with status Degraded completed after 0.8958ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:54:10 INF] HTTP GET /healthz responded 200 in 2424.7387 ms
+[04:55:10 WRN] Health check portal-sync with status Degraded completed after 0.4717ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:55:13 INF] HTTP GET /healthz responded 200 in 2413.4448 ms
+[04:56:13 WRN] Health check portal-sync with status Degraded completed after 0.5269ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:56:15 INF] HTTP GET /healthz responded 200 in 2516.4198 ms
+[04:57:15 WRN] Health check portal-sync with status Degraded completed after 0.5921ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:57:18 INF] HTTP GET /healthz responded 200 in 2489.7702 ms
+[04:58:18 WRN] Health check portal-sync with status Degraded completed after 0.4728ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:58:20 INF] HTTP GET /healthz responded 200 in 2456.2775 ms
+[04:59:20 WRN] Health check portal-sync with status Degraded completed after 0.7108ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[04:59:23 INF] HTTP GET /healthz responded 200 in 2514.5245 ms
+[05:00:23 WRN] Health check portal-sync with status Degraded completed after 0.6144ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:00:23 INF] HTTP GET /healthz responded 200 in 435.5645 ms
+[05:01:23 WRN] Health check portal-sync with status Degraded completed after 0.4607ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:01:23 INF] HTTP GET /healthz responded 200 in 2.5936 ms
+[05:02:23 WRN] Health check portal-sync with status Degraded completed after 0.4963ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:02:26 INF] HTTP GET /healthz responded 200 in 2497.5315 ms
+[05:03:26 WRN] Health check portal-sync with status Degraded completed after 0.4714ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:03:28 INF] HTTP GET /healthz responded 200 in 2461.0011 ms
+[05:04:28 WRN] Health check portal-sync with status Degraded completed after 0.5636ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:04:31 INF] HTTP GET /healthz responded 200 in 2506.4151 ms
+[05:05:31 WRN] Health check portal-sync with status Degraded completed after 0.4193ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:05:33 INF] HTTP GET /healthz responded 200 in 2521.7285 ms
+[05:06:33 WRN] Health check portal-sync with status Degraded completed after 1.1175ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:06:33 INF] HTTP GET /healthz responded 200 in 5.9470 ms
+[05:07:33 WRN] Health check portal-sync with status Degraded completed after 0.4564ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:07:36 INF] HTTP GET /healthz responded 200 in 2492.6259 ms
+[05:08:36 WRN] Health check portal-sync with status Degraded completed after 0.5262ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:08:36 INF] HTTP GET /healthz responded 200 in 412.3034 ms
+[05:09:36 WRN] Health check portal-sync with status Degraded completed after 0.8229ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:09:39 INF] HTTP GET /healthz responded 200 in 2506.4085 ms
+[05:10:39 WRN] Health check portal-sync with status Degraded completed after 0.4746ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:10:41 INF] HTTP GET /healthz responded 200 in 2510.2670 ms
+[05:11:41 WRN] Health check portal-sync with status Degraded completed after 0.4451ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:11:42 INF] HTTP GET /healthz responded 200 in 421.8035 ms
+[05:12:42 WRN] Health check portal-sync with status Degraded completed after 0.4393ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:12:44 INF] HTTP GET /healthz responded 200 in 2506.2029 ms
+[05:13:44 WRN] Health check portal-sync with status Degraded completed after 0.5618ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:13:47 INF] HTTP GET /healthz responded 200 in 2509.3825 ms
+[05:14:47 WRN] Health check portal-sync with status Degraded completed after 1.1156ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:14:49 INF] HTTP GET /healthz responded 200 in 2435.3257 ms
+[05:15:49 WRN] Health check portal-sync with status Degraded completed after 0.5865ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:15:52 INF] HTTP GET /healthz responded 200 in 2517.8488 ms
+[05:16:52 WRN] Health check portal-sync with status Degraded completed after 0.499ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:16:54 INF] HTTP GET /healthz responded 200 in 2499.3040 ms
+[05:17:54 WRN] Health check portal-sync with status Degraded completed after 0.4898ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:17:57 INF] HTTP GET /healthz responded 200 in 2488.2696 ms
+[05:18:57 WRN] Health check portal-sync with status Degraded completed after 1.0314ms with message 'Last successful portal fetch was 116h ago (threshold 26h).'
+[05:18:59 INF] HTTP GET /healthz responded 200 in 2482.0958 ms
+[05:19:59 WRN] Health check portal-sync with status Degraded completed after 0.6449ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:20:02 INF] HTTP GET /healthz responded 200 in 2493.4676 ms
+[05:21:02 WRN] Health check portal-sync with status Degraded completed after 0.4812ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:21:04 INF] HTTP GET /healthz responded 200 in 2467.3843 ms
+[05:22:04 WRN] Health check portal-sync with status Degraded completed after 0.6501ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:22:06 INF] HTTP GET /healthz responded 200 in 2475.6944 ms
+[05:23:06 WRN] Health check portal-sync with status Degraded completed after 6.1949ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:23:09 INF] HTTP GET /healthz responded 200 in 2417.1173 ms
+[05:24:09 WRN] Health check portal-sync with status Degraded completed after 0.4489ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:24:09 INF] HTTP GET /healthz responded 200 in 19.3490 ms
+[05:25:09 WRN] Health check portal-sync with status Degraded completed after 0.7982ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:25:11 INF] HTTP GET /healthz responded 200 in 2480.6986 ms
+[05:26:11 WRN] Health check portal-sync with status Degraded completed after 0.8109ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:26:14 INF] HTTP GET /healthz responded 200 in 2484.5527 ms
+[05:27:14 WRN] Health check portal-sync with status Degraded completed after 0.9709ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:27:16 INF] HTTP GET /healthz responded 200 in 2509.1800 ms
+[05:28:16 WRN] Health check portal-sync with status Degraded completed after 0.5027ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:28:19 INF] HTTP GET /healthz responded 200 in 2501.7459 ms
+[05:29:19 WRN] Health check portal-sync with status Degraded completed after 0.5258ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:29:21 INF] HTTP GET /healthz responded 200 in 2464.2103 ms
+[05:30:21 WRN] Health check portal-sync with status Degraded completed after 0.9174ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:30:24 INF] HTTP GET /healthz responded 200 in 2421.5587 ms
+[05:31:24 WRN] Health check portal-sync with status Degraded completed after 0.7572ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:31:24 INF] HTTP GET /healthz responded 200 in 2.8061 ms
+[05:32:24 WRN] Health check portal-sync with status Degraded completed after 0.5147ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:32:24 INF] HTTP GET /healthz responded 200 in 422.5048 ms
+[05:33:24 WRN] Health check portal-sync with status Degraded completed after 0.7024ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:33:27 INF] HTTP GET /healthz responded 200 in 2425.6424 ms
+[05:34:27 WRN] Health check portal-sync with status Degraded completed after 0.4648ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:34:29 INF] HTTP GET /healthz responded 200 in 2480.2038 ms
+[05:35:29 WRN] Health check portal-sync with status Degraded completed after 0.4744ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:35:32 INF] HTTP GET /healthz responded 200 in 2470.4616 ms
+[05:36:32 WRN] Health check portal-sync with status Degraded completed after 0.4974ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:36:32 INF] HTTP GET /healthz responded 200 in 16.5605 ms
+[05:37:32 WRN] Health check portal-sync with status Degraded completed after 0.508ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:37:34 INF] HTTP GET /healthz responded 200 in 2507.4371 ms
+[05:38:34 WRN] Health check portal-sync with status Degraded completed after 0.5259ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:38:37 INF] HTTP GET /healthz responded 200 in 2484.3151 ms
+[05:39:37 WRN] Health check portal-sync with status Degraded completed after 0.4946ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:39:39 INF] HTTP GET /healthz responded 200 in 2450.2110 ms
+[05:40:39 WRN] Health check portal-sync with status Degraded completed after 0.4971ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:40:42 INF] HTTP GET /healthz responded 200 in 2499.6214 ms
+[05:41:42 WRN] Health check portal-sync with status Degraded completed after 0.5119ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:41:42 INF] HTTP GET /healthz responded 200 in 420.9813 ms
+[05:42:42 WRN] Health check portal-sync with status Degraded completed after 0.4042ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:42:45 INF] HTTP GET /healthz responded 200 in 2498.3486 ms
+[05:43:45 WRN] Health check portal-sync with status Degraded completed after 0.5819ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:43:47 INF] HTTP GET /healthz responded 200 in 2487.3849 ms
+[05:44:47 WRN] Health check portal-sync with status Degraded completed after 0.5663ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:44:50 INF] HTTP GET /healthz responded 200 in 2499.7427 ms
+[05:45:50 WRN] Health check portal-sync with status Degraded completed after 0.3924ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:45:52 INF] HTTP GET /healthz responded 200 in 2506.0932 ms
+[05:46:52 WRN] Health check portal-sync with status Degraded completed after 0.5918ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:46:55 INF] HTTP GET /healthz responded 200 in 2521.6833 ms
+[05:47:55 WRN] Health check portal-sync with status Degraded completed after 0.5131ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:47:57 INF] HTTP GET /healthz responded 200 in 2038.0685 ms
+[05:48:57 WRN] Health check portal-sync with status Degraded completed after 0.4861ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:48:59 INF] HTTP GET /healthz responded 200 in 2511.5371 ms
+[05:49:59 WRN] Health check portal-sync with status Degraded completed after 0.5371ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:50:02 INF] HTTP GET /healthz responded 200 in 2479.3025 ms
+[05:51:02 WRN] Health check portal-sync with status Degraded completed after 0.4543ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:51:04 INF] HTTP GET /healthz responded 200 in 2468.4725 ms
+[05:52:04 WRN] Health check portal-sync with status Degraded completed after 0.5465ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:52:07 INF] HTTP GET /healthz responded 200 in 2676.7693 ms
+[05:53:07 WRN] Health check portal-sync with status Degraded completed after 1.7883ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:53:09 INF] HTTP GET /healthz responded 200 in 2510.6952 ms
+[05:54:09 WRN] Health check portal-sync with status Degraded completed after 0.4791ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:54:12 INF] HTTP GET /healthz responded 200 in 2489.3105 ms
+[05:55:12 WRN] Health check portal-sync with status Degraded completed after 0.4711ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:55:15 INF] HTTP GET /healthz responded 200 in 2541.4646 ms
+[05:56:15 WRN] Health check portal-sync with status Degraded completed after 0.5495ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:56:15 INF] HTTP GET /healthz responded 200 in 15.8345 ms
+[05:57:15 WRN] Health check portal-sync with status Degraded completed after 0.6354ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:57:17 INF] HTTP GET /healthz responded 200 in 2535.7972 ms
+[05:58:17 WRN] Health check portal-sync with status Degraded completed after 0.9599ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:58:20 INF] HTTP GET /healthz responded 200 in 2484.8841 ms
+[05:59:20 WRN] Health check portal-sync with status Degraded completed after 0.4631ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[05:59:22 INF] HTTP GET /healthz responded 200 in 2431.5540 ms
+[06:00:22 WRN] Health check portal-sync with status Degraded completed after 0.5671ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:00:25 INF] HTTP GET /healthz responded 200 in 2513.3761 ms
+[06:01:25 WRN] Health check portal-sync with status Degraded completed after 0.52ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:01:27 INF] HTTP GET /healthz responded 200 in 2457.5492 ms
+[06:02:27 WRN] Health check portal-sync with status Degraded completed after 0.548ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:02:30 INF] HTTP GET /healthz responded 200 in 2483.3872 ms
+[06:03:30 WRN] Health check portal-sync with status Degraded completed after 0.4064ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:03:32 INF] HTTP GET /healthz responded 200 in 2485.4114 ms
+[06:04:32 WRN] Health check portal-sync with status Degraded completed after 0.5051ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:04:35 INF] HTTP GET /healthz responded 200 in 2489.3309 ms
+[06:05:35 WRN] Health check portal-sync with status Degraded completed after 0.4817ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:05:37 INF] HTTP GET /healthz responded 200 in 2652.4194 ms
+[06:06:37 WRN] Health check portal-sync with status Degraded completed after 0.5154ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:06:38 INF] HTTP GET /healthz responded 200 in 442.6739 ms
+[06:07:38 WRN] Health check portal-sync with status Degraded completed after 0.5231ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:07:40 INF] HTTP GET /healthz responded 200 in 2539.7179 ms
+[06:08:40 WRN] Health check portal-sync with status Degraded completed after 0.5018ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:08:43 INF] HTTP GET /healthz responded 200 in 2469.2597 ms
+[06:09:43 WRN] Health check portal-sync with status Degraded completed after 0.4999ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:09:45 INF] HTTP GET /healthz responded 200 in 2483.6020 ms
+[06:10:45 WRN] Health check portal-sync with status Degraded completed after 0.447ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:10:48 INF] HTTP GET /healthz responded 200 in 2471.2230 ms
+[06:11:48 WRN] Health check portal-sync with status Degraded completed after 0.6238ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:11:48 INF] HTTP GET /healthz responded 200 in 405.0512 ms
+[06:12:48 WRN] Health check portal-sync with status Degraded completed after 0.4409ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:12:51 INF] HTTP GET /healthz responded 200 in 2501.1856 ms
+[06:13:51 WRN] Health check portal-sync with status Degraded completed after 0.4325ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:13:53 INF] HTTP GET /healthz responded 200 in 2520.5924 ms
+[06:14:53 WRN] Health check portal-sync with status Degraded completed after 0.5312ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:14:56 INF] HTTP GET /healthz responded 200 in 2465.3259 ms
+[06:15:56 WRN] Health check portal-sync with status Degraded completed after 0.5152ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:15:58 INF] HTTP GET /healthz responded 200 in 2485.6790 ms
+[06:16:58 WRN] Health check portal-sync with status Degraded completed after 0.468ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:17:01 INF] HTTP GET /healthz responded 200 in 2424.2394 ms
+[06:18:01 WRN] Health check portal-sync with status Degraded completed after 0.3849ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:18:03 INF] HTTP GET /healthz responded 200 in 2415.5078 ms
+[06:19:03 WRN] Health check portal-sync with status Degraded completed after 0.5431ms with message 'Last successful portal fetch was 117h ago (threshold 26h).'
+[06:19:06 INF] HTTP GET /healthz responded 200 in 2658.7407 ms
+[06:20:06 WRN] Health check portal-sync with status Degraded completed after 1.6485ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:20:06 INF] HTTP GET /healthz responded 200 in 3.6711 ms
+[06:21:06 WRN] Health check portal-sync with status Degraded completed after 1.2771ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:21:08 INF] HTTP GET /healthz responded 200 in 2512.1043 ms
+[06:22:08 WRN] Health check portal-sync with status Degraded completed after 0.5193ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:22:11 INF] HTTP GET /healthz responded 200 in 2417.6670 ms
+[06:23:11 WRN] Health check portal-sync with status Degraded completed after 0.4422ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:23:13 INF] HTTP GET /healthz responded 200 in 2492.2067 ms
+[06:24:13 WRN] Health check portal-sync with status Degraded completed after 0.5098ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:24:16 INF] HTTP GET /healthz responded 200 in 2505.4467 ms
+[06:25:16 WRN] Health check portal-sync with status Degraded completed after 0.5525ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:25:18 INF] HTTP GET /healthz responded 200 in 2478.3962 ms
+[06:26:18 WRN] Health check portal-sync with status Degraded completed after 0.5117ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:26:18 INF] HTTP GET /healthz responded 200 in 15.8122 ms
+[06:27:18 WRN] Health check portal-sync with status Degraded completed after 0.5154ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:27:21 INF] HTTP GET /healthz responded 200 in 2515.4258 ms
+[06:28:21 WRN] Health check portal-sync with status Degraded completed after 0.5579ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:28:23 INF] HTTP GET /healthz responded 200 in 2373.0081 ms
+[06:29:23 WRN] Health check portal-sync with status Degraded completed after 0.5699ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:29:25 INF] HTTP GET /healthz responded 200 in 2450.3513 ms
+[06:30:25 WRN] Health check portal-sync with status Degraded completed after 0.5133ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:30:28 INF] HTTP GET /healthz responded 200 in 2462.3845 ms
+[06:31:28 WRN] Health check portal-sync with status Degraded completed after 0.7686ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:31:28 INF] HTTP GET /healthz responded 200 in 14.3847 ms
+[06:32:28 WRN] Health check portal-sync with status Degraded completed after 0.4288ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:32:30 INF] HTTP GET /healthz responded 200 in 2488.4190 ms
+[06:33:30 WRN] Health check portal-sync with status Degraded completed after 0.5826ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:33:33 INF] HTTP GET /healthz responded 200 in 2487.4166 ms
+[06:34:33 WRN] Health check portal-sync with status Degraded completed after 0.4881ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:34:35 INF] HTTP GET /healthz responded 200 in 2471.6841 ms
+[06:35:35 WRN] Health check portal-sync with status Degraded completed after 0.5104ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:35:38 INF] HTTP GET /healthz responded 200 in 2497.3257 ms
+[06:36:38 WRN] Health check portal-sync with status Degraded completed after 0.458ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:36:38 INF] HTTP GET /healthz responded 200 in 2.3780 ms
+[06:37:38 WRN] Health check portal-sync with status Degraded completed after 0.4084ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:37:40 INF] HTTP GET /healthz responded 200 in 2452.1102 ms
+[06:38:40 WRN] Health check portal-sync with status Degraded completed after 0.4242ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:38:43 INF] HTTP GET /healthz responded 200 in 2450.4572 ms
+[06:39:43 WRN] Health check portal-sync with status Degraded completed after 0.6132ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:39:45 INF] HTTP GET /healthz responded 200 in 2504.4661 ms
+[06:40:45 WRN] Health check portal-sync with status Degraded completed after 0.5705ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:40:48 INF] HTTP GET /healthz responded 200 in 2495.3148 ms
+[06:41:48 WRN] Health check portal-sync with status Degraded completed after 0.4756ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:41:48 INF] HTTP GET /healthz responded 200 in 385.7365 ms
+[06:42:48 WRN] Health check portal-sync with status Degraded completed after 0.4801ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:42:51 INF] HTTP GET /healthz responded 200 in 2494.3273 ms
+[06:43:51 WRN] Health check portal-sync with status Degraded completed after 0.3888ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:43:52 INF] HTTP GET /healthz responded 200 in 985.9627 ms
+[06:44:52 WRN] Health check portal-sync with status Degraded completed after 0.5189ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:44:54 INF] HTTP GET /healthz responded 200 in 2636.7552 ms
+[06:45:54 WRN] Health check portal-sync with status Degraded completed after 0.4945ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:45:57 INF] HTTP GET /healthz responded 200 in 2495.2928 ms
+[06:46:57 WRN] Health check portal-sync with status Degraded completed after 0.4387ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:46:59 INF] HTTP GET /healthz responded 200 in 2486.5310 ms
+[06:47:59 WRN] Health check portal-sync with status Degraded completed after 0.5053ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:48:02 INF] HTTP GET /healthz responded 200 in 2470.2076 ms
+[06:49:02 WRN] Health check portal-sync with status Degraded completed after 0.404ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:49:04 INF] HTTP GET /healthz responded 200 in 2476.5961 ms
+[06:50:04 WRN] Health check portal-sync with status Degraded completed after 0.5545ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:50:07 INF] HTTP GET /healthz responded 200 in 2503.6606 ms
+[06:51:07 WRN] Health check portal-sync with status Degraded completed after 0.44ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:51:09 INF] HTTP GET /healthz responded 200 in 2491.5342 ms
+[06:52:09 WRN] Health check portal-sync with status Degraded completed after 0.4904ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:52:10 INF] HTTP GET /healthz responded 200 in 415.0985 ms
+[06:53:10 WRN] Health check portal-sync with status Degraded completed after 0.4535ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:53:12 INF] HTTP GET /healthz responded 200 in 2463.5127 ms
+[06:54:12 WRN] Health check portal-sync with status Degraded completed after 0.5332ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:54:15 INF] HTTP GET /healthz responded 200 in 2432.2745 ms
+[06:55:15 WRN] Health check portal-sync with status Degraded completed after 0.53ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:55:17 INF] HTTP GET /healthz responded 200 in 2488.3735 ms
+[06:56:17 WRN] Health check portal-sync with status Degraded completed after 0.5593ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:56:20 INF] HTTP GET /healthz responded 200 in 2476.4944 ms
+[06:57:20 WRN] Health check portal-sync with status Degraded completed after 0.6218ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:57:22 INF] HTTP GET /healthz responded 200 in 2495.4783 ms
+[06:58:22 WRN] Health check portal-sync with status Degraded completed after 0.5513ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:58:25 INF] HTTP GET /healthz responded 200 in 2623.9829 ms
+[06:59:25 WRN] Health check portal-sync with status Degraded completed after 0.6718ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[06:59:27 INF] HTTP GET /healthz responded 200 in 2509.8220 ms
+[07:00:27 WRN] Health check portal-sync with status Degraded completed after 0.5607ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:00:30 INF] HTTP GET /healthz responded 200 in 2457.3859 ms
+[07:01:30 WRN] Health check portal-sync with status Degraded completed after 0.4275ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:01:30 INF] HTTP GET /healthz responded 200 in 15.9709 ms
+[07:02:30 WRN] Health check portal-sync with status Degraded completed after 0.5165ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:02:32 INF] HTTP GET /healthz responded 200 in 2483.2685 ms
+[07:03:32 WRN] Health check portal-sync with status Degraded completed after 0.7197ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:03:35 INF] HTTP GET /healthz responded 200 in 2532.0032 ms
+[07:04:32 WRN] Health check portal-sync with status Degraded completed after 0.6011ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:04:32 INF] HTTP GET /healthz responded 200 in 7.9998 ms
+[07:04:35 WRN] Health check portal-sync with status Degraded completed after 0.5255ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:04:35 INF] HTTP GET /healthz responded 200 in 15.2596 ms
+[07:05:35 WRN] Health check portal-sync with status Degraded completed after 0.67ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:05:35 INF] HTTP GET /healthz responded 200 in 54.2617 ms
+[07:06:35 WRN] Health check portal-sync with status Degraded completed after 1.6995ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:06:35 INF] HTTP GET /healthz responded 200 in 2.4060 ms
+[07:07:35 WRN] Health check portal-sync with status Degraded completed after 0.4646ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:07:35 INF] HTTP GET /healthz responded 200 in 36.7069 ms
+[07:08:35 WRN] Health check portal-sync with status Degraded completed after 0.4679ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:08:35 INF] HTTP GET /healthz responded 200 in 1.8112 ms
+[07:09:35 WRN] Health check portal-sync with status Degraded completed after 0.4774ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:09:35 INF] HTTP GET /healthz responded 200 in 15.9844 ms
+[07:10:35 WRN] Health check portal-sync with status Degraded completed after 0.4696ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:10:35 INF] HTTP GET /healthz responded 200 in 15.1268 ms
+[07:11:35 WRN] Health check portal-sync with status Degraded completed after 0.4678ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:11:35 INF] HTTP GET /healthz responded 200 in 15.9739 ms
+[07:12:35 WRN] Health check portal-sync with status Degraded completed after 0.4823ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:12:35 INF] HTTP GET /healthz responded 200 in 1.7729 ms
+[07:13:35 WRN] Health check portal-sync with status Degraded completed after 0.4664ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:13:35 INF] HTTP GET /healthz responded 200 in 16.6722 ms
+[07:14:35 WRN] Health check portal-sync with status Degraded completed after 0.5198ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:14:36 INF] HTTP GET /healthz responded 200 in 322.0401 ms
+[07:15:36 WRN] Health check portal-sync with status Degraded completed after 0.4712ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:15:38 INF] HTTP GET /healthz responded 200 in 2489.4307 ms
+[07:16:37 WRN] Health check portal-sync with status Degraded completed after 0.575ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:16:38 WRN] Health check portal-sync with status Degraded completed after 0.8959ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:16:40 INF] HTTP GET /healthz responded 200 in 2515.9647 ms
+[07:16:40 INF] HTTP GET /healthz responded 200 in 1670.8825 ms
+[07:17:40 WRN] Health check portal-sync with status Degraded completed after 0.4359ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:17:40 INF] HTTP GET /healthz responded 200 in 15.5148 ms
+[07:18:40 WRN] Health check portal-sync with status Degraded completed after 0.5306ms with message 'Last successful portal fetch was 118h ago (threshold 26h).'
+[07:18:40 INF] HTTP GET /healthz responded 200 in 1.4392 ms
+[07:19:40 WRN] Health check portal-sync with status Degraded completed after 0.4687ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:19:40 INF] HTTP GET /healthz responded 200 in 16.3028 ms
+[07:20:28 WRN] Health check portal-sync with status Degraded completed after 0.5014ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:20:28 INF] HTTP GET /healthz responded 200 in 3.3124 ms
+[07:20:28 INF] HTTP GET / responded 200 in 625.5965 ms
+[07:20:28 INF] HTTP GET /Admin/Database responded 302 in 8.8331 ms
+[07:20:28 INF] HTTP GET /Admin/Backup responded 404 in 5.1300 ms
+[07:20:40 WRN] Health check portal-sync with status Degraded completed after 0.3898ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:20:40 INF] HTTP GET /healthz responded 200 in 1.7179 ms
+[07:21:40 WRN] Health check portal-sync with status Degraded completed after 0.461ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:21:40 INF] HTTP GET /healthz responded 200 in 22.4281 ms
+[07:22:40 WRN] Health check portal-sync with status Degraded completed after 0.4971ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:22:40 INF] HTTP GET /healthz responded 200 in 41.6388 ms
+[07:23:40 WRN] Health check portal-sync with status Degraded completed after 0.4427ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:23:40 INF] HTTP GET /healthz responded 200 in 42.4199 ms
+[07:24:40 WRN] Health check portal-sync with status Degraded completed after 0.5802ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:24:40 INF] HTTP GET /healthz responded 200 in 162.9689 ms
+[07:25:40 WRN] Health check portal-sync with status Degraded completed after 0.4393ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:25:40 INF] HTTP GET /healthz responded 200 in 22.1012 ms
+[07:26:40 WRN] Health check portal-sync with status Degraded completed after 0.5258ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:26:40 INF] HTTP GET /healthz responded 200 in 42.6267 ms
+[07:27:40 WRN] Health check portal-sync with status Degraded completed after 0.4768ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:27:40 INF] HTTP GET /healthz responded 200 in 34.6859 ms
+[07:28:40 WRN] Health check portal-sync with status Degraded completed after 0.5025ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:28:40 INF] HTTP GET /healthz responded 200 in 51.4218 ms
+[07:29:40 WRN] Health check portal-sync with status Degraded completed after 0.5044ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:29:40 INF] HTTP GET /healthz responded 200 in 45.6286 ms
+[07:30:40 WRN] Health check portal-sync with status Degraded completed after 0.9346ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:30:40 INF] HTTP GET /healthz responded 200 in 62.9025 ms
+[07:31:40 WRN] Health check portal-sync with status Degraded completed after 0.4591ms with message 'Last successful portal fetch was 119h ago (threshold 26h).'
+[07:31:41 INF] HTTP GET /healthz responded 200 in 42.6673 ms

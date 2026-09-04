@@ -114,6 +114,16 @@ public class XmlParsingViewModel
     public int TotalMatched => FacilityRows.Sum(r => r.Matched);
     public int TotalUnmatched => FacilityRows.Sum(r => r.UnmatchedSubmissions);
     public int TotalUnmatchedRemittances => FacilityRows.Sum(r => r.UnmatchedRemittances);
+    public decimal TotalRemittanceMatchRate
+    {
+        get
+        {
+            var totalRemittanceRefs = TotalMatched + TotalUnmatchedRemittances;
+            return totalRemittanceRefs > 0
+                ? Math.Round((decimal)TotalMatched / totalRemittanceRefs * 100, 1)
+                : 0;
+        }
+    }
     public int TotalClaimCount => FacilityRows.Sum(r => r.ClaimCount);
     public int TotalParsedRows => Records.Sum(r => r.ParsedRows);
     public int TotalReadyRows => Records.Sum(r => r.ReadyRows);
@@ -138,8 +148,17 @@ public class XmlParsingFacilityRow
     public int UnmatchedSubmissions { get; set; }  // claims with no remittance
     public int UnmatchedRemittances { get; set; }  // remittances with no claim
     public int ClaimCount { get; set; }  // total <Claim> elements across all submission XMLs
-    public decimal MatchRate => ClaimCount > 0
-        ? Math.Round((decimal)Matched / ClaimCount * 100, 1) : 0;
+    // Uses unique remittance references so the rate measures RA-to-submission linkage.
+    public decimal RemittanceMatchRate
+    {
+        get
+        {
+            var totalRemittanceRefs = Matched + UnmatchedRemittances;
+            return totalRemittanceRefs > 0
+                ? Math.Round((decimal)Matched / totalRemittanceRefs * 100, 1)
+                : 0;
+        }
+    }
 }
 
 public class XmlParsingRecordRow

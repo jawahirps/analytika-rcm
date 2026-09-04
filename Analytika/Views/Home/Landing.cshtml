@@ -1,0 +1,226 @@
+@{
+    Layout = null;
+    ViewData["Title"] = "Ghaf Bi Analytix";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Healthcare revenue cycle intelligence for UAE providers." />
+    <title>Ghaf Bi Analytix — Revenue intelligence, made actionable</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" />
+    <link rel="stylesheet" href="~/lib/fontawesome.min.css" />
+    <style>
+        :root {
+            --navy: #011c40;
+            --navy-2: #06345b;
+            --teal: #007f8f;
+            --aqua: #54acbf;
+            --ink: #0f2942;
+            --muted: #587086;
+            --line: #d9e7eb;
+            --surface: #ffffff;
+            --wash: #f3f9fa;
+            --shadow: 0 24px 60px rgba(1, 28, 64, .11);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            color: var(--ink);
+            background: var(--surface);
+            font-family: Inter, "Segoe UI", system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: inherit; }
+        .shell { width: min(1180px, calc(100% - 40px)); margin-inline: auto; }
+        .skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; padding: 10px 14px; background: var(--navy); color: #fff; border-radius: 8px; transform: translateY(-160%); }
+        .skip-link:focus { transform: translateY(0); }
+
+        .site-header { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.94); border-bottom: 1px solid rgba(217,231,235,.9); backdrop-filter: blur(14px); }
+        .nav { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+        .brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; min-width: max-content; }
+        .brand img { width: 46px; height: 46px; object-fit: contain; }
+        .brand-copy { display: grid; line-height: 1.05; }
+        .brand-copy strong { color: var(--navy); font-size: 1rem; }
+        .brand-copy span { margin-top: 5px; color: var(--teal); font-size: .61rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+        .nav-links { display: flex; align-items: center; gap: 28px; }
+        .nav-links a { color: #34536c; font-size: .88rem; font-weight: 600; text-decoration: none; }
+        .nav-links a:hover, .nav-links a:focus-visible { color: var(--teal); }
+        .nav-actions { display: flex; align-items: center; gap: 10px; }
+        .button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 0 18px; border: 1px solid transparent; border-radius: 10px; font-size: .88rem; font-weight: 700; text-decoration: none; transition: transform .15s ease, background .15s ease, box-shadow .15s ease; }
+        .button:hover { transform: translateY(-1px); }
+        .button:focus-visible, .nav-links a:focus-visible, .brand:focus-visible { outline: 3px solid rgba(84,172,191,.4); outline-offset: 3px; }
+        .button-primary { color: #fff; background: var(--navy); box-shadow: 0 10px 24px rgba(1,28,64,.18); }
+        .button-primary:hover { background: var(--navy-2); }
+        .button-secondary { color: var(--navy); background: #fff; border-color: #bcd5dc; }
+        .button-secondary:hover { border-color: var(--aqua); background: var(--wash); }
+
+        .hero { position: relative; overflow: hidden; padding: 88px 0 82px; background: linear-gradient(145deg, #fff 15%, #f2fafb 67%, #e4f4f5 100%); }
+        .hero::before { content: ""; position: absolute; width: 560px; height: 560px; top: -260px; right: -150px; border: 1px solid rgba(0,127,143,.12); border-radius: 50%; box-shadow: 0 0 0 80px rgba(84,172,191,.035), 0 0 0 160px rgba(84,172,191,.025); }
+        .hero-grid { position: relative; display: grid; grid-template-columns: minmax(0, 1.07fr) minmax(380px, .93fr); align-items: center; gap: 70px; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 18px; color: var(--teal); font-size: .75rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+        .eyebrow::before { content: ""; width: 24px; height: 2px; background: var(--aqua); }
+        h1 { margin: 0; max-width: 720px; color: var(--navy); font-size: clamp(2.65rem, 5vw, 5rem); line-height: 1.01; letter-spacing: -.055em; }
+        .hero-lede { max-width: 650px; margin: 24px 0 0; color: var(--muted); font-size: clamp(1rem, 1.7vw, 1.18rem); line-height: 1.72; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+        .hero-actions .button { min-height: 50px; padding-inline: 22px; }
+        .trust-line { display: flex; flex-wrap: wrap; gap: 18px; margin: 26px 0 0; padding: 0; list-style: none; color: #45657b; font-size: .8rem; font-weight: 600; }
+        .trust-line i { margin-right: 6px; color: var(--teal); }
+
+        .insight-card { position: relative; padding: 26px; border: 1px solid rgba(188,213,220,.9); border-radius: 22px; background: rgba(255,255,255,.88); box-shadow: var(--shadow); }
+        .insight-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+        .insight-top span { color: var(--muted); font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+        .live { display: inline-flex; align-items: center; gap: 6px; color: #218363 !important; }
+        .live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #2db886; box-shadow: 0 0 0 4px rgba(45,184,134,.12); }
+        .insight-card h2 { margin: 26px 0 4px; color: var(--navy); font-size: 2.55rem; letter-spacing: -.04em; }
+        .insight-card > p { margin: 0; color: var(--muted); font-size: .85rem; }
+        .chart { height: 150px; margin-top: 26px; display: flex; align-items: end; gap: 10px; border-bottom: 1px solid var(--line); }
+        .chart span { flex: 1; min-width: 12px; height: var(--h); border-radius: 7px 7px 0 0; background: linear-gradient(180deg, var(--aqua), #b6e2e5); }
+        .card-footer { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; }
+        .mini-stat { padding: 13px; border-radius: 12px; background: var(--wash); }
+        .mini-stat strong { display: block; color: var(--navy); font-size: 1rem; }
+        .mini-stat span { display: block; margin-top: 4px; color: var(--muted); font-size: .68rem; }
+
+        .value-section { padding: 76px 0; }
+        .section-heading { max-width: 700px; margin-bottom: 34px; }
+        .section-heading h2 { margin: 0; color: var(--navy); font-size: clamp(1.9rem, 3vw, 2.65rem); letter-spacing: -.035em; }
+        .section-heading p { margin: 12px 0 0; color: var(--muted); line-height: 1.7; }
+        .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .feature { min-height: 210px; padding: 26px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+        .feature-icon { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; color: var(--teal); background: #e9f6f7; }
+        .feature h3 { margin: 20px 0 9px; color: var(--navy); font-size: 1.02rem; }
+        .feature p { margin: 0; color: var(--muted); font-size: .86rem; line-height: 1.65; }
+
+        .cta-band { margin-bottom: 76px; padding: 42px; display: flex; align-items: center; justify-content: space-between; gap: 34px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, var(--navy), #075d72); overflow: hidden; }
+        .cta-band h2 { margin: 0; font-size: clamp(1.55rem, 3vw, 2.25rem); letter-spacing: -.03em; }
+        .cta-band p { margin: 9px 0 0; color: rgba(255,255,255,.72); line-height: 1.6; }
+        .cta-band .button { flex: none; color: var(--navy); background: #fff; }
+        footer { padding: 24px 0 32px; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+        .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+        .footer-row img { width: 72px; height: auto; }
+
+        .reveal { animation: enter .46s ease-out both; }
+        .insight-card { animation-delay: .08s; }
+        @@keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .reveal { animation: none; } .button { transition: none; } }
+
+        @@media (max-width: 900px) {
+            .nav-links { display: none; }
+            .hero { padding-top: 64px; }
+            .hero-grid { grid-template-columns: 1fr; gap: 44px; }
+            .insight-card { max-width: 640px; }
+            .feature-grid { grid-template-columns: 1fr 1fr; }
+            .feature:last-child { grid-column: 1 / -1; }
+        }
+        @@media (max-width: 600px) {
+            .shell { width: min(100% - 28px, 1180px); }
+            .nav { min-height: 66px; gap: 10px; }
+            .brand img { width: 39px; height: 39px; }
+            .brand-copy strong { font-size: .88rem; }
+            .brand-copy span { font-size: .5rem; }
+            .nav-actions .button-secondary { display: none; }
+            .nav-actions .button-primary { min-height: 40px; padding-inline: 14px; }
+            .hero { padding: 52px 0 58px; }
+            h1 { font-size: clamp(2.35rem, 13vw, 3.35rem); }
+            .hero-lede { line-height: 1.62; }
+            .hero-actions { display: grid; }
+            .hero-actions .button { width: 100%; }
+            .trust-line { display: grid; gap: 10px; }
+            .insight-card { padding: 20px; border-radius: 18px; }
+            .insight-card h2 { font-size: 2.15rem; }
+            .chart { height: 120px; }
+            .card-footer { grid-template-columns: 1fr; }
+            .mini-stat { display: flex; align-items: center; justify-content: space-between; }
+            .mini-stat span { margin-top: 0; }
+            .value-section { padding: 56px 0; }
+            .feature-grid { grid-template-columns: 1fr; }
+            .feature:last-child { grid-column: auto; }
+            .feature { min-height: 0; }
+            .cta-band { margin-bottom: 52px; padding: 30px 24px; display: grid; }
+            .cta-band .button { width: 100%; }
+            .footer-row { align-items: flex-start; flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+        <div class="shell nav" aria-label="Main navigation">
+            <a class="brand" href="/" aria-label="Ghaf Bi Analytix home">
+                <img src="~/images/ghaf-logo-primary-006884-2x.jpg" alt="" />
+                <span class="brand-copy"><strong>Ghaf Bi Analytix</strong><span>Business Intelligence</span></span>
+            </a>
+            <nav class="nav-links" aria-label="Landing page sections">
+                <a href="#capabilities">Capabilities</a>
+                <a href="#outcomes">Why Analytix</a>
+            </nav>
+            <div class="nav-actions">
+                <a class="button button-secondary" href="/Home/Dashboard">Explore dashboard</a>
+                <a class="button button-primary" href="/login">Sign in <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+            </div>
+        </div>
+    </header>
+
+    <main id="main">
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="shell hero-grid">
+                <div class="reveal">
+                    <p class="eyebrow">Built for UAE healthcare</p>
+                    <h1 id="hero-title">Revenue intelligence, made actionable.</h1>
+                    <p class="hero-lede">Bring claims, remittance, denials and facility performance into one clear operating view—so teams can move from data to decisions faster.</p>
+                    <div class="hero-actions">
+                        <a class="button button-primary" href="/login">Sign in to Analytix <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+                        <a class="button button-secondary" href="/Home/Dashboard"><i class="fas fa-chart-line" aria-hidden="true"></i> Explore dashboard</a>
+                    </div>
+                    <ul class="trust-line" aria-label="Platform highlights">
+                        <li><i class="fas fa-shield-halved" aria-hidden="true"></i> Role-based access</li>
+                        <li><i class="fas fa-cloud-arrow-down" aria-hidden="true"></i> DHA &amp; RHA workflows</li>
+                        <li><i class="fas fa-building" aria-hidden="true"></i> Multi-facility visibility</li>
+                    </ul>
+                </div>
+
+                <aside class="insight-card reveal" id="outcomes" aria-label="Analytics dashboard preview">
+                    <div class="insight-top"><span>Claims performance</span><span class="live">Live view</span></div>
+                    <h2>AED 21.47M</h2>
+                    <p>Net submitted value across the selected network</p>
+                    <div class="chart" aria-hidden="true">
+                        <span style="--h:43%"></span><span style="--h:56%"></span><span style="--h:68%"></span><span style="--h:59%"></span><span style="--h:78%"></span><span style="--h:92%"></span><span style="--h:84%"></span><span style="--h:100%"></span>
+                    </div>
+                    <div class="card-footer">
+                        <div class="mini-stat"><strong>90.4%</strong><span>Match rate</span></div>
+                        <div class="mini-stat"><strong>195.8K</strong><span>Submissions</span></div>
+                        <div class="mini-stat"><strong>13</strong><span>Facilities</span></div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <section class="value-section" id="capabilities" aria-labelledby="capabilities-title">
+            <div class="shell">
+                <div class="section-heading">
+                    <p class="eyebrow">One operational picture</p>
+                    <h2 id="capabilities-title">See the full revenue cycle without the reporting drag.</h2>
+                    <p>Analytix connects daily RCM signals into focused workflows for finance, operations and clinical leadership.</p>
+                </div>
+                <div class="feature-grid">
+                    <article class="feature"><div class="feature-icon"><i class="fas fa-route" aria-hidden="true"></i></div><h3>Follow every claim</h3><p>Track submissions, resubmissions, remittance and denials through one consistent lifecycle.</p></article>
+                    <article class="feature"><div class="feature-icon"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i></div><h3>Act on exceptions</h3><p>Surface unmatched records, denial patterns and operational risks before they become revenue leakage.</p></article>
+                    <article class="feature"><div class="feature-icon"><i class="fas fa-chart-column" aria-hidden="true"></i></div><h3>Report with confidence</h3><p>Give decision-makers validated, report-ready metrics across facilities, payers and departments.</p></article>
+                </div>
+            </div>
+        </section>
+
+        <section class="shell cta-band" aria-labelledby="cta-title">
+            <div><h2 id="cta-title">Turn today’s RCM data into the next action.</h2><p>Open your workspace to review live claims and facility performance.</p></div>
+            <a class="button" href="/login">Continue to sign in <i class="fas fa-arrow-right" aria-hidden="true"></i></a>
+        </section>
+    </main>
+
+    <footer><div class="shell footer-row"><img src="~/images/ghaf-logo-soft-78C2C2.png" alt="Ghaf Bi Solutions" /><span>&copy; 2026 Ghaf Bi Solutions. All rights reserved.</span></div></footer>
+</body>
+</html>
