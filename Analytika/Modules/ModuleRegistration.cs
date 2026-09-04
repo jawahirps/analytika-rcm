@@ -227,6 +227,9 @@ public static class ModuleRegistration
         if (pendingDownloadHostedServiceEnabled)
             services.AddHostedService<PendingDownloadService>();
 
+        if (configuration.GetValue("LiveDataSync:Enabled", false))
+            services.AddHostedService<HourlyLiveDataService>();
+
         return services;
     }
 }

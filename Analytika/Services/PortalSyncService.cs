@@ -17,13 +17,15 @@ public class PortalSyncService
     private readonly IDhaPortalService _dha;
     private readonly ILogger<PortalSyncService> _logger;
     private readonly Analytika.Security.ICredentialProtector _credentials;
+    private readonly IConfiguration _configuration;
 
-    public PortalSyncService(AppDbContext db, IDhaPortalService dha, ILogger<PortalSyncService> logger, Analytika.Security.ICredentialProtector credentials)
+    public PortalSyncService(AppDbContext db, IDhaPortalService dha, ILogger<PortalSyncService> logger, Analytika.Security.ICredentialProtector credentials, IConfiguration configuration)
     {
         _db = db;
         _dha = dha;
         _logger = logger;
         _credentials = credentials;
+        _configuration = configuration;
     }
 
     // ── Daily cron entry point ─────────────────────────────────────
@@ -54,7 +56,8 @@ public class PortalSyncService
     private async Task SyncFacilityAsync(PortalCredential cred)
     {
         var pwd = _credentials.Unprotect(cred.PasswordEncrypted);
-        var dateFrom = DateTime.Today.AddDays(-90);
+        var lookbackDays = Math.Clamp(_configuration.GetValue("LiveDataSync:LookbackDays", 90), 1, 365);
+        var dateFrom = DateTime.Today.AddDays(-lookbackDays);
         var dateTo = DateTime.Today;
         var chunks = GetDateChunks(dateFrom, dateTo, 90);
         int[] txTypes = DhaPortalService.DefaultTxTypes;
@@ -139,7 +142,7 @@ public class PortalSyncService
         // 3. Parallel download new records
         if (newRows.Any())
         {
-            var downloaded = await DownloadParallelAsync(newRows, login, pwd, facilityId, skipDownload, maxConcurrency: MaximumParallelWorkers);
+            var downloaded = await DownloadParallelAsync(newRows, login, pwd, facilityId, skipDownload, maxConcurrency: GetWorkerCount());
             var now = DateTime.UtcNow;
             int progressBatch = 0;
 
@@ -185,7 +188,7 @@ public class PortalSyncService
         // 4. Retry download for existing records that previously failed
         if (!skipDownload && retryRows.Any())
         {
-            var retried = await DownloadParallelAsync(retryRows, login, pwd, facilityId, false, maxConcurrency: MaximumParallelWorkers);
+            var retried = await DownloadParallelAsync(retryRows, login, pwd, facilityId, false, maxConcurrency: GetWorkerCount());
             var retryNow = DateTime.UtcNow;
 
             foreach (var (row, contentXml, sizeBytes, dlOk) in retried.Where(r => r.Downloaded))
@@ -294,7 +297,7 @@ public class PortalSyncService
     {
         statuses ??= [1, 2];
         var combos = (from t in txTypes from s in statuses from d in new[] { 1, 2 } select (t, s, d)).ToList();
-        var sem = new SemaphoreSlim(Math.Min(MaximumParallelWorkers, combos.Count));
+        var sem = new SemaphoreSlim(Math.Min(GetWorkerCount(), combos.Count));
         var bag = new ConcurrentBag<PortalFetchResultRow>();
 
         await Task.WhenAll(combos.Select(async combo =>
@@ -315,6 +318,9 @@ public class PortalSyncService
 
         return bag.ToList();
     }
+
+    private int GetWorkerCount() => Math.Clamp(
+        _configuration.GetValue("LiveDataSync:MaxWorkers", MaximumParallelWorkers), 1, MaximumParallelWorkers);
 
     // ── Utilities ─────────────────────────────────────────────────
 
