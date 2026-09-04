@@ -119,6 +119,18 @@ public class ReportSchedulerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
+        if (!ReportDateWindow.TryResolve(
+                model.DateRange,
+                Request.Form["DateFrom"].ToString(),
+                Request.Form["DateTo"].ToString(),
+                DateTime.Today,
+                out var dateFrom,
+                out var dateTo))
+        {
+            TempData["Error"] = "Select a valid report date range. Custom reports require both From and To dates.";
+            return RedirectToAction(GetActionName(model.ReportType));
+        }
+
         var allowedFacilityIds = await GetUserFacilityIdsAsync();
         var selectedFacilityIds = model.SelectedFacilities.Where(id => id > 0).Distinct().ToList();
         if (allowedFacilityIds != null)
@@ -155,8 +167,8 @@ public class ReportSchedulerController : Controller
             ClinicianIdsCsv = Csv(model.SelectedClinicians.Where(id => id > 0)),
             DepartmentIdsCsv = Csv(model.SelectedDepartments.Where(id => id > 0)),
             EncounterTypesCsv = Csv(model.EncounterTypes),
-            DateFrom = model.DateFrom ?? DateTime.Now.AddMonths(-1),
-            DateTo = model.DateTo ?? DateTime.Now,
+            DateFrom = dateFrom,
+            DateTo = dateTo,
             SearchCriteria = model.SearchCriteria,
             Template = model.Template,
             FileFormat = "Excel",
