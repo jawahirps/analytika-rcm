@@ -589,7 +589,7 @@
             <h1 data-i18n="welcome">Welcome back</h1>
             <p class="subtitle" data-i18n="subtitle">Sign in to your Ghaf Business Intelligence account</p>
 
-            <form asp-controller="Home" asp-action="Index" method="post">
+            <form asp-controller="Home" asp-action="Login" method="post">
                 @Html.AntiForgeryToken()
 
                 @if (!ViewData.ModelState.IsValid)
