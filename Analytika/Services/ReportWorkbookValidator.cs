@@ -30,6 +30,17 @@ public sealed class ReportWorkbookValidator
         if (worksheet.Pictures.Any())
             errors.Add("Embedded images are not permitted in tabular reports.");
 
+        var headerText = string.Join(' ', worksheet.Range(1, 1, 6, expectedHeaders.Count)
+            .CellsUsed()
+            .Select(cell => cell.GetString()));
+        if (headerText.Contains("GHAF", StringComparison.OrdinalIgnoreCase)
+            || headerText.Contains("BUSINESS SERVICES", StringComparison.OrdinalIgnoreCase)
+            || headerText.Contains("INTELLIGENCE", StringComparison.OrdinalIgnoreCase))
+            errors.Add("Branding text is not permitted in tabular report headers.");
+
+        if (!string.Equals(worksheet.Cell(1, 1).GetString().Trim(), "REPORT FILTERS", StringComparison.Ordinal))
+            errors.Add("The report filter header is missing.");
+
         for (var index = 0; index < expectedHeaders.Count; index++)
         {
             var actual = worksheet.Cell(HeaderRow, index + 1).GetString().Trim();
@@ -37,12 +48,12 @@ public sealed class ReportWorkbookValidator
                 errors.Add($"Header {index + 1} expected '{expectedHeaders[index]}' but found '{actual}'.");
         }
 
-        var facility = worksheet.Cell(5, 8).GetString().Trim();
+        var facility = worksheet.Cell(2, 21).GetString().Trim();
         if (!string.Equals(facility, expectedFacility, StringComparison.OrdinalIgnoreCase))
             errors.Add($"Facility metadata expected '{expectedFacility}' but found '{facility}'.");
 
         var expectedPeriod = $"{dateFrom:dd MMM yyyy} - {dateTo:dd MMM yyyy}";
-        var period = worksheet.Cell(5, 12).GetString().Trim();
+        var period = worksheet.Cell(2, 3).GetString().Trim();
         if (!string.Equals(period, expectedPeriod, StringComparison.Ordinal))
             errors.Add($"Date range metadata expected '{expectedPeriod}' but found '{period}'.");
 

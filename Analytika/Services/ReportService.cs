@@ -13,12 +13,12 @@ public class ReportService : IReportService
 {
     private static readonly SemaphoreSlim QueueGate = new(1, 1);
     private static readonly SemaphoreSlim GenerationGate = new(2, 2);
-    private const string GhafInk = "#011C40";
-    private const string GhafPrimary = "#A7EBF2";
-    private const string GhafTeal = "#54ACBF";
-    private const string GhafPale = "#26658C";
-    private const string GhafCream = "#EAF4FB";
-    private const string GhafBorder = "#35577D";
+    private const string ReportInk = "#0B1F3A";
+    private const string ReportNavy = "#17365D";
+    private const string ReportBlue = "#2F5597";
+    private const string ReportPale = "#E7ECF4";
+    private const string ReportSurface = "#F5F7FA";
+    private const string ReportBorder = "#8EA9C1";
 
     private readonly AppDbContext _context;
     private readonly ILogger<ReportService> _logger;
@@ -182,6 +182,7 @@ public class ReportService : IReportService
             .Include(r => r.Receiver)
             .Include(r => r.Payer)
             .Include(r => r.Clinician)
+            .Include(r => r.DepartmentNav)
             .Where(r => r.ReportType == reportType)
             // null = global user (no restriction); empty list = facility user with no assignments (no results); non-empty = scope to those facilities
             .Where(r => facilityIds == null || (facilityIds.Count > 0 && r.BranchId != null && facilityIds.Contains(r.BranchId.Value)))
@@ -531,7 +532,7 @@ public class ReportService : IReportService
                 "Patient Gender", "Patient DOB", "National ID"
             };
 
-            ApplyGhafReportHeader(ws, headers.Length, report, exportRows.Count, unmatchedRemittances.Count);
+            ApplyReportFilterHeader(ws, headers.Length, report);
 
             // Header row styling
             for (int c = 0; c < headers.Length; c++)
@@ -540,13 +541,13 @@ public class ReportService : IReportService
                 cell.Value = headers[c];
                 cell.Style.Font.Bold = true;
                 cell.Style.Font.FontColor = XLColor.White;
-                cell.Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPrimary);
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportNavy);
                 cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 cell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
             }
             var tableHeaderRange = ws.Range(tableHeaderRow, 1, tableHeaderRow, headers.Length);
             tableHeaderRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
-            tableHeaderRange.Style.Border.BottomBorderColor = XLColor.FromHtml(GhafTeal);
+            tableHeaderRange.Style.Border.BottomBorderColor = XLColor.FromHtml(ReportBlue);
 
             // Data rows
             for (int i = 0; i < exportRows.Count; i++)
@@ -651,7 +652,7 @@ public class ReportService : IReportService
                 ws.Cell(noteRow + 2, 1).Value = "Transaction Ref";
                 ws.Cell(noteRow + 2, 2).Value = "Remittance file name";
                 ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Font.Bold = true;
-                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafPale);
+                ws.Range(noteRow + 2, 1, noteRow + 2, 2).Style.Fill.BackgroundColor = XLColor.FromHtml(ReportPale);
 
                 for (int i = 0; i < unmatchedRemittances.Count; i++)
                 {
@@ -670,7 +671,7 @@ public class ReportService : IReportService
             ws.SheetView.FreezeRows(tableHeaderRow);
             ws.SheetView.FreezeColumns(2);
             ws.Columns(1, headers.Length).AdjustToContents(1, Math.Min(mainTableLastRow, tableHeaderRow + 500));
-            ApplyGhafReportLayout(ws, headers.Length, mainTableLastRow);
+            ApplyReportLayout(ws, headers.Length, mainTableLastRow);
 
             var stagingPath = $"{filePath}.{Guid.NewGuid():N}.staging.xlsx";
             try
@@ -736,81 +737,92 @@ public class ReportService : IReportService
         }
     }
 
-    private void ApplyGhafReportHeader(IXLWorksheet ws, int lastColumn, ReportRequest report, int rowCount, int unmatchedRemittanceCount)
+    private static void ApplyReportFilterHeader(IXLWorksheet ws, int lastColumn, ReportRequest report)
     {
-        var title = GetReportTitle(report.ReportType);
-        var generatedLocal = DateTime.Now;
         var period = $"{report.DateFrom:dd MMM yyyy} - {report.DateTo:dd MMM yyyy}";
-        var facility = report.Branch?.Name ?? "All Facilities";
+        var facility = FormatSelectedFilter(report.Branch?.Name, report.FacilityIdsCsv, "All Facilities");
+        var receiver = FormatSelectedFilter(report.Receiver?.Name, report.ReceiverIdsCsv, "All Receivers");
+        var payer = FormatSelectedFilter(report.Payer?.Name, report.PayerIdsCsv, "All Payers");
+        var clinician = FormatSelectedFilter(report.Clinician?.Name, report.ClinicianIdsCsv, "All Clinicians");
+        var department = FormatSelectedFilter(report.DepartmentNav?.Name, report.DepartmentIdsCsv, "All Departments");
+        var encounter = FormatSelectedFilter(report.EncounterType, report.EncounterTypesCsv, "All Encounters");
+        var dateCriterion = report.SearchCriteria switch
+        {
+            "EncounterEndDate" => "Encounter End Date",
+            "SubmissionDate" => "Submission Date",
+            "PaymentDate" => "Payment Date",
+            _ => "Encounter Start Date"
+        };
 
-        ws.Range(1, 1, 6, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafCream);
+        ws.Range(1, 1, 6, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml(ReportSurface);
         ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
-        ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorderColor = XLColor.FromHtml(GhafBorder);
+        ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorderColor = XLColor.FromHtml(ReportBorder);
 
-        ws.Range(1, 1, 6, 1).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafTeal);
-        ws.Range(1, 2, 1, lastColumn).Merge();
-        ws.Range(2, 2, 2, lastColumn).Merge();
-        ws.Range(3, 2, 3, lastColumn).Merge();
+        ws.Range(1, 1, 1, lastColumn).Merge();
+        ws.Cell(1, 1).Value = "REPORT FILTERS";
+        ws.Cell(1, 1).Style.Fill.BackgroundColor = XLColor.FromHtml(ReportNavy);
+        ws.Cell(1, 1).Style.Font.FontColor = XLColor.White;
+        ws.Cell(1, 1).Style.Font.Bold = true;
+        ws.Cell(1, 1).Style.Font.FontSize = 11;
+        ws.Cell(1, 1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-        ws.Cell(1, 2).Value = "GHAF BUSINESS SERVICES";
-        ws.Cell(1, 2).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
-        ws.Cell(1, 2).Style.Font.Bold = true;
-        ws.Cell(1, 2).Style.Font.FontSize = 10;
-        ws.Cell(1, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
+        AddReportFilter(ws, 2, 2, "Date Range", period);
+        AddReportFilter(ws, 2, 11, "Date Criterion", dateCriterion);
+        AddReportFilter(ws, 2, 20, "Facility", facility);
+        AddReportFilter(ws, 4, 2, "Receiver", receiver);
+        AddReportFilter(ws, 4, 9, "Payer", payer);
+        AddReportFilter(ws, 4, 16, "Clinician", clinician);
+        AddReportFilter(ws, 4, 23, "Department", department);
+        AddReportFilter(ws, 4, 30, "Encounter", encounter);
 
-        ws.Cell(2, 2).Value = title;
-        ws.Cell(2, 2).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
-        ws.Cell(2, 2).Style.Font.Bold = true;
-        ws.Cell(2, 2).Style.Font.FontSize = 22;
-
-        ws.Cell(3, 2).Value = "Healthcare revenue cycle intelligence";
-        ws.Cell(3, 2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
-        ws.Cell(3, 2).Style.Font.FontSize = 11;
-
-        AddReportMeta(ws, 5, 7, "Facility", facility);
-        AddReportMeta(ws, 5, 11, "Date Range", period);
-        AddReportMeta(ws, 5, 16, "Rows", rowCount.ToString("N0", CultureInfo.InvariantCulture));
-        AddReportMeta(ws, 5, 20, "Generated", generatedLocal.ToString("dd MMM yyyy HH:mm"));
-        AddReportMeta(ws, 5, 26, "Report ID", report.ReportId);
-
-        if (unmatchedRemittanceCount > 0)
-            AddReportMeta(ws, 5, 33, "Ledger Notes", unmatchedRemittanceCount.ToString("N0", CultureInfo.InvariantCulture));
-
-        ws.Row(1).Height = 20;
-        ws.Row(2).Height = 28;
-        ws.Row(3).Height = 20;
-        ws.Row(4).Height = 8;
-        ws.Row(5).Height = 28;
+        ws.Row(1).Height = 24;
+        ws.Row(2).Height = 24;
+        ws.Row(3).Height = 6;
+        ws.Row(4).Height = 24;
+        ws.Row(5).Height = 6;
         ws.Row(6).Height = 8;
     }
 
-    private void AddReportMeta(IXLWorksheet ws, int row, int column, string label, string value)
+    private static string FormatSelectedFilter(string? firstLabel, string? selectedCsv, string allLabel)
+    {
+        var count = string.IsNullOrWhiteSpace(selectedCsv)
+            ? 0
+            : selectedCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct().Count();
+
+        if (count == 0)
+            return firstLabel ?? allLabel;
+        if (count == 1)
+            return firstLabel ?? "1 selected";
+        return firstLabel == null ? $"{count} selected" : $"{firstLabel} (+{count - 1})";
+    }
+
+    private static void AddReportFilter(IXLWorksheet ws, int row, int column, string label, string value)
     {
         ws.Cell(row, column).Value = label;
         ws.Cell(row, column).Style.Font.FontSize = 8;
         ws.Cell(row, column).Style.Font.Bold = true;
-        ws.Cell(row, column).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(row, column).Style.Font.FontColor = XLColor.FromHtml(ReportBlue);
         ws.Cell(row, column).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
         ws.Cell(row, column + 1).Value = value;
         ws.Range(row, column + 1, row, column + 2).Merge();
         ws.Range(row, column + 1, row, column + 2).Style.Font.FontSize = 9;
-        ws.Range(row, column + 1, row, column + 2).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
+        ws.Range(row, column + 1, row, column + 2).Style.Font.FontColor = XLColor.FromHtml(ReportInk);
         ws.Range(row, column + 1, row, column + 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
     }
 
-    private void ApplyGhafReportLayout(IXLWorksheet ws, int lastColumn, int lastTableRow)
+    private static void ApplyReportLayout(IXLWorksheet ws, int lastColumn, int lastTableRow)
     {
         ws.Range(1, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Font.FontName = "Inter";
         ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorderColor = XLColor.FromHtml("#D9EFEA");
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.InsideBorderColor = XLColor.FromHtml("#D9E2F3");
         ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorderColor = XLColor.FromHtml(GhafBorder);
+        ws.Range(8, 1, Math.Max(lastTableRow, 8), lastColumn).Style.Border.OutsideBorderColor = XLColor.FromHtml(ReportBorder);
 
         ws.Columns(1, lastColumn).Style.Alignment.WrapText = false;
         ws.Columns(33, 41).Style.Alignment.WrapText = true;
-        ws.Column(2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+        ws.Column(2).Style.Font.FontColor = XLColor.FromHtml(ReportBlue);
         ws.Column(2).Style.Font.Bold = true;
         ws.Column(16).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         ws.Column(26).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
@@ -842,19 +854,6 @@ public class ReportService : IReportService
         ws.Column(41).Width = 20;
     }
 
-    private static string GetReportTitle(string reportType) => reportType switch
-    {
-        "ClaimSummary" => "Claim Summary Report",
-        "ClaimActivity" => "Claim Activity Report",
-        "RemittanceActivity" => "Remittance Activity Report",
-        "ClaimReceiver" => "Claim Receiver Report",
-        "ClaimClinician" => "Claim Clinician Report",
-        "FinanceTAT" => "Finance TAT Report",
-        "DenialReport" => "Denial Query Report",
-        "ClaimLifeCycle" => "Claim Life Cycle Report",
-        _ => "Ghaf Business Intelligence Report"
-    };
-
     private static string GetWorksheetName(string reportType)
     {
         var title = reportType switch
@@ -867,7 +866,7 @@ public class ReportService : IReportService
             "FinanceTAT" => "Finance TAT",
             "DenialReport" => "Denial Query",
             "ClaimLifeCycle" => "Claim Life Cycle",
-            _ => "Ghaf Report"
+            _ => "Report"
         };
 
         return title.Length <= 31 ? title : title[..31];
