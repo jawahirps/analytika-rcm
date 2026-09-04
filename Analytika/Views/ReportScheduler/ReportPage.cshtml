@@ -106,6 +106,41 @@
         color: #40566f !important;
     }
 
+    /* The report work surfaces are deliberately monochrome for maximum
+       readability against their light backgrounds. */
+    .page-wrapper .filter-card .card-body,
+    .page-wrapper .filter-card .card-body label,
+    .page-wrapper .filter-card .card-body small,
+    .page-wrapper .filter-card .card-body .text-muted,
+    .page-wrapper .filter-card .card-body .date-range-btn,
+    .page-wrapper .filter-card .card-body .form-control,
+    .page-wrapper .filter-card .card-body .form-select,
+    .page-wrapper .filter-card .card-body .form-control::placeholder,
+    .page-wrapper .filter-card .card-body .select2-selection,
+    .page-wrapper .filter-card .card-body .select2-selection__rendered,
+    .page-wrapper .filter-card .card-body .select2-selection__placeholder,
+    .page-wrapper .filter-card .card-body .select2-search__field,
+    .page-wrapper .table-card tbody td,
+    .page-wrapper .table-card tbody a,
+    .page-wrapper .table-card tbody .status-completed,
+    .page-wrapper .table-card tbody .status-pending,
+    .page-wrapper .table-card tbody .status-processing,
+    .page-wrapper .table-card tbody .status-failed {
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
+        opacity: 1 !important;
+    }
+    .page-wrapper .filter-card .card-body :disabled,
+    .page-wrapper .filter-card .card-body [aria-disabled="true"] {
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
+        opacity: 1 !important;
+    }
+    .page-wrapper .filter-card .card-body .date-range-btn:hover,
+    .page-wrapper .filter-card .card-body .date-range-btn.active {
+        color: #000 !important;
+    }
+
     html[data-theme="dark"] .page-wrapper .filter-card,
     html[data-theme="dark"] .page-wrapper .table-card { background: rgba(15,30,50,.97) !important; }
     html[data-theme="dark"] .page-wrapper .table-card .card-header { background: #142b47 !important; color: #fff; }
