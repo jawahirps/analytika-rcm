@@ -46,7 +46,7 @@
         background: rgba(255,255,255,.06);
         color: #d4d4d8;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: background-color 0.2s, color 0.2s, border-color 0.2s;
     }
     .date-range-btn:hover { background: rgba(255,255,255,.10); color: #fafafa; }
     .date-range-btn.active {
@@ -302,7 +302,7 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">Encounter Type</label>
-                        <select name="EncounterType" class="form-select select2-multi" multiple>
+                        <select name="EncounterTypes" class="form-select select2-multi" multiple>
                             <option value="Inpatient">Inpatient</option>
                             <option value="Outpatient">Outpatient</option>
                             <option value="Emergency">Emergency</option>
@@ -323,7 +323,7 @@
                     <div class="col-md-3">
                         <label class="form-label fw-semibold">File Format</label>
                         <select name="FileFormat" class="form-select">
-                            <option value="Excel">Excel (.xlsx)</option>
+                            <option value="Excel" selected>Excel (.xlsx) — default</option>
                             <option value="CSV">CSV (.csv)</option>
                             <option value="PDF">PDF (.pdf)</option>
                         </select>
@@ -473,7 +473,6 @@
 @section Scripts {
 <script>
     $(document).ready(function() {
-        $('.select2-multi').select2({ placeholder: '-- All --', allowClear: true, width: '100%' });
         flatpickr('.flatpickr', { dateFormat: 'd/m/Y', allowInput: true });
     });
 
@@ -524,6 +523,5 @@
         document.getElementById('customDateSection').style.display = 'none';
     }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.min.js"></script>
 <script src="~/js/shader-bg.js" asp-append-version="true"></script>
 }

@@ -1,174 +1,44 @@
-/* Aurora shader background — raw WebGL, no Three.js dependency.
-   Attaches an animated GLSL shader canvas behind any element with [data-shader-bg]
-   or .page-wrapper. Self-contained; safe to load multiple times. */
+/* WebGPU aurora. Unsupported devices retain the CSS background; no WebGL fallback. */
 (function () {
   'use strict';
-
-  var VERT = [
-    'attribute vec2 a_pos;',
-    'void main(){gl_Position=vec4(a_pos,0.0,1.0);}'
-  ].join('\n');
-
-  var FRAG = [
-    'precision mediump float;',
-    'uniform float iTime;',
-    'uniform vec2  iResolution;',
-    '#define NUM_OCTAVES 3',
-    'float rand(vec2 n){return fract(sin(dot(n,vec2(12.9898,4.1414)))*43758.5453);}',
-    'float noise(vec2 p){',
-    '  vec2 ip=floor(p);vec2 u=fract(p);',
-    '  u=u*u*(3.0-2.0*u);',
-    '  return mix(mix(rand(ip),rand(ip+vec2(1,0)),u.x),mix(rand(ip+vec2(0,1)),rand(ip+vec2(1,1)),u.x),u.y);',
-    '}',
-    'float fbm(vec2 x){',
-    '  float v=0.0;float a=0.3;',
-    '  vec2 sh=vec2(100.0);',
-    '  mat2 rot=mat2(cos(0.5),sin(0.5),-sin(0.5),cos(0.5));',
-    '  for(int i=0;i<NUM_OCTAVES;++i){v+=a*noise(x);x=rot*x*2.0+sh;a*=0.4;}',
-    '  return v;',
-    '}',
-    'void main(){',
-    '  vec2 shake=vec2(sin(iTime*1.2)*0.005,cos(iTime*2.1)*0.005);',
-    '  vec2 p=((gl_FragCoord.xy+shake*iResolution.xy)-iResolution.xy*0.5)/iResolution.y*mat2(6.0,-4.0,4.0,6.0);',
-    '  vec2 v;',
-    '  vec4 o=vec4(0.0);',
-    '  float f=2.0+fbm(p+vec2(iTime*5.0,0.0))*0.5;',
-    '  for(float i=0.0;i<35.0;i++){',
-    '    v=p+cos(i*i+(iTime+p.x*0.08)*0.025+i*vec2(13.0,11.0))*3.5',
-    '      +vec2(sin(iTime*3.0+i)*0.003,cos(iTime*3.5-i)*0.003);',
-    '    float tailNoise=fbm(v+vec2(iTime*0.5,i))*0.3*(1.0-(i/35.0));',
-    '    vec4 col=vec4(',
-    '      0.1+0.3*sin(i*0.2+iTime*0.4),',
-    '      0.3+0.5*cos(i*0.3+iTime*0.5),',
-    '      0.7+0.3*sin(i*0.4+iTime*0.3),',
-    '      1.0',
-    '    );',
-    '    vec4 contrib=col*exp(sin(i*i+iTime*0.8))/length(max(v,vec2(v.x*f*0.015,v.y*1.5)));',
-    '    float thin=smoothstep(0.0,1.0,i/35.0)*0.6;',
-    '    o+=contrib*(1.0+tailNoise*0.8)*thin;',
-    '  }',
-    '  o=tanh(o/22.0);',
-    '  gl_FragColor=vec4(o.rgb*2.6,1.0);',
-    '}'
-  ].join('\n');
-
-  function compile(gl, type, src) {
-    var s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
-    return s;
-  }
-
-  /* Detect headless / automated environment — bail before touching WebGL.
-     SwiftShader (software GL in headless Chrome) blocks on getContext. */
-  var _headless = (function () {
+  const shader = `
+struct Uniforms { resolution: vec2f, time: f32, pad: f32 };
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f {
+ let p=array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3)); return vec4f(p[i],0,1);
+}
+fn hash(p:vec2f)->f32{return fract(sin(dot(p,vec2f(127.1,311.7)))*43758.5453);}
+fn noise(p:vec2f)->f32{let i=floor(p);let f=fract(p);let s=f*f*(3-2*f);return mix(mix(hash(i),hash(i+vec2f(1,0)),s.x),mix(hash(i+vec2f(0,1)),hash(i+vec2f(1,1)),s.x),s.y);}
+@fragment fn fs(@builtin(position) q:vec4f)->@location(0) vec4f {
+ let aspect=u.resolution.x/max(u.resolution.y,1);var p=q.xy/max(u.resolution,vec2f(1));p=(p-.5)*vec2f(aspect,1);
+ let t=u.time*.12;let a=exp(-9*abs(p.y-.14*sin(p.x*4+t*2)));let b=exp(-12*abs(p.y+.2*cos(p.x*3-t)));
+ return vec4f(vec3f(.025,.055,.075)+vec3f(.02,.52,.56)*a+vec3f(.24,.25,.7)*b+noise(p*5+vec2f(t,-t))*.08,1);
+}`;
+  async function init(host) {
+    if (host.dataset.webgpuInitialized || !navigator.gpu || document.hidden) return;
+    host.dataset.webgpuInitialized='true';
     try {
-      if (navigator.webdriver) return true;
-      if (/Headless|HeadlessChrome/.test(navigator.userAgent)) return true;
-      // Playwright/CDP sets this to 0 or omits plugins entirely
-      if (navigator.plugins && navigator.plugins.length === 0 &&
-          /Chrome/.test(navigator.userAgent) && !/Electron/.test(navigator.userAgent)) return true;
-      // Permission API probe: automation contexts deny 'notifications' synchronously
-      if (window.Notification && window.Notification.permission === 'denied') return false; // real user too
-      return false;
-    } catch (e) { return false; }
-  }());
-
-  function initShaderBg(host) {
-    if (host._shaderBgInit) return;
-    host._shaderBgInit = true;
-
-    // Skip shader entirely in headless / automated browsers, or if page
-    // loaded while hidden (preview tools, background tabs on first paint).
-    if (_headless || document.hidden) return;
-
-    var canvas = document.createElement('canvas');
-    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:inherit;';
-    if (!host.style.position || host.style.position === 'static') host.style.position = 'relative';
-    host.insertBefore(canvas, host.firstChild);
-
-    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) { canvas.remove(); return; }
-
-    var prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER,   VERT));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
-
-    /* fullscreen quad */
-    var buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-    var loc = gl.getAttribLocation(prog, 'a_pos');
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-    var uTime = gl.getUniformLocation(prog, 'iTime');
-    var uRes  = gl.getUniformLocation(prog, 'iResolution');
-
-    var t = 0, rafId = null, stopped = false;
-
-    function resize() {
-      var w = host.clientWidth  || 1;
-      var h = host.clientHeight || 1;
-      canvas.width  = w;
-      canvas.height = h;
-      gl.viewport(0, 0, w, h);
-      gl.uniform2f(uRes, w, h);
-    }
-
-    var FRAME_MS = 32; // ~30 fps cap — keeps event loop free for CDP/Playwright
-    var lastFrame = 0;
-
-    function frame(now) {
-      if (stopped || document.hidden) { rafId = null; return; }
-      if (now - lastFrame < FRAME_MS) { rafId = requestAnimationFrame(frame); return; }
-      lastFrame = now;
-      t += 0.016;
-      gl.uniform1f(uTime, t);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      rafId = requestAnimationFrame(frame);
-    }
-
-    function onVisibility() {
-      if (!document.hidden && !rafId && !stopped) requestAnimationFrame(frame);
-    }
-
-    resize();
-    requestAnimationFrame(frame);
-
-    document.addEventListener('visibilitychange', onVisibility);
-
-    var ro = new ResizeObserver(resize);
-    ro.observe(host);
-
-    if (window.IntersectionObserver) {
-      new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) {
-          if (e.isIntersecting) { if (!rafId && !stopped) frame(); }
-          else { cancelAnimationFrame(rafId); rafId = null; }
-        });
-      }).observe(host);
-    }
-
-    host._shaderBgDestroy = function () {
-      stopped = true;
-      cancelAnimationFrame(rafId);
-      document.removeEventListener('visibilitychange', onVisibility);
-      ro.disconnect();
-      gl.deleteProgram(prog);
-      gl.deleteBuffer(buf);
-      canvas.remove();
-    };
+      const adapter=await navigator.gpu.requestAdapter({powerPreference:'low-power'}); if(!adapter)return;
+      const device=await adapter.requestDevice(), canvas=document.createElement('canvas');
+      canvas.className='webgpu-aurora';canvas.setAttribute('aria-hidden','true');
+      canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:inherit';
+      if(getComputedStyle(host).position==='static')host.style.position='relative';host.insertBefore(canvas,host.firstChild);
+      const context=canvas.getContext('webgpu'),format=navigator.gpu.getPreferredCanvasFormat();
+      context.configure({device,format,alphaMode:'opaque'});
+      const module=device.createShaderModule({code:shader});
+      const pipeline=device.createRenderPipeline({layout:'auto',vertex:{module,entryPoint:'vs'},fragment:{module,entryPoint:'fs',targets:[{format}]},primitive:{topology:'triangle-list'}});
+      const uniform=device.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+      const group=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uniform}}]});
+      let width=0,height=0,frame=0,resizeFrame=0,visible=true,last=0;const started=performance.now();
+      const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function resize(){resizeFrame=0;const d=Math.min(devicePixelRatio||1,1.5),w=Math.max(1,Math.min(2048,Math.round(host.clientWidth*d))),h=Math.max(1,Math.min(1200,Math.round(host.clientHeight*d)));if(w===width&&h===height)return;width=canvas.width=w;height=canvas.height=h;}
+      function draw(now){frame=0;if(!visible||document.hidden)return;if(now-last<50&&!reduced){frame=requestAnimationFrame(draw);return;}last=now;resize();device.queue.writeBuffer(uniform,0,new Float32Array([width,height,(now-started)/1000,0]));const e=device.createCommandEncoder(),p=e.beginRenderPass({colorAttachments:[{view:context.getCurrentTexture().createView(),clearValue:{r:.025,g:.055,b:.075,a:1},loadOp:'clear',storeOp:'store'}]});p.setPipeline(pipeline);p.setBindGroup(0,group);p.draw(3);p.end();device.queue.submit([e.finish()]);if(!reduced)frame=requestAnimationFrame(draw);}
+      new ResizeObserver(()=>{if(resizeFrame)cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{resize();if(!frame)frame=requestAnimationFrame(draw);});}).observe(host);
+      new IntersectionObserver(x=>{visible=x[0].isIntersecting;if(visible&&!frame)frame=requestAnimationFrame(draw);else if(!visible&&frame){cancelAnimationFrame(frame);frame=0;}}).observe(host);
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden&&visible&&!frame)frame=requestAnimationFrame(draw);},{passive:true});
+      frame=requestAnimationFrame(draw);
+    } catch (_) { host.dataset.webgpuUnavailable='true'; }
   }
-
-  function boot() {
-    var targets = document.querySelectorAll('[data-shader-bg]');
-    if (targets.length) { targets.forEach(initShaderBg); }
-    else { var pw = document.querySelector('.page-wrapper'); if (pw) initShaderBg(pw); }
-  }
-
-  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); }
-  else { boot(); }
+  const boot=()=>document.querySelectorAll('[data-shader-bg]').forEach(init);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();

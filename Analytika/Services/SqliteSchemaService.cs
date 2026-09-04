@@ -40,6 +40,12 @@ public static class SqliteSchemaService
         if (!ColumnExists(db, "ReportRequests", "EmailTo"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""EmailTo"" TEXT NULL");
 
+        foreach (var column in new[] { "FacilityIdsCsv", "ReceiverIdsCsv", "PayerIdsCsv", "ClinicianIdsCsv", "DepartmentIdsCsv", "EncounterTypesCsv" })
+        {
+            if (!ColumnExists(db, "ReportRequests", column))
+                db.Database.ExecuteSqlRaw($@"ALTER TABLE ""ReportRequests"" ADD COLUMN ""{column}"" TEXT NULL");
+        }
+
         if (!ColumnExists(db, "RemittanceClaims", "ClaimCategory"))
             db.Database.ExecuteSqlRaw(@"ALTER TABLE ""RemittanceClaims"" ADD COLUMN ""ClaimCategory"" TEXT NOT NULL DEFAULT 'Unknown'");
 

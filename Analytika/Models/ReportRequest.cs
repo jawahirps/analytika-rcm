@@ -11,6 +11,12 @@ public class ReportRequest
     public int? ClinicianId { get; set; }
     public int? DepartmentId { get; set; }
     public string? EncounterType { get; set; }
+    public string? FacilityIdsCsv { get; set; }
+    public string? ReceiverIdsCsv { get; set; }
+    public string? PayerIdsCsv { get; set; }
+    public string? ClinicianIdsCsv { get; set; }
+    public string? DepartmentIdsCsv { get; set; }
+    public string? EncounterTypesCsv { get; set; }
     public DateTime DateFrom { get; set; }
     public DateTime DateTo { get; set; }
     public string? SearchCriteria { get; set; }

@@ -27,8 +27,8 @@ public class ResubmissionController : Controller
     // ─── Dashboard ────────────────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> Index(string? status, int? facilityId, string? priority,
-        string? assignee, string? search, int page = 1)
+    public async Task<IActionResult> Index(List<string>? status, List<int>? facilityId, List<string>? priority,
+        List<string>? assignee, string? search, int page = 1)
     {
         const int pageSize = 30;
 
@@ -46,18 +46,27 @@ public class ResubmissionController : Controller
         if (!isAdmin)
             query = query.Where(rc => rc.Task != null && rc.Task.AssignedToUserId == userId);
 
-        if (facilityId.HasValue) query = query.Where(rc => rc.FacilityId == facilityId.Value);
-        if (!string.IsNullOrWhiteSpace(status))
+        facilityId ??= new();
+        status ??= new();
+        priority ??= new();
+        assignee ??= new();
+        if (facilityId.Count > 0) query = query.Where(rc => facilityId.Contains(rc.FacilityId));
+        if (status.Count > 0)
         {
-            if (status == "Unassigned")
-                query = query.Where(rc => rc.Task == null || rc.Task.Status == ResubmissionStatus.Unassigned);
-            else
-                query = query.Where(rc => rc.Task != null && rc.Task.Status == status);
+            var includeUnassigned = status.Contains("Unassigned");
+            query = query.Where(rc =>
+                (includeUnassigned && (rc.Task == null || rc.Task.Status == ResubmissionStatus.Unassigned)) ||
+                (rc.Task != null && status.Contains(rc.Task.Status)));
         }
-        if (!string.IsNullOrWhiteSpace(priority))
-            query = query.Where(rc => rc.Task != null && rc.Task.Priority == priority);
-        if (!string.IsNullOrWhiteSpace(assignee))
-            query = query.Where(rc => rc.Task != null && rc.Task.AssignedToUserId == assignee);
+        if (priority.Count > 0)
+            query = query.Where(rc => rc.Task != null && priority.Contains(rc.Task.Priority));
+        if (assignee.Count > 0)
+        {
+            var includeUnassigned = assignee.Contains("__unassigned__");
+            var assignedIds = assignee.Where(value => value != "__unassigned__").ToList();
+            query = query.Where(rc => (includeUnassigned && (rc.Task == null || rc.Task.AssignedToUserId == null)) ||
+                                      (rc.Task != null && rc.Task.AssignedToUserId != null && assignedIds.Contains(rc.Task.AssignedToUserId)));
+        }
         if (!string.IsNullOrWhiteSpace(search))
             query = query.Where(rc => rc.ClaimId.Contains(search) || rc.PayerClaimId!.Contains(search)
                 || rc.Comments!.Contains(search));

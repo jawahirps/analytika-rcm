@@ -4787,6 +4787,20 @@ video {
   .table-responsive .table,
   .table-responsive .data-table {
     min-width: 640px;
+    font-size: max(12.5px, .78rem) !important;
+  }
+
+  .table-responsive .fs-65,
+  .table-responsive .fs-68,
+  .table-responsive .fs-70,
+  .table-responsive .fs-71,
+  .table-responsive .fs-72,
+  .table-responsive .fs-73,
+  .table-responsive .fs-75,
+  .table-responsive .fs-78,
+  .table-responsive .fs-80,
+  .table-responsive .fs-82 {
+    font-size: max(12.5px, .78rem) !important;
   }
 }
 

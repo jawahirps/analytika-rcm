@@ -107,31 +107,28 @@
     <form method="get" class="filter-bar d-flex flex-wrap gap-2 align-items-end">
         <div>
             <label class="form-label mb-1 fs-72" style="font-weight:600;">STATUS</label>
-            <select name="status" class="form-select form-select-sm" style="min-width:110px;">
-                <option value="">All</option>
+            <select name="status" class="form-select form-select-sm select2-multi" multiple style="min-width:110px;">
                 @foreach (var s in (string[])ViewBag.Statuses)
                 {
-                    <option value="@s" selected="@(ViewBag.FilterStatus == s ? "selected" : null)">@s</option>
+                    <option value="@s" selected="@(((IEnumerable<string>)ViewBag.FilterStatus).Contains(s) ? "selected" : null)">@s</option>
                 }
             </select>
         </div>
         <div>
             <label class="form-label mb-1 fs-72" style="font-weight:600;">FACILITY</label>
-            <select name="facilityId" class="form-select form-select-sm" style="min-width:130px;">
-                <option value="">All</option>
+            <select name="facilityId" class="form-select form-select-sm select2-multi" multiple style="min-width:130px;">
                 @foreach (var f in facilities)
                 {
-                    <option value="@f.Id" selected="@(ViewBag.FilterFacility?.ToString() == f.Id.ToString() ? "selected" : null)">@f.Name</option>
+                    <option value="@f.Id" selected="@(((IEnumerable<int>)ViewBag.FilterFacility).Contains(f.Id) ? "selected" : null)">@f.Name</option>
                 }
             </select>
         </div>
         <div>
             <label class="form-label mb-1 fs-72" style="font-weight:600;">PRIORITY</label>
-            <select name="priority" class="form-select form-select-sm" style="min-width:100px;">
-                <option value="">All</option>
+            <select name="priority" class="form-select form-select-sm select2-multi" multiple style="min-width:100px;">
                 @foreach (var p in (string[])ViewBag.Priorities)
                 {
-                    <option value="@p" selected="@(ViewBag.FilterPriority == p ? "selected" : null)">@p</option>
+                    <option value="@p" selected="@(((IEnumerable<string>)ViewBag.FilterPriority).Contains(p) ? "selected" : null)">@p</option>
                 }
             </select>
         </div>
@@ -139,12 +136,11 @@
         {
             <div>
                 <label class="form-label mb-1 fs-72" style="font-weight:600;">ASSIGNEE</label>
-                <select name="assignee" class="form-select form-select-sm" style="min-width:130px;">
-                    <option value="">All</option>
-                    <option value="__unassigned__" selected="@(ViewBag.FilterAssignee == "__unassigned__" ? "selected" : null)">Unassigned</option>
+                <select name="assignee" class="form-select form-select-sm select2-multi" multiple style="min-width:130px;">
+                    <option value="__unassigned__" selected="@(((IEnumerable<string>)ViewBag.FilterAssignee).Contains("__unassigned__") ? "selected" : null)">Unassigned</option>
                     @foreach (var u in coders)
                     {
-                        <option value="@u.Id" selected="@(ViewBag.FilterAssignee == u.Id ? "selected" : null)">@(u.FullName ?? u.Email)</option>
+                        <option value="@u.Id" selected="@(((IEnumerable<string>)ViewBag.FilterAssignee).Contains(u.Id) ? "selected" : null)">@(u.FullName ?? u.Email)</option>
                     }
                 </select>
             </div>

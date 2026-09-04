@@ -509,6 +509,24 @@ namespace Analytika.Migrations
                     b.Property<string>("EncounterType")
                         .HasColumnType("text");
 
+                    b.Property<string>("EncounterTypesCsv")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FacilityIdsCsv")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiverIdsCsv")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayerIdsCsv")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClinicianIdsCsv")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DepartmentIdsCsv")
+                        .HasColumnType("text");
+
                     b.Property<string>("FileFormat")
                         .IsRequired()
                         .HasMaxLength(20)

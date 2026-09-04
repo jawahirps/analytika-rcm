@@ -119,16 +119,42 @@ public class ReportSchedulerController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateReport(ReportSchedulerViewModel model)
     {
+        var allowedFacilityIds = await GetUserFacilityIdsAsync();
+        var selectedFacilityIds = model.SelectedFacilities.Where(id => id > 0).Distinct().ToList();
+        if (allowedFacilityIds != null)
+        {
+            selectedFacilityIds = selectedFacilityIds.Count == 0
+                ? allowedFacilityIds
+                : selectedFacilityIds.Where(allowedFacilityIds.Contains).ToList();
+            if (selectedFacilityIds.Count == 0)
+            {
+                TempData["Error"] = "No authorized facility was selected for this report.";
+                return RedirectToAction(GetActionName(model.ReportType));
+            }
+        }
+
+        static string? Csv<T>(IEnumerable<T> values)
+        {
+            var items = values.Select(value => value?.ToString()).Where(value => !string.IsNullOrWhiteSpace(value)).Distinct().ToArray();
+            return items.Length == 0 ? null : string.Join(',', items);
+        }
+
         var user = User.Identity?.Name ?? "system";
         var request = new ReportRequest
         {
             ReportType = model.ReportType,
-            BranchId = model.SelectedFacilities.FirstOrDefault() == 0 ? null : model.SelectedFacilities.FirstOrDefault(),
+            BranchId = selectedFacilityIds.FirstOrDefault() == 0 ? null : selectedFacilityIds.First(),
             ReceiverId = model.SelectedReceivers.FirstOrDefault() == 0 ? null : model.SelectedReceivers.FirstOrDefault(),
             PayerId = model.SelectedPayers.FirstOrDefault() == 0 ? null : model.SelectedPayers.FirstOrDefault(),
             ClinicianId = model.SelectedClinicians.FirstOrDefault() == 0 ? null : model.SelectedClinicians.FirstOrDefault(),
             DepartmentId = model.SelectedDepartments.FirstOrDefault() == 0 ? null : model.SelectedDepartments.FirstOrDefault(),
-            EncounterType = model.EncounterType,
+            EncounterType = model.EncounterTypes.FirstOrDefault(),
+            FacilityIdsCsv = Csv(selectedFacilityIds),
+            ReceiverIdsCsv = Csv(model.SelectedReceivers.Where(id => id > 0)),
+            PayerIdsCsv = Csv(model.SelectedPayers.Where(id => id > 0)),
+            ClinicianIdsCsv = Csv(model.SelectedClinicians.Where(id => id > 0)),
+            DepartmentIdsCsv = Csv(model.SelectedDepartments.Where(id => id > 0)),
+            EncounterTypesCsv = Csv(model.EncounterTypes),
             DateFrom = model.DateFrom ?? DateTime.Now.AddMonths(-1),
             DateTo = model.DateTo ?? DateTime.Now,
             SearchCriteria = model.SearchCriteria,
@@ -138,8 +164,17 @@ public class ReportSchedulerController : Controller
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
 
+        var pendingParseQuery = _context.PortalTransactions.AsNoTracking()
+            .Where(t => t.FileDownloaded && t.FileContentXml != null &&
+                        !_context.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id));
+        if (selectedFacilityIds.Count > 0)
+            pendingParseQuery = pendingParseQuery.Where(t => selectedFacilityIds.Contains(t.FacilityId));
+        var pendingParseCount = await pendingParseQuery.CountAsync();
+
         var reportId = await _reportService.QueueReportAsync(request, model.DateRange);
-        TempData["Success"] = $"Report {reportId} is now generating in the background.";
+        TempData["Success"] = pendingParseCount > 0
+            ? $"Report {reportId} is queued. {pendingParseCount:N0} downloaded file(s) will be parsed and validated before generation."
+            : $"Report {reportId} is now generating from the validated parsed-data cache.";
 
         return RedirectToAction(GetActionName(model.ReportType));
     }

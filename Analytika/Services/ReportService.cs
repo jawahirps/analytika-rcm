@@ -214,6 +214,27 @@ public class ReportService : IReportService
 
         try
         {
+            static List<int> Ids(string? csv, int? fallback = null)
+            {
+                var ids = (csv ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(value => int.TryParse(value, out var id) ? id : 0).Where(id => id > 0).Distinct().ToList();
+                if (ids.Count == 0 && fallback.HasValue) ids.Add(fallback.Value);
+                return ids;
+            }
+            static HashSet<string> Values(string? csv, string? fallback = null)
+            {
+                var values = (csv ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(value => !string.IsNullOrWhiteSpace(value)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (values.Count == 0 && !string.IsNullOrWhiteSpace(fallback)) values.Add(fallback);
+                return values;
+            }
+
+            var facilityIds = Ids(report.FacilityIdsCsv, report.BranchId);
+            var receiverIds = Ids(report.ReceiverIdsCsv, report.ReceiverId);
+            var payerIds = Ids(report.PayerIdsCsv, report.PayerId);
+            var clinicianIds = Ids(report.ClinicianIdsCsv, report.ClinicianId);
+            var encounterTypes = Values(report.EncounterTypesCsv, report.EncounterType);
+
             report.Status = "Processing";
             await _context.SaveChangesAsync();
 
@@ -229,14 +250,22 @@ public class ReportService : IReportService
             UpdateStage("Preparing query plan", 3, 0, 0, $"ReportRequests #{report.Id}: facility={report.Branch?.Name ?? "All"}, range={report.DateFrom:dd/MM/yyyy}-{report.DateTo:dd/MM/yyyy}.");
             UpdateStage("Preparing parsed XML", 5, 0, 0, "Checking claim-level XML cache before report matching.");
             XmlParsingRunResult parseResult;
-            if (report.BranchId.HasValue)
+            if (facilityIds.Count > 0)
             {
-                parseResult = await _xmlParsingService.ParseDownloadedXmlAsync(report.BranchId, rebuild: false, onProgress: p =>
+                parseResult = new XmlParsingRunResult();
+                foreach (var facilityId in facilityIds)
                 {
-                    var pct = p.Total > 0 ? 5 + (int)Math.Round((p.Done / (double)p.Total) * 15) : 15;
-                    UpdateStage("Preparing parsed XML", Math.Min(20, pct), p.Done, p.Total, p.Message);
-                    return Task.CompletedTask;
-                });
+                    var facilityResult = await _xmlParsingService.ParseDownloadedXmlAsync(facilityId, rebuild: false, onProgress: p =>
+                    {
+                        var pct = p.Total > 0 ? 5 + (int)Math.Round((p.Done / (double)p.Total) * 15) : 15;
+                        UpdateStage("Preparing parsed XML", Math.Min(20, pct), p.Done, p.Total, p.Message);
+                        return Task.CompletedTask;
+                    });
+                    parseResult.FilesScanned += facilityResult.FilesScanned;
+                    parseResult.FilesParsed += facilityResult.FilesParsed;
+                    parseResult.RecordsSaved += facilityResult.RecordsSaved;
+                    parseResult.MatchedClaimRefs += facilityResult.MatchedClaimRefs;
+                }
             }
             else
             {
@@ -257,8 +286,12 @@ public class ReportService : IReportService
                 .AsNoTracking()
                 .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
 
-            if (report.BranchId.HasValue)
-                parsedClaimQuery = parsedClaimQuery.Where(r => r.FacilityId == report.BranchId.Value);
+            if (facilityIds.Count > 0)
+                parsedClaimQuery = parsedClaimQuery.Where(r => facilityIds.Contains(r.FacilityId));
+
+            var reportYears = Enumerable.Range(report.DateFrom.Year, report.DateTo.Year - report.DateFrom.Year + 1)
+                .Select(year => year.ToString(CultureInfo.InvariantCulture)).ToList();
+            parsedClaimQuery = parsedClaimQuery.Where(r => r.ServiceYear == null || reportYears.Contains(r.ServiceYear));
 
             var parsedSubmissions = await parsedClaimQuery
                 .OrderBy(r => r.ParsedAt)
@@ -271,8 +304,8 @@ public class ReportService : IReportService
                 .AsNoTracking()
                 .Where(r => r.ReadyForReport && r.RecordKind == "Remittance");
 
-            if (report.BranchId.HasValue)
-                parsedRemittanceQuery = parsedRemittanceQuery.Where(r => r.FacilityId == report.BranchId.Value);
+            if (facilityIds.Count > 0)
+                parsedRemittanceQuery = parsedRemittanceQuery.Where(r => facilityIds.Contains(r.FacilityId));
 
             var remittanceClaims = await parsedRemittanceQuery
                 .Select(r => new RemittanceClaimRow
@@ -298,6 +331,15 @@ public class ReportService : IReportService
             UpdateStage("Loading facility lookup", 58, 0, 0, "Query: Facilities lookup for report row labels.");
             var facilityNames = await _context.Facilities.AsNoTracking()
                 .ToDictionaryAsync(f => f.Id, f => f.Name);
+            var receiverFilters = receiverIds.Count == 0
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : (await _context.Receivers.AsNoTracking().Where(x => receiverIds.Contains(x.Id)).Select(x => x.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var payerFilters = payerIds.Count == 0
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : (await _context.Payers.AsNoTracking().Where(x => payerIds.Contains(x.Id)).Select(x => x.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var clinicianFilters = clinicianIds.Count == 0
+                ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                : (await _context.Clinicians.AsNoTracking().Where(x => clinicianIds.Contains(x.Id)).Select(x => x.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // ── Build rows only after both sides are parsed and matched ──
             var rows = new List<ClaimRow>();
@@ -346,28 +388,25 @@ public class ReportService : IReportService
             {
                 var row = initialSubmissionRows[i];
 
-                // Date filter based on SearchCriteria
+                raLookup.TryGetValue(row.ClaimId, out var ra);
+                row.Ra = ra;
+
                 var filterDate = report.SearchCriteria switch
                 {
                     "SubmissionDate" => ParseDhpoDate(row.SubmissionDate),
                     "EncounterEndDate" => ParseDhpoDate(row.TreatmentDateEnd),
+                    "PaymentDate" => ra?.SettlementDateValue,
                     _ => ParseDhpoDate(row.TreatmentDate)
                 };
-                if (filterDate.HasValue &&
-                    (filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date))
+                if (!filterDate.HasValue || filterDate.Value.Date < report.DateFrom.Date || filterDate.Value.Date > report.DateTo.Date)
                     continue;
-
-                if (report.PayerId.HasValue)
-                {
-                    var payerCode = report.Payer?.Name ?? "";
-                    if (!string.IsNullOrEmpty(payerCode)
-                        && !row.PayerName.Contains(payerCode, StringComparison.OrdinalIgnoreCase)
-                        && !row.PayerId.Contains(payerCode, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                }
-
-                raLookup.TryGetValue(row.ClaimId, out var ra);
-                row.Ra = ra;
+                static bool Matches(HashSet<string> filters, params string[] values) => filters.Count == 0 ||
+                    filters.Any(filter => values.Any(value => value.Equals(filter, StringComparison.OrdinalIgnoreCase) || value.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+                if (!Matches(receiverFilters, row.ReceiverId, row.ReceiverName) ||
+                    !Matches(payerFilters, row.PayerId, row.PayerName) ||
+                    !Matches(clinicianFilters, row.Clinician) ||
+                    (encounterTypes.Count > 0 && !encounterTypes.Contains(row.EncounterType)))
+                    continue;
 
                 var outboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && outboundCounts.TryGetValue(row.ClaimId, out var obCount) ? obCount : 1;
                 var inboundCount = !string.IsNullOrWhiteSpace(row.ClaimId) && inboundCounts.TryGetValue(row.ClaimId, out var ibCount) ? ibCount : 0;

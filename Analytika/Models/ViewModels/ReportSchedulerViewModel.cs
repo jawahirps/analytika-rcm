@@ -15,7 +15,7 @@ public class ReportSchedulerViewModel
     public List<int> SelectedPayers { get; set; } = new();
     public List<int> SelectedClinicians { get; set; } = new();
     public List<int> SelectedDepartments { get; set; } = new();
-    public string? EncounterType { get; set; }
+    public List<string> EncounterTypes { get; set; } = new();
     public string? Template { get; set; }
     public string FileFormat { get; set; } = "Excel";
     public string? EmailTo { get; set; }   // comma-separated recipient addresses
