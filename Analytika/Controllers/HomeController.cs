@@ -125,6 +125,11 @@ public class HomeController : Controller
     [HttpGet]
     public async Task<IActionResult> RCMDashboard(
         string tab = "Submissions",
+        List<int>? facilityIds = null,
+        List<string>? receivers = null,
+        List<string>? payers = null,
+        List<string>? encounterTypes = null,
+        // Keep old bookmarked single-select URLs working.
         int? facilityId = null,
         string? receiver = null,
         string? payer = null,
@@ -132,6 +137,16 @@ public class HomeController : Controller
         DateOnly? dateFrom = null,
         DateOnly? dateTo = null)
     {
+        facilityIds = (facilityIds ?? new()).Distinct().ToList();
+        receivers = (receivers ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        payers = (payers ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        encounterTypes = (encounterTypes ?? new()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        if (facilityId.HasValue && facilityIds.Count == 0) facilityIds.Add(facilityId.Value);
+        if (!string.IsNullOrWhiteSpace(receiver) && receivers.Count == 0) receivers.Add(receiver);
+        if (!string.IsNullOrWhiteSpace(payer) && payers.Count == 0) payers.Add(payer);
+        if (!string.IsNullOrWhiteSpace(encounterType) && encounterTypes.Count == 0) encounterTypes.Add(encounterType);
+
         // Facility isolation: the facilityId arrives from the query string, so it must be
         // validated — a scoped user must not be able to view another facility by editing
         // the URL. Non-admins are forced onto one of their own facilities.
@@ -140,16 +155,17 @@ public class HomeController : Controller
         {
             if (allowed.Count == 0)
                 return View("NoFacilityAccess");
-            if (facilityId is null || !allowed.Contains(facilityId.Value))
-                facilityId = allowed[0];
+            facilityIds = facilityIds.Where(allowed.Contains).ToList();
+            if (facilityIds.Count == 0)
+                facilityIds = allowed.ToList();
         }
 
         var filters = new RcmDashboardFilters
         {
-            FacilityId = facilityId,
-            Receiver = receiver,
-            Payer = payer,
-            EncounterType = encounterType,
+            FacilityIds = facilityIds,
+            Receivers = receivers,
+            Payers = payers,
+            EncounterTypes = encounterTypes,
             DateFrom = dateFrom,
             DateTo = dateTo
         };

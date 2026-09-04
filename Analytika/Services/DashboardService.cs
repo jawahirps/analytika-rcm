@@ -421,14 +421,14 @@ public class DashboardService : IDashboardService
         // screens, but must never inflate executive RCM totals.
         var q = _db.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport);
 
-        if (filters.FacilityId.HasValue)
-            q = q.Where(r => r.FacilityId == filters.FacilityId.Value);
-        if (!string.IsNullOrWhiteSpace(filters.Receiver))
-            q = q.Where(r => (r.ReceiverName ?? r.ReceiverId) == filters.Receiver);
-        if (!string.IsNullOrWhiteSpace(filters.Payer))
-            q = q.Where(r => (r.PayerName ?? r.PayerId) == filters.Payer);
-        if (!string.IsNullOrWhiteSpace(filters.EncounterType))
-            q = q.Where(r => r.EncounterType == filters.EncounterType);
+        if (filters.FacilityIds.Count > 0)
+            q = q.Where(r => filters.FacilityIds.Contains(r.FacilityId));
+        if (filters.Receivers.Count > 0)
+            q = q.Where(r => filters.Receivers.Contains(r.ReceiverName ?? r.ReceiverId ?? ""));
+        if (filters.Payers.Count > 0)
+            q = q.Where(r => filters.Payers.Contains(r.PayerName ?? r.PayerId ?? ""));
+        if (filters.EncounterTypes.Count > 0)
+            q = q.Where(r => filters.EncounterTypes.Contains(r.EncounterType ?? ""));
         if (filters.DateFrom.HasValue)
         {
             var from = filters.DateFrom.Value.ToString("yyyy-MM-dd");

@@ -23,10 +23,10 @@ public class RCMDashboardViewModel
     public List<DashboardFilterOption> PayerOptions { get; set; } = new();
     public List<DashboardFilterOption> EncounterTypeOptions { get; set; } = new();
     public bool HasActiveFilters =>
-        Filters.FacilityId.HasValue ||
-        !string.IsNullOrWhiteSpace(Filters.Receiver) ||
-        !string.IsNullOrWhiteSpace(Filters.Payer) ||
-        !string.IsNullOrWhiteSpace(Filters.EncounterType) ||
+        Filters.FacilityIds.Count > 0 ||
+        Filters.Receivers.Count > 0 ||
+        Filters.Payers.Count > 0 ||
+        Filters.EncounterTypes.Count > 0 ||
         Filters.DateFrom.HasValue ||
         Filters.DateTo.HasValue;
 }
@@ -52,10 +52,10 @@ public class RcmLifecycleStage
 
 public class RcmDashboardFilters
 {
-    public int? FacilityId { get; set; }
-    public string? Receiver { get; set; }
-    public string? Payer { get; set; }
-    public string? EncounterType { get; set; }
+    public List<int> FacilityIds { get; set; } = new();
+    public List<string> Receivers { get; set; } = new();
+    public List<string> Payers { get; set; } = new();
+    public List<string> EncounterTypes { get; set; } = new();
     public DateOnly? DateFrom { get; set; }
     public DateOnly? DateTo { get; set; }
 }

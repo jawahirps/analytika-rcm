@@ -1,5 +1,6 @@
 @model Analytika.Models.ViewModels.RCMDashboardViewModel
 @using System.Text.Json
+@using Microsoft.AspNetCore.WebUtilities
 @{
     ViewData["Title"] = "Claims Lifecycle Control Room";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -14,6 +15,19 @@
     string Aed(decimal value) => value >= 1_000_000 ? $"AED {value / 1_000_000:F2}M"
         : value >= 1_000 ? $"AED {value / 1_000:F1}K" : $"AED {value:F0}";
     var maxBreakdown = Math.Max(1, Model.Breakdown.DefaultIfEmpty().Max(x => x?.Value ?? 0));
+    string TabUrl(string tab)
+    {
+        var values = new List<KeyValuePair<string, string?>>
+        {
+            new("tab", tab), new("dateFrom", Model.Filters.DateFrom?.ToString("yyyy-MM-dd")),
+            new("dateTo", Model.Filters.DateTo?.ToString("yyyy-MM-dd"))
+        };
+        values.AddRange(Model.Filters.FacilityIds.Select(x => new KeyValuePair<string, string?>("facilityIds", x.ToString())));
+        values.AddRange(Model.Filters.Receivers.Select(x => new KeyValuePair<string, string?>("receivers", x)));
+        values.AddRange(Model.Filters.Payers.Select(x => new KeyValuePair<string, string?>("payers", x)));
+        values.AddRange(Model.Filters.EncounterTypes.Select(x => new KeyValuePair<string, string?>("encounterTypes", x)));
+        return QueryHelpers.AddQueryString(Url.Action("RCMDashboard", "Home")!, values);
+    }
 }
 
 @section Styles {
@@ -36,6 +50,8 @@
     .control-strip{display:grid;grid-template-columns:minmax(220px,1.15fr) repeat(4,minmax(150px,1fr)) auto;gap:.65rem;align-items:end;background:var(--rcm-card);border:1px solid var(--rcm-line);border-radius:12px;padding:.8rem;margin-bottom:.85rem}
     .field label{display:block;color:var(--rcm-muted);font-size:.66rem;font-weight:700;margin:0 0 .25rem}
     .field select,.field input{width:100%;height:38px;border:1px solid var(--rcm-line);border-radius:8px;background:var(--rcm-card);color:var(--rcm-ink);font:inherit;font-size:.78rem;padding:0 .65rem}
+    .control-strip .select2-container{width:100%!important}.control-strip .select2-selection--multiple{min-height:38px!important;height:auto!important;border-color:var(--rcm-line)!important;border-radius:8px!important}
+    .control-strip .select2-selection__choice{font-size:.68rem;margin-top:6px!important}.control-strip .select2-search__field{font-size:.76rem;margin-top:8px!important}
     .date-pair{display:grid;grid-template-columns:1fr 1fr;gap:.4rem}
     .apply-btn,.reset-btn{height:38px;border-radius:8px;padding:0 .9rem;font-weight:700;font-size:.78rem;display:inline-flex;align-items:center;justify-content:center;gap:.4rem;text-decoration:none}
     .apply-btn{border:1px solid var(--rcm-teal);background:var(--rcm-teal);color:#fff}
@@ -94,21 +110,17 @@
         @foreach (var tab in Model.Tabs)
         {
             <a class="room-tab @(tab.Equals(Model.ActiveTab,StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-               asp-controller="Home" asp-action="RCMDashboard" asp-route-tab="@tab"
-               asp-route-facilityId="@Model.Filters.FacilityId" asp-route-receiver="@Model.Filters.Receiver"
-               asp-route-payer="@Model.Filters.Payer" asp-route-encounterType="@Model.Filters.EncounterType"
-               asp-route-dateFrom="@Model.Filters.DateFrom?.ToString("yyyy-MM-dd")"
-               asp-route-dateTo="@Model.Filters.DateTo?.ToString("yyyy-MM-dd")">@tab</a>
+               href="@TabUrl(tab)">@tab</a>
         }
     </nav>
 
     <form method="get" asp-controller="Home" asp-action="RCMDashboard" class="control-strip">
         <input type="hidden" name="tab" value="@Model.ActiveTab"/>
         <div class="field"><label>Date range</label><div class="date-pair"><input type="date" name="dateFrom" value="@from.ToString("yyyy-MM-dd")" aria-label="From date"/><input type="date" name="dateTo" value="@to.ToString("yyyy-MM-dd")" aria-label="To date"/></div></div>
-        <div class="field"><label for="facilityId">Facility</label><select id="facilityId" name="facilityId"><option value="">All facilities</option>@foreach(var o in Model.FacilityOptions){<option value="@o.Value" selected="@(Model.Filters.FacilityId?.ToString()==o.Value)">@o.Label</option>}</select></div>
-        <div class="field"><label for="payer">Payer</label><select id="payer" name="payer"><option value="">All payers</option>@foreach(var o in Model.PayerOptions){<option value="@o.Value" selected="@(Model.Filters.Payer==o.Value)">@o.Label</option>}</select></div>
-        <div class="field"><label for="receiver">Receiver</label><select id="receiver" name="receiver"><option value="">All receivers</option>@foreach(var o in Model.ReceiverOptions){<option value="@o.Value" selected="@(Model.Filters.Receiver==o.Value)">@o.Label</option>}</select></div>
-        <div class="field"><label for="encounterType">Encounter type</label><select id="encounterType" name="encounterType"><option value="">All types</option>@foreach(var o in Model.EncounterTypeOptions){<option value="@o.Value" selected="@(Model.Filters.EncounterType==o.Value)">@o.Label</option>}</select></div>
+        <div class="field"><label for="facilityIds">Facilities</label><select id="facilityIds" name="facilityIds" class="select2-multi" multiple data-placeholder="All facilities">@foreach(var o in Model.FacilityOptions){<option value="@o.Value" selected="@(Model.Filters.FacilityIds.Contains(int.Parse(o.Value)))">@o.Label</option>}</select></div>
+        <div class="field"><label for="payers">Payers</label><select id="payers" name="payers" class="select2-multi" multiple data-placeholder="All payers">@foreach(var o in Model.PayerOptions){<option value="@o.Value" selected="@(Model.Filters.Payers.Contains(o.Value,StringComparer.OrdinalIgnoreCase))">@o.Label</option>}</select></div>
+        <div class="field"><label for="receivers">Receivers</label><select id="receivers" name="receivers" class="select2-multi" multiple data-placeholder="All receivers">@foreach(var o in Model.ReceiverOptions){<option value="@o.Value" selected="@(Model.Filters.Receivers.Contains(o.Value,StringComparer.OrdinalIgnoreCase))">@o.Label</option>}</select></div>
+        <div class="field"><label for="encounterTypes">Encounter types</label><select id="encounterTypes" name="encounterTypes" class="select2-multi" multiple data-placeholder="All types">@foreach(var o in Model.EncounterTypeOptions){<option value="@o.Value" selected="@(Model.Filters.EncounterTypes.Contains(o.Value,StringComparer.OrdinalIgnoreCase))">@o.Label</option>}</select></div>
         <div class="filter-actions"><button class="apply-btn" type="submit"><i class="fas fa-filter"></i>Apply</button><a class="reset-btn" asp-action="RCMDashboard" asp-route-tab="@Model.ActiveTab" title="Reset filters" aria-label="Reset filters"><i class="fas fa-rotate-left"></i></a></div>
     </form>
 
