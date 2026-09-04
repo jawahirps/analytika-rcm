@@ -231,6 +231,8 @@ public static class ModuleRegistration
         if (configuration.GetValue("LiveDataSync:Enabled", false))
             services.AddHostedService<HourlyLiveDataService>();
 
+        services.AddHostedService<PendingReportRecoveryService>();
+
         return services;
     }
 }

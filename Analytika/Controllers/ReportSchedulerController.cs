@@ -176,17 +176,8 @@ public class ReportSchedulerController : Controller
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
 
-        var pendingParseQuery = _context.PortalTransactions.AsNoTracking()
-            .Where(t => t.FileDownloaded && t.FileContentXml != null &&
-                        !_context.XmlParsedRecords.Any(r => r.PortalTransactionId == t.Id));
-        if (selectedFacilityIds.Count > 0)
-            pendingParseQuery = pendingParseQuery.Where(t => selectedFacilityIds.Contains(t.FacilityId));
-        var pendingParseCount = await pendingParseQuery.CountAsync();
-
         var reportId = await _reportService.QueueReportAsync(request, model.DateRange);
-        TempData["Success"] = pendingParseCount > 0
-            ? $"Report {reportId} is queued. {pendingParseCount:N0} downloaded file(s) will be parsed and validated before generation."
-            : $"Report {reportId} is now generating from the validated parsed-data cache.";
+        TempData["Success"] = $"Report {reportId} is queued for parsing, generation, and validation.";
 
         return RedirectToAction(GetActionName(model.ReportType));
     }
