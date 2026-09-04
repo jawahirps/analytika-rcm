@@ -672,7 +672,7 @@ public class ReportService : IReportService
             ws.Columns(1, headers.Length).AdjustToContents(1, Math.Min(mainTableLastRow, tableHeaderRow + 500));
             ApplyGhafReportLayout(ws, headers.Length, mainTableLastRow);
 
-            var stagingPath = $"{filePath}.{Guid.NewGuid():N}.staging";
+            var stagingPath = $"{filePath}.{Guid.NewGuid():N}.staging.xlsx";
             try
             {
                 wb.SaveAs(stagingPath);
