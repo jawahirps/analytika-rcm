@@ -159,7 +159,7 @@ public class ReportSchedulerController : Controller
             DateTo = model.DateTo ?? DateTime.Now,
             SearchCriteria = model.SearchCriteria,
             Template = model.Template,
-            FileFormat = model.FileFormat,
+            FileFormat = "Excel",
             RequestedBy = user,
             EmailTo = string.IsNullOrWhiteSpace(model.EmailTo) ? null : model.EmailTo.Trim()
         };
