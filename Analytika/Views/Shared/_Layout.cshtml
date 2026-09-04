@@ -21,9 +21,6 @@
             } catch (_) {}
         })();
     </script>
-    @* Self-hosted webfonts — served from our origin (behind Cloudflare, edge-cached,
-       immutable), so no third-party request on the critical path. *@
-    <link rel="stylesheet" href="~/css/fonts.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/lib/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/fontawesome.min.css" />
     <link rel="stylesheet" href="~/lib/select2.min.css" />
@@ -35,7 +32,7 @@
 </head>
 <body>
 
-<nav class="navbar navbar-expand analytika-navbar">
+<nav class="navbar navbar-expand-xl analytika-navbar">
     <div class="container-fluid px-3">
         @{
             var canAccessRcm = User.IsInRole(AppRoles.Admin) || User.IsInRole(AppRoles.FacilityAdmin) || User.IsInRole(AppRoles.Analyst) || User.IsInRole(AppRoles.Billing) || User.IsInRole(AppRoles.Finance) || User.IsInRole(AppRoles.Auditor);

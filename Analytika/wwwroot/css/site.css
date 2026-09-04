@@ -4501,167 +4501,144 @@ video {
   max-width: 100%;
 }
 
-/* Permanent single-row top navigation. Compact widths progressively remove
-   decorative text/controls; the navigation never collapses or scrolls. */
+/* Shared top navigation: labelled and horizontal on desktop, naturally
+   collapsible below Bootstrap's xl breakpoint. Keep this final so older
+   sidebar-era responsive rules cannot force the menu back into one row. */
 .analytika-navbar {
   overflow: visible;
 }
 
-.analytika-navbar > .container-fluid {
-  display: flex;
-  flex-wrap: nowrap !important;
-  gap: .5rem;
-}
-
-.analytika-navbar .navbar-toggler {
-  display: none !important;
-}
-
-.analytika-navbar .navbar-collapse {
-  display: flex !important;
-  flex: 1 1 auto;
-  flex-basis: auto !important;
-  flex-wrap: nowrap;
-  align-items: center;
-  min-width: 0;
-  max-height: none;
-  padding: 0;
-  overflow: visible;
-  overflow-y: visible;
-}
-
-.analytika-navbar .navbar-nav,
-.analytika-navbar .navbar-nav.ms-auto {
-  width: auto;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center !important;
-  flex-shrink: 1;
-}
-
-.analytika-navbar .nav-item,
-.analytika-navbar .nav-link,
-.analytika-navbar .profile-btn {
-  width: auto;
-  white-space: nowrap;
-}
-
-.analytika-navbar .nav-link {
-  gap: .3rem;
-}
-
-.analytika-navbar .nav-link,
-.analytika-navbar .profile-btn {
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-}
-
 .analytika-navbar .dropdown-menu {
-  position: absolute;
-  width: max-content;
-  min-width: 220px;
+  z-index: 1055;
   max-width: min(360px, calc(100vw - 1rem));
-  margin-top: 0;
-  box-shadow: var(--shadow-md);
 }
 
-@media (max-width: 767.98px) {
+@media (min-width: 1200px) {
   .analytika-navbar > .container-fluid {
-    padding-inline: .625rem !important;
+    flex-wrap: nowrap;
+    gap: .5rem;
   }
 
-  .analytika-brand {
-    flex: 0 0 auto;
+  .analytika-navbar .navbar-collapse {
+    display: flex !important;
+    min-width: 0;
+    overflow: visible;
   }
 
-  .analytika-navbar .nav-link {
-    padding-inline: .65rem;
-    font-size: .78rem;
+  .analytika-navbar .navbar-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
   }
 
-  .analytika-navbar .lang-theme-tools {
-    display: none !important;
+  .analytika-navbar .nav-link,
+  .analytika-navbar .profile-btn {
+    white-space: nowrap;
   }
 }
 
 @media (max-width: 1199.98px) {
-  .analytika-navbar .brand-sub,
-  .analytika-navbar .primary-nav-label,
-  .analytika-navbar .profile-btn .text-truncate {
+  .analytika-navbar > .container-fluid {
+    flex-wrap: wrap !important;
+  }
+
+  .analytika-navbar .navbar-toggler {
+    display: inline-flex !important;
+    margin-left: auto;
+  }
+
+  .analytika-navbar .navbar-collapse {
+    flex-basis: 100% !important;
+    width: 100%;
+    max-height: calc(100dvh - 72px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: .75rem 0 1rem;
+  }
+
+  .analytika-navbar .navbar-collapse:not(.show):not(.collapsing) {
     display: none !important;
+  }
+
+  .analytika-navbar .navbar-nav,
+  .analytika-navbar .navbar-nav.ms-auto {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .analytika-navbar .nav-item,
+  .analytika-navbar .nav-link,
+  .analytika-navbar .profile-btn,
+  .analytika-navbar .bell-btn {
+    width: 100%;
   }
 
   .analytika-navbar .nav-link,
   .analytika-navbar .profile-btn,
   .analytika-navbar .bell-btn {
-    width: 36px;
-    min-width: 36px;
-    justify-content: center;
-    padding-inline: 0 !important;
+    min-height: 44px;
+    justify-content: flex-start;
+    padding: .6rem .75rem !important;
   }
 
-  .analytika-navbar .dropdown-toggle::after {
-    display: none;
+  .analytika-navbar .dropdown-menu {
+    position: static !important;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    max-height: min(55dvh, 420px);
+    overflow-y: auto;
+    margin: .2rem 0 .5rem !important;
+    transform: none !important;
+    box-shadow: none;
+  }
+
+  .analytika-navbar .lang-theme-tools {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin: .5rem 0 !important;
   }
 }
 
 @media (max-width: 575.98px) {
   .analytika-navbar > .container-fluid {
-    gap: 0;
-    padding-inline: .25rem !important;
-  }
-
-  .analytika-navbar .analytika-brand {
-    width: 34px;
-    padding-inline: 2px;
-    margin: 0;
-    gap: 0;
-    border: 0;
+    padding-inline: .625rem !important;
   }
 
   .analytika-navbar .brand-name-wrap {
-    display: none;
-  }
-
-  .analytika-navbar .brand-icon-sm {
-    width: 28px;
-    height: 28px;
-  }
-
-  .analytika-navbar .nav-link,
-  .analytika-navbar .profile-btn,
-  .analytika-navbar .bell-btn {
-    width: 28px;
-    min-width: 28px;
-    min-height: 40px;
-  }
-
-  .analytika-navbar .profile-avatar-circle {
-    width: 26px;
-    height: 26px;
-  }
-
-  .analytika-navbar .dev-nav-item {
-    display: none;
-  }
-
-  .analytika-navbar .dropdown-menu {
-    position: fixed !important;
-    top: 52px !important;
-    left: .5rem !important;
-    right: .5rem !important;
-    width: auto !important;
-    min-width: 0;
-    max-width: none;
-    transform: none !important;
+    max-width: calc(100vw - 120px);
   }
 }
 
-@media (max-width: 359.98px) {
-  .analytika-navbar .bell-btn,
-  .analytika-navbar .profile-btn {
-    display: none !important;
+/* Populated multi-selects grow vertically; keep their result menus above
+   cards, sticky navigation and charts. */
+.select2-container--open {
+  z-index: 1060;
+}
+
+.select2-dropdown {
+  z-index: 1061;
+}
+
+@media (max-width: 900px) {
+  .lifecycle-room .control-strip {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  }
+
+  .lifecycle-room .filter-actions {
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .lifecycle-room .control-strip {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .lifecycle-room .filter-actions > * {
+    flex: 1 1 auto;
   }
 }
 

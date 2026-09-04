@@ -376,27 +376,27 @@
     </div>
 
     <!-- Data Analyst Agent -->
-    <div class="agent-card" onclick="document.getElementById('agentModal').style.display='flex'">
+    <section class="agent-card" aria-labelledby="agentCardTitle">
         <div class="agent-icon">
             <i class="fas fa-robot"></i>
         </div>
         <div class="agent-info">
-            <div class="agent-name">
+            <div class="agent-name" id="agentCardTitle">
                 Data Analyst
                 <span class="agent-badge">AI Agent</span>
             </div>
             <div class="agent-desc">Load, explore, and visualize data; build reports and answer questions from datasets.</div>
-            <div class="agent-model"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-4-6</div>
+            <div class="agent-model"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-5</div>
         </div>
         <div class="agent-actions">
-            <button class="agent-btn agent-btn-primary" onclick="event.stopPropagation();document.getElementById('agentModal').style.display='flex'">
+            <a class="agent-btn agent-btn-primary" href="/Ai">
                 <i class="fas fa-play" style="font-size:.65rem;"></i> Launch Agent
-            </button>
-            <button class="agent-btn agent-btn-ghost" onclick="event.stopPropagation();">
+            </a>
+            <button type="button" class="agent-btn agent-btn-ghost" onclick="document.getElementById('agentModal').style.display='flex'">
                 <i class="fas fa-info-circle" style="font-size:.65rem;"></i> About
             </button>
         </div>
-    </div>
+    </section>
 
     <!-- Agent modal -->
     <div id="agentModal" style="display:none;position:fixed;inset:0;z-index:1050;align-items:center;justify-content:center;background:rgba(1,28,64,0.55);backdrop-filter:blur(6px);" onclick="if(event.target===this)this.style.display='none'">
@@ -405,7 +405,7 @@
                 <div style="width:44px;height:44px;border-radius:12px;background:rgba(84,172,191,0.2);border:1px solid rgba(84,172,191,.35);display:flex;align-items:center;justify-content:center;color:#54ACBF;font-size:1.2rem;"><i class="fas fa-robot"></i></div>
                 <div style="flex:1;">
                     <div style="font-size:1rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">Data Analyst <span style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#54ACBF;background:rgba(84,172,191,.15);border:1px solid rgba(84,172,191,.3);padding:2px 8px;border-radius:999px;">AI Agent</span></div>
-                    <div style="font-size:.75rem;color:rgba(84,172,191,.8);margin-top:2px;"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-4-6</div>
+                    <div style="font-size:.75rem;color:rgba(84,172,191,.8);margin-top:2px;"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-5</div>
                 </div>
                 <button onclick="document.getElementById('agentModal').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:1.2rem;cursor:pointer;padding:4px;line-height:1;">&times;</button>
             </div>
@@ -474,7 +474,7 @@
                 </div>
                 <div class="dash-kpi-badge" id="kpiBadge">—</div>
             </div>
-            <div id="chartVolume" style="min-height:160px;"></div>
+            <div id="chartVolume" class="dashboard-chart" aria-label="Transaction volume chart"><div class="chart-state">Loading chart…</div></div>
         </div>
         <div class="dash-chart-card">
             <div class="dash-chart-header">
@@ -484,7 +484,7 @@
                 </div>
                 <div class="dash-kpi-text" id="kpiTotal">—</div>
             </div>
-            <div id="chartTypes" style="min-height:160px;"></div>
+            <div id="chartTypes" class="dashboard-chart" aria-label="Transaction type chart"><div class="chart-state">Loading chart…</div></div>
         </div>
     </div>
 
@@ -586,8 +586,35 @@
 @section Scripts {
 <script>document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(document.getElementById('agentModal')));</script>
 <style>
+.agent-card {
+    display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center;
+    gap: 16px; margin-bottom: 20px; padding: 18px 20px; color: var(--text);
+    background: linear-gradient(120deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 88%, #54ACBF 12%) 100%);
+    border: 1px solid var(--glass-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
+}
+.agent-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#006884,#54ACBF); box-shadow: 0 8px 20px rgba(0,104,132,.2); }
+.agent-info { min-width: 0; }
+.agent-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text); font-weight: 750; }
+.agent-badge { padding: 3px 8px; border-radius: 999px; color: #006884; background: rgba(84,172,191,.14); font-size: .62rem; letter-spacing: .07em; text-transform: uppercase; }
+.agent-desc { margin-top: 4px; color: var(--text-muted); font-size: var(--fs-sm); }
+.agent-model { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; color: var(--text-muted); font-size: var(--fs-xs); }
+.agent-actions { display: flex; align-items: center; gap: 8px; }
+.agent-btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 13px; border: 1px solid var(--border); border-radius: 10px; font-size: var(--fs-xs); font-weight: 700; text-decoration: none; cursor: pointer; }
+.agent-btn-primary { color: #fff; border-color: #006884; background: #006884; }
+.agent-btn-primary:hover { color: #fff; background: #00556d; }
+.agent-btn-ghost { color: var(--text); background: transparent; }
+.agent-btn-ghost:hover { background: var(--surface-hover); }
 .dash-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-@@media (max-width: 900px) { .dash-charts-row { grid-template-columns: 1fr; } }
+@@media (max-width: 900px) {
+    .dash-charts-row { grid-template-columns: 1fr; }
+    .agent-card { grid-template-columns: auto minmax(0,1fr); }
+    .agent-actions { grid-column: 1 / -1; }
+}
+@@media (max-width: 520px) {
+    .agent-card { padding: 15px; gap: 12px; }
+    .agent-icon { width: 40px; height: 40px; }
+    .agent-actions { display: grid; grid-template-columns: 1fr 1fr; }
+}
 .dash-chart-card {
     background: var(--surface);
     border-radius: var(--radius-xl);
@@ -605,16 +632,25 @@
 }
 .dash-kpi-text { font-size: 1.4rem; font-weight: 800; color: var(--deep-navy); }
 html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
+.dashboard-chart { min-height: 160px; width: 100%; display: grid; place-items: center; }
+.chart-state { color: var(--text-muted); font-size: var(--fs-xs); }
+.volume-bars { width: 100%; height: 160px; display: flex; align-items: end; gap: clamp(2px,.55vw,7px); padding-top: 12px; border-bottom: 1px solid var(--border); }
+.volume-bar { flex: 1 1 0; min-width: 2px; max-width: 24px; height: max(3px,var(--bar-height)); border-radius: 4px 4px 1px 1px; background: linear-gradient(180deg,#54ACBF,#006884); opacity: .88; position: relative; }
+.volume-bar:hover { opacity: 1; }
+.volume-bar:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 2; padding: 4px 6px; border-radius: 6px; color: #fff; background: #011C40; font-size: 10px; white-space: nowrap; }
+.type-chart { width: 100%; display: grid; grid-template-columns: 140px minmax(0,1fr); align-items: center; gap: 18px; }
+.type-donut { width: 132px; aspect-ratio: 1; border-radius: 50%; position: relative; }
+.type-donut::after { content: ''; position: absolute; inset: 28%; border-radius: 50%; background: var(--surface); }
+.type-legend { display: grid; gap: 7px; min-width: 0; }
+.type-legend-row { display: grid; grid-template-columns: 9px minmax(0,1fr) auto; align-items: center; gap: 7px; color: var(--text-muted); font-size: 11px; }
+.type-dot { width: 8px; height: 8px; border-radius: 50%; }
+.type-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@@media (max-width: 440px) { .type-chart { grid-template-columns: 110px minmax(0,1fr); gap: 12px; } .type-donut { width: 106px; } }
 </style>
 <script>
 (function() {
-    var isDark = document.documentElement.dataset.theme === 'dark';
-    var textColor  = isDark ? '#EAF4FB' : '#011C40';
-    var mutedColor = isDark ? 'rgba(234,244,251,0.4)' : '#334E68';
-    var gridColor  = isDark ? 'rgba(84,172,191,0.10)' : 'rgba(1,28,64,0.07)';
-
     fetch('/api/dashboard/summary')
-        .then(function(r) { return r.json(); })
+        .then(function(r) { if (!r.ok) throw new Error('Dashboard summary unavailable'); return r.json(); })
         .then(function(data) {
             // KPI badge
             var kpi = data.kpi;
@@ -628,40 +664,59 @@ html[data-theme="dark"] .dash-kpi-text { color: #EAF4FB; }
             var totalEl = document.getElementById('kpiTotal');
             if (totalEl && kpi) totalEl.textContent = (kpi.currentCount || 0).toLocaleString();
 
-            // Volume bar chart
+            // Dependency-free volume bars keep the dashboard functional offline.
             var volEl = document.getElementById('chartVolume');
             if (volEl && data.daily && data.daily.length > 0) {
-                var volChart = new ApexCharts(volEl, {
-                    series: [{ name: 'Transactions', data: data.daily.map(function(d) { return d.count; }) }],
-                    chart: { type: 'bar', height: 160, toolbar: { show: false }, background: 'transparent', animations: { enabled: true, speed: 600 } },
-                    plotOptions: { bar: { borderRadius: 4, columnWidth: '60%' } },
-                    colors: ['#54ACBF'],
-                    xaxis: { categories: data.daily.map(function(d) { return d.date; }), labels: { style: { colors: mutedColor, fontSize: '10px' }, rotate: -30 }, axisBorder: { show: false }, axisTicks: { show: false } },
-                    yaxis: { labels: { style: { colors: mutedColor, fontSize: '10px' } } },
-                    grid: { borderColor: gridColor, strokeDashArray: 3 },
-                    dataLabels: { enabled: false },
-                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                var maxCount = Math.max.apply(null, data.daily.map(function(d) { return Number(d.count) || 0; })) || 1;
+                var bars = document.createElement('div');
+                bars.className = 'volume-bars';
+                data.daily.forEach(function(d) {
+                    var count = Number(d.count) || 0;
+                    var bar = document.createElement('span');
+                    bar.className = 'volume-bar';
+                    bar.style.setProperty('--bar-height', Math.max(3, (count / maxCount) * 100) + '%');
+                    bar.dataset.tooltip = (d.date || '') + ': ' + count.toLocaleString();
+                    bars.appendChild(bar);
                 });
-                volChart.render();
+                volEl.replaceChildren(bars);
+            } else if (volEl) {
+                volEl.textContent = 'No transactions in the last 30 days.';
+                volEl.classList.add('chart-state');
             }
 
-            // Type donut chart
+            // CSS donut and accessible legend; no third-party runtime required.
             var typeEl = document.getElementById('chartTypes');
             if (typeEl && data.byType && data.byType.length > 0) {
-                var typeChart = new ApexCharts(typeEl, {
-                    series: data.byType.map(function(x) { return x.count; }),
-                    labels: data.byType.map(function(x) { return x.type || 'Unknown'; }),
-                    chart: { type: 'donut', height: 160, background: 'transparent', toolbar: { show: false } },
-                    colors: ['#54ACBF', '#011C40', '#26658C', '#B88924', '#2F8F72'],
-                    plotOptions: { pie: { donut: { size: '65%' } } },
-                    legend: { position: 'right', fontSize: '11px', labels: { colors: textColor } },
-                    dataLabels: { enabled: false },
-                    tooltip: { theme: isDark ? 'dark' : 'light' }
+                var colors = ['#54ACBF','#011C40','#26658C','#B88924','#2F8F72','#7C5CFC'];
+                var total = data.byType.reduce(function(sum,x) { return sum + (Number(x.count) || 0); }, 0) || 1;
+                var cursor = 0;
+                var stops = data.byType.map(function(x,i) {
+                    var start = cursor;
+                    cursor += ((Number(x.count) || 0) / total) * 100;
+                    return colors[i % colors.length] + ' ' + start + '% ' + cursor + '%';
                 });
-                typeChart.render();
+                var wrap = document.createElement('div'); wrap.className = 'type-chart';
+                var donut = document.createElement('div'); donut.className = 'type-donut'; donut.style.background = 'conic-gradient(' + stops.join(',') + ')';
+                var legend = document.createElement('div'); legend.className = 'type-legend';
+                data.byType.slice(0,6).forEach(function(x,i) {
+                    var row = document.createElement('div'); row.className = 'type-legend-row';
+                    var dot = document.createElement('span'); dot.className = 'type-dot'; dot.style.backgroundColor = colors[i % colors.length];
+                    var label = document.createElement('span'); label.className = 'type-label'; label.textContent = x.type || 'Unknown';
+                    var count = document.createElement('strong'); count.textContent = (Number(x.count) || 0).toLocaleString();
+                    row.append(dot,label,count); legend.appendChild(row);
+                });
+                wrap.append(donut,legend); typeEl.replaceChildren(wrap);
+            } else if (typeEl) {
+                typeEl.textContent = 'No transaction types to display.';
+                typeEl.classList.add('chart-state');
             }
         })
-        .catch(function() { /* no data — charts simply don't render */ });
+        .catch(function() {
+            ['chartVolume','chartTypes'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) { el.textContent = 'Chart data is temporarily unavailable.'; el.classList.add('chart-state'); }
+            });
+        });
 })();
 </script>
 }
