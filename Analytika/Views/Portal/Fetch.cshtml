@@ -142,6 +142,52 @@
                 </div>
             </div>
 
+            <!-- Archive Backfill — old submission files (2022–2023) from the DHA archive endpoint -->
+            <div class="card border-0 shadow-sm mt-3" style="border-radius:12px;border-left:4px solid #e07b00;">
+                <div class="card-body p-4">
+                    <h6 class="fw-bold mb-1 d-flex align-items-center gap-2" style="color:#011C40;">
+                        <i class="fas fa-box-archive" style="color:#e07b00;"></i> Archive Backfill
+                    </h6>
+                    <p class="text-muted mb-3" style="font-size:.74rem;">
+                        Pull <strong>old sent-claim (submission)</strong> files from the DHA archive endpoint
+                        over a wide date range — for submissions older than the ~24-month live window
+                        (e.g. 2022–2023), so later-arriving remittances can be matched. Runs as a
+                        background job; downloaded submissions appear under <strong>Portal → Files</strong>.
+                    </p>
+                    <form asp-action="ArchiveBackfill" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">From</label>
+                                <input type="date" name="from" class="form-control form-control-sm" required />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold">To</label>
+                                <input type="date" name="to" class="form-control form-control-sm" required />
+                            </div>
+                        </div>
+                        <div class="mb-2 d-flex gap-1 flex-wrap">
+                            <button type="button" class="btn btn-ghost btn-xs" onclick="setBackfillRange('2022-01-01','2022-12-31')">2022</button>
+                            <button type="button" class="btn btn-ghost btn-xs" onclick="setBackfillRange('2023-01-01','2023-12-31')">2023</button>
+                            <button type="button" class="btn btn-ghost btn-xs" onclick="setBackfillRange('2022-01-01','2023-12-31')">2022–2023</button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Facility <span class="text-muted fw-normal">(optional — blank = all DHA)</span></label>
+                            <select name="facilityId" class="form-select form-select-sm">
+                                <option value="">All DHA facilities</option>
+                                @foreach (var f in Model.Facilities)
+                                {
+                                    <option value="@f.Value">@f.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-sm w-100 text-white" style="background:#e07b00;border-color:#e07b00;">
+                            <i class="fas fa-box-archive me-1"></i> Queue Archive Backfill
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <!-- Recent Fetch Log -->
             @if (Model.RecentLogs.Any())
             {
@@ -607,6 +653,13 @@ function setFetchRange(months) {
     from.setMonth(from.getMonth() - months);
     document.getElementById('DateFrom').value = from.toISOString().split('T')[0];
     document.getElementById('DateTo').value   = today.toISOString().split('T')[0];
+}
+
+function setBackfillRange(from, to) {
+    const form = document.querySelector('form[action$="ArchiveBackfill"]');
+    if (!form) return;
+    form.querySelector('input[name="from"]').value = from;
+    form.querySelector('input[name="to"]').value   = to;
 }
 
 function setTxStatus(statuses) {
