@@ -68,7 +68,8 @@ public class ReportService : IReportService
             ?? "Range";
 
         var generatedDate = DateTime.Now.ToString("yyyyMMddHHmmss");
-        return $"{NormalizeReportIdSegment(facilityName)}-{dateRange}-{generatedDate}";
+        var reportType = NormalizeReportIdSegment(request.ReportType) ?? "Report";
+        return $"{NormalizeReportIdSegment(facilityName)}-{reportType}-{dateRange}-{generatedDate}";
     }
 
     public async Task<string> QueueReportAsync(ReportRequest request, string? selectedDateRange = null)
@@ -280,7 +281,8 @@ public class ReportService : IReportService
             var reportsDir = Path.Combine(_env.WebRootPath, "reports");
             Directory.CreateDirectory(reportsDir);
 
-            var fileName = $"{report.ReportId}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+            var reportTypeSegment = NormalizeReportIdSegment(report.ReportType) ?? "Report";
+            var fileName = $"{report.ReportId}_{reportTypeSegment}_{report.Id}_{DateTime.UtcNow:yyyyMMddHHmmssfff}.xlsx";
             var filePath = Path.Combine(reportsDir, fileName);
 
             void UpdateStage(string stage, int pct, int done = 0, int total = 0, string? message = null)
