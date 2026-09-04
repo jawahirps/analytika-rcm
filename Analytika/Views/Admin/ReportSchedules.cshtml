@@ -7,9 +7,17 @@
 }
 
 <div class="container-fluid py-4 px-4">
+
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Report Schedules",
+        Subtitle = "Schedule recurring reports to be generated and emailed automatically to recipients",
+        Crumbs = new[] { ("Admin", "/Admin/Users"), ("Schedules", (string?)null) }
+    })
+
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold text-navy">Automated Report Schedules</h4>
+            <h5 class="mb-0 fw-bold text-navy">Automated Report Schedules</h5>
             <small class="text-muted">Schedule recurring Excel reports to be generated and emailed automatically</small>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openScheduleModal(0)">

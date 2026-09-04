@@ -1,16 +1,19 @@
 @model Analytika.Models.ViewModels.PortalSyncViewModel
 @{
-    ViewData["Title"] = "Sync Portal Data";
+    ViewData["Title"] = "Download Portal Data";
 }
 
 <div class="container-fluid py-4 px-4">
 
-    <!-- Page Header -->
-    <div class="page-header mb-4">
-        <div>
-            <h4 class="mb-0 fw-bold" style="color:var(--navy);">Portal Data Sync</h4>
-            <small class="text-muted">Fetch 1-year transaction history from DHA / RHA portals and persist to database</small>
-        </div>
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Download Portal Data",
+        Subtitle = "Fetch 1-year transaction history from DHA / RHA portals and persist to database",
+        Crumbs = new[] { ("Portal", "/Portal/Sync"), ("Download Data", (string?)null) }
+    })
+
+    <!-- Page Controls -->
+    <div class="mb-4">
         <div class="d-flex gap-2 flex-wrap">
             <a asp-action="SyncedData" class="btn btn-ghost btn-sm">
                 <i class="fas fa-database me-1"></i> View Synced Data

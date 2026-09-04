@@ -3,7 +3,15 @@
 }
 
 <div class="container-fluid py-4" style="max-width:860px;">
-    <h4 class="fw-bold mb-1"><i class="fas fa-database me-2 text-slate"></i>Database Backup &amp; Migration</h4>
+
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Database Backup & Migration",
+        Subtitle = "Backup and restore database, or migrate data between instances",
+        Crumbs = new[] { ("Admin", "/Admin/Users"), ("Database", (string?)null) }
+    })
+
+    <h5 class="fw-bold mb-1"><i class="fas fa-database me-2 text-slate"></i>Database Backup &amp; Migration</h5>
     <p class="text-muted mb-4 fs-85">Download the local database and upload it to the cloud instance after deployment.</p>
 
     @if (ViewBag.PendingExists == true)

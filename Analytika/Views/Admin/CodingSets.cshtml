@@ -75,11 +75,19 @@
 }
 
 <div class="cs-section">
+
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Coding Sets",
+        Subtitle = "Import and manage DHPO coding sets for facilities, clinicians, and payers",
+        Crumbs = new[] { ("Admin", "/Admin/Users"), ("Coding Sets", (string?)null) }
+    })
+
     <div class="d-flex align-items-center mb-4">
         <div>
-            <h4 class="mb-0 fw-bold text-navy">
+            <h5 class="mb-0 fw-bold text-navy">
                 <i class="fas fa-table me-2 text-primary"></i>DHPO Coding Sets
-            </h4>
+            </h5>
             <p class="text-muted small mb-0">Import Excel files from <strong>eclaimlink.ae/CodingSets.aspx</strong> to resolve IDs to names across all reports.</p>
         </div>
     </div>

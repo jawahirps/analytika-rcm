@@ -4,9 +4,17 @@
 }
 
 <div class="container-fluid py-4 px-4">
+
+    <!-- Breadcrumbs & Page Header -->
+    @await Html.PartialAsync("_PageHeader", new {
+        Title = "Email Settings",
+        Subtitle = "Configure SMTP server for automated report delivery and notifications",
+        Crumbs = new[] { ("Admin", "/Admin/Users"), ("Email Settings", (string?)null) }
+    })
+
     <div class="page-header mb-4">
         <div>
-            <h4 class="mb-0 fw-bold text-navy">Email Settings</h4>
+            <h5 class="mb-0 fw-bold text-navy">Email Settings</h5>
             <small class="text-muted">SMTP configuration for automated report delivery</small>
         </div>
     </div>
