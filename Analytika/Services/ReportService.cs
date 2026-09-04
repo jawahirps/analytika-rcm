@@ -12,7 +12,9 @@ namespace Analytika.Services;
 public class ReportService : IReportService
 {
     private static readonly SemaphoreSlim QueueGate = new(1, 1);
-    private static readonly SemaphoreSlim GenerationGate = new(2, 2);
+    // SQLite report preparation performs parse/match writes. A single writer lane
+    // avoids lock contention while the request queue remains fully asynchronous.
+    private static readonly SemaphoreSlim GenerationGate = new(1, 1);
     private const string ReportInk = "#0B1F3A";
     private const string ReportNavy = "#17365D";
     private const string ReportBlue = "#2F5597";
