@@ -420,6 +420,7 @@ html[dir="rtl"] .lang-theme-tools {
   height: 58px;
   display: flex;
   align-items: center;
+  gap: .45rem;
   border-bottom: 2px solid transparent;
   border-radius: 8px;
   transition: color var(--transition), border-color var(--transition), background var(--transition), transform var(--transition);
@@ -4646,9 +4647,17 @@ video {
   }
 
   .analytika-navbar .nav-link {
-    gap: .2rem;
-    padding-inline: .35rem;
-    font-size: .69rem;
+    gap: .35rem;
+    padding-inline: .32rem;
+    font-size: clamp(.66rem, .58rem + .12vw, .72rem);
+  }
+
+  .analytika-navbar .nav-link > i {
+    flex: 0 0 auto;
+  }
+
+  .analytika-navbar .primary-nav-label {
+    line-height: 1.15;
   }
 
   .analytika-navbar .lang-theme-tools {

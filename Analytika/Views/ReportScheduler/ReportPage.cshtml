@@ -20,10 +20,10 @@
     .breadcrumb { --bs-breadcrumb-divider-color: rgba(255,255,255,.30); }
     .filter-card,
     .table-card {
-        border: 1px solid rgba(255,255,255,.09);
+        border: 1px solid rgba(15,46,77,.16);
         border-radius: 22px;
         box-shadow: 0 20px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-        background: rgba(9,9,11,.72);
+        background: rgba(255,255,255,.96) !important;
         backdrop-filter: blur(28px) saturate(140%);
         -webkit-backdrop-filter: blur(28px) saturate(140%);
         margin-bottom: 20px;
@@ -56,29 +56,30 @@
         box-shadow: 0 0 0 1px rgba(99,102,241,.25);
     }
     .table-card .card-header {
-        background: rgba(255,255,255,.04);
+        background: #e8f0f7 !important;
         border-radius: 22px 22px 0 0;
         padding: 14px 20px;
         border-bottom: 1px solid rgba(255,255,255,.07);
         font-weight: 600;
-        color: #fafafa;
+        color: #0f2e4d;
     }
-    .table thead th { background: rgba(255,255,255,.05); font-weight: 700; font-size: 0.82rem; color: #a1a1aa; border-bottom: 1px solid rgba(255,255,255,.07); white-space: nowrap; }
-    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: #d4d4d8; }
-    .table tbody tr { border-bottom: 1px solid rgba(255,255,255,.05); }
-    .report-id-link { color: #818cf8; font-weight: 700; text-decoration: none; }
-    .report-id-link:hover { text-decoration: underline; color: #a5b4fc; }
-    .status-completed { color: #34d399; font-weight: 700; }
-    .status-pending { color: #fbbf24; font-weight: 700; }
-    .status-processing { color: #818cf8; font-weight: 700; }
-    .status-failed { color: #f87171; font-weight: 700; }
+    .table thead th { font-weight: 700; font-size: 0.82rem; color: #0f2e4d !important; border-bottom: 1px solid rgba(15,46,77,.20); white-space: nowrap; }
+    .table tbody td { font-size: 0.83rem; vertical-align: middle; color: #263b50 !important; background: rgba(255,255,255,.94); }
+    .table tbody tr { border-bottom: 1px solid rgba(15,46,77,.12); }
+    .table tbody tr:hover td { background: #edf5fb; color: #0b2239 !important; }
+    .report-id-link { color: #174ea6 !important; font-weight: 700; text-decoration: none; }
+    .report-id-link:hover { text-decoration: underline; color: #0b3270 !important; }
+    .status-completed { color: #047857; font-weight: 700; }
+    .status-pending { color: #9a5300; font-weight: 700; }
+    .status-processing { color: #4338ca; font-weight: 700; }
+    .status-failed { color: #b91c1c; font-weight: 700; }
     .btn-download { background: rgba(99,102,241,.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,.30); border-radius: 999px; padding: 5px 11px; font-size: 0.82rem; cursor: pointer; }
     .btn-download:hover { background: rgba(99,102,241,.30); color: #c7d2fe; }
     .btn-delete-report { background: rgba(248,113,113,.10); color: #fca5a5; border: 1px solid rgba(248,113,113,.25); border-radius: 999px; padding: 5px 10px; font-size: 0.82rem; cursor: pointer; }
     .btn-delete-report:hover { background: rgba(248,113,113,.20); color: #fecaca; }
     .btn-clear-reports { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
     .btn-clear-reports:hover { background: rgba(248,113,113,.16); color: #fecaca; }
-    .pagination-info { font-size: 0.82rem; color: #71717a; }
+    .pagination-info { font-size: 0.82rem; color: #40566f; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
     .btn-submit-report { background: #6366f1; color: white; border: 1px solid rgba(99,102,241,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(99,102,241,.35); }
@@ -88,12 +89,35 @@
     /* form controls inside the page-wrapper */
     .page-wrapper .form-control,
     .page-wrapper .form-select,
-    .page-wrapper .input-group-text { background: rgba(255,255,255,.06); color: #fafafa; border-color: rgba(255,255,255,.10); }
+    .page-wrapper .input-group-text { background: #fff; color: #18324d; border-color: #b8c8d8; }
     .page-wrapper .form-control:focus,
-    .page-wrapper .form-select:focus { background: rgba(255,255,255,.09); border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.18); color: #fafafa; }
+    .page-wrapper .form-select:focus { background: #fff; border-color: #174ea6; box-shadow: 0 0 0 3px rgba(23,78,166,.18); color: #18324d; }
     .page-wrapper .form-label,
-    .page-wrapper label { color: #a1a1aa; }
-    .page-wrapper .text-muted { color: #71717a !important; }
+    .page-wrapper label { color: #40566f !important; }
+    .page-wrapper .text-muted { color: #526981 !important; }
+    .page-wrapper .form-control::placeholder { color: #61768c; opacity: 1; }
+    .page-wrapper .form-select option { color: #0f1e32; background: #ffffff; }
+    .page-wrapper .select2-container--default .select2-selection--multiple {
+        background: #fff;
+        border-color: #b8c8d8;
+    }
+    .page-wrapper .select2-container--default .select2-search--inline .select2-search__field,
+    .page-wrapper .select2-container--default .select2-selection--multiple .select2-selection__placeholder {
+        color: #40566f !important;
+    }
+
+    html[data-theme="dark"] .page-wrapper .filter-card,
+    html[data-theme="dark"] .page-wrapper .table-card { background: rgba(15,30,50,.97) !important; }
+    html[data-theme="dark"] .page-wrapper .table-card .card-header { background: #142b47 !important; color: #fff; }
+    html[data-theme="dark"] .page-wrapper .table tbody td { color: #e2e8f0 !important; background: rgba(15,30,50,.96); }
+    html[data-theme="dark"] .page-wrapper .table tbody tr:hover td { background: #193552; color: #fff !important; }
+    html[data-theme="dark"] .page-wrapper .form-label,
+    html[data-theme="dark"] .page-wrapper label { color: #e2e8f0 !important; }
+    html[data-theme="dark"] .page-wrapper .text-muted { color: #cbd5e1 !important; }
+    html[data-theme="dark"] .page-wrapper .status-completed { color: #6ee7b7; }
+    html[data-theme="dark"] .page-wrapper .status-pending { color: #fcd34d; }
+    html[data-theme="dark"] .page-wrapper .status-processing { color: #a5b4fc; }
+    html[data-theme="dark"] .page-wrapper .status-failed { color: #fca5a5; }
 
     @@media (max-width: 768px) {
         .page-wrapper {
