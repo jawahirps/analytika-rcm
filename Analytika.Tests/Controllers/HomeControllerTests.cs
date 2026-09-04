@@ -2,6 +2,7 @@ using Analytika.Controllers;
 using Analytika.Models;
 using Analytika.Models.ViewModels;
 using Analytika.Services;
+using Analytika.Security;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -57,13 +58,18 @@ public class HomeControllerTests : IDisposable
         _db = new AppDbContext(options);
         _db.Database.EnsureCreated();
 
+        var tenantContext = new Mock<ITenantContext>();
+        tenantContext.Setup(x => x.GetScopeAsync()).ReturnsAsync(TenantScope.Platform());
+        var facilityScope = new FacilityScopeService(_db, _userManagerMock.Object, tenantContext.Object);
+
         _sut = new HomeController(
             _signInManagerMock.Object,
             _userManagerMock.Object,
             _dashboardMock.Object,
             _db,
             _cache,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            facilityScope);
     }
 
     public void Dispose()

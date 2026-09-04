@@ -1,0 +1,613 @@
+{
+  "source": "Denial Codes 29Oct2024.xlsx",
+  "importedAt": "2026-09-03",
+  "category": "DenialCode",
+  "records": [
+    {
+      "code": "AUTH-001",
+      "description": "Prior approval is required and was not obtained",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-003",
+      "description": "PriorAuthorizationNumber is invalid",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-004",
+      "description": "Service(s) is (are) performed outside authorization validity date",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-005",
+      "description": "Claim information is inconsistent with pre-certified/authorized services",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "BENX-002",
+      "description": "Benefit maximum for this time period or occurrence has been reached",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "BENX-005",
+      "description": "Annual limit/sublimit amount exceeded",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-007",
+      "description": "Claim is a work-related injury/illness and thus the liability of the employer",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-008",
+      "description": "Claim overlaps inpatient stay. Resubmit only those services rendered outside the inpatient stay",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-009",
+      "description": "Date of birth follows the date of service",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-010",
+      "description": "Date of death precedes the date of service",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-011",
+      "description": "Inpatient admission spans multiple rate periods.  Resubmit separate claims",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-012",
+      "description": "Submission not compliant with contractual agreement between provider & payer",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-014",
+      "description": "Claim not compliant with Resubmission type (used only for resubmissions)",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-010",
+      "description": "Activity/diagnosis inconsistent with clinician specialty",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-012",
+      "description": "Encounter type inconsistent with service(s) / diagnosis",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-013",
+      "description": "Invalid principal diagnosis",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-014",
+      "description": "Activity/diagnosis is inconsistent with the patient's age/gender",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-015",
+      "description": "Activity/diagnosis is inconsistent with the provider type",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "COPY-001",
+      "description": "Deductible/co-pay not collected from member",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DUPL-001",
+      "description": "Claim is a duplicate based on service codes and dates",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DUPL-002",
+      "description": "Payment already made for same/similar service within set time frame",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "ELIG-001",
+      "description": "Patient is not a covered member",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "ELIG-005",
+      "description": "Services performed after the last date of coverage",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "ELIG-006",
+      "description": "Services performed prior to the effective date of coverage",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "ELIG-007",
+      "description": "Services performed by a non-network provider",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "MNEC-003",
+      "description": "Service is not clinically indicated based on good clinical practice",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "MNEC-004",
+      "description": "Service is not clinically indicated based on good clinical practice, without additional supporting diagnoses/activities",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "MNEC-005",
+      "description": "Service/supply may be appropriate, but too frequent",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "MNEC-006",
+      "description": "Alternative service should have been utilized",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-001",
+      "description": "Diagnosis(es) is (are) not covered",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-002",
+      "description": "Pre-existing conditions are not covered",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-003",
+      "description": "Service(s) is (are) not covered",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-025",
+      "description": "Service(s) is (are) not performed (used after audit)",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-001",
+      "description": "Calculation discrepancy",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-002",
+      "description": "Payment is included in the allowance for another service",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-003",
+      "description": "Recovery of Payment",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-006",
+      "description": "Consultation within free follow up period",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-007",
+      "description": "Service has no contract price",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-008",
+      "description": "Multiple procedure payment rules incorrectly applied",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-009",
+      "description": "Charges inconsistent with clinician specialty",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-010",
+      "description": "Use bundled code",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "TIME-001",
+      "description": "Time limit for submission has expired",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "TIME-002",
+      "description": "Requested additional information was not received or was not received within time limit",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "TIME-003",
+      "description": "Appeal procedures not followed or time limits not met",
+      "effectiveFrom": "2012-06-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-006",
+      "description": "Alert drug - drug interaction or drug is contra-indicated",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-007",
+      "description": "Drug duplicate therapy",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-008",
+      "description": "Inappropriate drug dose",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-009",
+      "description": "Prescription out of date",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-010",
+      "description": "Authorization request overlaps or is within the period of another paid claim or approved authorization",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-011",
+      "description": "Waiting period on pre-existing / specific conditions",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-017",
+      "description": "Services not available on direct billing",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-018",
+      "description": "Claims Recalled By Provider",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-011",
+      "description": "Discount discrepancy",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-001",
+      "description": "Severe drug - drug interaction",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-002",
+      "description": "Severe drug - age contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-003",
+      "description": "Severe drug - gender contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-004",
+      "description": "Severe drug - diaganosis contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-005",
+      "description": "Severe procedure\\service - diagnosis contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-006",
+      "description": "Severe procedure\\service - drug contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-007",
+      "description": "Severe procedure\\service - procedure contraindication",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "SURC-008",
+      "description": "Serious safety issue with drug dose",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "WRNG-001",
+      "description": "Wrong submission, receiver is not responsible for the payer within this transaction submission.",
+      "effectiveFrom": "2015-03-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-019",
+      "description": "Incorrect IR-DRG code",
+      "effectiveFrom": "2017-02-01",
+      "effectiveTo": "2020-03-31"
+    },
+    {
+      "code": "CLAI-020",
+      "description": "Missing IR-DRG code",
+      "effectiveFrom": "2017-02-01",
+      "effectiveTo": "2020-03-31"
+    },
+    {
+      "code": "AUTH-012",
+      "description": "Request for information",
+      "effectiveFrom": "2017-03-26",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-002",
+      "description": "Services performed are inconsistent with authorized or approved services",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-013",
+      "description": "Missing eRx Reference number",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "BENX-001",
+      "description": "Service / Medication is above AED threshold",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-013",
+      "description": "Missing an Observation (Dental Tooth #)",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-021",
+      "description": "Incorrect DRG payment parameter",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": "2020-03-31"
+    },
+    {
+      "code": "CLAI-022",
+      "description": "Missing DRG payment parameter",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": "2020-03-31"
+    },
+    {
+      "code": "CODE-001",
+      "description": "Missing, incomplete or invalid principal diagnosis",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-002",
+      "description": "Missing, incomplete or invalid service code",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-006",
+      "description": "Diagnosis is inconsistent with the procedure",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-014",
+      "description": "Activity/diagnosis is inconsistent with the patient's age/gender",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "CODE-016",
+      "description": "Activity/diagnosis inconsistent with Service",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "MNEC-007",
+      "description": "Service is not clinically indicated based on good clinical practice, without additional supporting documentation",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-009",
+      "description": "Dental treatments are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-010",
+      "description": "Elective procedure is not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-012",
+      "description": "Eye exams and treatments are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-014",
+      "description": "Hearing services are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-018",
+      "description": "Immunizations are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-019",
+      "description": "Preventative care is not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-020",
+      "description": "Services resulting from attempted suicide or self-infliction are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-021",
+      "description": "Vaccinations are not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-024",
+      "description": "Chronic Condition Service(s) is (are) not covered",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "NCOV-027",
+      "description": "Non Coverage of certain medication as per policy",
+      "effectiveFrom": "2018-07-10",
+      "effectiveTo": null
+    },
+    {
+      "code": "AUTH-014",
+      "description": "Medication has been added to a prior request that is not in line with Pharmacist Edit Restrictions",
+      "effectiveFrom": "2018-11-29",
+      "effectiveTo": null
+    },
+    {
+      "code": "PRCE-012",
+      "description": "Recovery of Payment � DHIC Authorized",
+      "effectiveFrom": "2018-11-29",
+      "effectiveTo": null
+    },
+    {
+      "code": "DRG-001",
+      "description": "Incorrect DRG code",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DRG-002",
+      "description": "Missing DRG code",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DRG-003",
+      "description": "Incorrect Billing Regime",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DRG-004",
+      "description": "Missing Activities",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "COPY-002",
+      "description": "Incorrect Patient Share",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "COPY-003",
+      "description": "Missing Patient Share",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "DRG-005",
+      "description": "Missing Observation (ActivityCost and/or File Attachment)",
+      "effectiveFrom": "2020-09-01",
+      "effectiveTo": null
+    },
+    {
+      "code": "BSMA-001",
+      "description": "Member not covered under Basmah",
+      "effectiveFrom": "2020-06-21",
+      "effectiveTo": null
+    },
+    {
+      "code": "BSMA-002",
+      "description": "Claims is not eligible under Basmah Fund",
+      "effectiveFrom": "2020-06-21",
+      "effectiveTo": null
+    },
+    {
+      "code": "BSMA-003",
+      "description": "Prior approval is required but not taken (Basmah)",
+      "effectiveFrom": "2020-06-21",
+      "effectiveTo": null
+    },
+    {
+      "code": "CLAI-023",
+      "description": "Submission not compliant with contractual agreement between non-network physician & payer",
+      "effectiveFrom": "2024-10-01",
+      "effectiveTo": "2030-12-31"
+    },
+    {
+      "code": "ELIG-008",
+      "description": "Services performed by a non-network physician",
+      "effectiveFrom": "2024-10-01",
+      "effectiveTo": "2030-12-31"
+    }
+  ]
+}

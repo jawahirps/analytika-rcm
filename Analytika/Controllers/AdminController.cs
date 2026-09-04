@@ -27,6 +27,8 @@ public class AdminController : Controller
     private readonly IConfiguration _configuration;
     private readonly Analytika.Security.ICredentialProtector _credentials;
     private readonly IReportService _reportService;
+    private readonly IAiSettingsService _aiSettings;
+    private readonly INvidiaAnalystService _aiAnalyst;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
     private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
@@ -35,7 +37,8 @@ public class AdminController : Controller
 
     public AdminController(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager,
         IDhaPortalService dha, IRhaPortalService rha, IEmailService email, IConfiguration configuration,
-        Analytika.Security.ICredentialProtector credentials, IReportService reportService)
+        Analytika.Security.ICredentialProtector credentials, IReportService reportService,
+        IAiSettingsService aiSettings, INvidiaAnalystService aiAnalyst)
     {
         _db = db;
         _userManager = userManager;
@@ -46,6 +49,8 @@ public class AdminController : Controller
         _configuration = configuration;
         _credentials = credentials;
         _reportService = reportService;
+        _aiSettings = aiSettings;
+        _aiAnalyst = aiAnalyst;
     }
 
     // ─── Roles ───────────────────────────────────────────────────────────────
@@ -214,10 +219,24 @@ public class AdminController : Controller
         return View(await BuildCreateVmAsync());
     }
 
+    /// <summary>
+    /// Identity's AddToRoleAsync throws when the role does not exist. Unguarded, that has
+    /// three separate costs here: a user created and then left with no role, an edited
+    /// user stripped of every role, and a bulk import that aborts halfway. Callers check
+    /// first and report instead of throwing.
+    /// </summary>
+    private async Task<bool> RoleExistsAsync(string? role) =>
+        !string.IsNullOrWhiteSpace(role) && await _roleManager.RoleExistsAsync(role);
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateUser(CreateUserViewModel vm)
     {
+        // Checked before the account is created, so a bad role cannot leave an orphan.
+        if (!await RoleExistsAsync(vm.Role))
+            ModelState.AddModelError(nameof(vm.Role),
+                string.IsNullOrWhiteSpace(vm.Role) ? "Select a role." : $"'{vm.Role}' is not a role in this system.");
+
         if (!ModelState.IsValid)
         {
             var fresh = await BuildCreateVmAsync();
@@ -307,6 +326,16 @@ public class AdminController : Controller
             .Include(u => u.ReportAccesses)
             .FirstOrDefaultAsync(u => u.Id == vm.Id);
         if (user == null) return NotFound();
+
+        // Verified before anything is removed below — the old code stripped every role
+        // first, so an unknown value left the account with no role at all.
+        if (!await RoleExistsAsync(vm.Role))
+        {
+            TempData["Error"] = string.IsNullOrWhiteSpace(vm.Role)
+                ? "Select a role."
+                : $"'{vm.Role}' is not a role in this system — nothing was changed.";
+            return RedirectToAction(nameof(EditUser), new { id = vm.Id });
+        }
 
         user.FullName = vm.FullName;
         user.UserType = vm.UserType;
@@ -521,6 +550,31 @@ public class AdminController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveCredential(PortalCredentialViewModel vm)
     {
+        // ── Catch bad Riayati values at SAVE time, not at auth time ──────────────
+        // Both of these cost a full debugging round: a UUID API key pasted one character
+        // short, and an API URL typed with a zero instead of the letter "o". Riayati
+        // answers both with the same generic "Invalid Token or Username or Password",
+        // which points the blame at the credential and hides the real cause.
+        if (string.Equals(vm.Portal, "RHA", StringComparison.OrdinalIgnoreCase))
+        {
+            // Only judge values that are clearly meant to be UUIDs (they carry hyphens).
+            // A future non-UUID key format is left alone rather than blocked.
+            if (!string.IsNullOrEmpty(vm.Password) && vm.Password.Contains('-') && vm.Password.Trim().Length != 36)
+            {
+                TempData["Error"] = $"That Riayati API key is {vm.Password.Trim().Length} characters — the issued keys are exactly 36. "
+                                  + "A character was probably lost while copying; select the whole value and paste again.";
+                return RedirectToAction(nameof(Credentials));
+            }
+
+            if (!string.IsNullOrWhiteSpace(vm.ApiBaseUrl)
+                && !vm.ApiBaseUrl.Contains("tmbapi.riayati.ae", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "That API URL is not a Riayati host. Use https://tmbapi.riayati.ae:8083 (production) "
+                                  + "or https://o-tmbapi.riayati.ae:8083 (onboarding) — note the letter \"o\", not a zero.";
+                return RedirectToAction(nameof(Credentials));
+            }
+        }
+
         // Auto-create facility if user typed a brand-new name
         if (vm.FacilityId == 0 && !string.IsNullOrWhiteSpace(vm.NewFacilityName))
         {
@@ -815,6 +869,13 @@ public class AdminController : Controller
         var facilities = await _db.Facilities.ToListAsync();
         int added = 0, updated = 0, skipped = 0;
 
+        // A CSV whose columns are one out of step puts something that is not a role name
+        // in the roles column. That used to throw on the first bad row and abandon the
+        // whole import with users already created; now it is reported per row.
+        var knownRoles = (await _roleManager.Roles.Select(r => r.Name!).ToListAsync())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var unknownRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         using var reader = new System.IO.StreamReader(file.OpenReadStream());
         await reader.ReadLineAsync(); // skip header
         while (!reader.EndOfStream)
@@ -854,7 +915,11 @@ public class AdminController : Controller
 
                 if (!string.IsNullOrWhiteSpace(roleStr))
                     foreach (var r in roleStr.Split('|', StringSplitOptions.RemoveEmptyEntries))
-                        await _userManager.AddToRoleAsync(newUser, r.Trim());
+                    {
+                        var role = r.Trim();
+                        if (knownRoles.Contains(role)) await _userManager.AddToRoleAsync(newUser, role);
+                        else unknownRoles.Add(role);
+                    }
 
                 foreach (var fn in facNames)
                 {
@@ -877,6 +942,11 @@ public class AdminController : Controller
         }
 
         TempData["Success"] = $"Import complete — {added} added (use Password Reset to set their passwords), {updated} updated, {skipped} skipped.";
+        if (unknownRoles.Count > 0)
+            TempData["Error"] = $"These values in the roles column are not roles and were ignored: "
+                              + $"{string.Join(", ", unknownRoles.Take(5))}"
+                              + (unknownRoles.Count > 5 ? $" (+{unknownRoles.Count - 5} more)" : "")
+                              + ". Expected column order: Email, Full name, Department, User type, Role(s), Active, Facilities.";
         return RedirectToAction(nameof(Users));
     }
 
@@ -928,7 +998,7 @@ public class AdminController : Controller
         if (file == null || file.Length == 0)
             return BadRequest("No file uploaded.");
 
-        if (!new[] { "Facility", "Clinician", "Payer" }.Contains(category))
+        if (!new[] { "Facility", "Clinician", "Payer", "DenialCode" }.Contains(category))
             return BadRequest("Invalid category.");
 
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -964,17 +1034,20 @@ public class AdminController : Controller
                 "Facility" => Col(headers, "Facility ID", "FacilityID", "License Number", "LicenseNumber", "Code", "ID"),
                 "Clinician" => Col(headers, "Clinician ID", "ClinicianID", "Provider ID", "ProviderID", "License Number", "Code", "ID"),
                 "Payer" => Col(headers, "Payer Code", "PayerCode", "Company Code", "CompanyCode", "Code", "ID", "TPA Code", "InsuranceCode"),
+                "DenialCode" => Col(headers, "Code", "Denial Code", "DenialCode"),
                 _ => null
             };
 
             int? nameCol = Col(headers, "Name", "Full Name", "FullName", "Facility Name", "FacilityName",
-                               "Clinician Name", "ClinicianName", "Company Name", "CompanyName", "Payer Name");
+                               "Clinician Name", "ClinicianName", "Company Name", "CompanyName", "Payer Name",
+                               "Description", "Denial Description");
 
             int? subTypeCol = category switch
             {
                 "Clinician" => Col(headers, "Specialty", "Speciality", "Type", "Category"),
                 "Payer" => Col(headers, "Type", "Company Type", "CompanyType", "Payer Type"),
                 "Facility" => Col(headers, "Type", "Facility Type", "License Type"),
+                "DenialCode" => null,
                 _ => null
             };
 
@@ -1124,6 +1197,146 @@ public class AdminController : Controller
         }
     }
 
+    // ─── AI Analyst Agent ─────────────────────────────────────────────────────
+
+    [HttpGet]
+    public async Task<IActionResult> Ai()
+    {
+        return View(await BuildAiVmAsync());
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveAiSettings(
+        bool enabled, string apiBaseUrl, string model, string? apiKey,
+        int maxOutputTokens, double temperature, int rowLimit,
+        int dailyRequestLimit, long monthlyTokenLimit, bool allowFullData, int timeoutSeconds,
+        bool openZenEnabled, string? openZenApiBaseUrl, string? openZenModel, string? openZenApiKey)
+    {
+        var settings = new AiSettings
+        {
+            Enabled = enabled,
+            ApiBaseUrl = string.IsNullOrWhiteSpace(apiBaseUrl) ? "https://integrate.api.nvidia.com/v1" : apiBaseUrl.Trim(),
+            Model = string.IsNullOrWhiteSpace(model) ? "nvidia/nemotron-3-ultra-550b-a55b" : model.Trim(),
+            MaxOutputTokens = Math.Clamp(maxOutputTokens, 64, 8192),
+            Temperature = Math.Clamp(temperature, 0, 2),
+            RowLimit = Math.Clamp(rowLimit, 1, 5000),
+            DailyRequestLimit = Math.Max(0, dailyRequestLimit),
+            MonthlyTokenLimit = Math.Max(0, monthlyTokenLimit),
+            AllowFullData = allowFullData,
+            TimeoutSeconds = Math.Clamp(timeoutSeconds, 5, 300)
+            ,OpenZenEnabled = openZenEnabled
+            ,OpenZenApiBaseUrl = string.IsNullOrWhiteSpace(openZenApiBaseUrl) ? "https://opencode.ai/zen/v1" : openZenApiBaseUrl.Trim()
+            ,OpenZenModel = string.IsNullOrWhiteSpace(openZenModel) ? "gpt-5.2" : openZenModel.Trim()
+        };
+        await _aiSettings.SaveAsync(settings, apiKey, openZenApiKey);
+        TempData["Success"] = "AI agent settings saved.";
+        return RedirectToAction(nameof(Ai));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestAiConnection()
+    {
+        var (ok, message) = await _aiAnalyst.TestConnectionAsync();
+        return Json(new { ok, message });
+    }
+
+    /// <summary>Pings the configured local Ollama server and lists its loaded models.</summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> TestOllamaConnection(string? baseUrl, string? model)
+    {
+        var url = (string.IsNullOrWhiteSpace(baseUrl) ? "http://localhost:11434" : baseUrl.Trim()).TrimEnd('/');
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var resp = await http.GetAsync($"{url}/api/tags");
+            if (!resp.IsSuccessStatusCode)
+                return Json(new { ok = false, message = $"Ollama responded {(int)resp.StatusCode}" });
+
+            var body = await resp.Content.ReadAsStringAsync();
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var names = doc.RootElement.TryGetProperty("models", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? arr.EnumerateArray().Select(m => m.TryGetProperty("name", out var n) ? n.GetString() : null).Where(n => n != null).ToList()
+                : new List<string?>();
+
+            var hasModel = model != null && names.Any(n => n!.StartsWith(model.Split(':')[0], StringComparison.OrdinalIgnoreCase));
+            var msg = $"Connected — {names.Count} model(s) available"
+                    + (model != null ? (hasModel ? $"; '{model}' present" : $"; WARNING '{model}' not pulled") : "");
+            return Json(new { ok = true, message = msg });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { ok = false, message = $"Unreachable at {url} — {ex.Message}" });
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveOllamaSettings(
+        bool ollamaEnabled, string ollamaBaseUrl, string ollamaModel,
+        double ollamaTemperature, int ollamaNumCtx, int ollamaTimeoutSeconds)
+    {
+        var values = new Dictionary<string, string>
+        {
+            ["Enabled"] = ollamaEnabled.ToString(),
+            ["BaseUrl"] = string.IsNullOrWhiteSpace(ollamaBaseUrl) ? "http://localhost:11434" : ollamaBaseUrl.Trim(),
+            ["Model"] = string.IsNullOrWhiteSpace(ollamaModel) ? "qwen2.5:7b-instruct" : ollamaModel.Trim(),
+            ["Temperature"] = Math.Clamp(ollamaTemperature, 0, 2).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["NumCtx"] = Math.Clamp(ollamaNumCtx, 512, 32768).ToString(),
+            ["TimeoutSeconds"] = Math.Clamp(ollamaTimeoutSeconds, 5, 600).ToString()
+        };
+
+        foreach (var kv in values)
+        {
+            var setting = await _db.SystemSettings
+                .FirstOrDefaultAsync(s => s.Category == "Ollama" && s.Key == kv.Key);
+            if (setting == null)
+                _db.SystemSettings.Add(new Models.SystemSetting { Category = "Ollama", Key = kv.Key, Value = kv.Value });
+            else
+                setting.Value = kv.Value;
+        }
+        await _db.SaveChangesAsync();
+        TempData["Success"] = "Local model (Ollama) settings saved.";
+        return RedirectToAction(nameof(Ai));
+    }
+
+    private async Task<AiAdminViewModel> BuildAiVmAsync()
+    {
+        var todayUtc = DateTime.UtcNow.Date;
+        var monthStart = new DateTime(todayUtc.Year, todayUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        // Local model settings — same category/keys/defaults BixAssistantService and
+        // DenialAnalystService read, so the page shows what actually runs.
+        var ollamaRows = await _db.SystemSettings.AsNoTracking()
+            .Where(s => s.Category == "Ollama")
+            .ToDictionaryAsync(s => s.Key, s => s.Value);
+        var ollama = new OllamaAdminSettings { IsUsingDefaults = ollamaRows.Count == 0 };
+        if (ollamaRows.TryGetValue("Enabled", out var oe) && bool.TryParse(oe, out var oeb)) ollama.Enabled = oeb;
+        if (ollamaRows.TryGetValue("BaseUrl", out var ob) && !string.IsNullOrWhiteSpace(ob)) ollama.BaseUrl = ob.Trim();
+        if (ollamaRows.TryGetValue("Model", out var om) && !string.IsNullOrWhiteSpace(om)) ollama.Model = om.Trim();
+        if (ollamaRows.TryGetValue("Temperature", out var ot) && double.TryParse(ot, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var otd)) ollama.Temperature = otd;
+        if (ollamaRows.TryGetValue("NumCtx", out var oc) && int.TryParse(oc, out var oci)) ollama.NumCtx = oci;
+        if (ollamaRows.TryGetValue("TimeoutSeconds", out var os) && int.TryParse(os, out var osi)) ollama.TimeoutSeconds = osi;
+
+        var total = await _db.AiUsageLogs.CountAsync();
+        var succeeded = await _db.AiUsageLogs.CountAsync(l => l.Success);
+
+        return new AiAdminViewModel
+        {
+            Settings = await _aiSettings.GetAsync(),
+            RequestsToday = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= todayUtc),
+            RequestsThisMonth = await _db.AiUsageLogs.CountAsync(l => l.CreatedAt >= monthStart),
+            TokensThisMonth = await _db.AiUsageLogs.Where(l => l.CreatedAt >= monthStart).SumAsync(l => (long?)l.TotalTokens) ?? 0,
+            TotalRequests = total,
+            SuccessRate = total == 0 ? 0 : Math.Round(succeeded * 100.0 / total, 1),
+            RecentLogs = await _db.AiUsageLogs.AsNoTracking()
+                .OrderByDescending(l => l.CreatedAt).Take(25).ToListAsync(),
+            Ollama = ollama
+        };
+    }
+
     // ─── Report Schedules ─────────────────────────────────────────────────────
 
     private static readonly string[] ReportTypeOptions =
@@ -1248,7 +1461,10 @@ public class AdminController : Controller
 
     private string GetDbPath()
     {
-        var dataDir = Environment.GetEnvironmentVariable("DB_DIR")
+        // Data:Dir is set by startup to the directory actually opened; DB_DIR is a
+        // machine-wide fallback that does not necessarily belong to this instance.
+        var dataDir = _configuration["Data:Dir"]
+            ?? Environment.GetEnvironmentVariable("DB_DIR")
             ?? System.IO.Path.Combine(AppContext.BaseDirectory);
         return System.IO.Path.Combine(dataDir, "analytika.db");
     }

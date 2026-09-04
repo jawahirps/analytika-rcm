@@ -10,6 +10,11 @@ public class RCMDashboardViewModel
     public List<DashboardTrendPoint> Trend { get; set; } = new();
     public List<DashboardBreakdownItem> Breakdown { get; set; } = new();
     public List<DashboardInsight> Insights { get; set; } = new();
+    public List<RcmLifecycleStage> Lifecycle { get; set; } = new();
+    public int UnmatchedRecords { get; set; }
+    public decimal UnmatchedAmount { get; set; }
+    public double ReconciliationRate { get; set; }
+    public List<RcmUnmatchedRow> UnmatchedWorklist { get; set; } = new();
     public string Summary { get; set; } = string.Empty;
     public DateTime RefreshedAt { get; set; } = DateTime.Now;
     public RcmDashboardFilters Filters { get; set; } = new();
@@ -24,6 +29,25 @@ public class RCMDashboardViewModel
         !string.IsNullOrWhiteSpace(Filters.EncounterType) ||
         Filters.DateFrom.HasValue ||
         Filters.DateTo.HasValue;
+}
+
+public class RcmUnmatchedRow
+{
+    public string RecordKind { get; set; } = string.Empty;
+    public string ClaimId { get; set; } = string.Empty;
+    public string ServiceDate { get; set; } = string.Empty;
+    public string Payer { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Issue { get; set; } = string.Empty;
+}
+
+public class RcmLifecycleStage
+{
+    public string Label { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public decimal Amount { get; set; }
+    public string Icon { get; set; } = "fa-circle";
+    public string Tone { get; set; } = "teal";
 }
 
 public class RcmDashboardFilters

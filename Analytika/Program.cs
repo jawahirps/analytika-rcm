@@ -6,6 +6,7 @@ using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Serilog;
 using System.Diagnostics;
 using System.Reflection;
@@ -191,12 +192,23 @@ app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true)
     {
-        var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
-        var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
-        var user = await userManager.GetUserAsync(context.User);
-
-        if (user == null || !user.IsActive)
+        // Avoid a user-table query on every CSS, API and page request. A short cache
+        // keeps deactivation responsive while taking authentication reads out of the
+        // hot path during bursts from dashboard pages.
+        var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var cache = context.RequestServices.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        var cacheKey = $"auth:active:{userId}";
+        var isActive = !string.IsNullOrEmpty(userId) && await cache.GetOrCreateAsync(cacheKey, async entry =>
         {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+            var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = await userManager.FindByIdAsync(userId!);
+            return user?.IsActive == true;
+        });
+
+        if (!isActive)
+        {
+            var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
             await signInManager.SignOutAsync();
             context.Response.Redirect("/Home/Index");
             return;

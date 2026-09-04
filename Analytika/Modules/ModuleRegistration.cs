@@ -174,6 +174,7 @@ public static class ModuleRegistration
     {
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddSingleton<IReportValidationService, ReportValidationService>();
         services.AddScoped<IDhaPortalService, DhaPortalService>();
         services.AddScoped<IRhaPortalService, RhaPortalService>();
         services.AddScoped<PortalSyncService>();

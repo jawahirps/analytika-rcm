@@ -6,6 +6,10 @@
     <RootNamespace>Analytika</RootNamespace>
     <RuntimeIdentifiers>linux-x64;linux-musl-x64;win-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Runtime data can contain millions of downloaded XML/report files. Exclude
+         those directories before SDK default-item discovery so builds do not crawl
+         the production data tree merely to remove it later. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);wwwroot\portal-downloads\**;wwwroot\reports\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <!-- Exclude downloaded XML files from the build — filenames with commas break MSBuild glob parsing -->

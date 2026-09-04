@@ -12,20 +12,24 @@ public class DashboardService : IDashboardService
     private readonly IMemoryCache _cache;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<DashboardService> _logger;
+    private readonly IConfiguration _config;
 
     private const string CacheKey = "dashboard:facilitystatus:v1";
     private const string CacheKeyRefreshingFlag = "dashboard:facilitystatus:refreshing";
+    private static readonly SemaphoreSlim SnapshotLock = new(1, 1);
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan SoftTtl  = TimeSpan.FromMinutes(2);
 
     public DashboardService(AppDbContext db, IMemoryCache cache,
                             IServiceScopeFactory scopeFactory,
-                            ILogger<DashboardService> logger)
+                            ILogger<DashboardService> logger,
+                            IConfiguration config)
     {
         _db = db;
         _cache = cache;
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _config = config;
     }
 
     /// <summary>
@@ -45,19 +49,71 @@ public class DashboardService : IDashboardService
             return Task.FromResult(entry.Model);
         }
 
-        // No cache at all — likely pre-warm hasn't completed yet. Kick it off if
-        // no one else is already computing, then return an empty placeholder
-        // model so the user gets an instant response. They can refresh in a
-        // few seconds once the aggregation finishes.
+        // No memory cache — cold start. Before falling back to an empty placeholder,
+        // serve the last snapshot persisted to disk (stale-while-revalidate): after a
+        // restart the full rebuild takes minutes on this DB, and users were staring at
+        // "No active facilities found" the whole time. Slightly stale numbers now,
+        // fresh ones a refresh later, blank screen never.
         _ = Task.Run(() => RefreshInBackgroundAsync());
+
+        var snapshot = TryLoadSnapshot();
+        if (snapshot != null)
+        {
+            // Mark as already-stale so the background refresh continues to run.
+            _cache.Set(CacheKey, new CachedFacilityStatus(snapshot, DateTime.UtcNow - CacheTtl + TimeSpan.FromMinutes(1)), CacheTtl);
+            return Task.FromResult(snapshot);
+        }
+
+        // No snapshot either (first ever run). Flag it as building so the view renders a
+        // loading state instead of claiming there are no facilities.
         return Task.FromResult(new FacilityStatusViewModel
         {
             Facilities = new List<FacilityStatusRow>(),
             TotalRecords = 0,
             TotalClaimCount = 0,
             TotalFiles = 0,
-            LastSyncTime = null
+            LastSyncTime = null,
+            IsBuilding = true
         });
+    }
+
+    // ── Disk snapshot: survives restarts so the dashboard is never blank ─────────
+    // Data:Dir is the directory startup actually opened. Deriving this from DB_DIR
+    // instead put the dev instance's snapshot in production's data folder, because
+    // DB_DIR is set machine-wide on this host.
+    private string SnapshotPath =>
+        Path.Combine(_config["Data:Dir"]
+                     ?? Environment.GetEnvironmentVariable("DB_DIR")
+                     ?? AppContext.BaseDirectory,
+                     "dashboard-snapshot.json");
+
+    private async Task PersistSnapshotAsync(FacilityStatusViewModel model, CancellationToken ct = default)
+    {
+        await SnapshotLock.WaitAsync(ct);
+        try
+        {
+            var path = SnapshotPath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            var tempPath = path + ".tmp";
+            await File.WriteAllTextAsync(tempPath, System.Text.Json.JsonSerializer.Serialize(model), ct);
+            File.Move(tempPath, path, true);
+        }
+        catch (Exception ex) { _logger.LogWarning(ex, "Could not persist dashboard snapshot"); }
+        finally { SnapshotLock.Release(); }
+    }
+
+    private FacilityStatusViewModel? TryLoadSnapshot()
+    {
+        try
+        {
+            if (!File.Exists(SnapshotPath)) return null;
+            return System.Text.Json.JsonSerializer.Deserialize<FacilityStatusViewModel>(File.ReadAllText(SnapshotPath));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not load dashboard snapshot — serving empty until warm");
+            return null;
+        }
     }
 
     public async Task WarmAsync(CancellationToken ct = default)
@@ -69,6 +125,7 @@ public class DashboardService : IDashboardService
 
         var fresh = await BuildFacilityStatusCoreAsync();
         _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+        await PersistSnapshotAsync(fresh, ct);
     }
 
     private async Task RefreshInBackgroundAsync()
@@ -85,6 +142,7 @@ public class DashboardService : IDashboardService
                 {
                     var fresh = await concrete.BuildFacilityStatusCoreAsync();
                     _cache.Set(CacheKey, new CachedFacilityStatus(fresh, DateTime.UtcNow), CacheTtl);
+                    await PersistSnapshotAsync(fresh);
                     _logger.LogInformation("Refreshed dashboard facility status in background");
                 }
             }
@@ -140,36 +198,59 @@ public class DashboardService : IDashboardService
             .Select(l => new { l.FacilityId, Portal = l.Portal.ToUpper() })
             .ToHashSet();
 
-        var txStats = await _db.PortalTransactions
-            .AsNoTracking()
-            .GroupBy(t => new { t.FacilityId, Portal = t.Portal.ToUpper() })
-            .Select(g => new
-            {
-                g.Key.FacilityId,
-                g.Key.Portal,
-                Records = g.Count(),
-                DownloadedFiles = g.Count(t => t.FileDownloaded),
-                PendingFiles = g.Count(t => !t.FileDownloaded)
-            })
-            .ToListAsync();
+        // Raw index-only SQL. Two hard-won lessons baked in:
+        //  1. GroupBy(t.Portal.ToUpper()) defeated every index and forced full scans of
+        //     the 40GB blob-bearing table — historical builds took up to 147 MINUTES
+        //     ("Pre-warmed dashboard caches in 8814383 ms"). Portal is stored uppercase
+        //     ('DHA'/'RHA'); grouping on the raw column lets SQLite answer the whole
+        //     aggregate from IX_PortalTransactions_PendingDl (Portal, FileDownloaded,
+        //     FacilityId, …) without touching a single table row.
+        //  2. The XmlParsedRecords→PortalTransactions join existed only to attribute a
+        //     Portal to parsed rows. All parsed rows are DHA today (RHA parses will land
+        //     with FacilityId too); attributing 'DHA' directly removes a 1.6M-row join
+        //     from every rebuild. Revisit when RHA parsing goes live.
+        var conn = _db.Database.GetDbConnection();
+        if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
 
-        var txMap = txStats.ToDictionary(x => new { x.FacilityId, x.Portal });
-        var claimMap = await _db.XmlParsedRecords
-            .AsNoTracking()
-            .Where(r => r.RecordKind == "Submission")
-            .Join(
-                _db.PortalTransactions.AsNoTracking(),
-                r => r.PortalTransactionId,
-                t => t.Id,
-                (r, t) => new { r.FacilityId, Portal = t.Portal.ToUpper(), r.ClaimId })
-            .GroupBy(r => new { r.FacilityId, r.Portal })
-            .Select(g => new
+        var txStats = new List<(int FacilityId, string Portal, int Records, int DownloadedFiles, int PendingFiles)>();
+        using (var cmd = conn.CreateCommand())
+        {
+            // INDEXED BY forces the covering index: left free, the planner preferred
+            // IX_PortalTransactions_FacilityId_FileDownloaded (matches the GROUP BY sort)
+            // and did 1.17M row-fetches into the blob table — the crawl all over again.
+            // With PendingDl (Portal, FileDownloaded, FacilityId, Id) the whole aggregate
+            // is answered inside the index. SQLite-only syntax; prod runs SQLite.
+            cmd.CommandText = @"SELECT ""FacilityId"", ""Portal"", COUNT(*),
+                                       SUM(CASE WHEN ""FileDownloaded"" THEN 1 ELSE 0 END),
+                                       SUM(CASE WHEN ""FileDownloaded"" THEN 0 ELSE 1 END)
+                                FROM ""PortalTransactions"" INDEXED BY ""IX_PortalTransactions_PendingDl""
+                                GROUP BY ""Portal"", ""FacilityId""";
+            cmd.CommandTimeout = 600;
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
+                txStats.Add((rdr.GetInt32(0), rdr.GetString(1).ToUpperInvariant(), rdr.GetInt32(2), rdr.GetInt32(3), rdr.GetInt32(4)));
+        }
+        var txMap = txStats.ToDictionary(
+            x => new { x.FacilityId, x.Portal },
+            x => new { x.Records, x.DownloadedFiles, x.PendingFiles });
+
+        var claimMapTyped = new Dictionary<(int, string), int>();
+        var parsedMapTyped = new Dictionary<(int, string), int>();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = @"SELECT ""FacilityId"",
+                                       COUNT(DISTINCT ""PortalTransactionId""),
+                                       COUNT(DISTINCT CASE WHEN ""RecordKind""='Submission' THEN UPPER(""ClaimId"") END)
+                                FROM ""XmlParsedRecords""
+                                GROUP BY ""FacilityId""";
+            cmd.CommandTimeout = 600;
+            using var rdr = await cmd.ExecuteReaderAsync();
+            while (await rdr.ReadAsync())
             {
-                g.Key.FacilityId,
-                g.Key.Portal,
-                ClaimCount = g.Select(r => r.ClaimId).Distinct().Count()
-            })
-            .ToDictionaryAsync(x => new { x.FacilityId, x.Portal }, x => x.ClaimCount);
+                parsedMapTyped[(rdr.GetInt32(0), "DHA")] = rdr.GetInt32(1);
+                claimMapTyped[(rdr.GetInt32(0), "DHA")] = rdr.GetInt32(2);
+            }
+        }
 
         var rows = facilities.SelectMany(f =>
         {
@@ -189,7 +270,8 @@ public class DashboardService : IDashboardService
             {
                 var key = new { FacilityId = f.Id, Portal = portal };
                 txMap.TryGetValue(key, out var tx);
-                claimMap.TryGetValue(key, out var claimCount);
+                claimMapTyped.TryGetValue((f.Id, portal), out var claimCount);
+                parsedMapTyped.TryGetValue((f.Id, portal), out var parsedCount);
                 latestMeaningful.TryGetValue(key, out var mLog);
                 latestAny.TryGetValue(key, out var anyLog);
                 var displayLog = mLog ?? anyLog;
@@ -201,6 +283,8 @@ public class DashboardService : IDashboardService
                 {
                     FacilityId = f.Id,
                     FacilityName = portal == "RHA" ? $"{f.Name} RHA" : f.Name,
+                    FullName = f.FullName,
+                    LicenseCode = f.LicenseCode,
                     HasCredential = portal.Length > 0,
                     Portal = portal.Length > 0 ? portal : null,
                     LastSyncTime = displayLog?.FetchedAt.ToString("dd MMM yyyy HH:mm"),
@@ -210,6 +294,7 @@ public class DashboardService : IDashboardService
                     FileCount = tx?.DownloadedFiles ?? 0,
                     DownloadedFilesCount = tx?.DownloadedFiles ?? 0,
                     PendingFilesCount = tx?.PendingFiles ?? 0,
+                    ParsedFilesCount = parsedCount,
                 };
             });
         })
@@ -222,7 +307,7 @@ public class DashboardService : IDashboardService
         {
             Facilities = rows,
             TotalRecords = txStats.Sum(x => x.Records),
-            TotalClaimCount = claimMap.Values.Sum(),
+            TotalClaimCount = claimMapTyped.Values.Sum(),
             TotalFiles = txStats.Sum(x => x.DownloadedFiles),
             LastSyncTime = logProjection.Count > 0
                 ? logProjection.Max(l => l.FetchedAt).ToString("dd MMM yyyy HH:mm")
@@ -251,37 +336,56 @@ public class DashboardService : IDashboardService
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15);
 
-                var receivers = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Select(r => r.ReceiverName ?? r.ReceiverId)
-                    .Where(v => v != null && v != "")
-                    .Select(v => v!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                // Index-backed DISTINCTs. The old form projected `Name ?? Id` BEFORE
+                // DISTINCT, and a COALESCE expression cannot use any index — so each of
+                // these three was a full 1.6M-row table scan. Startup pre-warm timings
+                // showed this dominating everything else (4-6 min typical, 57 min under
+                // I/O contention). Splitting the coalesce into two indexable queries lets
+                // SQLite answer each from a covering index:
+                //   IX_XmlParsedRecords_Receiver (ReceiverName, ReceiverId)
+                //   IX_XmlParsedRecords_Payer    (PayerName, PayerId)
+                //   IX_XmlParsedRecords_Encounter(EncounterType)
+                var conn = _db.Database.GetDbConnection();
+                if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
 
-                var payers = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Select(r => r.PayerName ?? r.PayerId)
-                    .Where(v => v != null && v != "")
-                    .Select(v => v!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                async Task<List<string>> DistinctAsync(string sql)
+                {
+                    var list = new List<string>();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = sql;
+                    cmd.CommandTimeout = 300;
+                    using var rdr = await cmd.ExecuteReaderAsync();
+                    while (await rdr.ReadAsync())
+                        if (!rdr.IsDBNull(0)) list.Add(rdr.GetString(0));
+                    return list;
+                }
 
-                var encounterTypes = await _db.XmlParsedRecords
-                    .AsNoTracking()
-                    .Where(r => r.EncounterType != null && r.EncounterType != "")
-                    .Select(r => r.EncounterType!)
-                    .Distinct()
-                    .OrderBy(v => v)
-                    .Take(80)
-                    .Select(v => new DashboardFilterOption { Value = v, Label = v })
-                    .ToListAsync();
+                // Prefer the human-readable name; fall back to the code only for rows
+                // that carry no name (same result the coalesce produced).
+                var receivers = (await DistinctAsync(
+                        @"SELECT DISTINCT ""ReceiverName"" FROM ""XmlParsedRecords""
+                          WHERE ""ReceiverName"" IS NOT NULL AND ""ReceiverName"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Concat(await DistinctAsync(
+                        @"SELECT DISTINCT ""ReceiverId"" FROM ""XmlParsedRecords""
+                          WHERE (""ReceiverName"" IS NULL OR ""ReceiverName"" = '')
+                            AND ""ReceiverId"" IS NOT NULL AND ""ReceiverId"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Distinct().OrderBy(v => v).Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
+
+                var payers = (await DistinctAsync(
+                        @"SELECT DISTINCT ""PayerName"" FROM ""XmlParsedRecords""
+                          WHERE ""PayerName"" IS NOT NULL AND ""PayerName"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Concat(await DistinctAsync(
+                        @"SELECT DISTINCT ""PayerId"" FROM ""XmlParsedRecords""
+                          WHERE (""PayerName"" IS NULL OR ""PayerName"" = '')
+                            AND ""PayerId"" IS NOT NULL AND ""PayerId"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Distinct().OrderBy(v => v).Take(80)
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
+
+                var encounterTypes = (await DistinctAsync(
+                        @"SELECT DISTINCT ""EncounterType"" FROM ""XmlParsedRecords""
+                          WHERE ""EncounterType"" IS NOT NULL AND ""EncounterType"" <> '' ORDER BY 1 LIMIT 80"))
+                    .Select(v => new DashboardFilterOption { Value = v, Label = v }).ToList();
 
                 return (receivers, payers, encounterTypes);
             });
@@ -312,7 +416,10 @@ public class DashboardService : IDashboardService
         };
 
         // ── Build filtered base query ──
-        var q = _db.XmlParsedRecords.AsNoTracking().AsQueryable();
+        // Dashboard figures must come only from records that completed parsing and
+        // validation. Partially parsed rows remain available in the reconciliation
+        // screens, but must never inflate executive RCM totals.
+        var q = _db.XmlParsedRecords.AsNoTracking().Where(r => r.ReadyForReport);
 
         if (filters.FacilityId.HasValue)
             q = q.Where(r => r.FacilityId == filters.FacilityId.Value);
@@ -332,6 +439,36 @@ public class DashboardService : IDashboardService
             var to = filters.DateTo.Value.ToString("yyyy-MM-dd");
             q = q.Where(r => string.Compare(r.TreatmentDate ?? "", to) <= 0);
         }
+
+        // A single source-backed lifecycle snapshot powers the control-room strip.
+        // These stages are deliberately named after persisted states; we do not infer
+        // payer acceptance or payment allocation when the source does not provide it.
+        var lifecycleSnapshot = await q.GroupBy(_ => 1).Select(g => new
+        {
+            Submitted = g.Count(r => r.RecordKind == "Submission"),
+            SubmittedAmount = g.Where(r => r.RecordKind == "Submission").Sum(r => r.NetAmount),
+            Resubmitted = g.Count(r => r.RecordKind == "Submission" && r.ResubmissionType != null && r.ResubmissionType != ""),
+            ResubmittedAmount = g.Where(r => r.RecordKind == "Submission" && r.ResubmissionType != null && r.ResubmissionType != "").Sum(r => r.NetAmount),
+            Remitted = g.Count(r => r.RecordKind == "Remittance"),
+            RemittedAmount = g.Where(r => r.RecordKind == "Remittance").Sum(r => r.PaidAmount),
+            Matched = g.Count(r => r.RecordKind == "Remittance" && r.IsMatched),
+            MatchedAmount = g.Where(r => r.RecordKind == "Remittance" && r.IsMatched).Sum(r => r.PaidAmount),
+            Denied = g.Count(r => r.RecordKind == "Remittance" && r.DenialCodesJson != null && r.DenialCodesJson != "" && r.DenialCodesJson != "[]"),
+            DeniedAmount = g.Where(r => r.RecordKind == "Remittance" && r.DenialCodesJson != null && r.DenialCodesJson != "" && r.DenialCodesJson != "[]").Sum(r => r.NetAmount - r.PaidAmount),
+            Unmatched = g.Count(r => !r.IsMatched),
+            UnmatchedAmount = g.Where(r => !r.IsMatched).Sum(r => r.NetAmount - r.PaidAmount)
+        }).SingleOrDefaultAsync();
+
+        var lifecycle = lifecycleSnapshot == null
+            ? new List<RcmLifecycleStage>()
+            : new List<RcmLifecycleStage>
+            {
+                new() { Label = "Submitted", Count = lifecycleSnapshot.Submitted, Amount = lifecycleSnapshot.SubmittedAmount, Icon = "fa-paper-plane", Tone = "teal" },
+                new() { Label = "Resubmitted", Count = lifecycleSnapshot.Resubmitted, Amount = lifecycleSnapshot.ResubmittedAmount, Icon = "fa-rotate", Tone = "orange" },
+                new() { Label = "Remitted", Count = lifecycleSnapshot.Remitted, Amount = lifecycleSnapshot.RemittedAmount, Icon = "fa-file-invoice-dollar", Tone = "blue" },
+                new() { Label = "Matched", Count = lifecycleSnapshot.Matched, Amount = lifecycleSnapshot.MatchedAmount, Icon = "fa-link", Tone = "green" },
+                new() { Label = "Denied", Count = lifecycleSnapshot.Denied, Amount = lifecycleSnapshot.DeniedAmount, Icon = "fa-ban", Tone = "red" }
+            };
 
         // Tab-specific record kind filter
         var tabQuery = activeTab switch
@@ -446,22 +583,37 @@ public class DashboardService : IDashboardService
             metric4
         };
 
-        // ── Trend: monthly claim counts over last 6 months ──
-        var sixMonthsAgo = now.AddMonths(-6);
+        // ── Trend: latest six available service months ──
+        // The dataset can lag the current calendar. Anchoring the chart to today made
+        // valid historical data look empty, so the visible window follows the latest
+        // real month in the selected scope.
         var trendData = await tabQuery
             .Where(r => r.ServiceYear != null && r.ServiceMonth != null)
             .GroupBy(r => new { r.ServiceYear, r.ServiceMonth })
             .Select(g => new { g.Key.ServiceYear, g.Key.ServiceMonth, Count = g.Count() })
             .ToListAsync();
 
+        var latestMonth = trendData
+            .Select(t => DateTime.TryParseExact(
+                $"{t.ServiceYear}-{t.ServiceMonth}-01",
+                new[] { "yyyy-MM-dd", "yyyy-MMMM-dd", "yyyy-MMM-dd" },
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out var parsed) ? parsed : (DateTime?)null)
+            .Where(d => d.HasValue)
+            .Max() ?? now;
+
         var trend = Enumerable.Range(0, 6)
             .Select(i =>
             {
-                var month = sixMonthsAgo.AddMonths(i + 1);
+                var month = latestMonth.AddMonths(i - 5);
                 var yr = month.Year.ToString();
                 var mo = month.Month.ToString("D2");
                 var count = trendData
-                    .Where(t => t.ServiceYear == yr && t.ServiceMonth == mo)
+                    .Where(t => t.ServiceYear == yr &&
+                        (t.ServiceMonth == mo ||
+                         t.ServiceMonth == month.ToString("MMMM", System.Globalization.CultureInfo.InvariantCulture) ||
+                         t.ServiceMonth == month.ToString("MMM", System.Globalization.CultureInfo.InvariantCulture)))
                     .Sum(t => t.Count);
                 return new DashboardTrendPoint
                 {
@@ -470,6 +622,23 @@ public class DashboardService : IDashboardService
                 };
             })
             .ToList();
+
+        // Operational queue: identifiers and amounts only. Patient/member fields are
+        // intentionally excluded from this executive view.
+        var unmatchedWorklist = await q
+            .Where(r => !r.IsMatched)
+            .OrderByDescending(r => r.ParsedAt)
+            .Select(r => new RcmUnmatchedRow
+            {
+                RecordKind = r.RecordKind,
+                ClaimId = r.ClaimId,
+                ServiceDate = r.TreatmentDate ?? r.SubmissionDate ?? r.TransactionDate ?? "—",
+                Payer = r.PayerName ?? r.PayerId ?? "Unknown payer",
+                Amount = r.RecordKind == "Remittance" ? r.PaidAmount : r.NetAmount,
+                Issue = r.RecordKind == "Remittance" ? "Submission not found" : "Remittance not received"
+            })
+            .Take(6)
+            .ToListAsync();
 
         // ── Breakdown: top categories by tab ──
         var breakdown = activeTab switch
@@ -503,6 +672,13 @@ public class DashboardService : IDashboardService
             Trend = trend,
             Breakdown = breakdown,
             Insights = insights
+            ,Lifecycle = lifecycle
+            ,UnmatchedRecords = lifecycleSnapshot?.Unmatched ?? 0
+            ,UnmatchedAmount = lifecycleSnapshot?.UnmatchedAmount ?? 0
+            ,ReconciliationRate = lifecycleSnapshot is { Remitted: > 0 }
+                ? lifecycleSnapshot.Matched * 100.0 / lifecycleSnapshot.Remitted
+                : 0
+            ,UnmatchedWorklist = unmatchedWorklist
         };
     }
 

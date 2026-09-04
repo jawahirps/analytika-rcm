@@ -1,0 +1,106 @@
+/* ================================================================
+   Loaders — faithful ports of two React components to vanilla CSS.
+   No framer-motion / styled-components runtime needed.
+
+   1) .pulsating-dots  — general "loading" sign (was PulsatingDots,
+      framer-motion). Timing/keyframes identical; colour uses the
+      app accent so it fits the Deep-Teal palette (swap --dot-color
+      to #ef4444 for the original red).
+   2) .sev-loader      — fetch/sync animation (was loader-12,
+      styled-components). Scoped keyframes preserved verbatim.
+   ================================================================ */
+
+/* ── 1) Pulsating dots ─────────────────────────────────────────── */
+.pulsating-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  --dot-color: var(--theme-accent, #0FB5AE);
+}
+.pulsating-dots > span {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--dot-color);
+  animation: pulsating-dot 1s ease-in-out infinite;
+}
+.pulsating-dots > span:nth-child(2) { animation-delay: .3s; }
+.pulsating-dots > span:nth-child(3) { animation-delay: .6s; }
+
+/* Compact inline variant for buttons */
+.pulsating-dots.is-sm { gap: 5px; }
+.pulsating-dots.is-sm > span { width: 7px; height: 7px; }
+.pulsating-dots.on-accent { --dot-color: #ffffff; }
+
+@keyframes pulsating-dot {
+  0%   { transform: scale(1);   opacity: .5; }
+  50%  { transform: scale(1.5); opacity: 1;  }
+  100% { transform: scale(1);   opacity: .5; }
+}
+
+/* ── 2) Sev / server-sync loader (loader-12) ───────────────────── */
+.sev-loader .container_SevMini {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+.sev-loader .Ghost {
+  transform: translate(0px, -25px);
+  z-index: -1;
+  animation: sev-opacidad 4s infinite ease-in-out;
+}
+.sev-loader .SevMini { animation: sev-rebote 4s infinite ease-in-out; }
+.sev-loader #strobe_led1  { animation: sev-estroboscopico 0.5s infinite; }
+.sev-loader #strobe_color1 { animation: sev-estroboscopico2 0.8s infinite; }
+.sev-loader #strobe_color3 { animation: sev-estroboscopico1 0.8s infinite; animation-delay: 3s; }
+
+@keyframes sev-opacidad {
+  0%   { opacity: 1;   scale: 1;   }
+  50%  { opacity: .5;  scale: .9;  }
+  100% { opacity: 1;   scale: 1;   }
+}
+@keyframes sev-estroboscopico {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  51%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes sev-rebote {
+  0%, 100% { transform: translateY(0);     }
+  50%      { transform: translateY(-10px); }
+}
+@keyframes sev-estroboscopico1 {
+  0%, 50%, 100% { fill: rgb(255, 95, 74);  }
+  25%, 75%      { fill: rgb(16, 53, 115);  }
+}
+@keyframes sev-estroboscopico2 {
+  0%, 50%, 100% { fill: #17e300;   }
+  25%, 75%      { fill: #17e300b4; }
+}
+
+.bix-sync-loader { display:grid; justify-items:center; gap:8px; padding:8px 12px; color:var(--navy,#011c40); }
+.bix-sync-ring { position:relative; width:112px; height:112px; display:grid; place-items:center; }
+.bix-sync-ring > svg:first-of-type { position:absolute; inset:0; width:100%; height:100%; }
+.bix-sync-track,.bix-sync-progress { fill:none; stroke-width:7; }
+.bix-sync-track { stroke:rgba(84,172,191,.18); }
+.bix-sync-progress { stroke:var(--classic-teal,#1a6673); stroke-linecap:round; stroke-dasharray:55 283; transform-origin:50% 50%; animation:bix-ring-spin 1.65s linear infinite,bix-ring-dash 1.45s ease-in-out infinite; }
+.bix-sync-halo { position:absolute; inset:21px; border-radius:50%; background:rgba(84,172,191,.16); animation:bix-halo 2.2s ease-out infinite; }
+.bix-sync-icon { position:relative; width:38px; height:38px; fill:none; stroke:var(--classic-teal,#1a6673); stroke-width:2.7; stroke-linecap:round; stroke-linejoin:round; }
+.bix-sync-copy { display:grid; justify-items:center; gap:2px; text-align:center; }
+.bix-sync-copy strong { font-size:.86rem; }
+.bix-sync-copy span { color:var(--text-muted,#6c7a78); font-size:.7rem; }
+@keyframes bix-ring-spin { to { transform:rotate(360deg); } }
+@keyframes bix-ring-dash { 50% { stroke-dasharray:190 283; stroke-dashoffset:-45; } 100% { stroke-dasharray:55 283; stroke-dashoffset:-230; } }
+@keyframes bix-halo { 0% { transform:scale(.8); opacity:.55; } 75%,100% { transform:scale(1.35); opacity:0; } }
+html[data-theme="dark"] .bix-sync-loader { color:#eaf4fb; }
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .pulsating-dots > span, .bix-sync-progress, .bix-sync-halo,
+  .sev-loader .Ghost, .sev-loader .SevMini,
+  .sev-loader #strobe_led1, .sev-loader #strobe_color1, .sev-loader #strobe_color3 {
+    animation: none;
+  }
+}

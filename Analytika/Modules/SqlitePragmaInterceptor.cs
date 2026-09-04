@@ -13,7 +13,9 @@ public sealed class SqlitePragmaInterceptor : DbConnectionInterceptor
 {
     // -16384 => 16 MB page cache per connection; 256 MB mmap window.
     private const string Pragmas =
-        "PRAGMA journal_mode=WAL;" +
+        // journal_mode is intentionally NOT set here. Changing/checking it on every
+        // pooled connection can acquire a schema/write lock and make a read-only user
+        // request fail while parsing is writing. Program.cs establishes WAL once.
         "PRAGMA busy_timeout=30000;" +
         "PRAGMA synchronous=NORMAL;" +
         "PRAGMA temp_store=MEMORY;" +

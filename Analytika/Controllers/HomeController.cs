@@ -12,6 +12,8 @@ namespace Analytika.Controllers;
 
 public class HomeController : Controller
 {
+    private const string DashboardSummaryCacheKey = "dashboard:summary:v1";
+    private static readonly SemaphoreSlim DashboardSummaryLock = new(1, 1);
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IDashboardService _dashboard;
@@ -117,40 +119,67 @@ public class HomeController : Controller
     [HttpGet("/api/dashboard/summary")]
     public async Task<IActionResult> DashboardSummary()
     {
-        // 5-minute cache — the 5 aggregations on a 45GB SQLite DB cost ~1s on cold path.
-        // Invalidate on portal sync via _cache.Remove("dashboard:summary:v1") if real-time freshness needed.
-        var payload = await _cache.GetOrCreateAsync("dashboard:summary:v1", async entry =>
-        {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
-            return await ComputeDashboardSummaryAsync();
-        });
+        if (_cache.TryGetValue<object>(DashboardSummaryCacheKey, out var cached) && cached != null)
+            return Json(cached);
 
-        return Json(payload);
+        // IMemoryCache.GetOrCreateAsync does not serialize concurrent factories. The
+        // semaphore makes a cold-cache burst one database aggregation, not one per user.
+        await DashboardSummaryLock.WaitAsync(HttpContext.RequestAborted);
+        try
+        {
+            if (_cache.TryGetValue<object>(DashboardSummaryCacheKey, out cached) && cached != null)
+                return Json(cached);
+
+            var payload = await ComputeDashboardSummaryAsync(HttpContext.RequestAborted);
+            _cache.Set(DashboardSummaryCacheKey, payload, TimeSpan.FromMinutes(5));
+            return Json(payload);
+        }
+        finally
+        {
+            DashboardSummaryLock.Release();
+        }
     }
 
-    private async Task<object> ComputeDashboardSummaryAsync()
+    private async Task<object> ComputeDashboardSummaryAsync(CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
         var d30 = now.AddDays(-30);
         var d60 = now.AddDays(-60);
 
         var daily = await _db.PortalTransactions
+            .AsNoTracking()
             .Where(t => t.SyncedAt >= d30)
             .GroupBy(t => t.SyncedAt.Date)
             .Select(g => new { Date = g.Key, Count = g.Count() })
             .OrderBy(x => x.Date)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var byType = await _db.PortalTransactions
+            .AsNoTracking()
             .Where(t => t.SyncedAt >= d30)
             .GroupBy(t => t.Type)
             .Select(g => new { Type = g.Key, Count = g.Count() })
             .OrderByDescending(x => x.Count)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var currentCount  = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30);
-        var previousCount = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d60 && t.SyncedAt < d30);
-        var downloaded    = await _db.PortalTransactions.CountAsync(t => t.SyncedAt >= d30 && t.FileDownloaded);
+        // One index-backed pass over the 60-day window replaces three separate
+        // COUNT queries. This matters on the large PortalTransactions table and
+        // keeps the values from the same database snapshot.
+        var counts = await _db.PortalTransactions
+            .AsNoTracking()
+            .Where(t => t.SyncedAt >= d60)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Current = g.Count(t => t.SyncedAt >= d30),
+                Previous = g.Count(t => t.SyncedAt < d30),
+                Downloaded = g.Count(t => t.SyncedAt >= d30 && t.FileDownloaded)
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var currentCount = counts?.Current ?? 0;
+        var previousCount = counts?.Previous ?? 0;
+        var downloaded = counts?.Downloaded ?? 0;
 
         double trend = previousCount > 0
             ? Math.Round((currentCount - previousCount) / (double)previousCount * 100.0, 1)

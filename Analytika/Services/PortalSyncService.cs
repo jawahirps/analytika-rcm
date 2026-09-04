@@ -12,6 +12,7 @@ namespace Analytika.Services;
 /// </summary>
 public class PortalSyncService
 {
+    public const int MaximumParallelWorkers = 32;
     private readonly AppDbContext _db;
     private readonly IDhaPortalService _dha;
     private readonly ILogger<PortalSyncService> _logger;
@@ -93,7 +94,7 @@ public class PortalSyncService
     // ── Core download + upsert ─────────────────────────────────────
     // • Deduplicates input by FileId before touching the DB.
     // • One batch DB query to find existing records (avoids N queries).
-    // • Parallel downloads (max 5 concurrent) — big throughput gain.
+    // • Parallel downloads (up to the application safety ceiling of 32 workers).
     // • Retries download for existing records where FileDownloaded=false.
     // • Saves in batches of 100 to balance memory vs round-trips.
     // • Progress callback fires every 10 records (reduces SSE chatter).
@@ -138,7 +139,7 @@ public class PortalSyncService
         // 3. Parallel download new records
         if (newRows.Any())
         {
-            var downloaded = await DownloadParallelAsync(newRows, login, pwd, facilityId, skipDownload, maxConcurrency: 5);
+            var downloaded = await DownloadParallelAsync(newRows, login, pwd, facilityId, skipDownload, maxConcurrency: MaximumParallelWorkers);
             var now = DateTime.UtcNow;
             int progressBatch = 0;
 
@@ -184,7 +185,7 @@ public class PortalSyncService
         // 4. Retry download for existing records that previously failed
         if (!skipDownload && retryRows.Any())
         {
-            var retried = await DownloadParallelAsync(retryRows, login, pwd, facilityId, false, maxConcurrency: 3);
+            var retried = await DownloadParallelAsync(retryRows, login, pwd, facilityId, false, maxConcurrency: MaximumParallelWorkers);
             var retryNow = DateTime.UtcNow;
 
             foreach (var (row, contentXml, sizeBytes, dlOk) in retried.Where(r => r.Downloaded))
@@ -202,17 +203,6 @@ public class PortalSyncService
         }
 
         if (onProgress != null) await onProgress(newCount, dupCount, filesDownloaded, filesByType);
-
-        // Per-facility, per-type fetch summary (claims vs remittances vs prior-auth, etc.)
-        // so an on-demand run shows exactly what each facility returned.
-        static string Sanitize(string s) => s.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
-        _logger.LogInformation(
-            "[PortalSync] Facility {FacilityId} {Portal}: {New} new, {Dup} dup, {Files} downloaded — by type: {ByType}",
-            facilityId, Sanitize(portal ?? ""), newCount, dupCount, filesDownloaded,
-            filesByType.Count > 0
-                ? string.Join(", ", filesByType.OrderBy(kv => kv.Key).Select(kv => $"{Sanitize(kv.Key)}={kv.Value}"))
-                : "none");
-
         return (newCount, dupCount, filesDownloaded);
     }
 
@@ -236,7 +226,33 @@ public class PortalSyncService
                 {
                     try
                     {
-                        var (_, dlFileName, dlBytes, _) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
+                        // DownloadTransactionFile takes the transaction GUID. (The
+                        // six-week download outage from Jun 9 was the SOAP param
+                        // casing — DHPO requires <fileId>, we sent <fileID>.)
+                        var (_, dlFileName, dlBytes, dlErr) = await _dha.DownloadTransactionFileAsync(login, pwd, row.FileId);
+                        // Historical transactions may only be available through DHPO's
+                        // archive service. Preserve the normal endpoint as the fast path,
+                        // then retry the same immutable file id against Archive before
+                        // marking the source unavailable.
+                        if (dlBytes == null || dlBytes.Length == 0)
+                        {
+                            var archive = await _dha.DownloadTransactionFileArchiveAsync(login, pwd, row.FileId);
+                            if (archive.fileBytes is { Length: > 0 })
+                            {
+                                dlFileName = archive.fileName;
+                                dlBytes = archive.fileBytes;
+                                dlErr = null;
+                            }
+                            else if (!string.IsNullOrWhiteSpace(archive.error))
+                            {
+                                dlErr = string.IsNullOrWhiteSpace(dlErr)
+                                    ? archive.error
+                                    : $"{dlErr}; archive: {archive.error}";
+                            }
+                        }
+                        if (dlErr != null || dlBytes == null || dlBytes.Length == 0)
+                            _logger.LogWarning("[PortalSync] Download refused for {FileId} ({Type}): {Err}",
+                                row.FileId, row.Type, dlErr ?? "no bytes returned");
                         if (dlBytes?.Length > 0)
                         {
                             var (contentXml, _) = DhaPortalService.ParseDownloadedFile(dlBytes, logger: _logger);
@@ -257,7 +273,7 @@ public class PortalSyncService
                             return;
                         }
                     }
-                    catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] Download failed for {FileId}", row.FileId); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[PortalSync] Download failed for {FileId}", row.FileId); }
                 }
                 results.Add((row, null, null, false));
             }
@@ -268,7 +284,8 @@ public class PortalSyncService
     }
 
     // ── Parallel search helper ─────────────────────────────────────
-    // Runs all type × status × direction combinations in parallel (max 4 at a time).
+    // Runs all type × status × direction combinations concurrently, bounded by the
+    // same 32-worker safety ceiling used by downloads.
 
     public async Task<List<PortalFetchResultRow>> SearchAllCombosAsync(
         string login, string pwd,
@@ -276,8 +293,8 @@ public class PortalSyncService
         int[] txTypes, int[]? statuses = null)
     {
         statuses ??= [1, 2];
-        var combos = (from t in txTypes from s in statuses select (t, s)).ToList();
-        var sem = new SemaphoreSlim(4);
+        var combos = (from t in txTypes from s in statuses from d in new[] { 1, 2 } select (t, s, d)).ToList();
+        var sem = new SemaphoreSlim(Math.Min(MaximumParallelWorkers, combos.Count));
         var bag = new ConcurrentBag<PortalFetchResultRow>();
 
         await Task.WhenAll(combos.Select(async combo =>
@@ -286,15 +303,13 @@ public class PortalSyncService
             try
             {
                 // Use splitting variant — DHA caps SearchTransactions at 500 rows per call.
-                var (_, sent, _) = await _dha.SearchTransactionsWithSplittingAsync(login, pwd, 1, dhpoFrom, dhpoTo, combo.s, combo.t);
-                var (_, recv, _) = await _dha.SearchTransactionsWithSplittingAsync(login, pwd, 2, dhpoFrom, dhpoTo, combo.s, combo.t);
+                var (_, rows, _) = await _dha.SearchTransactionsWithSplittingAsync(login, pwd, combo.d, dhpoFrom, dhpoTo, combo.s, combo.t);
                 // Tag with the searched transaction type — authoritative (the search was
                 // scoped to combo.t), so Submitted vs Remittance counts are exact.
                 var typeName = DhaPortalService.TxTypeName(combo.t);
-                foreach (var r in sent) { r.Type = typeName; bag.Add(r); }
-                foreach (var r in recv) { r.Type = typeName; bag.Add(r); }
+                foreach (var r in rows) { r.Type = typeName; bag.Add(r); }
             }
-            catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] SearchAllCombos failed for combo ({TxType}, {Status})", combo.t, combo.s); }
+            catch (Exception ex) { _logger.LogDebug(ex, "[PortalSync] SearchAllCombos failed for combo ({TxType}, {Status}, direction {Direction})", combo.t, combo.s, combo.d); }
             finally { sem.Release(); }
         }));
 
