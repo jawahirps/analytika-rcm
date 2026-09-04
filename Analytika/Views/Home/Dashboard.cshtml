@@ -375,55 +375,6 @@
         </div>
     </div>
 
-    <!-- Data Analyst Agent -->
-    <section class="agent-card" aria-labelledby="agentCardTitle">
-        <div class="agent-icon">
-            <i class="fas fa-robot"></i>
-        </div>
-        <div class="agent-info">
-            <div class="agent-name" id="agentCardTitle">
-                Data Analyst
-                <span class="agent-badge">AI Agent</span>
-            </div>
-            <div class="agent-desc">Load, explore, and visualize data; build reports and answer questions from datasets.</div>
-            <div class="agent-model"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-5</div>
-        </div>
-        <div class="agent-actions">
-            <a class="agent-btn agent-btn-primary" href="/Ai">
-                <i class="fas fa-play" style="font-size:.65rem;"></i> Launch Agent
-            </a>
-            <button type="button" class="agent-btn agent-btn-ghost" onclick="document.getElementById('agentModal').style.display='flex'">
-                <i class="fas fa-info-circle" style="font-size:.65rem;"></i> About
-            </button>
-        </div>
-    </section>
-
-    <!-- Agent modal -->
-    <div id="agentModal" style="display:none;position:fixed;inset:0;z-index:1050;align-items:center;justify-content:center;background:rgba(1,28,64,0.55);backdrop-filter:blur(6px);" onclick="if(event.target===this)this.style.display='none'">
-        <div style="background:#ffffff;border-radius:20px;width:min(560px,94vw);box-shadow:0 32px 80px rgba(1,28,64,0.22);overflow:hidden;animation:dropIn .22s cubic-bezier(.4,0,.2,1) both;">
-            <div style="background:linear-gradient(135deg,#011C40 0%,#023859 100%);padding:22px 24px 18px;display:flex;align-items:center;gap:14px;">
-                <div style="width:44px;height:44px;border-radius:12px;background:rgba(84,172,191,0.2);border:1px solid rgba(84,172,191,.35);display:flex;align-items:center;justify-content:center;color:#54ACBF;font-size:1.2rem;"><i class="fas fa-robot"></i></div>
-                <div style="flex:1;">
-                    <div style="font-size:1rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;">Data Analyst <span style="font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#54ACBF;background:rgba(84,172,191,.15);border:1px solid rgba(84,172,191,.3);padding:2px 8px;border-radius:999px;">AI Agent</span></div>
-                    <div style="font-size:.75rem;color:rgba(84,172,191,.8);margin-top:2px;"><i class="fas fa-microchip" style="font-size:.65rem;"></i> claude-sonnet-5</div>
-                </div>
-                <button onclick="document.getElementById('agentModal').style.display='none'" style="background:none;border:none;color:rgba(255,255,255,.5);font-size:1.2rem;cursor:pointer;padding:4px;line-height:1;">&times;</button>
-            </div>
-            <div style="padding:24px;">
-                <p style="font-size:.88rem;color:#4B6B73;line-height:1.65;margin-bottom:20px;">Load, explore, and visualize data; build reports and answer questions from datasets. Connects to Amplitude for product analytics.</p>
-                <div style="display:grid;gap:10px;margin-bottom:20px;">
-                    <div style="display:flex;align-items:center;gap:10px;font-size:.82rem;color:#011C40;"><span style="width:28px;height:28px;border-radius:8px;background:#EAF4FB;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-table" style="color:#54ACBF;font-size:.7rem;"></i></span>Tabular analysis with pandas &amp; polars</div>
-                    <div style="display:flex;align-items:center;gap:10px;font-size:.82rem;color:#011C40;"><span style="width:28px;height:28px;border-radius:8px;background:#EAF4FB;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-chart-bar" style="color:#54ACBF;font-size:.7rem;"></i></span>Charts with matplotlib &amp; plotly</div>
-                    <div style="display:flex;align-items:center;gap:10px;font-size:.82rem;color:#011C40;"><span style="width:28px;height:28px;border-radius:8px;background:#EAF4FB;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-wave-square" style="color:#54ACBF;font-size:.7rem;"></i></span>Amplitude funnels, retention &amp; cohort queries</div>
-                </div>
-                <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;font-size:.8rem;color:#64748b;border:1px solid #e2e8f0;">
-                    <i class="fas fa-info-circle" style="color:#54ACBF;margin-right:6px;"></i>
-                    This agent runs via the Claude Agent SDK. Contact your administrator to connect it to your data sources.
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Summary row -->
     <div class="status-summary">
         <div class="ss-card">
@@ -584,36 +535,10 @@
 </div>
 
 @section Scripts {
-<script>document.addEventListener('DOMContentLoaded',()=>document.body.appendChild(document.getElementById('agentModal')));</script>
 <style>
-.agent-card {
-    display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center;
-    gap: 16px; margin-bottom: 20px; padding: 18px 20px; color: var(--text);
-    background: linear-gradient(120deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 88%, #54ACBF 12%) 100%);
-    border: 1px solid var(--glass-border); border-radius: var(--radius-xl); box-shadow: var(--shadow-sm);
-}
-.agent-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg,#006884,#54ACBF); box-shadow: 0 8px 20px rgba(0,104,132,.2); }
-.agent-info { min-width: 0; }
-.agent-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--text); font-weight: 750; }
-.agent-badge { padding: 3px 8px; border-radius: 999px; color: #006884; background: rgba(84,172,191,.14); font-size: .62rem; letter-spacing: .07em; text-transform: uppercase; }
-.agent-desc { margin-top: 4px; color: var(--text-muted); font-size: var(--fs-sm); }
-.agent-model { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; color: var(--text-muted); font-size: var(--fs-xs); }
-.agent-actions { display: flex; align-items: center; gap: 8px; }
-.agent-btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 13px; border: 1px solid var(--border); border-radius: 10px; font-size: var(--fs-xs); font-weight: 700; text-decoration: none; cursor: pointer; }
-.agent-btn-primary { color: #fff; border-color: #006884; background: #006884; }
-.agent-btn-primary:hover { color: #fff; background: #00556d; }
-.agent-btn-ghost { color: var(--text); background: transparent; }
-.agent-btn-ghost:hover { background: var(--surface-hover); }
 .dash-charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 @@media (max-width: 900px) {
     .dash-charts-row { grid-template-columns: 1fr; }
-    .agent-card { grid-template-columns: auto minmax(0,1fr); }
-    .agent-actions { grid-column: 1 / -1; }
-}
-@@media (max-width: 520px) {
-    .agent-card { padding: 15px; gap: 12px; }
-    .agent-icon { width: 40px; height: 40px; }
-    .agent-actions { display: grid; grid-template-columns: 1fr 1fr; }
 }
 .dash-chart-card {
     background: var(--surface);
