@@ -8,6 +8,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<ReportRequest> ReportRequests { get; set; }
+    public DbSet<Tenant> Tenants { get; set; }
     public DbSet<Facility> Facilities { get; set; }
     public DbSet<Receiver> Receivers { get; set; }
     public DbSet<Payer> Payers { get; set; }
@@ -25,6 +26,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<XmlParsedRecord> XmlParsedRecords { get; set; }
     public DbSet<XmlParsedActivity> XmlParsedActivities { get; set; }
     public DbSet<ResubmissionTask> ResubmissionTasks { get; set; }
+    public DbSet<AiUsageLog> AiUsageLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -124,6 +126,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.RemittanceClaim).WithOne(c => c.Task).HasForeignKey<ResubmissionTask>(e => e.RemittanceClaimId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.AssignedTo).WithMany().HasForeignKey(e => e.AssignedToUserId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.AssignedBy).WithMany().HasForeignKey(e => e.AssignedByUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<AiUsageLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.CreatedAt);        // usage panel orders/filters by date
+            entity.HasIndex(e => e.UserId);
         });
     }
 }

@@ -109,12 +109,23 @@ public class FacilityStatusViewModel
     public int TotalClaimCount { get; set; }
     public int TotalFiles { get; set; }
     public string? LastSyncTime { get; set; }
+
+    /// <summary>
+    /// True when this model is a placeholder returned while the aggregation is still
+    /// running (cold cache after a restart), rather than a finished result. Without it
+    /// the view cannot tell "still loading" from "genuinely no facilities" and showed
+    /// "No active facilities found. Add credentials to get started." to users who had
+    /// 12 working facilities — a false statement prescribing a wrong action.
+    /// </summary>
+    public bool IsBuilding { get; set; }
 }
 
 public class FacilityStatusRow
 {
     public int FacilityId { get; set; }
     public string FacilityName { get; set; } = "";
+    public string? FullName { get; set; }        // official DHPO license name
+    public string? LicenseCode { get; set; }     // DHA-F-xxxxx
     public bool HasCredential { get; set; }   // any active credential
     public string? Portal { get; set; }   // DHA / RHA / both
     public string? LastSyncTime { get; set; }
@@ -124,6 +135,7 @@ public class FacilityStatusRow
     public int FileCount { get; set; }
     public int DownloadedFilesCount { get; set; }  // files where FileDownloaded = true
     public int PendingFilesCount { get; set; }  // files where FileDownloaded = false
+    public int ParsedFilesCount { get; set; }  // transactions parsed into XmlParsedRecords (report-ready)
     public int TotalFilesWithStatus => DownloadedFilesCount + PendingFilesCount;
 
     public FacilityConnectionStatus Status
