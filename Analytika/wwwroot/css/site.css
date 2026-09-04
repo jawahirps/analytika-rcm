@@ -4502,7 +4502,7 @@ video {
 }
 
 /* Shared top navigation: labelled and horizontal on desktop, naturally
-   collapsible below Bootstrap's xl breakpoint. Keep this final so older
+   collapsible below Bootstrap's lg breakpoint. Keep this final so older
    sidebar-era responsive rules cannot force the menu back into one row. */
 .analytika-navbar {
   overflow: visible;
@@ -4513,31 +4513,59 @@ video {
   max-width: min(360px, calc(100vw - 1rem));
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 992px) {
   .analytika-navbar > .container-fluid {
-    flex-wrap: nowrap;
-    gap: .5rem;
+    flex-wrap: nowrap !important;
+    gap: .25rem;
   }
 
   .analytika-navbar .navbar-collapse {
     display: flex !important;
+    flex: 1 1 auto;
+    flex-basis: auto !important;
     min-width: 0;
+    width: auto;
+    max-height: none;
+    padding: 0;
     overflow: visible;
   }
 
-  .analytika-navbar .navbar-nav {
+  .analytika-navbar .navbar-nav,
+  .analytika-navbar .navbar-nav.ms-auto {
+    width: auto;
     flex-direction: row;
     flex-wrap: nowrap;
-    align-items: stretch;
+    align-items: center !important;
+  }
+
+  .analytika-navbar .nav-item,
+  .analytika-navbar .nav-link,
+  .analytika-navbar .profile-btn,
+  .analytika-navbar .bell-btn {
+    width: auto;
   }
 
   .analytika-navbar .nav-link,
   .analytika-navbar .profile-btn {
     white-space: nowrap;
   }
+
+  .analytika-navbar .dropdown-menu {
+    position: absolute !important;
+    width: max-content;
+    min-width: 220px;
+    margin-top: 0 !important;
+    box-shadow: var(--shadow-md);
+  }
+
+  .analytika-navbar .lang-theme-tools {
+    width: auto;
+    flex-wrap: nowrap;
+    margin-block: 0 !important;
+  }
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 991.98px) {
   .analytika-navbar > .container-fluid {
     flex-wrap: wrap !important;
   }
@@ -4599,6 +4627,38 @@ video {
     flex-wrap: wrap;
     justify-content: flex-start;
     margin: .5rem 0 !important;
+  }
+}
+
+@media (min-width: 992px) and (max-width: 1199.98px) {
+  .analytika-navbar > .container-fluid {
+    padding-inline: .5rem !important;
+  }
+
+  .analytika-navbar .brand-sub,
+  .analytika-navbar .profile-btn .text-truncate,
+  .analytika-navbar #themeToggleLabel {
+    display: none !important;
+  }
+
+  .analytika-navbar .analytika-brand {
+    padding-inline: .4rem .55rem;
+  }
+
+  .analytika-navbar .nav-link {
+    gap: .2rem;
+    padding-inline: .35rem;
+    font-size: .69rem;
+  }
+
+  .analytika-navbar .lang-theme-tools {
+    gap: .25rem !important;
+    margin-right: .2rem !important;
+  }
+
+  .analytika-navbar .profile-btn,
+  .analytika-navbar .bell-btn {
+    padding-inline: .3rem !important;
   }
 }
 
