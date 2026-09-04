@@ -173,6 +173,7 @@ public static class ModuleRegistration
     private static IServiceCollection AddPortalModule(this IServiceCollection services)
     {
         services.AddScoped<IEmailService, EmailService>();
+        services.AddSingleton<ReportWorkbookValidator>();
         services.AddScoped<IReportService, ReportService>();
         services.AddSingleton<IReportValidationService, ReportValidationService>();
         services.AddScoped<IDhaPortalService, DhaPortalService>();

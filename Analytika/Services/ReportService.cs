@@ -11,6 +11,8 @@ namespace Analytika.Services;
 
 public class ReportService : IReportService
 {
+    private static readonly SemaphoreSlim QueueGate = new(1, 1);
+    private static readonly SemaphoreSlim GenerationGate = new(2, 2);
     private const string GhafInk = "#011C40";
     private const string GhafPrimary = "#A7EBF2";
     private const string GhafTeal = "#54ACBF";
@@ -26,6 +28,7 @@ public class ReportService : IReportService
     private readonly XmlParsingService _xmlParsingService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
+    private readonly ReportWorkbookValidator _workbookValidator;
 
     public ReportService(
         AppDbContext context,
@@ -35,7 +38,8 @@ public class ReportService : IReportService
         RemittanceParserService remittanceParser,
         XmlParsingService xmlParsingService,
         IServiceScopeFactory scopeFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ReportWorkbookValidator workbookValidator)
     {
         _context = context;
         _logger = logger;
@@ -45,6 +49,7 @@ public class ReportService : IReportService
         _xmlParsingService = xmlParsingService;
         _scopeFactory = scopeFactory;
         _configuration = configuration;
+        _workbookValidator = workbookValidator;
     }
 
     public string GetNextReportId(ReportRequest request, string? selectedDateRange = null)
@@ -68,12 +73,43 @@ public class ReportService : IReportService
 
     public async Task<string> QueueReportAsync(ReportRequest request, string? selectedDateRange = null)
     {
-        request.ReportId = GetNextReportId(request, selectedDateRange);
-        request.Status = "Pending";
-        request.RequestedAt = DateTime.UtcNow;
+        await QueueGate.WaitAsync();
+        try
+        {
+            var duplicateCutoff = DateTime.UtcNow.AddMinutes(-10);
+            var existing = await _context.ReportRequests
+                .AsNoTracking()
+                .Where(r => r.RequestedAt >= duplicateCutoff)
+                .Where(r => r.Status == "Pending" || r.Status == "Processing")
+                .Where(r => r.ReportType == request.ReportType
+                    && r.BranchId == request.BranchId
+                    && r.ReceiverId == request.ReceiverId
+                    && r.PayerId == request.PayerId
+                    && r.ClinicianId == request.ClinicianId
+                    && r.DepartmentId == request.DepartmentId
+                    && r.DateFrom.Date == request.DateFrom.Date
+                    && r.DateTo.Date == request.DateTo.Date
+                    && r.SearchCriteria == request.SearchCriteria)
+                .OrderByDescending(r => r.RequestedAt)
+                .FirstOrDefaultAsync();
 
-        _context.ReportRequests.Add(request);
-        await _context.SaveChangesAsync();
+            if (existing != null)
+            {
+                _logger.LogInformation("Duplicate report request suppressed; returning active report {ReportId}.", existing.ReportId);
+                return existing.ReportId;
+            }
+
+            request.ReportId = GetNextReportId(request, selectedDateRange);
+            request.Status = "Pending";
+            request.RequestedAt = DateTime.UtcNow;
+
+            _context.ReportRequests.Add(request);
+            await _context.SaveChangesAsync();
+        }
+        finally
+        {
+            QueueGate.Release();
+        }
 
         var facilityName = request.BranchId.HasValue
             ? (await _context.Facilities
@@ -203,6 +239,9 @@ public class ReportService : IReportService
 
     public async Task GenerateReportAsync(int reportRequestId)
     {
+        await GenerationGate.WaitAsync();
+        try
+        {
         var report = await _context.ReportRequests
             .Include(r => r.Branch)
             .Include(r => r.Receiver)
@@ -631,8 +670,34 @@ public class ReportService : IReportService
             ws.Columns(1, headers.Length).AdjustToContents(1, Math.Min(mainTableLastRow, tableHeaderRow + 500));
             ApplyGhafReportLayout(ws, headers.Length, mainTableLastRow);
 
-            wb.SaveAs(filePath);
-            UpdateStage("Saving report", 95, exportRows.Count, exportRows.Count, "Workbook saved. Finalizing report record.");
+            var stagingPath = $"{filePath}.{Guid.NewGuid():N}.staging";
+            try
+            {
+                wb.SaveAs(stagingPath);
+                UpdateStage("Validating report", 96, exportRows.Count, exportRows.Count,
+                    "Workbook saved to staging. Validating structure, metadata, rows, and embedded media.");
+
+                var validation = _workbookValidator.Validate(
+                    stagingPath,
+                    GetWorksheetName(report.ReportType),
+                    report.Branch?.Name ?? "All Facilities",
+                    report.DateFrom,
+                    report.DateTo,
+                    exportRows.Count,
+                    headers);
+
+                if (!validation.IsValid)
+                    throw new InvalidDataException($"Generated workbook validation failed: {string.Join("; ", validation.Errors)}");
+
+                File.Move(stagingPath, filePath, overwrite: true);
+                UpdateStage("Publishing report", 97, exportRows.Count, exportRows.Count,
+                    $"Validated workbook published ({validation.DataRows:N0} data row(s), no embedded images).");
+            }
+            finally
+            {
+                if (File.Exists(stagingPath))
+                    File.Delete(stagingPath);
+            }
 
             report.Status = "Completed";
             report.GeneratedAt = DateTime.UtcNow;
@@ -662,6 +727,11 @@ public class ReportService : IReportService
         }
 
         await _context.SaveChangesAsync();
+        }
+        finally
+        {
+            GenerationGate.Release();
+        }
     }
 
     private void ApplyGhafReportHeader(IXLWorksheet ws, int lastColumn, ReportRequest report, int rowCount, int unmatchedRemittanceCount)
@@ -676,46 +746,24 @@ public class ReportService : IReportService
         ws.Range(1, 1, 6, lastColumn).Style.Border.BottomBorderColor = XLColor.FromHtml(GhafBorder);
 
         ws.Range(1, 1, 6, 1).Style.Fill.BackgroundColor = XLColor.FromHtml(GhafTeal);
-        ws.Range(1, 2, 6, 6).Merge();
-        ws.Range(1, 7, 1, lastColumn).Merge();
-        ws.Range(2, 7, 2, lastColumn).Merge();
-        ws.Range(3, 7, 3, lastColumn).Merge();
+        ws.Range(1, 2, 1, lastColumn).Merge();
+        ws.Range(2, 2, 2, lastColumn).Merge();
+        ws.Range(3, 2, 3, lastColumn).Merge();
 
-        var logoPath = ResolveReportLogoPath();
-        if (!string.IsNullOrWhiteSpace(logoPath))
-        {
-            try
-            {
-                var picture = ws.AddPicture(logoPath)
-                    .MoveTo(ws.Cell(1, 2));
-                picture.Width = 92;
-                picture.Height = 120;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not add Ghaf report logo to workbook.");
-                WriteTextFallbackLogo(ws);
-            }
-        }
-        else
-        {
-            WriteTextFallbackLogo(ws);
-        }
+        ws.Cell(1, 2).Value = "GHAF BUSINESS SERVICES";
+        ws.Cell(1, 2).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
+        ws.Cell(1, 2).Style.Font.Bold = true;
+        ws.Cell(1, 2).Style.Font.FontSize = 10;
+        ws.Cell(1, 2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
 
-        ws.Cell(1, 7).Value = "GHAF BUSINESS SERVICES";
-        ws.Cell(1, 7).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
-        ws.Cell(1, 7).Style.Font.Bold = true;
-        ws.Cell(1, 7).Style.Font.FontSize = 10;
-        ws.Cell(1, 7).Style.Alignment.Vertical = XLAlignmentVerticalValues.Bottom;
+        ws.Cell(2, 2).Value = title;
+        ws.Cell(2, 2).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
+        ws.Cell(2, 2).Style.Font.Bold = true;
+        ws.Cell(2, 2).Style.Font.FontSize = 22;
 
-        ws.Cell(2, 7).Value = title;
-        ws.Cell(2, 7).Style.Font.FontColor = XLColor.FromHtml(GhafInk);
-        ws.Cell(2, 7).Style.Font.Bold = true;
-        ws.Cell(2, 7).Style.Font.FontSize = 22;
-
-        ws.Cell(3, 7).Value = "Healthcare revenue cycle intelligence";
-        ws.Cell(3, 7).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
-        ws.Cell(3, 7).Style.Font.FontSize = 11;
+        ws.Cell(3, 2).Value = "Healthcare revenue cycle intelligence";
+        ws.Cell(3, 2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
+        ws.Cell(3, 2).Style.Font.FontSize = 11;
 
         AddReportMeta(ws, 5, 7, "Facility", facility);
         AddReportMeta(ws, 5, 11, "Date Range", period);
@@ -790,35 +838,6 @@ public class ReportService : IReportService
         ws.Column(37).Width = 20;
         ws.Column(38).Width = 32;
         ws.Column(41).Width = 20;
-    }
-
-    private string? ResolveReportLogoPath()
-    {
-        var candidates = new[]
-        {
-            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884-2x.jpg"),
-            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.jpg"),
-            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-primary-006884.png"),
-            Path.Combine(_env.WebRootPath, "images", "ghaf-logo-soft-78C2C2.png"),
-            Path.Combine(_env.WebRootPath, "images", "ghaf-report-logo-teal.png"),
-            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-exact-teal.png",
-            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo-lockup-exact-teal.png",
-            "/Users/jawaa/Library/CloudStorage/OneDrive-GhafBusinessServices/Ghaf Docs/Ghaf Logo !/ghaf logo/Working file/resized/ghaf-logo-max-2048.jpg",
-            "/Users/jawaa/Downloads/Ghaf Business Services Website/src/imports/ghaf-logo.png"
-        };
-
-        return candidates.FirstOrDefault(System.IO.File.Exists);
-    }
-
-    private static void WriteTextFallbackLogo(IXLWorksheet ws)
-    {
-        ws.Cell(2, 2).Value = "GHAF";
-        ws.Cell(2, 2).Style.Font.Bold = true;
-        ws.Cell(2, 2).Style.Font.FontSize = 20;
-        ws.Cell(2, 2).Style.Font.FontColor = XLColor.FromHtml(GhafTeal);
-        ws.Cell(3, 2).Value = "BUSINESS SERVICES";
-        ws.Cell(3, 2).Style.Font.FontSize = 8;
-        ws.Cell(3, 2).Style.Font.FontColor = XLColor.FromHtml(GhafPrimary);
     }
 
     private static string GetReportTitle(string reportType) => reportType switch
