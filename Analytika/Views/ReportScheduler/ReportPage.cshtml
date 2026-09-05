@@ -80,6 +80,25 @@
     .btn-clear-reports { background: rgba(248,113,113,.08); color: #fca5a5; border: 1px solid rgba(248,113,113,.20); border-radius: 999px; padding: 5px 10px; font-size: 0.78rem; font-weight: 600; }
     .btn-clear-reports:hover { background: rgba(248,113,113,.16); color: #fecaca; }
     .pagination-info { font-size: 0.82rem; color: #40566f; }
+    .generation-status-card {
+        display: none;
+        margin-bottom: 20px;
+        padding: 18px 20px;
+        border: 1px solid #b8c8d8;
+        border-radius: 18px;
+        background: #fff;
+        color: #102a43;
+        box-shadow: 0 12px 30px rgba(0,0,0,.22);
+    }
+    .generation-status-card.is-visible { display: block; }
+    .generation-status-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+    .generation-status-title { font-weight: 800; font-size: .96rem; }
+    .generation-status-meta { margin-top: 4px; color: #40566f; font-size: .82rem; }
+    .generation-status-percent { color: #0f2e4d; font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+    .generation-progress-track { height: 10px; margin-top: 14px; overflow: hidden; border-radius: 999px; background: #dce7f0; }
+    .generation-progress-bar { height: 100%; width: 0; border-radius: inherit; background: #0f2e4d; transition: width .35s ease; }
+    .generation-status-message { margin-top: 10px; color: #18324d; font-size: .84rem; }
+    .generation-status-counts { margin-top: 7px; color: #40566f; font-size: .78rem; }
     .custom-date-section { display: none; }
     .select2-container .select2-selection--multiple { min-height: 38px; }
     .btn-submit-report { background: #6366f1; color: white; border: 1px solid rgba(99,102,241,.50); padding: 8px 24px; border-radius: 999px; font-weight: 700; box-shadow: 0 4px 20px rgba(99,102,241,.35); }
@@ -229,6 +248,7 @@
         .pagination-info {
             margin-bottom: 8px;
         }
+        .generation-status-heading { gap: 8px; }
     }
 </style>
 }
@@ -415,6 +435,21 @@
         </div>
     </div>
 
+    <section id="generationStatusCard" class="generation-status-card" aria-live="polite" aria-atomic="true">
+        <div class="generation-status-heading">
+            <div>
+                <div class="generation-status-title"><i class="fas fa-gears me-2"></i><span id="generationStage">Backend processing</span></div>
+                <div id="generationMeta" class="generation-status-meta"></div>
+            </div>
+            <div id="generationPercent" class="generation-status-percent">0%</div>
+        </div>
+        <div class="generation-progress-track" role="progressbar" aria-label="Report generation progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="generationProgressBar" class="generation-progress-bar"></div>
+        </div>
+        <div id="generationMessage" class="generation-status-message">Checking backend status…</div>
+        <div id="generationCounts" class="generation-status-counts"></div>
+    </section>
+
     <!-- Reports Table -->
     <div class="card table-card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -538,7 +573,40 @@
 <script>
     $(document).ready(function() {
         flatpickr('.flatpickr', { dateFormat: 'd/m/Y', allowInput: true });
+        refreshGenerationStatus();
+        window.reportStatusTimer = window.setInterval(refreshGenerationStatus, 2500);
     });
+
+    async function refreshGenerationStatus() {
+        const card = document.getElementById('generationStatusCard');
+        try {
+            const response = await fetch('@Url.Action("GetGenerationStatus", "ReportScheduler")?reportType=@Uri.EscapeDataString(Model.ReportType)', {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            });
+            if (!response.ok) throw new Error('Status request failed');
+            const state = await response.json();
+            card.classList.toggle('is-visible', state.hasWork || state.stage === 'Failed');
+            if (!state.hasWork) return;
+
+            const pct = Math.max(0, Math.min(100, Number(state.pct) || 0));
+            document.getElementById('generationStage').textContent = state.stage || 'Processing';
+            document.getElementById('generationPercent').textContent = pct + '%';
+            document.getElementById('generationProgressBar').style.width = pct + '%';
+            card.querySelector('[role="progressbar"]').setAttribute('aria-valuenow', pct);
+            document.getElementById('generationMeta').textContent = [state.reportId, state.facility, state.dateRange].filter(Boolean).join(' · ');
+            document.getElementById('generationMessage').textContent = state.message || 'Backend processing is active.';
+
+            const counts = [];
+            if (state.total > 0) counts.push(Number(state.done).toLocaleString() + ' of ' + Number(state.total).toLocaleString() + ' records');
+            if (state.pendingCount > 0) counts.push(state.pendingCount + ' report' + (state.pendingCount === 1 ? '' : 's') + ' waiting');
+            document.getElementById('generationCounts').textContent = counts.join(' · ');
+        } catch {
+            card.classList.add('is-visible');
+            document.getElementById('generationStage').textContent = 'Status temporarily unavailable';
+            document.getElementById('generationMessage').textContent = 'The report continues in the backend. This panel will retry automatically.';
+        }
+    }
 
     function setDateRange(btn, range) {
         document.querySelectorAll('.date-range-btn').forEach(b => b.classList.remove('active'));

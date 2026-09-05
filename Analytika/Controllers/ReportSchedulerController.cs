@@ -221,6 +221,52 @@ public class ReportSchedulerController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> GetGenerationStatus(string reportType)
+    {
+        if (string.IsNullOrWhiteSpace(reportType))
+            return BadRequest(new { message = "Report type is required." });
+
+        var facilityIds = await GetUserFacilityIdsAsync();
+        var queueQuery = _context.ReportRequests.AsNoTracking()
+            .Where(report => report.ReportType == reportType)
+            .Where(report => report.Status == "Pending" || report.Status == "Processing");
+
+        if (facilityIds != null)
+        {
+            queueQuery = facilityIds.Count > 0
+                ? queueQuery.Where(report => report.BranchId.HasValue && facilityIds.Contains(report.BranchId.Value))
+                : queueQuery.Where(_ => false);
+        }
+
+        var queued = await queueQuery
+            .OrderBy(report => report.RequestedAt)
+            .Select(report => new { report.Id, report.ReportId, report.Status })
+            .ToListAsync();
+
+        var snapshot = ReportGenerationState.Get();
+        var activeVisible = snapshot.ReportType.Equals(reportType, StringComparison.OrdinalIgnoreCase)
+            && queued.Any(report => report.Id == snapshot.ReportRequestId);
+        var next = queued.FirstOrDefault(report => report.Status == "Pending");
+
+        return Json(new
+        {
+            isRunning = activeVisible && snapshot.IsRunning,
+            reportRequestId = activeVisible ? snapshot.ReportRequestId : 0,
+            reportId = activeVisible ? snapshot.ReportId : next?.ReportId ?? "",
+            stage = activeVisible ? snapshot.Stage : next != null ? "Queued" : "Idle",
+            message = activeVisible ? snapshot.Message : next != null ? "Waiting for the active backend report to finish." : "No report is currently running.",
+            pct = activeVisible ? snapshot.Pct : 0,
+            done = activeVisible ? snapshot.Done : 0,
+            total = activeVisible ? snapshot.Total : 0,
+            facility = activeVisible ? snapshot.Facility : "",
+            dateRange = activeVisible ? snapshot.DateRange : "",
+            startedAt = activeVisible ? snapshot.StartedAt : (DateTime?)null,
+            pendingCount = queued.Count(report => report.Status == "Pending"),
+            hasWork = queued.Count > 0
+        });
+    }
+
+    [HttpGet]
     [Authorize(Roles = AppRoles.RcmAccess)]
     public async Task<IActionResult> Download(int id)
     {
