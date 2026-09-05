@@ -18,14 +18,47 @@ public class AuditFlagDetectorTests
     }
 
     [Fact]
-    public void Dsl9Repeat_AfterSeventhCalendarDay_IsNotFlagged()
+    public void ConsultationRepeat_OnSeventhDayAfterInitial_IsStillFreeFollowUp()
     {
         var flags = AuditFlagDetector.Detect([
             Row("C1", "01/09/2026", "9.01"),
             Row("C2", "08/09/2026", "9.01")
         ]);
 
-        flags.Should().NotContain(flag => flag.RuleId == "NC-CONSULT-007");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007");
+    }
+
+    [Fact]
+    public void SameDiagnosis_DaysEightToFourteen_AllowsHalfPriceCodeAtHalfPrice()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/09/2026", "9.01", net: 100),
+            Row("C2", "09/09/2026", "9.02", net: 50)
+        ]);
+
+        flags.Should().NotContain(flag => flag.RuleId.StartsWith("NC-CONSULT-014"));
+    }
+
+    [Fact]
+    public void SameDiagnosis_DaysEightToFourteen_FlagsMoreThanHalfPrice()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/09/2026", "10.01", net: 100),
+            Row("C2", "12/09/2026", "10.02", net: 60)
+        ]);
+
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-014-PRICE");
+    }
+
+    [Fact]
+    public void DifferentDiagnosis_DaysEightToFourteen_CannotUseHalfPriceCode()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/09/2026", "9.01", diagnosis: "J01", net: 100),
+            Row("C2", "10/09/2026", "9.02", diagnosis: "M54", net: 50)
+        ]);
+
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-014-DX");
     }
 
     [Fact]

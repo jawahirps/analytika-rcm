@@ -54,7 +54,7 @@ public static partial class AuditFlagDetector
     public const string NextcareConsultationSource = "https://www.nextcarehealth.com/news-and-cues/medical-bulletin/consultation-rules-for-healthcare-providers/";
     public const string NextcareTimeSource = "https://www.nextcarehealth.com/news-and-cues/medical-bulletin/billing-of-time-based-codes/";
     public const string DhaEthicsSource = "https://www.dha.gov.ae/uploads/012026/Standards%20for%20Code%20of%20Ethics%20and%20Professional%20Conduct%20for%20Health%20Professionals%20V1%20202613351.pdf";
-    public const string RuleVersion = "UAE-AUDIT-2026.09";
+    public const string RuleVersion = "UAE-AUDIT-2026.09.1";
 
     private static readonly HashSet<string> TimedCodes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -124,25 +124,45 @@ public static partial class AuditFlagDetector
                  {
                      x.Row.FacilityId,
                      Member = IdentityKey(x.Row),
-                     Clinician = Key(x.Row.Clinician),
-                     x.Diagnosis
+                     Clinician = Key(x.Row.Clinician)
                  }))
         {
             var ordered = group.OrderBy(x => x.Date).ToList();
+            if (ordered.Count < 2) continue;
+
+            var initial = ordered[0];
             for (var i = 1; i < ordered.Count; i++)
             {
                 var current = ordered[i];
-                var prior = ordered.Take(i).LastOrDefault(x =>
-                    x.Date!.Value.Date <= current.Date!.Value.Date &&
-                    (current.Date.Value.Date - x.Date.Value.Date).TotalDays <= 6);
-                if (prior == null) continue;
+                var days = (int)(current.Date!.Value.Date - initial.Date!.Value.Date).TotalDays;
+                if (days > 14)
+                {
+                    initial = current;
+                    continue;
+                }
 
-                var days = (int)(current.Date!.Value.Date - prior.Date!.Value.Date).TotalDays;
-                if (days > 0 && IsDsl9(current.Code))
+                if (days is >= 1 and <= 7
+                    && current.Diagnosis.Equals(initial.Diagnosis, StringComparison.OrdinalIgnoreCase))
                     Add(current, "NC-CONSULT-007", "DSL 9 repeat within 7 days",
                         current.Diagnosis == "DIAGNOSIS-NOT-AVAILABLE" ? "Review" : "Medium",
-                        $"DSL 9 consultation repeats {days} day(s) after an earlier consultation for the same member, practitioner and condition; review as a free follow-up candidate.",
-                        NextcareConsultationSource, prior.Row.ClaimId);
+                        $"A billed consultation repeats {days} day(s) after the initial consultation for the same member, facility and practitioner; the first seven follow-up days are the free follow-up period.",
+                        NextcareConsultationSource, initial.Row.ClaimId);
+
+                if (days is < 8 or > 14) continue;
+                var sameDiagnosis = current.Diagnosis.Equals(initial.Diagnosis, StringComparison.OrdinalIgnoreCase);
+                var halfPriceCode = IsHalfPriceFollowUp(current.Code);
+                if (!sameDiagnosis && halfPriceCode)
+                    Add(current, "NC-CONSULT-014-DX", "Half-price follow-up diagnosis mismatch", "High",
+                        $"Code {current.Code} was billed {days} days after the initial consultation, but the diagnosis differs; half-price follow-up is permitted only when the diagnosis remains the same.",
+                        NextcareConsultationSource, initial.Row.ClaimId);
+                else if (sameDiagnosis && !halfPriceCode)
+                    Add(current, "NC-CONSULT-014-CODE", "Paid follow-up code mismatch", "Medium",
+                        $"This same-diagnosis consultation occurred {days} days after the initial consultation; the paid follow-up period permits codes 9.02 or 10.02.",
+                        NextcareConsultationSource, initial.Row.ClaimId);
+                else if (sameDiagnosis && halfPriceCode && initial.Row.Net > 0m && current.Row.Net > initial.Row.Net / 2m + 0.01m)
+                    Add(current, "NC-CONSULT-014-PRICE", "Paid follow-up exceeds half price", "High",
+                        $"The follow-up charge ({current.Row.Net:0.00}) exceeds 50% of the initial consultation charge ({initial.Row.Net:0.00}).",
+                        NextcareConsultationSource, initial.Row.ClaimId);
             }
         }
 
@@ -188,6 +208,7 @@ public static partial class AuditFlagDetector
             || Path.GetFileName(row.FileName).StartsWith("RES-", StringComparison.OrdinalIgnoreCase);
     private static string Key(string? value) => (value ?? "").Trim().ToUpperInvariant();
     private static bool IsDsl9(string code) => Dsl9Regex().IsMatch(code);
+    private static bool IsHalfPriceFollowUp(string code) => code is "9.02" or "10.02";
     private static bool IsConsultationCode(string code) => DslConsultationRegex().IsMatch(code);
     private static bool IsDsl9To11(string code) => DslConsultationRegex().IsMatch(code);
     private static string NormalizeCode(string? code) => Regex.Replace((code ?? "").Trim().ToUpperInvariant(), "^DSL\\s*", "").Replace(" ", "");
