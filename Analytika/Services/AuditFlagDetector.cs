@@ -25,7 +25,9 @@ public sealed record AuditClaimActivity(
     string ReceiverName,
     string PayerId,
     string PayerName,
-    string FileName);
+    string FileName,
+    string SubmissionDate,
+    string ResubmissionType);
 
 public sealed record AuditFlag(
     string RuleId,
@@ -78,7 +80,9 @@ public static partial class AuditFlagDetector
             flags.Add(ToFlag(candidate, ruleId, type, severity, reason, sourceUrl, relatedClaim));
         }
 
-        foreach (var group in rows.Where(x => !string.IsNullOrWhiteSpace(IdentityKey(x.Row))).GroupBy(x => new
+        var originalSubmissionRows = rows.Where(x => !IsResubmission(x.Row)).ToList();
+
+        foreach (var group in originalSubmissionRows.Where(x => !string.IsNullOrWhiteSpace(IdentityKey(x.Row))).GroupBy(x => new
                  {
                      x.Row.FacilityId,
                      Member = IdentityKey(x.Row),
@@ -98,7 +102,7 @@ public static partial class AuditFlagDetector
                     DhaEthicsSource, first.Row.ClaimId);
         }
 
-        var consultationRows = rows.Where(x => IsConsultationCode(x.Code) && !string.IsNullOrWhiteSpace(IdentityKey(x.Row))).ToList();
+        var consultationRows = originalSubmissionRows.Where(x => IsConsultationCode(x.Code) && !string.IsNullOrWhiteSpace(IdentityKey(x.Row))).ToList();
         foreach (var group in consultationRows.GroupBy(x => new
                  {
                      x.Row.FacilityId,
@@ -179,6 +183,9 @@ public static partial class AuditFlagDetector
 
     private static int SeverityRank(string severity) => severity switch { "High" => 0, "Medium" => 1, _ => 2 };
     private static string IdentityKey(AuditClaimActivity row) => Key(string.IsNullOrWhiteSpace(row.MemberId) ? row.PatientId : row.MemberId);
+    private static bool IsResubmission(AuditClaimActivity row)
+        => !string.IsNullOrWhiteSpace(row.ResubmissionType)
+            || Path.GetFileName(row.FileName).StartsWith("RES-", StringComparison.OrdinalIgnoreCase);
     private static string Key(string? value) => (value ?? "").Trim().ToUpperInvariant();
     private static bool IsDsl9(string code) => Dsl9Regex().IsMatch(code);
     private static bool IsConsultationCode(string code) => DslConsultationRegex().IsMatch(code);

@@ -831,7 +831,9 @@ public class ReportService : IReportService
                     record.ReceiverName ?? "",
                     record.PayerId ?? "",
                     record.PayerName ?? "",
-                    record.FileName ?? "");
+                    record.FileName ?? "",
+                    record.SubmissionDate ?? "",
+                    record.ResubmissionType ?? "");
             })
             .Where(candidate =>
             {

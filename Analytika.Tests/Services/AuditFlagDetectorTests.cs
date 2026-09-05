@@ -40,6 +40,28 @@ public class AuditFlagDetectorTests
     }
 
     [Fact]
+    public void ExactDuplicateService_DoesNotCompareOriginalAgainstResubmission()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/01/2026", "90471", fileName: "ORIGINAL.xml"),
+            Row("C1", "01/01/2026", "90471", fileName: "RES-ORIGINAL.xml", resubmissionType: "internal complaint")
+        ]);
+
+        flags.Should().NotContain(flag => flag.RuleId == "DHA-DUP-001");
+    }
+
+    [Fact]
+    public void ExactDuplicateService_StillComparesTwoOriginalSubmissions()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/01/2026", "90471", fileName: "SUB-1.xml"),
+            Row("C2", "01/01/2026", "90471", fileName: "SUB-2.xml")
+        ]);
+
+        flags.Should().ContainSingle(flag => flag.RuleId == "DHA-DUP-001" && flag.RelatedClaimId == "C1");
+    }
+
+    [Fact]
     public void EmergencyDslConsultation_IsFlagged()
     {
         var flags = AuditFlagDetector.Detect([Row("C1", "01/09/2026", "10.01", encounter: "Emergency")]);
@@ -99,7 +121,10 @@ public class AuditFlagDetectorTests
         string encounter = "Outpatient",
         decimal quantity = 1,
         decimal net = 100,
-        string activityStart = "09:00")
+        string activityStart = "09:00",
+        string? fileName = null,
+        string resubmissionType = "")
         => new(1, "Test Facility", claimId, member, patient, date, encounter, "DR1", diagnosis, "",
-            code, "", quantity, net, net, activityStart, "R1", "Receiver", "PAY1", "Payer", $"{claimId}.xml");
+            code, "", quantity, net, net, activityStart, "R1", "Receiver", "PAY1", "Payer",
+            fileName ?? $"{claimId}.xml", date, resubmissionType);
 }
