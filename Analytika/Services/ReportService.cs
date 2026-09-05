@@ -337,6 +337,18 @@ public class ReportService : IReportService
             var reportYears = Enumerable.Range(report.DateFrom.Year, report.DateTo.Year - report.DateFrom.Year + 1)
                 .Select(year => year.ToString(CultureInfo.InvariantCulture)).ToList();
             parsedClaimQuery = parsedClaimQuery.Where(r => r.ServiceYear == null || reportYears.Contains(r.ServiceYear));
+            var reportMonths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var month = new DateTime(report.DateFrom.Year, report.DateFrom.Month, 1);
+                 month <= new DateTime(report.DateTo.Year, report.DateTo.Month, 1);
+                 month = month.AddMonths(1))
+            {
+                reportMonths.Add(month.ToString("MMMM", CultureInfo.InvariantCulture));
+                reportMonths.Add(month.ToString("MMM", CultureInfo.InvariantCulture));
+                reportMonths.Add(month.Month.ToString(CultureInfo.InvariantCulture));
+                reportMonths.Add(month.Month.ToString("00", CultureInfo.InvariantCulture));
+            }
+            var monthValues = reportMonths.ToList();
+            parsedClaimQuery = parsedClaimQuery.Where(r => r.ServiceMonth == null || r.ServiceMonth == "" || monthValues.Contains(r.ServiceMonth));
 
             var parsedSubmissions = await parsedClaimQuery
                 .OrderBy(r => r.ParsedAt)
