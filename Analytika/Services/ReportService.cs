@@ -315,9 +315,18 @@ public class ReportService : IReportService
             else
             {
                 await _xmlParsingService.EnsureSchemaAsync();
-                var matchResult = await _xmlParsingService.MatchParsedRecordsAsync();
-                parseResult = new XmlParsingRunResult { MatchedClaimRefs = matchResult.MatchedClaimRefs };
-                UpdateStage("Preparing parsed XML", 20, 0, 0, "Using prepared all-facility XML cache. Prepare or rebuild from Portal > XML Parsing when new files are downloaded.");
+                if (report.ReportType.Equals("AuditFlags", StringComparison.OrdinalIgnoreCase))
+                {
+                    parseResult = new XmlParsingRunResult();
+                    UpdateStage("Preparing parsed XML", 20, 0, 0,
+                        "Using the prepared submission cache; remittance matching is not required for audit-rule evaluation.");
+                }
+                else
+                {
+                    var matchResult = await _xmlParsingService.MatchParsedRecordsAsync();
+                    parseResult = new XmlParsingRunResult { MatchedClaimRefs = matchResult.MatchedClaimRefs };
+                    UpdateStage("Preparing parsed XML", 20, 0, 0, "Using prepared all-facility XML cache. Prepare or rebuild from Portal > XML Parsing when new files are downloaded.");
+                }
             }
             UpdateStage("Preparing parsed XML", 20, parseResult.RecordsSaved, parseResult.FilesScanned,
                 $"XML cache ready: {parseResult.RecordsSaved:N0} new claim row(s), {parseResult.MatchedClaimRefs:N0} matched claim ref(s).");
