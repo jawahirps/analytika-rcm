@@ -111,6 +111,9 @@ public class ReportSchedulerController : Controller
     public async Task<IActionResult> ClaimLifeCycleReport(int page = 1)
         => View("ReportPage", await BuildViewModelAsync("ClaimLifeCycle", "Claim Life Cycle Report", page));
 
+    public async Task<IActionResult> AuditFlagsReport(int page = 1)
+        => View("ReportPage", await BuildViewModelAsync("AuditFlags", "UAE Audit Flags Report", page));
+
     [HttpGet("/ReportScheduler/SubmitReport")]
     public IActionResult SubmitReport()
         => RedirectToAction(nameof(ClaimSummaryReport));
@@ -338,6 +341,7 @@ public class ReportSchedulerController : Controller
         "FinanceTAT" => "FinanceTATReport",
         "DenialReport" => "DenialReport",
         "ClaimLifeCycle" => "ClaimLifeCycleReport",
+        "AuditFlags" => "AuditFlagsReport",
         _ => "ClaimSummaryReport"
     };
 }

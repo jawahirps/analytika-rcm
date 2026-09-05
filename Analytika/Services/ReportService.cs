@@ -251,6 +251,7 @@ public class ReportService : IReportService
             .Include(r => r.Receiver)
             .Include(r => r.Payer)
             .Include(r => r.Clinician)
+            .Include(r => r.DepartmentNav)
             .FirstOrDefaultAsync(r => r.Id == reportRequestId);
 
         if (report == null) return;
@@ -341,6 +342,14 @@ public class ReportService : IReportService
                 .OrderBy(r => r.ParsedAt)
                 .ToListAsync();
             UpdateStage("Loading parsed submissions", 35, parsedSubmissions.Count, parsedSubmissions.Count, $"Loaded {parsedSubmissions.Count:N0} parsed submission claim row(s).");
+
+            if (report.ReportType.Equals("AuditFlags", StringComparison.OrdinalIgnoreCase))
+            {
+                await GenerateAuditFlagsReportAsync(
+                    report, parsedSubmissions, facilityIds, receiverIds, payerIds, clinicianIds,
+                    encounterTypes, filePath, UpdateStage);
+                return;
+            }
 
             // ── Load parsed remittance rows and build a claim-id lookup ──
             UpdateStage("Querying parsed remittances", 42, 0, 0, "Query: XmlParsedRecords where RecordKind = Remittance and ReadyForReport = true.");
@@ -739,6 +748,183 @@ public class ReportService : IReportService
         }
     }
 
+    private async Task GenerateAuditFlagsReportAsync(
+        ReportRequest report,
+        IReadOnlyCollection<XmlParsedRecord> parsedSubmissions,
+        IReadOnlyCollection<int> facilityIds,
+        IReadOnlyCollection<int> receiverIds,
+        IReadOnlyCollection<int> payerIds,
+        IReadOnlyCollection<int> clinicianIds,
+        IReadOnlySet<string> encounterTypes,
+        string filePath,
+        Action<string, int, int, int, string?> updateStage)
+    {
+        updateStage("Loading audit activities", 45, 0, 0, "Querying claim activities for versioned UAE audit rules.");
+        var recordIds = parsedSubmissions.Select(record => record.Id).ToList();
+        var records = parsedSubmissions.ToDictionary(record => record.Id);
+
+        var activities = new List<XmlParsedActivity>();
+        const int batchSize = 4000;
+        for (var offset = 0; offset < recordIds.Count; offset += batchSize)
+        {
+            var batch = recordIds.Skip(offset).Take(batchSize).ToList();
+            activities.AddRange(await _context.XmlParsedActivities.AsNoTracking()
+                .Where(activity => batch.Contains(activity.XmlParsedRecordId))
+                .ToListAsync());
+            updateStage("Loading audit activities", Math.Min(65, 45 + (int)Math.Round((offset + batch.Count) / (double)Math.Max(1, recordIds.Count) * 20)),
+                Math.Min(offset + batch.Count, recordIds.Count), recordIds.Count, "Loading activity-level claim evidence.");
+        }
+
+        var facilityNames = await _context.Facilities.AsNoTracking().ToDictionaryAsync(facility => facility.Id, facility => facility.Name);
+        var receiverFilters = receiverIds.Count == 0
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : (await _context.Receivers.AsNoTracking().Where(item => receiverIds.Contains(item.Id)).Select(item => item.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var payerFilters = payerIds.Count == 0
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : (await _context.Payers.AsNoTracking().Where(item => payerIds.Contains(item.Id)).Select(item => item.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var clinicianFilters = clinicianIds.Count == 0
+            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            : (await _context.Clinicians.AsNoTracking().Where(item => clinicianIds.Contains(item.Id)).Select(item => item.Name).ToListAsync()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        static bool Matches(IReadOnlySet<string> filters, params string?[] values) => filters.Count == 0 ||
+            filters.Any(filter => values.Where(value => !string.IsNullOrWhiteSpace(value)).Any(value =>
+                value!.Equals(filter, StringComparison.OrdinalIgnoreCase) || value.Contains(filter, StringComparison.OrdinalIgnoreCase)));
+
+        var candidates = activities
+            .Where(activity => records.ContainsKey(activity.XmlParsedRecordId))
+            .Select(activity =>
+            {
+                var record = records[activity.XmlParsedRecordId];
+                var serviceDate = AuditFlagDetector.TryParseDate(activity.Start).HasValue
+                    ? activity.Start ?? ""
+                    : record.TreatmentDate ?? "";
+                return new AuditClaimActivity(
+                    record.FacilityId,
+                    facilityNames.GetValueOrDefault(record.FacilityId, $"Facility {record.FacilityId}"),
+                    record.ClaimId,
+                    record.MemberId ?? "",
+                    record.PatientId ?? "",
+                    serviceDate,
+                    record.EncounterType ?? "",
+                    string.IsNullOrWhiteSpace(activity.Clinician) ? record.Clinician ?? "" : activity.Clinician,
+                    record.PrincipalDiagnosis ?? "",
+                    record.DiagnosesJson ?? "",
+                    activity.ActivityCode ?? "",
+                    activity.ActivityType ?? "",
+                    activity.Quantity,
+                    activity.Net,
+                    activity.Gross,
+                    activity.Start ?? "",
+                    record.ReceiverId ?? "",
+                    record.ReceiverName ?? "",
+                    record.PayerId ?? "",
+                    record.PayerName ?? "",
+                    record.FileName ?? "");
+            })
+            .Where(candidate =>
+            {
+                var date = AuditFlagDetector.TryParseDate(candidate.TreatmentDate);
+                return date.HasValue && date.Value.Date >= report.DateFrom.Date && date.Value.Date <= report.DateTo.Date
+                    && Matches(receiverFilters, candidate.ReceiverId, candidate.ReceiverName)
+                    && Matches(payerFilters, candidate.PayerId, candidate.PayerName)
+                    && Matches(clinicianFilters, candidate.Clinician)
+                    && (encounterTypes.Count == 0 || encounterTypes.Contains(candidate.EncounterType));
+            })
+            .ToList();
+
+        updateStage("Applying audit rules", 75, candidates.Count, candidates.Count,
+            $"Evaluating {candidates.Count:N0} activity row(s) with rule set {AuditFlagDetector.RuleVersion}.");
+        var flags = AuditFlagDetector.Detect(candidates);
+
+        var headers = new[]
+        {
+            "Rule ID", "Claim ID", "Related Claim ID", "Flag Type", "Severity", "Facility", "Member ID",
+            "Service Date", "Encounter Type", "Clinician", "Diagnosis", "Activity Code", "Quantity", "Net Amount",
+            "Audit Rationale", "Source", "Rule Version", "Submission File"
+        };
+
+        updateStage("Generating workbook", 88, flags.Count, flags.Count, $"Writing {flags.Count:N0} audit flag(s) to Excel.");
+        using var workbook = new XLWorkbook();
+        workbook.Style.Font.FontName = "Inter";
+        var worksheet = workbook.Worksheets.Add(GetWorksheetName(report.ReportType));
+        ApplyReportFilterHeader(worksheet, headers.Length, report);
+        const int headerRow = 8;
+        for (var column = 0; column < headers.Length; column++)
+        {
+            var cell = worksheet.Cell(headerRow, column + 1);
+            cell.Value = headers[column];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportNavy);
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        for (var index = 0; index < flags.Count; index++)
+        {
+            var flag = flags[index];
+            var row = headerRow + index + 1;
+            worksheet.Cell(row, 1).Value = flag.RuleId;
+            worksheet.Cell(row, 2).Value = flag.ClaimId;
+            worksheet.Cell(row, 3).Value = flag.RelatedClaimId;
+            worksheet.Cell(row, 4).Value = flag.FlagType;
+            worksheet.Cell(row, 5).Value = flag.Severity;
+            worksheet.Cell(row, 6).Value = flag.Facility;
+            worksheet.Cell(row, 7).Value = flag.MemberId;
+            worksheet.Cell(row, 8).Value = flag.ServiceDate;
+            worksheet.Cell(row, 9).Value = flag.EncounterType;
+            worksheet.Cell(row, 10).Value = flag.Clinician;
+            worksheet.Cell(row, 11).Value = flag.Diagnosis;
+            worksheet.Cell(row, 12).Value = flag.ActivityCode;
+            worksheet.Cell(row, 13).Value = flag.Quantity;
+            worksheet.Cell(row, 14).Value = flag.Net;
+            worksheet.Cell(row, 15).Value = flag.Reason;
+            worksheet.Cell(row, 16).Value = flag.Source;
+            worksheet.Cell(row, 17).Value = flag.RuleVersion;
+            worksheet.Cell(row, 18).Value = flag.FileName;
+            worksheet.Cell(row, 14).Style.NumberFormat.Format = "#,##0.00";
+            if (index % 2 == 1) worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
+        }
+
+        var lastRow = headerRow + Math.Max(0, flags.Count);
+        worksheet.Range(headerRow, 1, lastRow, headers.Length).SetAutoFilter();
+        worksheet.SheetView.FreezeRows(headerRow);
+        worksheet.SheetView.FreezeColumns(2);
+        worksheet.Columns(1, headers.Length).AdjustToContents(1, Math.Min(lastRow, headerRow + 500));
+        worksheet.Column(15).Width = 70;
+        worksheet.Column(16).Width = 55;
+        worksheet.Column(18).Width = 45;
+        worksheet.Columns(15, 18).Style.Alignment.WrapText = true;
+        worksheet.PageSetup.PageOrientation = XLPageOrientation.Landscape;
+        worksheet.PageSetup.FitToPages(1, 0);
+
+        var stagingPath = $"{filePath}.{Guid.NewGuid():N}.staging.xlsx";
+        try
+        {
+            workbook.SaveAs(stagingPath);
+            updateStage("Validating report", 96, flags.Count, flags.Count, "Validating audit workbook structure, evidence rows and embedded media.");
+            var validation = _workbookValidator.Validate(stagingPath, GetWorksheetName(report.ReportType),
+                report.Branch?.Name ?? "All Facilities", report.DateFrom, report.DateTo, flags.Count, headers);
+            if (!validation.IsValid)
+                throw new InvalidDataException($"Generated audit workbook validation failed: {string.Join("; ", validation.Errors)}");
+            File.Move(stagingPath, filePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(stagingPath)) File.Delete(stagingPath);
+        }
+
+        report.Status = "Completed";
+        report.GeneratedAt = DateTime.UtcNow;
+        report.FilePath = $"/reports/{Path.GetFileName(filePath)}";
+        if (!string.IsNullOrWhiteSpace(report.EmailTo))
+        {
+            try { await _emailService.SendReportAsync(report.EmailTo, report.ReportId, report.ReportType, filePath); }
+            catch (Exception exception) { _logger.LogWarning(exception, "Audit report {ReportId} generated but email delivery failed.", report.ReportId); }
+        }
+        await _context.SaveChangesAsync();
+        ReportGenerationState.Finish(report.Id, $"Audit report {report.ReportId} completed with {flags.Count:N0} review flag(s).");
+    }
+
     private static void ApplyReportFilterHeader(IXLWorksheet ws, int lastColumn, ReportRequest report)
     {
         var period = $"{report.DateFrom:dd MMM yyyy} - {report.DateTo:dd MMM yyyy}";
@@ -868,6 +1054,7 @@ public class ReportService : IReportService
             "FinanceTAT" => "Finance TAT",
             "DenialReport" => "Denial Query",
             "ClaimLifeCycle" => "Claim Life Cycle",
+            "AuditFlags" => "Audit Flags",
             _ => "Report"
         };
 

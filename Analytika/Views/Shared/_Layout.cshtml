@@ -112,13 +112,23 @@
                 }
                 @if (canAccessRcm)
                 {
-                <li class="nav-item">
-                    @* Single button — the report type is chosen on the page via a
-                       dropdown, like the other filters. *@
-                    <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "ReportScheduler" ? "active" : "")"
-                       asp-controller="ReportScheduler" asp-action="ClaimSummaryReport">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "ReportScheduler" ? "active" : "")"
+                       href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Advanced Reports">
                         <i class="fas fa-file-invoice fs-78"></i><span class="primary-nav-label">Advanced Reports</span>
                     </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimSummaryReport"><i class="fas fa-table-list me-2 text-muted"></i>Claim Summary</a></li>
+                        <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="ClaimActivityReports"><i class="fas fa-list-check me-2 text-muted"></i>Claim Activity</a></li>
+                        <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="RemittanceActivityReport"><i class="fas fa-money-check-dollar me-2 text-muted"></i>Remittance Activity</a></li>
+                        <li><hr class="dropdown-divider" /></li>
+                        <li class="dropdown-submenu">
+                            <a class="dropdown-item dropdown-toggle" href="#" aria-label="Audit Flags submenu"><i class="fas fa-folder-open me-2 text-danger"></i>Audit Flags</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" asp-controller="ReportScheduler" asp-action="AuditFlagsReport"><i class="fas fa-flag me-2 text-danger"></i>UAE Audit Flags</a></li>
+                            </ul>
+                        </li>
+                    </ul>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["controller"]?.ToString() == "Portal" ? "active" : "")"

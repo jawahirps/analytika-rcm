@@ -31,7 +31,7 @@ public class AdminController : Controller
     private readonly INvidiaAnalystService _aiAnalyst;
 
     private static readonly string[] DashboardTabs = { "Submissions", "Resubmissions", "Remittance", "Denials", "Clinicians", "Operations", "Insurance", "Department" };
-    private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "SubmissionXML" };
+    private static readonly string[] ReportTypes = { "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle", "AuditFlags", "SubmissionXML" };
     private static readonly string[] StandardRoles = { "Admin", "FacilityAdmin", "Analyst", "Billing", "Finance", "Auditor", "Viewer" };
     private static readonly string[] ProtectedRoles = { "Admin", "FacilityAdmin" };
 
@@ -1341,7 +1341,7 @@ public class AdminController : Controller
 
     private static readonly string[] ReportTypeOptions =
     {
-        "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver",
+        "ClaimSummary", "ClaimActivity", "RemittanceActivity", "ClaimReceiver", "AuditFlags",
         "ClaimClinician", "FinanceTAT", "DenialReport", "ClaimLifeCycle"
     };
 

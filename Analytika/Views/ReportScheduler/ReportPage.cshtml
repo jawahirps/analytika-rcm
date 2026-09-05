@@ -249,6 +249,13 @@
             <i class="fas fa-filter me-2"></i>@Model.ReportTitle - Filters
         </div>
         <div class="card-body p-4">
+            @if (Model.ReportType == "AuditFlags")
+            {
+                <div class="alert alert-warning mb-3" role="note">
+                    <strong><i class="fas fa-triangle-exclamation me-2"></i>Clinical review required.</strong>
+                    These results are audit leads, not automatic denials. Rules are versioned and each exported row includes its rationale and source.
+                </div>
+            }
             <form asp-controller="ReportScheduler" asp-action="CreateReport" method="post" id="reportForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="ReportType" value="@Model.ReportType" />
