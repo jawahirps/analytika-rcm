@@ -50,20 +50,32 @@ public class ReportSchedulerController : Controller
                 ? facilitiesQuery.Where(f => facilityIds.Contains(f.Id))
                 : facilitiesQuery.Where(_ => false);
 
-        // Scope filter dropdowns to codes that actually appear in this facility's parsed data
-        var parsedScope = _context.XmlParsedRecords.AsNoTracking();
-        if (facilityIds != null && facilityIds.Count > 0)
-            parsedScope = parsedScope.Where(r => facilityIds.Contains(r.FacilityId));
+        // Global users can use the maintained lookup tables directly. Scanning
+        // distinct values from the full parsed-record ledger makes every report
+        // page proportional to the (very large) claims database.
+        List<string>? payerCodes = null;
+        List<string>? receiverCodes = null;
+        List<string>? clinicianCodes = null;
+        if (facilityIds != null)
+        {
+            var parsedScope = _context.XmlParsedRecords.AsNoTracking();
+            parsedScope = facilityIds.Count > 0
+                ? parsedScope.Where(record => facilityIds.Contains(record.FacilityId))
+                : parsedScope.Where(_ => false);
+            payerCodes = await parsedScope.Where(record => record.PayerId != null && record.PayerId != "")
+                .Select(record => record.PayerId!).Distinct().ToListAsync();
+            receiverCodes = await parsedScope.Where(record => record.ReceiverId != null && record.ReceiverId != "")
+                .Select(record => record.ReceiverId!).Distinct().ToListAsync();
+            clinicianCodes = await parsedScope.Where(record => record.Clinician != null && record.Clinician != "")
+                .Select(record => record.Clinician!).Distinct().ToListAsync();
+        }
 
-        var payerCodes = await parsedScope
-            .Where(r => r.PayerId != null && r.PayerId != "")
-            .Select(r => r.PayerId!).Distinct().ToListAsync();
-        var receiverCodes = await parsedScope
-            .Where(r => r.ReceiverId != null && r.ReceiverId != "")
-            .Select(r => r.ReceiverId!).Distinct().ToListAsync();
-        var clinicianCodes = await parsedScope
-            .Where(r => r.Clinician != null && r.Clinician != "")
-            .Select(r => r.Clinician!).Distinct().ToListAsync();
+        var payersQuery = _context.Payers.Where(item => item.IsActive);
+        var receiversQuery = _context.Receivers.Where(item => item.IsActive);
+        var cliniciansQuery = _context.Clinicians.Where(item => item.IsActive);
+        if (payerCodes != null) payersQuery = payersQuery.Where(item => payerCodes.Contains(item.Name));
+        if (receiverCodes != null) receiversQuery = receiversQuery.Where(item => receiverCodes.Contains(item.Name));
+        if (clinicianCodes != null) cliniciansQuery = cliniciansQuery.Where(item => clinicianCodes.Contains(item.Name));
 
         return new ReportSchedulerViewModel
         {
@@ -71,15 +83,9 @@ public class ReportSchedulerController : Controller
             ReportTitle = reportTitle,
             SearchCriteria = "EncounterStartDate",
             Facilities = new SelectList(await facilitiesQuery.ToListAsync(), "Id", "Name"),
-            Payers    = new SelectList(await _context.Payers
-                .Where(p => p.IsActive && payerCodes.Contains(p.Name))
-                .OrderBy(p => p.Name).ToListAsync(), "Id", "Name"),
-            Receivers = new SelectList(await _context.Receivers
-                .Where(r => r.IsActive && receiverCodes.Contains(r.Name))
-                .OrderBy(r => r.Name).ToListAsync(), "Id", "Name"),
-            Clinicians = new SelectList(await _context.Clinicians
-                .Where(c => c.IsActive && clinicianCodes.Contains(c.Name))
-                .OrderBy(c => c.Name).ToListAsync(), "Id", "Name"),
+            Payers = new SelectList(await payersQuery.OrderBy(item => item.Name).ToListAsync(), "Id", "Name"),
+            Receivers = new SelectList(await receiversQuery.OrderBy(item => item.Name).ToListAsync(), "Id", "Name"),
+            Clinicians = new SelectList(await cliniciansQuery.OrderBy(item => item.Name).ToListAsync(), "Id", "Name"),
             Departments = new SelectList(await _context.Departments.Where(d => d.IsActive).ToListAsync(), "Id", "Name"),
             RecentReports = reports,
             TotalReports = total,
