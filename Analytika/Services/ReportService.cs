@@ -897,6 +897,18 @@ public class ReportService : IReportService
             if (index % 2 == 1) worksheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#F7FCFA");
         }
 
+        if (flags.Count == 0)
+        {
+            var emptyCell = worksheet.Cell(headerRow + 1, 1);
+            emptyCell.Value = "No audit flags were detected for the selected filters and date range.";
+            emptyCell.Style.Font.Italic = true;
+            emptyCell.Style.Font.FontColor = XLColor.FromHtml("#40566F");
+            emptyCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            emptyCell.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            worksheet.Range(headerRow + 1, 1, headerRow + 1, headers.Length).Merge();
+            worksheet.Row(headerRow + 1).Height = 28;
+        }
+
         var lastRow = headerRow + Math.Max(0, flags.Count);
         worksheet.Range(headerRow, 1, lastRow, headers.Length).SetAutoFilter();
         worksheet.SheetView.FreezeRows(headerRow);
