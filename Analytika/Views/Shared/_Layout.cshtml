@@ -47,20 +47,8 @@
         }
 
         <!-- Brand -->
-        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction">
-            <svg class="brand-icon-sm" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="22" cy="22" r="20" stroke="#66B2B2" stroke-width="2.5"/>
-                <rect x="10"   y="29" width="5" height="8"  rx="1" fill="#003B4D"/>
-                <rect x="16.5" y="24" width="5" height="13" rx="1" fill="#006884"/>
-                <rect x="23"   y="19" width="5" height="18" rx="1" fill="#008B8B"/>
-                <rect x="29.5" y="14" width="4" height="23" rx="1" fill="#C6E2E9"/>
-                <polyline points="12.5,27 19,21 25.5,16 32,10" stroke="#003B4D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <polygon points="35,7 31,9 33.5,13" fill="#003B4D"/>
-            </svg>
-            <div class="brand-name-wrap">
-                <span class="brand-text">Bi<span class="brand-x" aria-hidden="true">x</span><span class="visually-hidden">x</span></span>
-                <span class="brand-sub">Business Intelligence</span>
-            </div>
+        <a class="analytika-brand navbar-brand me-0" asp-controller="Home" asp-action="@brandAction" aria-label="Ghaf home">
+            <img class="brand-icon-sm" src="~/images/brand/ghaf-emblem-centred.png" alt="" />
         </a>
 
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
