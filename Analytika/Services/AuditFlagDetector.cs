@@ -135,32 +135,42 @@ public static partial class AuditFlagDetector
             {
                 var current = ordered[i];
                 var days = (int)(current.Date!.Value.Date - initial.Date!.Value.Date).TotalDays;
-                if (days > 14)
+                if (days > 28)
                 {
                     initial = current;
                     continue;
                 }
 
-                if (days is >= 1 and <= 7
-                    && current.Diagnosis.Equals(initial.Diagnosis, StringComparison.OrdinalIgnoreCase))
-                    Add(current, "NC-CONSULT-007", "DSL 9 repeat within 7 days",
-                        current.Diagnosis == "DIAGNOSIS-NOT-AVAILABLE" ? "Review" : "Medium",
-                        $"A billed consultation repeats {days} day(s) after the initial consultation for the same member, facility and practitioner; the first seven follow-up days are the free follow-up period.",
-                        NextcareConsultationSource, initial.Row.ClaimId);
-
-                if (days is < 8 or > 14) continue;
                 var sameDiagnosis = current.Diagnosis.Equals(initial.Diagnosis, StringComparison.OrdinalIgnoreCase);
+                if (days is >= 1 and <= 7)
+                {
+                    if (!sameDiagnosis && IsFreeFollowUp(current.Code))
+                        Add(current, "NC-CONSULT-007-DX", "Free follow-up diagnosis mismatch", "High",
+                            $"Code {current.Code} was used during the seven-day free follow-up window, but the diagnosis differs from the initial consultation.",
+                            NextcareConsultationSource, initial.Row.ClaimId);
+                    else if (sameDiagnosis && !IsFreeFollowUp(current.Code))
+                        Add(current, "NC-CONSULT-007-CODE", "Free follow-up code mismatch", "Medium",
+                            $"This same-diagnosis visit occurred {days} day(s) after the initial consultation; the free follow-up window uses code 9.01 or 10.01.",
+                            NextcareConsultationSource, initial.Row.ClaimId);
+                    else if (sameDiagnosis && IsFreeFollowUp(current.Code) && current.Row.Net > 0.01m)
+                        Add(current, "NC-CONSULT-007-PRICE", "Free follow-up was charged", "High",
+                            $"Code {current.Code} is a free follow-up within seven days, but a net charge of {current.Row.Net:0.00} was submitted.",
+                            NextcareConsultationSource, initial.Row.ClaimId);
+                    continue;
+                }
+
+                if (days is < 8 or > 28) continue;
                 var halfPriceCode = IsHalfPriceFollowUp(current.Code);
                 if (!sameDiagnosis && halfPriceCode)
-                    Add(current, "NC-CONSULT-014-DX", "Half-price follow-up diagnosis mismatch", "High",
+                    Add(current, "NC-CONSULT-028-DX", "Half-price follow-up diagnosis mismatch", "High",
                         $"Code {current.Code} was billed {days} days after the initial consultation, but the diagnosis differs; half-price follow-up is permitted only when the diagnosis remains the same.",
                         NextcareConsultationSource, initial.Row.ClaimId);
                 else if (sameDiagnosis && !halfPriceCode)
-                    Add(current, "NC-CONSULT-014-CODE", "Paid follow-up code mismatch", "Medium",
-                        $"This same-diagnosis consultation occurred {days} days after the initial consultation; the paid follow-up period permits codes 9.02 or 10.02.",
+                    Add(current, "NC-CONSULT-028-CODE", "Paid follow-up code mismatch", "Medium",
+                        $"This same-diagnosis consultation occurred {days} days after the initial consultation; weeks 2 through 4 permit codes 9.02, 10.02 or 11.02.",
                         NextcareConsultationSource, initial.Row.ClaimId);
                 else if (sameDiagnosis && halfPriceCode && initial.Row.Net > 0m && current.Row.Net > initial.Row.Net / 2m + 0.01m)
-                    Add(current, "NC-CONSULT-014-PRICE", "Paid follow-up exceeds half price", "High",
+                    Add(current, "NC-CONSULT-028-PRICE", "Paid follow-up exceeds half price", "High",
                         $"The follow-up charge ({current.Row.Net:0.00}) exceeds 50% of the initial consultation charge ({initial.Row.Net:0.00}).",
                         NextcareConsultationSource, initial.Row.ClaimId);
             }
@@ -208,7 +218,8 @@ public static partial class AuditFlagDetector
             || Path.GetFileName(row.FileName).StartsWith("RES-", StringComparison.OrdinalIgnoreCase);
     private static string Key(string? value) => (value ?? "").Trim().ToUpperInvariant();
     private static bool IsDsl9(string code) => Dsl9Regex().IsMatch(code);
-    private static bool IsHalfPriceFollowUp(string code) => code is "9.02" or "10.02";
+    private static bool IsFreeFollowUp(string code) => code is "9.01" or "10.01";
+    private static bool IsHalfPriceFollowUp(string code) => code is "9.02" or "10.02" or "11.02";
     private static bool IsConsultationCode(string code) => DslConsultationRegex().IsMatch(code);
     private static bool IsDsl9To11(string code) => DslConsultationRegex().IsMatch(code);
     private static string NormalizeCode(string? code) => Regex.Replace((code ?? "").Trim().ToUpperInvariant(), "^DSL\\s*", "").Replace(" ", "");

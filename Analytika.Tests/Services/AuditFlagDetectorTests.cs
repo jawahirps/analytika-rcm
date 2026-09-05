@@ -7,14 +7,14 @@ namespace Analytika.Tests.Services;
 public class AuditFlagDetectorTests
 {
     [Fact]
-    public void Dsl9Repeat_OnSeventhCalendarDay_IsFlagged()
+    public void ChargedFreeFollowUp_OnSeventhCalendarDay_IsFlagged()
     {
         var flags = AuditFlagDetector.Detect([
             Row("C1", "01/09/2026", "9.01"),
             Row("C2", "07/09/2026", "DSL 9.01")
         ]);
 
-        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007" && flag.RelatedClaimId == "C1");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007-PRICE" && flag.RelatedClaimId == "C1");
     }
 
     [Fact]
@@ -25,7 +25,18 @@ public class AuditFlagDetectorTests
             Row("C2", "08/09/2026", "9.01")
         ]);
 
-        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007-PRICE");
+    }
+
+    [Fact]
+    public void SameDiagnosis_FreeFollowUpCodeWithZeroCharge_IsAllowed()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/09/2026", "9", net: 100),
+            Row("C2", "06/09/2026", "9.01", net: 0)
+        ]);
+
+        flags.Should().NotContain(flag => flag.RuleId.StartsWith("NC-CONSULT-007"));
     }
 
     [Fact]
@@ -36,7 +47,7 @@ public class AuditFlagDetectorTests
             Row("C2", "09/09/2026", "9.02", net: 50)
         ]);
 
-        flags.Should().NotContain(flag => flag.RuleId.StartsWith("NC-CONSULT-014"));
+        flags.Should().NotContain(flag => flag.RuleId.StartsWith("NC-CONSULT-028"));
     }
 
     [Fact]
@@ -47,7 +58,7 @@ public class AuditFlagDetectorTests
             Row("C2", "12/09/2026", "10.02", net: 60)
         ]);
 
-        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-014-PRICE");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-028-PRICE");
     }
 
     [Fact]
@@ -58,7 +69,18 @@ public class AuditFlagDetectorTests
             Row("C2", "10/09/2026", "9.02", diagnosis: "M54", net: 50)
         ]);
 
-        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-014-DX");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-028-DX");
+    }
+
+    [Fact]
+    public void ConsultantRepeat_InWeekFour_AllowsCodeElevenPointZeroTwoAtHalfPrice()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/09/2026", "11", net: 200),
+            Row("C2", "27/09/2026", "11.02", net: 100)
+        ]);
+
+        flags.Should().NotContain(flag => flag.RuleId.StartsWith("NC-CONSULT-028"));
     }
 
     [Fact]
@@ -125,7 +147,7 @@ public class AuditFlagDetectorTests
     }
 
     [Fact]
-    public void DifferentMemberOrCondition_DoesNotCreateSevenDayFlag()
+    public void FreeFollowUpCode_WithDifferentCondition_IsFlaggedButDifferentMemberIsNotCrossMatched()
     {
         var flags = AuditFlagDetector.Detect([
             Row("C1", "01/09/2026", "9.01", member: "M1", diagnosis: "J01"),
@@ -133,7 +155,8 @@ public class AuditFlagDetectorTests
             Row("C3", "04/09/2026", "9.01", member: "M1", diagnosis: "M54")
         ]);
 
-        flags.Should().NotContain(flag => flag.RuleId == "NC-CONSULT-007");
+        flags.Should().ContainSingle(flag => flag.RuleId == "NC-CONSULT-007-DX" && flag.ClaimId == "C3");
+        flags.Should().NotContain(flag => flag.ClaimId == "C2" && flag.RuleId.StartsWith("NC-CONSULT-007"));
     }
 
     [Fact]
