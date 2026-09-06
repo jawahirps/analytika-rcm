@@ -335,10 +335,20 @@ public class ReportService : IReportService
             var payerLookup = await LoadPayerLookupAsync();
 
             // ── Load parsed outbound claim submissions ─────────────────
-            UpdateStage("Querying parsed submissions", 25, 0, 0, "Query: XmlParsedRecords where RecordKind = Submission and ReadyForReport = true.");
+            var isAuditFlagsReport = report.ReportType.Equals("AuditFlags", StringComparison.OrdinalIgnoreCase);
+            UpdateStage("Querying parsed submissions", 25, 0, 0, isAuditFlagsReport
+                ? "Query: initial XmlParsedRecords submissions only; resubmissions and remittances are excluded."
+                : "Query: XmlParsedRecords where RecordKind = Submission and ReadyForReport = true.");
             var parsedClaimQuery = _context.XmlParsedRecords
                 .AsNoTracking()
                 .Where(r => r.ReadyForReport && r.RecordKind == "Submission");
+
+            if (isAuditFlagsReport)
+            {
+                parsedClaimQuery = parsedClaimQuery.Where(r =>
+                    (r.ResubmissionType == null || r.ResubmissionType == "") &&
+                    (r.FileName == null || !r.FileName.StartsWith("RES-")));
+            }
 
             if (facilityIds.Count > 0)
                 parsedClaimQuery = parsedClaimQuery.Where(r => facilityIds.Contains(r.FacilityId));
@@ -364,7 +374,7 @@ public class ReportService : IReportService
                 .ToListAsync();
             UpdateStage("Loading parsed submissions", 35, parsedSubmissions.Count, parsedSubmissions.Count, $"Loaded {parsedSubmissions.Count:N0} parsed submission claim row(s).");
 
-            if (report.ReportType.Equals("AuditFlags", StringComparison.OrdinalIgnoreCase))
+            if (isAuditFlagsReport)
             {
                 await GenerateAuditFlagsReportAsync(
                     report, parsedSubmissions, facilityIds, receiverIds, payerIds, clinicianIds,

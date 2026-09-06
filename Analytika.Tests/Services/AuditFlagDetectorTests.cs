@@ -106,6 +106,16 @@ public class AuditFlagDetectorTests
     }
 
     [Fact]
+    public void Resubmission_IsExcludedFromEveryAuditRule()
+    {
+        var flags = AuditFlagDetector.Detect([
+            Row("C1", "01/01/2026", "10", encounter: "Emergency", activityStart: "", fileName: "RES-C1.xml", resubmissionType: "internal complaint")
+        ]);
+
+        flags.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ExactDuplicateService_StillComparesTwoOriginalSubmissions()
     {
         var flags = AuditFlagDetector.Detect([

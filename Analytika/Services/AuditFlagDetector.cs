@@ -65,6 +65,7 @@ public static partial class AuditFlagDetector
     public static IReadOnlyList<AuditFlag> Detect(IEnumerable<AuditClaimActivity> source)
     {
         var rows = source
+            .Where(row => !IsResubmission(row))
             .Select(row => new Candidate(row, TryParseDate(row.TreatmentDate), NormalizeCode(row.ActivityCode), DiagnosisKey(row)))
             .Where(row => row.Date.HasValue && !string.IsNullOrWhiteSpace(row.Code))
             .OrderBy(row => row.Date)
@@ -80,7 +81,7 @@ public static partial class AuditFlagDetector
             flags.Add(ToFlag(candidate, ruleId, type, severity, reason, sourceUrl, relatedClaim));
         }
 
-        var originalSubmissionRows = rows.Where(x => !IsResubmission(x.Row)).ToList();
+        var originalSubmissionRows = rows;
 
         foreach (var group in originalSubmissionRows.Where(x => !string.IsNullOrWhiteSpace(IdentityKey(x.Row))).GroupBy(x => new
                  {
