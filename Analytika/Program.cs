@@ -4,6 +4,7 @@ using Analytika.Services;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -23,9 +24,10 @@ builder.Host.UseWindowsService();
 var isDesktop = Environment.GetEnvironmentVariable("BIX_DESKTOP") == "1"
     || args.Contains("--desktop");
 var isReportWorker = args.Contains("--report-worker", StringComparer.OrdinalIgnoreCase);
-if (isDesktop && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DB_DIR")))
+var isDemo = Environment.GetEnvironmentVariable("BIX_DEMO") == "1";
+if ((isDesktop || isDemo) && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DB_DIR")))
     Environment.SetEnvironmentVariable("DB_DIR",
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bix"));
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), isDemo ? "BixDemo" : "Bix"));
 
 // Serilog: reads sinks/levels from the "Serilog" section of appsettings.
 builder.Services.AddSerilog((services, config) => config
@@ -102,6 +104,11 @@ if (isDesktop
     && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
     builder.WebHost.UseUrls("http://localhost:5097");
 
+// Demo mode is deliberately loopback-only. It uses an isolated seeded database
+// and automatic authentication, and can never expose the bypass on the network.
+if (isDemo)
+    builder.WebHost.UseUrls("http://127.0.0.1:5098");
+
 var app = builder.Build();
 
 // Desktop app mode: open the default browser once the server is ready.
@@ -144,6 +151,32 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
+if (isDemo)
+{
+    app.Use(async (context, next) =>
+    {
+        if (context.User.Identity?.IsAuthenticated != true &&
+            context.Connection.LocalIpAddress != null &&
+            System.Net.IPAddress.IsLoopback(context.Connection.LocalIpAddress))
+        {
+            var userManager = context.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
+            var signInManager = context.RequestServices.GetRequiredService<SignInManager<ApplicationUser>>();
+            var demoEmail = app.Configuration["Demo:UserEmail"] ?? "admin@ghafbi.ae";
+            var demoUser = await userManager.FindByEmailAsync(demoEmail);
+            if (demoUser?.IsActive == true)
+            {
+                var principal = await signInManager.CreateUserPrincipalAsync(demoUser);
+                context.User = principal;
+                await context.SignInAsync(
+                    IdentityConstants.ApplicationScheme,
+                    principal,
+                    new AuthenticationProperties { IsPersistent = true });
+            }
+        }
+
+        await next();
+    });
+}
 app.Use(async (context, next) =>
 {
     context.Response.OnStarting(() =>
