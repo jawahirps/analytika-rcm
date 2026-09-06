@@ -128,7 +128,15 @@ public class ReportService : IReportService
             facilityName,
             selectedDateRange ?? BuildDateRangeLabel(request.DateFrom, request.DateTo));
 
-        if (_configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false))
+        var externalWorkerEnabled = _configuration.GetValue("Reports:ExternalWorkerEnabled", false);
+        var externalReportTypes = _configuration.GetSection("Reports:ExternalWorkerReportTypes").Get<string[]>() ?? [];
+        var useExternalWorker = externalWorkerEnabled && externalReportTypes.Contains(request.ReportType, StringComparer.OrdinalIgnoreCase);
+
+        if (useExternalWorker)
+        {
+            _logger.LogInformation("Queued report {ReportId} for the external report worker.", request.ReportId);
+        }
+        else if (_configuration.GetValue("BackgroundJobs:HangfireServerEnabled", false))
         {
             BackgroundJob.Enqueue<IReportService>(s => s.GenerateReportAsync(request.Id));
         }

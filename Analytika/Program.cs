@@ -22,6 +22,7 @@ builder.Host.UseWindowsService();
 // writable folder before anything reads it below.
 var isDesktop = Environment.GetEnvironmentVariable("BIX_DESKTOP") == "1"
     || args.Contains("--desktop");
+var isReportWorker = args.Contains("--report-worker", StringComparer.OrdinalIgnoreCase);
 if (isDesktop && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DB_DIR")))
     Environment.SetEnvironmentVariable("DB_DIR",
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Bix"));
@@ -383,6 +384,18 @@ if (app.Configuration.GetValue("StartupMaintenance:RunDatabaseSetupOnStartup", f
     var guestPwd = app.Configuration["Security:GuestPassword"];
     if (string.IsNullOrEmpty(guestPwd))
         app.Logger.LogWarning("Security:GuestPassword is not configured — guest provisioning will use a default password.");
+}
+
+if (isReportWorker)
+{
+    using var shutdown = new CancellationTokenSource();
+    Console.CancelKeyPress += (_, eventArgs) =>
+    {
+        eventArgs.Cancel = true;
+        shutdown.Cancel();
+    };
+    await ExternalReportWorker.RunAsync(app.Services, app.Configuration, app.Logger, shutdown.Token);
+    return;
 }
 
 // Pre-warm dashboard facility status so the first user lands on hot data.

@@ -11,11 +11,16 @@ public sealed class PendingReportRecoveryService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PendingReportRecoveryService> _logger;
+    private readonly HashSet<string> _externalReportTypes;
 
-    public PendingReportRecoveryService(IServiceScopeFactory scopeFactory, ILogger<PendingReportRecoveryService> logger)
+    public PendingReportRecoveryService(IServiceScopeFactory scopeFactory, ILogger<PendingReportRecoveryService> logger, IConfiguration configuration)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _externalReportTypes = configuration.GetValue("Reports:ExternalWorkerEnabled", false)
+            ? (configuration.GetSection("Reports:ExternalWorkerReportTypes").Get<string[]>() ?? [])
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : [];
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -30,6 +35,7 @@ public sealed class PendingReportRecoveryService : BackgroundService
             .Where(report => report.RequestedAt >= cutoff)
             .Where(report => report.FilePath == null)
             .Where(report => report.Status == "Pending" || report.Status == "Processing")
+            .Where(report => !_externalReportTypes.Contains(report.ReportType))
             .OrderBy(report => report.RequestedAt)
             .Select(report => report.Id)
             .Take(100)
