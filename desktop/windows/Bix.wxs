@@ -4,7 +4,7 @@
   Built in CI by .github/workflows/desktop-release.yml:
     wix build desktop/windows/Bix.wxs -arch x64 -d PublishDir=publish-win -d Version=1.0.0 -o Bix-win-x64.msi
   The published folder ($(var.PublishDir)) is a self-contained win-x64 build of Analytika.
-  The Start-menu shortcut launches the app in desktop mode (--desktop): it starts the
+  The Start-menu shortcut launches the app in desktop mode: it starts the
   local web server on http://localhost:5097 and opens the default browser.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
@@ -33,7 +33,7 @@
     </ComponentGroup>
 
     <!-- Start-menu shortcut → launches the desktop app -->
-    <Component Id="AppShortcut" Directory="AppShortcutFolder" Guid="b1c0ffee-0000-4a00-9000-bixdesktop0002">
+    <Component Id="AppShortcut" Directory="AppShortcutFolder" Guid="b1c0ffee-0000-4a00-9000-b1de5c000002">
       <Shortcut Id="BixStartMenuShortcut"
                 Name="Bix"
                 Description="Bix — Business Intelligence"
